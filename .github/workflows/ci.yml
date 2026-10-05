@@ -4,10 +4,19 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
+
+# a newer push to the same branch or PR replaces the run still waiting or going,
+# so stale runs don't sit in the queue ahead of the ones that matter
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    # a full run takes about 6 minutes; a hung smoke test shouldn't hold the runner for hours
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,6 +29,7 @@ jobs:
         run: npm test
       - name: Smoke test (plays the game in headless Chromium)
         run: npm run test:smoke
+        timeout-minutes: 12
         env:
           SMOKE_SHOTS: smoke-shots
       - if: always()
