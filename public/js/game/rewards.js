@@ -5,7 +5,7 @@ import { WANTED, mixPick } from '../data/wanted.js';
 import { spawnNpc } from '../npcs/npc.js';
 import { toast } from '../ui/hud.js';
 import { isFree } from '../world/collision.js';
-import { dropCash } from './pickups.js';
+import { dropCash, dropItem } from './pickups.js';
 import { addHeat } from './wanted.js';
 
 // ================= REWARDS =================
@@ -21,6 +21,7 @@ on('npc:killed', ({ npc, byPlayer, vehicle }) => {
   stats.kills++; if (npc.faction === 'law') stats.cops++;
   addHeat(def.heat || 0);
   const cash = cashOf(def.cash); if (cash > 0) dropCash(npc.x, npc.z, cash);
+  for (const [type, chance] of Object.entries(def.drops || {})) if (Math.random() < chance) dropItem(type, npc.x + rnd(-1.2, 1.2), npc.z + rnd(-1.2, 1.2));
 });
 
 on('vehicle:wrecked', ({ vehicle, byPlayer }) => {

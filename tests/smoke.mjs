@@ -116,6 +116,34 @@ try {
     check(r.wanted > 0, 'no heat was added');
   });
 
+  await step('a downed juggernaut drops armor and ammo the player can pick up', async () => {
+    for (let i = 0; i < 12; i++) {
+      const done = await game(() => {
+        const { P, cam, I, inv, spawnNpc } = __neonbay;
+        let n = window.__jugg;
+        if (!n || n.removed) {
+          cam.pitch = -0.1;
+          const rx = -Math.cos(cam.yaw) * 0.55, rz = Math.sin(cam.yaw) * 0.55;
+          n = window.__jugg = spawnNpc('jugg', P.x + rx + Math.sin(cam.yaw) * 5, P.z + rz + Math.cos(cam.yaw) * 5);
+          n.update = function () { this.place && this.place(); }; // stand still, hold fire
+          n.hp = 1; P.armor = 0; inv.owned.smg = true; inv.ammo.smg = 0;
+        }
+        if (!n.alive) return true;
+        P.yaw = cam.yaw; I.clickQ = 0.3; return false;
+      });
+      if (done) break;
+      await until(() => __neonbay.I.clickQ === 0, undefined, 3000);
+      await page.waitForTimeout(300);
+    }
+    const types = await game(() => __neonbay.all('pickup').filter(p => p.def && p.life).map(p => p.type).sort());
+    check(types.includes('armor') && types.includes('ammo'), `expected armor and ammo drops, got ${types.join(', ') || 'none'}`);
+    await game(() => { const { P, all } = __neonbay, d = all('pickup').find(p => p.type === 'armor' && p.life); P.x = d.x; P.z = d.z; });
+    check(await until(() => __neonbay.P.armor >= 25), 'armor drop was not picked up');
+    await game(() => { const { P, all } = __neonbay, d = all('pickup').find(p => p.type === 'ammo' && p.life); P.x = d.x; P.z = d.z; });
+    check(await until(() => __neonbay.inv.ammo.smg > 0), 'ammo drop was not picked up');
+    await game(() => { const { inv, G } = __neonbay; delete inv.owned.smg; delete inv.ammo.smg; G.heat = 0; G.wanted = 0; });
+  });
+
   await step('shoots a driver through the window and takes the car', async () => {
     const before = await game(() => __neonbay.stats.kills);
     for (let i = 0; i < 16; i++) {

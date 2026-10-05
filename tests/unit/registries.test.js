@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { BEHAVIOURS } from '../../public/js/npcs/behaviours.js';
 import { NPC_TYPES } from '../../public/js/npcs/types.js';
+import { DROP_TYPES } from '../../public/js/game/pickups.js';
 import { ITEM_TYPES } from '../../public/js/shops/items.js';
 import { SHOP_TYPES } from '../../public/js/shops/types.js';
 import { WANTED } from '../../public/js/data/wanted.js';
@@ -33,6 +34,13 @@ describe('NPC types', () => {
     expect(t.hp).toBeGreaterThan(0);
     expect(t.despawn).toBeGreaterThan(0);
     if (t.gun) expect(WBY[t.gun], `gun ${t.gun}`).toBeDefined();
+    for (const [type, chance] of Object.entries(t.drops || {})) {
+      expect(DROP_TYPES[type], `drop ${type}`).toBeDefined();
+      expect(chance).toBeGreaterThan(0); expect(chance).toBeLessThanOrEqual(1);
+    }
+  });
+  it('every law type drops armor and ammo', () => {
+    for (const [id, t] of Object.entries(NPC_TYPES)) if (t.faction === 'law') expect(Object.keys(t.drops || {}).sort(), id).toEqual(['ammo', 'armor']);
   });
   it('wanted levels only send law NPCs that exist', () => {
     for (const L of WANTED.slice(1)) for (const [type] of L.mix) expect(NPC_TYPES[type] && NPC_TYPES[type].faction, type).toBe('law');
