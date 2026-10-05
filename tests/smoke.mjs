@@ -172,7 +172,7 @@ try {
       const { P, G, inv, all } = __neonbay, s = all('shop')[0];
       G.wanted = 0; G.heat = 0; inv.money = 5000; P.armor = 0; P.x = s.x; P.z = s.z;
     });
-    check(await until(() => __neonbay.G.near.some(i => i.keys.includes('KeyE'))), 'no shop prompt');
+    check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes('to shop at')), 'no shop prompt'); // not a parked car's E
     await press('KeyE');
     check(await until(() => __neonbay.G.state === 'shop' && !document.getElementById('shop').hidden), 'E did not open the shop');
     await page.click('#shopGrid .card:has-text("armor") button[data-a="buy"], #shopGrid .card:has-text("Armor") button[data-a="buy"]');
