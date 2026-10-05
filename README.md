@@ -62,6 +62,8 @@ Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share 
 
 **A new shop.** Add an entry to `SHOP_TYPES` in `shops/types.js` (name, marker, storefront, catalogue) and place it in `SHOP_SITES` in `world/city.js`. New kinds of goods are an entry in `ITEM_TYPES` in `shops/items.js` with `render` and `act`.
 
+**A new landmark.** Add a builder to `LANDMARK_TYPES` in `world/landmarks.js` (it draws in block-local metres with the front facing north) and place it in `LANDMARK_SITES` with the block it takes and the street it faces. The three Flemish government buildings there (VAC Gent, the Herman Teirlinck and the Belpaire building) are worked examples.
+
 **A new setting.** Add a row to `SETTINGS` in `core/settings.js` (a toggle, range or choice, on the Sound, Graphics or Gameplay tab), then read `settings.<id>` where it matters or apply it in `apply()` in `ui/settings.js`. The Settings screen, saving and validation pick it up on their own.
 
 **Saves.** When the save shape changes, bump `SAVE_VERSION` in `core/save.js` and add a migration from the previous version.
