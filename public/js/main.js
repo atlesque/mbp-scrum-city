@@ -2,9 +2,11 @@ import './three.js'; // first, so every module below sees the THREE global
 import './core/input.js';
 import './shops/shop.js';
 import './game/rewards.js';
+import './ui/settings.js';
 import { makeCharacter, setGun } from './characters/character.js';
 import { selectWeapon, updateRockets } from './combat/combat.js';
 import { load, save, serialize } from './core/save.js';
+import { settings } from './core/settings.js';
 import { G, I, P, cam, inv, stats } from './core/state.js';
 import { $ } from './core/util.js';
 import { WEAPONS, wStat } from './data/weapons.js';
@@ -23,6 +25,7 @@ import { updateEngineSound } from './vehicles/engine.js';
 import { spawnTrafficBike, spawnTrafficCar } from './vehicles/traffic.js';
 import { spawnVehicle } from './vehicles/vehicle.js';
 import { armorSpots, buildWorld, healthSpots, lotSpots, shopSpots, waterBase, waterMesh } from './world/city.js';
+import { updateEdges } from './world/edges.js';
 import { buildMap, drawRadar } from './world/radar.js';
 
 // ================= MAIN LOOP =================
@@ -44,9 +47,12 @@ function frame(now) {
     if (G.state !== 'title') updateWanted(dt);
     managePopulation(dt);
     // water swell
-    const pos = waterMesh.geometry.attributes.position, arr = pos.array;
-    for (let i = 0; i < arr.length; i += 3) { const x = waterBase[i], z = waterBase[i + 2]; arr[i + 1] = 0.1 + Math.sin(x * 0.11 + G.time * 1.3) * 0.28 + Math.cos(z * 0.09 + G.time * 0.9) * 0.22; }
-    pos.needsUpdate = true; waterMesh.geometry.computeVertexNormals();
+    if (settings.water) {
+      const pos = waterMesh.geometry.attributes.position, arr = pos.array;
+      for (let i = 0; i < arr.length; i += 3) { const x = waterBase[i], z = waterBase[i + 2]; arr[i + 1] = 0.1 + Math.sin(x * 0.11 + G.time * 1.3) * 0.28 + Math.cos(z * 0.09 + G.time * 0.9) * 0.22; }
+      pos.needsUpdate = true; waterMesh.geometry.computeVertexNormals();
+    }
+    updateEdges(G.time);
   }
   if (G.state === 'title') {
     const t = G.time * 0.05;

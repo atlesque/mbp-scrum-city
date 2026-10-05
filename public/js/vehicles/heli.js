@@ -17,12 +17,22 @@ import { lightRed } from './materials.js';
 
 // ================= HELICOPTER =================
 // The 4+ star chopper: circles the player, sweeps a searchlight and fires minigun bursts.
+// It takes about 20 rifle hits or one direct rocket, smokes as it weakens and spins down when killed.
+export const HELI_HP = 700;
+// hit volumes in the chopper's own frame: the cabin, the tail boom and the rotor disc
+const BODY_R = 3, TAIL_BACK = 4.4, TAIL_R = 1.6, ROTOR_Y = 1, ROTOR_R = 4.5;
 const Heli = {
   kind: 'heli',
   blipLayer: 4,
   update(dt) {
     const h = this;
     h.rotor.rotation.y += dt * 30; h.rotor2.rotation.y = h.rotor.rotation.y;
+    // damage shows: grey smoke below 60%, thick black smoke and sparks below 30%
+    const hpF = h.hp / HELI_HP;
+    if (!h.falling && hpF < 0.6 && Math.random() < (hpF < 0.3 ? 0.9 : 0.4)) {
+      emit(h.x, h.y + 0.6, h.z, 1, hpF < 0.3 ? '#2a2430' : '#8a8490', 1.5, 1.6, 0.7, 1.5, 1);
+      if (hpF < 0.3 && Math.random() < 0.3) emit(h.x, h.y + 0.6, h.z, 1, '#ff8a3a', 2, 0.3, 0.25, 0, 1);
+    }
     if (h.falling) {
       h.vy -= 14 * dt; h.y += h.vy * dt; h.grp.rotation.y += dt * 5; h.grp.rotation.z += dt * 0.6;
       if (Math.random() < 0.8) emit(h.x, h.y, h.z, 1, '#3a3240', 2, 1.5, 0.8, 2, 1);
@@ -63,14 +73,22 @@ const Heli = {
     if (!blocked(h.x, h.y, h.z, P.x, P.y + 1, P.z) && dist < 80) G.seenNow = true;
   },
   raycast(o, d, maxT) {
-    if (this.falling) return null;
-    const t = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, this.x, this.y, this.z, 3); return t < maxT ? { t } : null;
+    const h = this; if (h.falling) return null;
+    let t = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, h.x, h.y, h.z, BODY_R);
+    const tx = h.x - Math.sin(h.yaw) * TAIL_BACK, tz = h.z - Math.cos(h.yaw) * TAIL_BACK;
+    t = Math.min(t, raySphere(o.x, o.y, o.z, d.x, d.y, d.z, tx, h.y + 0.3, tz, TAIL_R));
+    // the spinning blades read as a solid disc
+    if (Math.abs(d.y) > 1e-4) {
+      const tr = (h.y + ROTOR_Y - o.y) / d.y;
+      if (tr > 0 && Math.hypot(o.x + d.x * tr - h.x, o.z + d.z * tr - h.z) < ROTOR_R) t = Math.min(t, tr);
+    }
+    return t < maxT ? { t } : null;
   },
   onShot(hit, dmg) { this.damage(dmg); return { head: false }; },
   onRocket(dmg) { this.damage(dmg * 2); },
   blast(x, y, z, R, dmg) { if (Math.hypot(this.x - x, this.y - y, this.z - z) < R + 3) this.damage(dmg); },
   damage(dmg) {
-    const h = this; if (h.falling) return; h.hp -= dmg; emit(h.x, h.y, h.z, 3, '#ffd23e', 6, 0.3, 0.1);
+    const h = this; if (h.falling) return; h.hp -= dmg; emit(h.x, h.y, h.z, 4, '#ffd23e', 7, 0.3, 0.16);
     if (h.hp <= 0) { h.falling = true; h.vy = 0; h.beam.visible = false; reward(h.x, h.z, 2000, 'Chopper down'); addHeat(10); }
   },
   blip(radar) { radar.dot(this.x, this.z, radar.flash ? '#ffd23e' : '#ff3b4e', 11, true, 'sq'); },
@@ -89,7 +107,7 @@ export function spawnHeli() {
   const beam = new THREE.Mesh(new THREE.ConeGeometry(1.7, 1, 16, 1, true), new THREE.MeshBasicMaterial({ color: '#fff4c8', transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
   scene.add(beam);
   const a = rnd(0, 6.28);
-  const h = Object.assign(Object.create(Heli), { grp, rotor, rotor2, lr, beam, x: P.x + Math.cos(a) * 120, z: P.z + Math.sin(a) * 120, y: 34, hp: 1300, alive: true, ang: a, fireT: 3, burst: 0, burstT: 0, vy: 0, falling: false, yaw: 0 });
+  const h = Object.assign(Object.create(Heli), { grp, rotor, rotor2, lr, beam, x: P.x + Math.cos(a) * 120, z: P.z + Math.sin(a) * 120, y: 34, hp: HELI_HP, alive: true, ang: a, fireT: 3, burst: 0, burstT: 0, vy: 0, falling: false, yaw: 0 });
   grp.position.set(h.x, h.y, h.z); scene.add(grp);
   G.heli = addEntity(h);
   showBig('Chopper inbound');
