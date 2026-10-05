@@ -134,7 +134,7 @@ export function buildWorld() {
       box(plain, 28.6, 0.6, 27.6, cx, h + 0.3, (z0 + z1) / 2, '#5fd1c4'); box(plain, 28.4, 0.4, 27.4, cx, 3.4, (z0 + z1) / 2, '#5fd1c4');
       box(plain, 10, 0.25, 3, cx, 3.1, z0 - 1.4, '#ffffff'); box(neon, 10, 0.1, 0.1, cx, 3.0, z0 - 2.9, '#ff4455');
       signs.push({ cross: true, x: cx, y: 9.5, z: z0 - 0.3, ry: Math.PI, w: 4 });
-      signs.push({ text: 'Bay General', x: cx, y: 5.3, z: z0 - 0.3, ry: Math.PI, w: 10, color: '#5ff3ff', font: '"Bowlby One", Impact, sans-serif' });
+      signs.push({ text: 'City General', x: cx, y: 5.3, z: z0 - 0.3, ry: Math.PI, w: 10, color: '#5ff3ff', font: '"Bowlby One", Impact, sans-serif' });
       addCollider(x0, x1, z0, z1, h, true);
       SPAWN = { x: cx + 4, z: cz - 17.6, yaw: Math.PI / 2 };
       healthSpots.push([cx + 8, cz - 17.2]);

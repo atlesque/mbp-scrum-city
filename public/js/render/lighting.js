@@ -6,7 +6,7 @@ import { makeCanvas } from './textures.js';
 import { HORIZON, ambientLight, camera, hemiLight, scene, sky, sunLight } from './scene.js';
 
 // ================= LIGHTING =================
-// The bay drifts from sunset into night and back. As it darkens, street lamps and headlights come on,
+// The city drifts from sunset into night and back. As it darkens, street lamps and headlights come on,
 // more windows light up and the sky fills with stars.
 //
 // Every lamp and headlight gets a cheap additive glow on the ground; only the few nearest the camera

@@ -1,4 +1,4 @@
-# Neon Bay '86
+# MBP - Scrum City
 
 A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash, outrun the wanted level, and spend the money on better guns at Bullet Bros. Guns.
 
@@ -13,7 +13,7 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 - Two gun shops (pink `$` on the radar) sell an SMG, shotgun, assault rifle, minigun and rocket launcher, plus upgrades, ammo, health and armor. They close at 4+ stars.
 - Adventure bikes cruise the streets (white dots on the radar): the black BMW R 1300 GS 'Triple Black' and the Yamaha Ténéré 700 Rally in blue rally livery. Shoot or ram the rider off, walk up and press `F` to take the bike. Riderless bikes show as cyan squares.
 - Every car can be driven: 80s sedans and the white Tesla Model Y. Traffic cars have someone at the wheel. Shoot them through the glass, or walk up to a slow or stopped car and press `F` to drag them out (that's a crime). Parked cars are free to take. Cars crash into each other: drive into one and it skids off, dented and spinning if you hit it off-centre, and can knock into the next one along.
-- Dying sends you to Bay General with a 10% hospital bill. Progress saves in `localStorage`.
+- Dying sends you to City General with a 10% hospital bill. Progress saves in `localStorage`.
 - **Settings** (pause menu or title screen): sound on/off, effects and music volume, render quality, draw distance, animated waves, mouse sensitivity, invert look, field of view, camera shake, crowd and traffic density, km/h or mph, and a read-only list of the controls. Settings save in this browser, separately from game progress.
 
 ## Controls
