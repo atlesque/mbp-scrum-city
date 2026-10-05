@@ -71,13 +71,21 @@ function frame(now) {
 }
 
 // ================= BOOT =================
+// move the loading bar, then give the browser a moment to paint it before the next blocking chunk of work
+// (rAF stalls in background tabs, so a timeout backs it up)
+const loadStep = (p, label) => { window.loadingScreen?.step(p, label); return new Promise(r => { requestAnimationFrame(() => setTimeout(r, 0)); setTimeout(r, 60); }); };
 async function start(data) {
+  await loadStep(0.35, 'Tuning Neon FM');
   try { await Promise.race([Promise.all([document.fonts.load('80px "Yellowtail"'), document.fonts.load('80px "Bowlby One"')]), new Promise(r => setTimeout(r, 2500))]); } catch (e) {}
-  buildWorld(); buildMap(); load(data);
+  await loadStep(0.5, 'Pouring Ocean Drive');
+  buildWorld();
+  await loadStep(0.7, 'Planting the palm trees');
+  buildMap(); load(data);
   P.c = makeCharacter({ skin: '#eab48f', shirt: '#2fb8c9', pa: '#ff6fae', pb: '#f6f1e7', pants: '#f4f0e6', hair: '#3a2416', hairStyle: 'mullet', glasses: true, shoes: '#f6f1e7' });
   setGun(P.c, 'pistol'); scene.add(P.c.root);
   if (data && data.cur && inv.owned[data.cur]) selectWeapon(data.cur);
   for (const w of WEAPONS) if (inv.owned[w.id] && inv.mag[w.id] == null) inv.mag[w.id] = wStat(w, inv.lvl[w.id] || 0).mag;
+  await loadStep(0.8, 'Parking the cars');
   for (const s of healthSpots) makePickup('health', s[0], s[1]);
   for (const s of armorSpots) makePickup('armor', s[0], s[1]);
   for (const s of shopSpots) spawnShop(s.type, s.x, s.z);
@@ -85,10 +93,14 @@ async function start(data) {
   P.x = 230; P.z = -40;
   for (let i = 0; i < 26; i++) spawnTrafficCar(false);
   for (let i = 0; i < 4; i++) spawnTrafficBike();
+  await loadStep(0.9, 'Waking up the neighbourhood');
   for (let i = 0; i < 30; i++) { const s = findSpot(5, 80, false, false); if (s) spawnNpc('civilian', s.x, s.z); }
   G.state = 'title';
   const b = $('playBtn'); b.disabled = false; b.textContent = inv.money > 500 || stats.kills ? `Back to the bay ($${inv.money.toLocaleString()})` : 'Hit the streets';
   setInterval(() => { if (G.state === 'play') save(); }, 5000);
+  // hold on the full bar until the title camera has drawn the city once
+  await loadStep(1, 'Ready');
+  window.loadingScreen?.done();
 }
 try { window.claude && window.claude.hot && window.claude.hot.snapshot && window.claude.hot.snapshot(() => ({ inv: serialize(inv, stats), cur: inv.cur })); } catch (e) {}
 // ?debug exposes the game state to the console and to the smoke test

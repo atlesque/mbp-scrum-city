@@ -14,6 +14,7 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
+<link rel="preload" href="/img/loading.svg" as="image" type="image/svg+xml">
 
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Neon Bay '86">
@@ -206,6 +207,20 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 .sbtn.cy:hover:not([disabled]){background:rgba(62,240,255,.3)}
 .sbtn .p{color:var(--cash)}
 .shop-foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
+/* Loading screen: a full-bleed poster with the logo in a corner and a thin bar along the bottom, like an 80s crime-sim between missions */
+#loading{z-index:10;align-items:stretch;justify-content:stretch;padding:0;overflow:hidden;background:#140828;transition:opacity .6s}
+#loading.done{opacity:0;pointer-events:none}
+.ld-art{position:absolute;inset:-3%;background:#140828 url(/img/loading.svg) center/cover no-repeat;animation:ldPan 24s ease-in-out infinite alternate}
+@keyframes ldPan{from{transform:scale(1) translateX(0)}to{transform:scale(1.06) translateX(-1.5%)}}
+.ld-logo{position:absolute;left:clamp(16px,5vw,64px);top:clamp(16px,6vh,56px);font-family:var(--f-script);font-size:clamp(56px,9vw,120px);line-height:.9;color:var(--pink);margin:0;font-weight:400;text-shadow:0 0 16px rgba(255,79,163,.9),0 0 40px rgba(255,79,163,.5),4px 4px 0 #2a0b2c;transform:rotate(-6deg)}
+.ld-logo small{display:block;font-family:var(--f-hud);font-size:.32em;color:var(--cyan);letter-spacing:.2em;transform:translateX(30%);text-shadow:0 0 14px rgba(62,240,255,.8),3px 3px 0 #04252b;margin-top:6px}
+.ld-foot{position:absolute;left:0;right:0;bottom:0;padding:14px clamp(16px,5vw,64px) clamp(16px,4vh,32px);background:linear-gradient(180deg,rgba(20,8,40,0),rgba(20,8,40,.85) 45%);display:flex;flex-direction:column;gap:8px}
+.ld-row{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap}
+#ldText{font-family:var(--f-hud);font-size:18px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink)}
+#ldTip{font-size:14px;color:var(--dim);max-width:60ch;min-height:1.4em;transition:opacity .4s}
+.ld-bar{height:12px;background:rgba(0,0,0,.6);border:2px solid #000;box-shadow:0 0 0 2px var(--pink),0 0 18px rgba(255,79,163,.6);overflow:hidden}
+@media (max-aspect-ratio:1/1){.ld-art{background-position:74% center}}
+#ldFill{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--pink),var(--sun));transition:width .35s ease-out}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
@@ -301,9 +316,47 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
   <section id="wasted" class="overlay" hidden>
     <div class="panel"><h2>wasted</h2><p id="wastedInfo" class="outline"></p></div>
   </section>
+
+  <section id="loading" class="overlay" aria-label="Loading">
+    <div class="ld-art" role="img" aria-label="A man in aviators stands by a sports car on Ocean Drive at sunset"></div>
+    <p class="ld-logo" aria-hidden="true">Neon Bay<small>'86</small></p>
+    <div class="ld-foot">
+      <div class="ld-row"><span id="ldText" class="outline">Loading</span><span id="ldTip" class="outline"></span></div>
+      <div class="ld-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="ldBar"><b id="ldFill"></b></div>
+    </div>
+  </section>
 </div>
 
-<script>addEventListener('load', () => setTimeout(() => { if (!window.THREE) document.getElementById('playBtn').textContent = 'Could not load the 3D engine'; }, 8000));</script>
+<script>
+// The loading screen shows from the first paint. The bar creeps on its own while the 3D engine downloads,
+// then main.js reports real progress through loadingScreen.step() and hides it with loadingScreen.done().
+window.loadingScreen = (() => {
+  const $ = id => document.getElementById(id), tips = [
+    'Break line of sight to lose a star.',
+    'Press F next to any car or bike to take it. The driver may disagree.',
+    'Bullet Bros. Guns sells upgrades. Cash first, questions never.',
+    'Press M to change the radio station.',
+    'Armor beats a hospital bill. Look for the vests around town.',
+  ];
+  let shown = 0, real = 0, tip = Math.floor(Math.random() * tips.length);
+  const paint = () => { $('ldFill').style.width = (shown * 100).toFixed(1) + '%'; $('ldBar').setAttribute('aria-valuenow', Math.round(shown * 100)); };
+  const nextTip = () => { $('ldTip').textContent = tips[tip++ % tips.length]; };
+  nextTip();
+  const tipTimer = setInterval(nextTip, 4000);
+  const creep = setInterval(() => { if (!real && shown < 0.3) { shown += (0.3 - shown) * 0.08; paint(); } }, 120);
+  return {
+    step(p, label) { real = 1; shown = Math.max(shown, p); paint(); if (label) $('ldText').textContent = label; },
+    fail(msg) { clearInterval(creep); $('ldText').textContent = msg; },
+    done() {
+      clearInterval(creep); clearInterval(tipTimer); shown = 1; paint();
+      const el = $('loading'); el.classList.add('done');
+      setTimeout(() => { el.hidden = true; }, 650);
+    },
+  };
+})();
+</script>
+
+<script>addEventListener('load', () => setTimeout(() => { if (!window.THREE) { document.getElementById('playBtn').textContent = 'Could not load the 3D engine'; loadingScreen.fail('Could not load the 3D engine'); } }, 8000));</script>
 <script type="module" src="/js/main.js"></script>
 </body>
 </html>
