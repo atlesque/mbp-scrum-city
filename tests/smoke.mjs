@@ -48,6 +48,11 @@ const clearVehicles = (x, z, keep) => game(([x, z, keep]) => { for (const v of _
 
 try {
   await page.goto(`http://127.0.0.1:${server.address().port}/?debug`);
+  await step('shows the loading screen while it boots', async () => {
+    check(await page.isVisible('#loading'), 'loading screen is not showing');
+    await page.waitForSelector('#loading', { state: 'hidden', timeout: 60000 });
+    check(await game(() => document.getElementById('ldFill').style.width === '100%'), 'loading bar did not fill');
+  });
   await step('boots to the title screen', async () => {
     await page.waitForFunction(() => !document.getElementById('playBtn').disabled, null, { timeout: 60000 });
     check(await game(() => window.__neonbay.all('npc').length > 10), 'expected the streets to be populated');
