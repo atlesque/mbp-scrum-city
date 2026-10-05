@@ -9,6 +9,7 @@
 //   onShot(hit, dmg, dir)          a player bullet landed; returns { head } for the hit marker
 //   onRocket(dmg)                  a rocket struck it directly (the blast is handled separately)
 //   blast(x, y, z, R, dmg, byPlayer)  caught in an explosion centred at x, y, z
+//   fling(x, y, z, R)              thrown by that explosion, after every blast() has run
 //   pushOut(o, r, self)            push a moving circle {x, z} of radius r out of it; true on contact
 //   blip(radar), blipLayer         draw on the radar; higher layers draw on top
 //   interaction(player)            -> { keys, prompt, priority, dist, run } when the player can use it

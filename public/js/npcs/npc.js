@@ -9,6 +9,7 @@ import { bloodPool, emit } from '../render/effects.js';
 import { scene } from '../render/scene.js';
 import { collide, isFree, onRoad, raySphere } from '../world/collision.js';
 import { BEHAVIOURS } from './behaviours.js';
+import { airborne, blastLaunch, flyStep, launch, settleFlip } from './fling.js';
 import { NPC_TYPES, makeLook } from './types.js';
 
 // A person in the world. Shared behaviour lives on this prototype; what they do each frame comes
@@ -19,13 +20,17 @@ const Npc = {
   update(dt) {
     if (this.vehicle) return; // whatever they ride moves and poses them
     if (!this.alive) {
-      // a body thrown off a bike slides to a stop
-      if (this.svx || this.svz) { this.x += this.svx * dt; this.z += this.svz * dt; const k = Math.max(0, 1 - dt * 2.5); this.svx *= k; this.svz *= k; if (Math.abs(this.svx) + Math.abs(this.svz) < 0.2) this.svx = this.svz = 0; collide(this, 0.3); }
+      // a body thrown by a blast flies first; one thrown off a bike slides to a stop
+      if (airborne(this)) { flyStep(this, dt); collide(this, 0.3); }
+      else {
+        if (this.svx || this.svz) { this.x += this.svx * dt; this.z += this.svz * dt; const k = Math.max(0, 1 - dt * 2.5); this.svx *= k; this.svz *= k; if (Math.abs(this.svx) + Math.abs(this.svz) < 0.2) this.svx = this.svz = 0; collide(this, 0.3); }
+        settleFlip(this, dt);
+      }
       deathAnim(this, dt); this.place(); return;
     }
     BEHAVIOURS[this.behaviour].update(this, dt);
   },
-  place() { this.c.root.position.set(this.x, 0, this.z); this.c.root.rotation.y = this.yaw; },
+  place() { this.c.root.position.set(this.x, this.y || 0, this.z); this.c.root.rotation.set(this.flip || 0, this.yaw, 0, 'YXZ'); },
   raycast(o, d, maxT) {
     if (!this.alive || (this.vehicle && this.vehicle.K.enclosed)) return null; // inside a car, the car decides what a shot hits
     const s = this.def.scale || 1, yo = this.vehicle ? 0.15 : 0;
@@ -38,6 +43,11 @@ const Npc = {
   blast(x, y, z, R, dmg, byPlayer) {
     if (!this.alive) return; const d = Math.hypot(this.x - x, this.z - z); if (d >= R) return;
     this.hurt(dmg * (1 - d / R) + 30, new THREE.Vector3(this.x - x, 0, this.z - z).normalize().negate(), !!byPlayer);
+  },
+  // after a blast has done its damage, the dead within reach (old bodies and fresh ones) are thrown
+  fling(x, y, z, R) {
+    if (this.alive || this.vehicle) return;
+    const l = blastLaunch(this.x - x, this.z - z, R); if (l) launch(this, l);
   },
   hurt(dmg, dir, byPlayer) {
     if (!this.alive) return;

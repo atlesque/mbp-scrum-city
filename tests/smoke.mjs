@@ -250,6 +250,23 @@ try {
     await game(() => { __neonbay.removeEntity(__ram); __neonbay.removeEntity(__bike); });
   });
 
+  await step('a car explosion throws the dead, and whoever it kills, through the air', async () => {
+    await clearVehicles(5, -85);
+    const ok = await game(() => {
+      const { P, spawnVehicle, spawnNpc } = __neonbay; P.x = 5.5; P.z = -60;
+      const car = window.__boom = spawnVehicle('sedan', 3, -85, 0);
+      const body = window.__body = spawnNpc('civilian', 6, -85); body.kill(null, false);
+      const bystander = window.__bystander = spawnNpc('civilian', 1, -84); bystander.hp = 1;
+      [body, bystander].forEach(n => { n.peak = 0; const up = n.update; n.update = function (dt) { up.call(this, dt); this.peak = Math.max(this.peak, this.y || 0); }; });
+      car.explode();
+      return !bystander.alive;
+    });
+    check(ok, 'the blast did not kill the bystander');
+    check(await until(() => __body.peak > 1 && __bystander.peak > 1), 'the bodies were not thrown into the air');
+    check(await until(() => !__body.y && !__bystander.y), 'the bodies did not come back down');
+    await game(() => { __neonbay.removeEntity(__boom); __neonbay.removeEntity(__body); __neonbay.removeEntity(__bystander); });
+  });
+
   await step('shunts a parked car down the road', async () => {
     await clearVehicles(5, -50);
     await game(() => { const { P, spawnVehicle } = __neonbay; P.x = 5.5; P.z = -60; window.__ram = spawnVehicle('sedan', 3, -60, 0); });
