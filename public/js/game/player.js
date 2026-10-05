@@ -3,6 +3,7 @@ import { curWeapon, finishReload, playerShoot } from '../combat/combat.js';
 import { Sound } from '../core/audio.js';
 import { emit } from '../core/events.js';
 import { save } from '../core/save.js';
+import { settings } from '../core/settings.js';
 import { G, I, P, cam, inv, keys } from '../core/state.js';
 import { $, angDiff, clamp, lerp, rnd } from '../core/util.js';
 import { wStat } from '../data/weapons.js';
@@ -22,9 +23,9 @@ export const camTarget = new THREE.Vector3();
 export function updatePlayer(dt) {
   if (!P.alive) { deathAnim(P, dt); P.c.root.position.set(P.x, 0, P.z); P.c.root.rotation.y = P.yaw; return; }
   // look
-  const sens = I.mouseR ? 0.0013 : 0.0022;
+  const sens = (I.mouseR ? 0.0013 : 0.0022) * settings.sensitivity, sensY = settings.invertY ? -sens : sens;
   if (I.mouseDX || I.mouseDY) P.lookT = G.time;
-  cam.yaw -= I.mouseDX * sens; cam.pitch = clamp(cam.pitch - I.mouseDY * sens, -1.0, 1.15); I.mouseDX = I.mouseDY = 0;
+  cam.yaw -= I.mouseDX * sens; cam.pitch = clamp(cam.pitch - I.mouseDY * sensY, -1.0, 1.15); I.mouseDX = I.mouseDY = 0;
   const aimingNow = I.mouseR || I.mouseL || I.clickQ > 0 || G.time - P.lastShot < 0.7;
   P.aiming = aimingNow;
   P.aimPitch = cam.pitch;
@@ -106,7 +107,7 @@ export function hurtPlayer(d) {
 export function updateCamera(dt) {
   const v = P.vehicle, C = v && v.K.camera, aim = I.mouseR && P.alive, sp = v ? Math.abs(v.v) : 0;
   cam.dist = lerp(cam.dist, aim ? (C ? C.aimDist : 2.4) : (C ? C.dist : 4.6), Math.min(1, dt * 10));
-  cam.fov = lerp(cam.fov, aim ? 52 : 70 + Math.min(14, sp * (C ? C.fovPerSpeed : 0)), Math.min(1, dt * 10));
+  cam.fov = lerp(cam.fov, aim ? settings.fov - 18 : settings.fov + Math.min(14, sp * (C ? C.fovPerSpeed : 0)), Math.min(1, dt * 10));
   if (Math.abs(camera.fov - cam.fov) > 0.01) { camera.fov = cam.fov; camera.updateProjectionMatrix(); }
   const cp = Math.cos(cam.pitch), d = new THREE.Vector3(Math.sin(cam.yaw) * cp, Math.sin(cam.pitch), Math.cos(cam.yaw) * cp);
   const right = new THREE.Vector3(-Math.cos(cam.yaw), 0, Math.sin(cam.yaw));
@@ -116,7 +117,7 @@ export function updateCamera(dt) {
   if (tw < dist + 0.3) dist = Math.max(0.6, tw - 0.3);
   camera.position.copy(camTarget).addScaledVector(d, -dist);
   if (camera.position.y < 0.3) camera.position.y = 0.3;
-  if (cam.shake > 0) { camera.position.x += rnd(-1, 1) * cam.shake * 0.3; camera.position.y += rnd(-1, 1) * cam.shake * 0.3; cam.shake = Math.max(0, cam.shake - dt * 2.5); }
+  if (cam.shake > 0) { const k = settings.shake ? cam.shake * 0.3 : 0; camera.position.x += rnd(-1, 1) * k; camera.position.y += rnd(-1, 1) * k; cam.shake = Math.max(0, cam.shake - dt * 2.5); }
   camera.lookAt(camTarget.x + d.x * 30, camTarget.y + d.y * 30, camTarget.z + d.z * 30);
 }
 export function die() {
