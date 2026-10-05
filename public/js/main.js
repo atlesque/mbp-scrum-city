@@ -5,6 +5,7 @@ import './game/rewards.js';
 import './ui/settings.js';
 import { makeCharacter, setGun } from './characters/character.js';
 import { selectWeapon, updateRockets } from './combat/combat.js';
+import { Sound } from './core/audio.js';
 import { load, save, serialize } from './core/save.js';
 import { settings } from './core/settings.js';
 import { G, I, P, cam, inv, stats } from './core/state.js';
@@ -104,7 +105,7 @@ async function start(data) {
 }
 try { window.claude && window.claude.hot && window.claude.hot.snapshot && window.claude.hot.snapshot(() => ({ inv: serialize(inv, stats), cur: inv.cur })); } catch (e) {}
 // ?debug exposes the game state to the console and to the smoke test
-if (/[?&]debug\b/.test(location.search)) window.__neonbay = { G, I, P, cam, inv, stats, entities, all, removeEntity, spawnVehicle, spawnNpc, spawnShop };
+if (/[?&]debug\b/.test(location.search)) window.__neonbay = { G, I, P, Sound, cam, inv, stats, entities, all, removeEntity, spawnVehicle, spawnNpc, spawnShop };
 requestAnimationFrame(frame);
 const hot = window.claude && window.claude.hot;
 if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});
