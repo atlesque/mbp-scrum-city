@@ -3,6 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>
+// Pick one of the loading posters at random on every load. This is the first thing the page fetches:
+// it starts at high priority ahead of the fonts, and the game code (Three.js included) waits for it below.
+window.ldArt = (() => {
+  const src = '/img/loading/' + (1 + Math.floor(Math.random() * 9)) + '.webp';
+  document.documentElement.style.setProperty('--ld-art', 'url(' + src + ')');
+  const img = new Image(); img.fetchPriority = 'high'; img.src = src;
+  const art = { src, shownAt: 0 };
+  // a broken or very slow image never holds the game back for more than 4 seconds
+  art.ready = new Promise(res => { img.onload = img.onerror = res; setTimeout(res, 4000); })
+    .then(() => {
+      art.shownAt = performance.now();
+      // web fonts come next, so they never compete with the poster
+      const f = document.createElement('link'); f.rel = 'stylesheet';
+      f.href = 'https://fonts.googleapis.com/css2?family=Bowlby+One&family=Chakra+Petch:wght@400;600;700&family=Yellowtail&display=swap';
+      document.head.append(f);
+    });
+  return art;
+})();
+</script>
 <title>MBP - Scrum City · Free 80s Open-City Shooter in Your Browser</title>
 <meta name="description" content="MBP - Scrum City is a free low-poly 80s beach-city shooter you play in your browser. Shoot for cash, outrun a 5-star wanted level, and upgrade your guns at Bullet Bros. No download needed.">
 <meta name="theme-color" content="#170c28">
@@ -14,15 +34,6 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
-<script>
-// Pick one of the loading posters at random on every load and start fetching it before the CSS asks for it.
-(() => {
-  const src = '/img/loading/' + (1 + Math.floor(Math.random() * 9)) + '.webp';
-  document.documentElement.style.setProperty('--ld-art', 'url(' + src + ')');
-  const l = document.createElement('link'); l.rel = 'preload'; l.as = 'image'; l.type = 'image/webp'; l.href = src;
-  document.head.append(l);
-})();
-</script>
 
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MBP - Scrum City">
@@ -60,9 +71,6 @@
   "author": { "@type": "Organization", "name": "Atlesque" }
 }
 </script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Chakra+Petch:wght@400;600;700&family=Yellowtail&display=swap">
 <style>
 /* Layout: full-bleed WebGL street, HUD pinned to the corners like an 80s crime-sim, menus as centered neon panels */
 :root{
@@ -338,6 +346,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 <script>
 // The loading screen shows from the first paint. The bar creeps on its own while the 3D engine downloads,
 // then main.js reports real progress through loadingScreen.step() and hides it with loadingScreen.done().
+const MIN_SHOW_MS = 3000;
 window.loadingScreen = (() => {
   const $ = id => document.getElementById(id), tips = [
     'Break line of sight to lose a star.',
@@ -356,15 +365,25 @@ window.loadingScreen = (() => {
     step(p, label) { real = 1; shown = Math.max(shown, p); paint(); if (label) $('ldText').textContent = label; },
     fail(msg) { clearInterval(creep); $('ldText').textContent = msg; },
     done() {
-      clearInterval(creep); clearInterval(tipTimer); shown = 1; paint();
-      const el = $('loading'); el.classList.add('done');
-      setTimeout(() => { el.hidden = true; }, 650);
+      clearInterval(creep); shown = 1; paint();
+      // keep the poster up for at least 3 seconds after it appeared, even when the game is ready sooner
+      setTimeout(() => {
+        clearInterval(tipTimer);
+        const el = $('loading'); el.classList.add('done');
+        setTimeout(() => { el.hidden = true; }, 650);
+      }, Math.max(0, ldArt.shownAt + MIN_SHOW_MS - performance.now()));
     },
   };
 })();
 </script>
 
-<script>addEventListener('load', () => setTimeout(() => { if (!window.THREE) { document.getElementById('playBtn').textContent = 'Could not load the 3D engine'; loadingScreen.fail('Could not load the 3D engine'); } }, 8000));</script>
-<script type="module" src="/js/main.js"></script>
+<script>
+// The game code only starts downloading once the loading poster is on screen.
+ldArt.ready.then(() => {
+  const s = document.createElement('script'); s.type = 'module'; s.src = '/js/main.js';
+  document.body.append(s);
+  setTimeout(() => { if (!window.THREE) { document.getElementById('playBtn').textContent = 'Could not load the 3D engine'; loadingScreen.fail('Could not load the 3D engine'); } }, 8000);
+});
+</script>
 </body>
 </html>

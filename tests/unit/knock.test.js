@@ -1,6 +1,6 @@
-// Ramming rules: cars send bikes flying, bikes only knock each other over at speed, nothing knocks a car.
+// Ramming rules: cars send bikes flying, bikes only knock each other over at speed, cars shove cars.
 import { describe, expect, it } from 'vitest';
-import { closingSpeed, knockImpulse, touching } from '../../public/js/vehicles/knock.js';
+import { closingSpeed, knockImpulse, shoveImpulse, touching, velocity } from '../../public/js/vehicles/knock.js';
 import { KINDS } from '../../public/js/vehicles/vehicle.js';
 
 const at = (kind, x, z, yaw, v) => ({ K: KINDS[kind], x, z, yaw, v, dead: false });
@@ -38,5 +38,35 @@ describe('ramming', () => {
   });
   it('measures closing speed head on', () => {
     expect(closingSpeed(at('bike', 0, 0, 0, 10), at('bike', 0, 5, Math.PI, 10)).closing).toBeCloseTo(20);
+  });
+});
+
+describe('shoving', () => {
+  it('a car rear-ending a stopped car pushes it on and slows right down', () => {
+    const a = at('car', 0, 0, 0, 20), b = at('car', 0, 4.4, 0, 0);
+    const k = shoveImpulse(a, b);
+    expect(k).not.toBeNull();
+    expect(k.vz).toBeGreaterThan(10); // b goes on faster than a, so they part
+    expect(k.avz).toBeLessThan(k.vz);
+    expect(Math.abs(k.spin)).toBeLessThan(0.1); // square on: no spin
+  });
+  it('a T-bone at the front sends the car skidding sideways and spinning', () => {
+    const a = at('car', 0, 0, 0, 15), b = at('car', 1.2, 3.1, Math.PI / 2, 0);
+    const k = shoveImpulse(a, b);
+    expect(k).not.toBeNull();
+    expect(k.vz).toBeGreaterThan(5);
+    expect(Math.abs(k.spin)).toBeGreaterThan(0.3);
+  });
+  it('cars only touching, or pulling apart, are not shoved', () => {
+    expect(shoveImpulse(at('car', 0, 0, 0, 0), at('car', 0, 4.4, 0, 0))).toBeNull();
+    expect(shoveImpulse(at('car', 0, 0, 0, -5), at('car', 0, 4.4, 0, 0))).toBeNull();
+    expect(shoveImpulse(at('car', 0, 0, 0, 20), at('car', 0, 9, 0, 0))).toBeNull(); // not touching at all
+  });
+  it('bikes are knocked flying rather than shoved, and a bike cannot shove a car', () => {
+    expect(shoveImpulse(at('car', 0, 0, 0, 20), at('bike', 0, 2.4, 0, 0))).toBeNull();
+    expect(shoveImpulse(at('bike', 0, 0, 0, 30), at('car', 0, 2.9, 0, 0))).toBeNull();
+  });
+  it('reads a skidding car by its sliding velocity', () => {
+    expect(velocity(Object.assign(at('car', 0, 0, 0, 10), { kvx: 3, kvz: -1 }))).toEqual({ x: 3, z: -1 });
   });
 });

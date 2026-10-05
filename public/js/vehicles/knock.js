@@ -5,6 +5,7 @@ import { clamp } from '../core/util.js';
 //   ram: { mass, hull: [offset, radius], heavierAt, sameAt }   who outweighs whom, its body as two circles
 //                                                           along the heading, and the closing speeds that knock
 //   knock(v, vx, vz, up)                                    a kind that can be sent flying (bikes)
+//   slide(v, dt)                                            a kind that can be shoved along (cars; see below)
 
 // the closing speed of `a` on `b` along the line between them: positive when they are coming together
 export function closingSpeed(a, b) {
@@ -37,4 +38,41 @@ export function knockImpulse(a, b) {
     vx: nx * push + Math.sin(a.yaw) * fwd, vz: nz * push + Math.cos(a.yaw) * fwd,
     up: clamp(closing * 0.35 * share, 1.5, 9), closing, keep: 1 - (1 - share) * 0.6,
   };
+}
+
+// Shoving: bodies of a similar weight (a car into a car) trade momentum instead of one sending the other flying.
+// The one hit slides and spins off with its share and the one hitting keeps the rest. A kind that can be shoved
+// has `slide(v, dt)`, which carries it along its sliding velocity (kvx, kvz) and spin (kspin) until the tyres bite.
+
+// how a vehicle is moving: its sliding velocity if it has one, else along its heading
+export function velocity(v) {
+  if (v.kvx || v.kvz) return { x: v.kvx, z: v.kvz };
+  return { x: Math.sin(v.yaw) * v.v, z: Math.cos(v.yaw) * v.v };
+}
+
+// where `a`'s body presses on `b`'s: the point of contact and the normal pointing from a into b, or null
+export function contact(a, b, pad = 0.15) {
+  const [off, r] = a.K.ram.hull, fx = Math.sin(a.yaw), fz = Math.cos(a.yaw);
+  for (const s of [1, -1]) {
+    const cx = a.x + fx * off * s, cz = a.z + fz * off * s; _o.x = cx; _o.z = cz;
+    if (!b.K.pushOut(b, _o, r + pad)) continue;
+    let nx = cx - _o.x, nz = cz - _o.z, d = Math.hypot(nx, nz);
+    if (d < 1e-4) { nx = b.x - cx; nz = b.z - cz; d = Math.hypot(nx, nz) || 1; }
+    nx /= d; nz /= d;
+    return { nx, nz, px: cx + nx * r, pz: cz + nz * r };
+  }
+  return null;
+}
+
+// how hard `a` shoves `b`: { vx, vz, spin } (b's new sliding velocity and spin), { avx, avz } (a's velocity
+// after the hit) and the closing speed, or null when b can't be shoved or they are only touching
+export function shoveImpulse(a, b, c = contact(a, b)) {
+  const A = a.K.ram, B = b.K.ram;
+  if (!c || !A || !B || !b.K.slide || A.mass < B.mass) return null;
+  const va = velocity(a), vb = velocity(b), closing = (va.x - vb.x) * c.nx + (va.z - vb.z) * c.nz;
+  if (closing < 0.8) return null;
+  // a slightly springy hit along the normal; the off-centre part of it spins b round its middle
+  const j = 1.3 * closing * A.mass * B.mass / (A.mass + B.mass), jx = c.nx * j, jz = c.nz * j;
+  const rx = c.px - b.x, rz = c.pz - b.z, spin = clamp((rz * jx - rx * jz) / (B.mass * 6), -2.5, 2.5);
+  return { vx: vb.x + jx / B.mass, vz: vb.z + jz / B.mass, spin: (b.kspin || 0) + spin, avx: va.x - jx / A.mass, avz: va.z - jz / A.mass, closing };
 }
