@@ -28,7 +28,7 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 | In a car: W / S, A / D, Shift, Space | Gas / brake, steer, boost, handbrake |
 | 1–6, mouse wheel | Switch weapons |
 | R | Reload |
-| M | Toggle the radio |
+| M | Toggle the radio (Neon FM builds up with your wanted level: synths only at zero stars, drums from one star, more layers up to five) |
 | Esc / P | Pause |
 
 ## Project layout

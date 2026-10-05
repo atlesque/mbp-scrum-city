@@ -52,5 +52,6 @@ export function updateWanted(dt) {
   let sv = 0;
   if (G.wanted > 0) { sv = 0.025; for (const c of all('vehicle')) if (c.model.police && !c.dead) sv = Math.max(sv, vol3d(c.x, c.z) * 0.09); }
   Sound.setSiren(G.state === 'play' ? sv : 0);
+  Sound.setIntensity(G.wanted);
   Sound.setHeli(G.heli && G.state === 'play' ? clamp(1 - Math.hypot(G.heli.x - P.x, G.heli.z - P.z) / 120, 0, 1) * 0.5 : 0);
 }

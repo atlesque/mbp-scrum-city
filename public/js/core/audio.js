@@ -1,8 +1,9 @@
+import { LEAD, musicLayers } from '../data/music.js';
 import { clamp } from './util.js';
 
 // ================= AUDIO =================
 export const Sound = (() => {
-  let ctx = null, sfx, mus, noise, reverbIn, sirenGain, heliGain, engO1, engO2, engF, engG, musicOn = true, seq = null, step = 0, nextT = 0;
+  let ctx = null, sfx, mus, noise, reverbIn, sirenGain, heliGain, engO1, engO2, engF, engG, musicOn = true, seq = null, step = 0, nextT = 0, intensity = 0, wantIntensity = 0, layers = musicLayers(0);
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
   function makeNoise() { const b = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate); const d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; }
   function impulse(sec, decay) { const len = ctx.sampleRate * sec, b = ctx.createBuffer(2, len, ctx.sampleRate); for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay); } return b; }
@@ -79,6 +80,9 @@ export const Sound = (() => {
     setEngine(vol, rpm) { if (!ctx) return; const t = ctx.currentTime, f = rpm / 60; engO1.frequency.setTargetAtTime(f, t, 0.06); engO2.frequency.setTargetAtTime(f * 2.02, t, 0.06); engF.frequency.setTargetAtTime(160 + f * 6, t, 0.08); engG.gain.setTargetAtTime(vol, t, 0.12); },
     setSiren(v) { if (ctx) sirenGain.gain.setTargetAtTime(v, ctx.currentTime, 0.3); },
     setHeli(v) { if (ctx) heliGain.gain.setTargetAtTime(v, ctx.currentTime, 0.3); },
+    // the wanted level; new layers join (or drop out) on the next beat
+    setIntensity(level) { wantIntensity = level; },
+    get intensity() { return intensity; },
     toggleMusic() { musicOn = !musicOn; if (ctx) mus.gain.setTargetAtTime(musicOn ? 0.32 : 0, ctx.currentTime, 0.2); return musicOn; },
   };
   // ---- synthwave radio ----
@@ -86,28 +90,49 @@ export const Sound = (() => {
     nextT = ctx.currentTime + 0.1;
     seq = setInterval(() => { while (nextT < ctx.currentTime + 0.15) { playStep(step, nextT); nextT += 60 / 108 / 4; step = (step + 1) % 128; } }, 30);
   }
+  function synth(type, freq, det, t, dur, peak, cutoff, wet) {
+    const o = ctx.createOscillator(); o.type = type; o.frequency.value = freq; o.detune.value = det || 0;
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cutoff;
+    const g = ctx.createGain(); env(g, t, 0.005, peak, dur); o.connect(f); f.connect(g); g.connect(mus); if (wet) g.connect(reverbIn); o.start(t); o.stop(t + dur + 0.05);
+    return o;
+  }
   function playStep(s, t) {
     if (!musicOn) return;
-    const st = s % 16, ch = PROG[Math.floor(s / 16) % 4], SPB = 60 / 108 / 4;
-    if (st % 4 === 0) tone(mus, t, 'sine', 150, 42, 0.3, 0.9);
-    if (st === 4 || st === 12) { nz(mus, t, 0.2, 'bandpass', 1700, 0.8, 0.5); nz(reverbIn, t, 0.15, 'bandpass', 1700, 0.8, 0.6); tone(mus, t, 'triangle', 220, 130, 0.12, 0.3); }
-    if (st % 2 === 1) nz(mus, t, st % 4 === 3 ? 0.09 : 0.03, 'highpass', 7500, 0.6, st % 4 === 3 ? 0.13 : 0.07);
-    if (st % 2 === 0) {
-      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = mtof(ch[0] - 24 + (st % 4 === 2 ? 12 : 0));
-      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(220, t + SPB * 1.8);
-      const g = ctx.createGain(); env(g, t, 0.005, 0.32, SPB * 1.9); o.connect(f); f.connect(g); g.connect(mus); o.start(t); o.stop(t + SPB * 2);
+    const st = s % 16, bar = Math.floor(s / 16), ch = PROG[bar % 4], SPB = 60 / 108 / 4;
+    if (st % 4 === 0 && wantIntensity !== intensity) { intensity = wantIntensity; layers = musicLayers(intensity); }
+    const L = layers;
+    // drums
+    if (L.kick && st % 4 === 0) tone(mus, t, 'sine', 150, 42, 0.3, 0.9);
+    if (L.snare && (st === 4 || st === 12)) { nz(mus, t, 0.2, 'bandpass', 1700, 0.8, 0.5); nz(reverbIn, t, 0.15, 'bandpass', 1700, 0.8, 0.6); tone(mus, t, 'triangle', 220, 130, 0.12, 0.3); }
+    if (L.hats && st % 2 === 1) nz(mus, t, st % 4 === 3 ? 0.09 : 0.03, 'highpass', 7500, 0.6, st % 4 === 3 ? 0.13 : 0.07);
+    if (L.drive) {
+      if (st % 2 === 0) nz(mus, t, 0.025, 'highpass', 9000, 0.6, 0.05);
+      if (st % 4 === 2) nz(mus, t, 0.22, 'highpass', 6500, 0.5, 0.08);
+      if (st === 4 || st === 12) [0, 0.012, 0.026].forEach(d => nz(mus, t + d, 0.06, 'bandpass', 1200, 1.5, 0.35));
     }
-    if (st === 0) ch.forEach(n => [-6, 6].forEach(det => {
+    if (L.chase) {
+      if (st === 0 && bar % 2 === 0) { nz(mus, t, 1.4, 'highpass', 5000, 0.4, 0.22); nz(reverbIn, t, 0.8, 'highpass', 5000, 0.4, 0.2); }
+      if (bar % 4 === 3 && st >= 12) tone(mus, t, 'sine', [196, 164, 131, 98][st - 12], 0, SPB * 0.9, 0.55);
+      if ((st === 6 || st === 14) && bar % 2 === 1) ch.forEach(n => synth('sawtooth', mtof(n + 12), 0, t, 0.14, 0.035, 2600, true));
+    }
+    // bass: steady eighths, octave-jumping sixteenths once the drive layer is in
+    if (L.bass && (st % 2 === 0 || L.drive)) {
+      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = mtof(ch[0] - 24 + (st % 4 === 2 || (L.drive && st % 2 === 1) ? 12 : 0));
+      const len = L.drive ? SPB * 0.95 : SPB * 1.9;
+      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(L.drive ? 1300 : 900, t); f.frequency.exponentialRampToValueAtTime(220, t + len);
+      const g = ctx.createGain(); env(g, t, 0.005, 0.32, len); o.connect(f); f.connect(g); g.connect(mus); o.start(t); o.stop(t + len + 0.1);
+    }
+    if (L.pad && st === 0) ch.forEach(n => [-6, 6].forEach(det => {
       const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = mtof(n); o.detune.value = det;
-      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1300;
+      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = L.chase ? 2000 : 1300;
       const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.028, t + 0.5); g.gain.setValueAtTime(0.028, t + SPB * 14); g.gain.exponentialRampToValueAtTime(0.0001, t + SPB * 16);
       o.connect(f); f.connect(g); g.connect(mus); g.connect(reverbIn); o.start(t); o.stop(t + SPB * 16 + 0.05);
     }));
-    if (Math.floor(s / 64) === 1 && st % 2 === 0) {
-      const n = ch[(st / 2) % 3] + 12 + (st >= 8 ? 12 : 0);
-      const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = mtof(n);
-      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2400;
-      const g = ctx.createGain(); env(g, t, 0.005, 0.05, 0.16); o.connect(f); f.connect(g); g.connect(mus); g.connect(reverbIn); o.start(t); o.stop(t + 0.2);
+    if (L.arp && st % 2 === 0) synth('square', mtof(ch[(st / 2) % 3] + 12 + (st >= 8 ? 12 : 0)), 0, t, 0.16, 0.05, 2400, true);
+    if (L.lead) for (const [at, tn, oct, len] of LEAD) if (at === st) {
+      const n = ch[tn] + 12 * oct, dur = SPB * len;
+      [-8, 8].forEach(det => { const o = synth('sawtooth', mtof(n), det, t, dur, 0.045, 3200, true); o.frequency.setValueAtTime(mtof(n - 1), t); o.frequency.exponentialRampToValueAtTime(mtof(n), t + 0.04); });
+      if (L.chase) synth('square', mtof(n + 12), 0, t, dur, 0.022, 4000, true);
     }
   }
 })();
