@@ -24,7 +24,7 @@ export function followLane(v, dt, T) {
   const blk = blockedAhead(v, T.look, v.ignoreT > 0);
   if (blk) {
     v.v = Math.max(0, v.v - T.decel * dt); v.waitT += dt;
-    if (blk === 'car' && v.waitT > T.patience) { v.ignoreT = 1.5; v.waitT = 0; }
+    if (blk === 'car' && v.waitT > T.patience) { v.ignoreT = T.passFor || 1.5; v.waitT = 0; }
     if (blk === 'player' && v.waitT > T.hornAfter && v.hornT <= 0) { Sound.horn(vol3d(v.x, v.z), pan3d(v.x, v.z)); v.hornT = 3; }
   } else { v.v = Math.min(v.top, v.v + T.accel * dt); v.waitT = 0; }
   v.x += v.dirX * v.v * dt; v.z += v.dirZ * v.v * dt;
@@ -49,4 +49,16 @@ export function keepOnGrid(v, dt) {
     const prev = pos - dir * v.v * dt, t = -Math.sign(road);
     for (const r of IN_ROADS) { const l = lane(r, t); if ((prev - l) * (pos - l) < 0 && Math.random() < 0.3) return turn(t, l); }
   }
+}
+
+// Back into the lane after a shove, or out round something stuck in it: slide the car across towards its lane
+// (or towards the oncoming lane while it is going round, ignoreT) and point it the way it is actually moving.
+// Returns the heading to steer to.
+export function keepLane(v, dt) {
+  const alongX = v.dirX !== 0, road = nearRoad(alongX ? v.z : v.x), dir = alongX ? v.dirX : v.dirZ;
+  const lane = alongX ? road + 3 * dir : road - 3 * dir, out = v.ignoreT > 0 ? (alongX ? -3.6 : 3.6) * dir : 0;
+  const pos = alongX ? v.z : v.x, step = clamp(lane + out - pos, -3 * dt, 3 * dt);
+  if (alongX) v.z += step; else v.x += step;
+  const side = dt ? step / dt : 0;
+  return Math.atan2(v.dirX * Math.max(v.v, 4) + (alongX ? 0 : side), v.dirZ * Math.max(v.v, 4) + (alongX ? side : 0));
 }
