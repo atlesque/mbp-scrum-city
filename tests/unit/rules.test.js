@@ -36,3 +36,19 @@ describe('weapon upgrades', () => {
     }
   });
 });
+
+describe('car explosions', () => {
+  // mirrors Vehicle.blast and Npc.blast: falloff to the edge of the radius plus a flat bonus
+  const atDist = (d, b, bonus) => b.dmg * (1 - d / b.r) + bonus;
+  it('set off the toughest car parked alongside', async () => {
+    const { car } = await import('../../public/js/vehicles/kinds/car.js');
+    const { VEHICLE_MODELS } = await import('../../public/js/vehicles/models/index.js');
+    const toughest = Math.max(...Object.values(VEHICLE_MODELS).filter(m => m.kind === 'car').map(m => m.hp));
+    expect(atDist(4.5, car.blast, 40)).toBeGreaterThanOrEqual(toughest);
+  });
+  it('kill a pedestrian most of the way out', async () => {
+    const { car } = await import('../../public/js/vehicles/kinds/car.js');
+    const { NPC_TYPES } = await import('../../public/js/npcs/types.js');
+    expect(atDist(car.blast.r * 0.9, car.blast, 30)).toBeGreaterThanOrEqual(NPC_TYPES.civilian.hp);
+  });
+});
