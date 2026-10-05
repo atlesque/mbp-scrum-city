@@ -5,17 +5,31 @@ import { angDiff, rnd } from '../../core/util.js';
 import { emit } from '../../render/effects.js';
 import { scene } from '../../render/scene.js';
 import { collide, pushOutOBB, raySphere } from '../../world/collision.js';
-import { arcadeDrive, followLane, keepOnGrid } from '../drive.js';
+import { all } from '../../entities/registry.js';
+import { arcadeDrive, followLane, keepLane, keepOnGrid } from '../drive.js';
 import { blockedAhead } from '../vehicle.js';
 
 const HW = 1.0, HL = 2.15; // half width and half length of the body
 const SILL = 0.95; // bottom of the windows: shots above it reach whoever is inside
 
 // Cars: four wheels, no lean, the driver sits inside out of sight. See kinds/bike.js for what each field means.
+// AI traffic keeps its body out of other cars' instead of driving through them
+function keepApart(c) {
+  const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw), F = { x: c.x + fx * 1.15, z: c.z + fz * 1.15 }, R = { x: c.x - fx * 1.15, z: c.z - fz * 1.15 };
+  let hit = false;
+  for (const o of all('vehicle')) {
+    if (o === c || o.K !== car || Math.abs(o.x - c.x) > 6 || Math.abs(o.z - c.z) > 6) continue;
+    if (o.pushOut(F, HW)) hit = true;
+    if (o.pushOut(R, HW)) hit = true;
+  }
+  if (hit) { c.x = (F.x + R.x) / 2; c.z = (F.z + R.z) / 2; }
+  return hit;
+}
+
 export const car = {
   verb: 'drive',
   handling: { top: 30, boostTop: 40, accel: 8, boostAccel: 11, brake: 24, reverseBrake: 18, reverseTop: 7, reverseAccel: 6, handbrake: 18, coast: 1.2, drag: 0.006, turnLow: 1.4, turnHigh: 0.7, maxSteer: 0.6 },
-  traffic: { look: 7.5, decel: 30, accel: 6, patience: 3, hornAfter: 1.5 },
+  traffic: { look: 7.5, decel: 30, accel: 6, patience: 3, hornAfter: 1.5, passFor: 3.5 },
   fx: { smokeRate: 4, smokeY: 1.2, smokeSpeed: 1.5, smokeLife: 2, smokeSize: 0.6, fireRate: 0.6, fireY: 1.3, fireSize: 0.35, spread: 0.6, fuse: 1.6, boomFuse: 0.25 },
   blast: { y: 0.8, r: 9, dmg: 240 }, // big enough to set off a car parked alongside and drop anyone within a few metres
   wreckReward: { heat: 3, cash: [40, 160] },
@@ -42,7 +56,14 @@ export const car = {
     c.x = (F.x + R.x) / 2; c.z = (F.z + R.z) / 2; return h1 || h2;
   },
   ai: {
-    traffic(c, dt) { followLane(c, dt, car.traffic); keepOnGrid(c, dt); c.yaw += angDiff(c.yaw, Math.atan2(c.dirX, c.dirZ)) * Math.min(1, dt * 5); const a = c.driver; if (a) { a.x = c.x; a.z = c.z; a.yaw = c.yaw; } },
+    // follow the lane without driving through other cars; a shove leaves the driver stunned, then they get back in lane
+    traffic(c, dt) {
+      if (c.dazeT > 0) { c.dazeT -= dt; c.v = 0; return; }
+      followLane(c, dt, car.traffic); keepOnGrid(c, dt);
+      c.yaw += angDiff(c.yaw, keepLane(c, dt)) * Math.min(1, dt * 5);
+      if (keepApart(c)) c.v *= 0.9;
+      const a = c.driver; if (a) { a.x = c.x; a.z = c.z; a.yaw = c.yaw; }
+    },
     // a police car racing up the player's road; it parks and lets the officers out when close
     respond(c, dt) {
       c.respT += dt;
@@ -52,6 +73,18 @@ export const car = {
       else if (!b) { c.v = Math.min(20, c.v + 14 * dt); c.x += c.dirX * c.v * dt; c.z += c.dirZ * c.v * dt; }
       else c.v = 0;
     },
+  },
+  // shoved by another car (see vehicles/knock.js): skid sideways and spin until the tyres bite
+  slide(c, dt) {
+    const sp = Math.hypot(c.kvx || 0, c.kvz || 0), dec = 11 * dt;
+    if (sp <= dec) c.kvx = c.kvz = 0; else { const k = 1 - dec / sp; c.kvx *= k; c.kvz *= k; }
+    c.kspin = Math.abs(c.kspin || 0) < 0.05 ? 0 : c.kspin * Math.max(0, 1 - dt * 3);
+    c.x += c.kvx * dt; c.z += c.kvz * dt; c.yaw += c.kspin * dt;
+    if (car.collideSelf(c)) { c.kvx *= 0.5; c.kvz *= 0.5; c.kspin *= 0.5; }
+    if (sp > 4 && dt && Math.random() < dt * 20) emit(c.x + rnd(-1, 1), 0.15, c.z + rnd(-1, 1), 1, '#cfc8d8', 2, 0.6, 0.35, 1, 1); // tyre smoke
+    // a traffic car comes out of it facing along its road again
+    if (!c.kvx && !c.kvz && !c.kspin && c.mode === 'traffic') { const a = Math.round(c.yaw / (Math.PI / 2)) * Math.PI / 2; if (Math.round(Math.sin(a)) === -c.dirX && Math.round(Math.cos(a)) === -c.dirZ) { c.dirX = -c.dirX; c.dirZ = -c.dirZ; } }
+    const a = c.driver; if (a) { a.x = c.x; a.z = c.z; a.yaw = c.yaw; }
   },
   // nobody at the wheel: roll to a stop
   coast(c, dt) {
