@@ -10,9 +10,10 @@ import { HORIZON, ambientLight, camera, hemiLight, scene, sky, sunLight } from '
 // more windows light up and the sky fills with stars.
 //
 // Every lamp and headlight gets a cheap additive glow on the ground; only the few nearest the camera
-// get a real light. The number of lights never changes, so materials never recompile mid-game.
+// get a real light. Those lights are hidden in daylight, so the sunset city costs no more to draw than
+// before; materials recompile once as the lamps come on at dusk and once as they go off at dawn.
 const CYCLE = 420; // seconds for a full sunset -> night -> sunset loop
-const LAMP_LIGHTS = 6, CAR_LIGHTS = 2, MAX_CARS = 48;
+const LAMP_LIGHTS = 4, CAR_LIGHTS = 2, MAX_CARS = 48;
 // point lights fall off with the square of distance; these give about the brightness of the hemisphere
 // light on the ground 6 m below a lamp and 3 m in front of a car
 const LAMP_I = 45, CAR_I = 22, BEAM_I = 260;
@@ -97,6 +98,8 @@ export function updateLighting(dt) {
   const fx = camera.position.x + _f.x * 12, fz = camera.position.z + _f.z * 12;
   assign(lampSlots, on > 0 ? nearest(lamps, fx, fz, LAMP_LIGHTS) : [], dt, (l, L) => l.position.set(L.x, L.y, L.z));
   for (const s of lampSlots) s.l.intensity = LAMP_I * on * s.k;
+  const shown = on > 0;
+  if (lampSlots[0].l.visible !== shown) for (const l of [...lampSlots, ...carSlots].map(s => s.l).concat(beam)) l.visible = shown;
 
   // headlights on everything with someone at the wheel
   const cars = [];
