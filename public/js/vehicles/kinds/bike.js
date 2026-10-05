@@ -1,4 +1,4 @@
-import { lerp, rnd } from '../../core/util.js';
+import { clamp, lerp, rnd } from '../../core/util.js';
 import { seatedLegs, shadowGeo, shadowMat } from '../../characters/character.js';
 import { emit } from '../../render/effects.js';
 import { scene } from '../../render/scene.js';
@@ -28,6 +28,7 @@ const TURN_X = [-150, -100, -50, 0, 50, 100, 150, 200], TURN_Z = [-150, -100, -5
 //   fx, blast, wreckReward   fire and smoke, explosion size, heat and cash for wrecking one
 //   bumper                   zone ahead that runs people over: back, front, half width, speed kept
 //   crash                    exitSpeed above which getting off is a crash, hurt multiplier on big hits
+//   ram, knock(v, vx, vz, up) mass and body for ramming, and how it flies when rammed (see vehicles/knock.js)
 //   camera                   chase distance, aiming distance and eye height
 //   verb, tip(M)             'ride' or 'drive', and the first-time help toast
 //   laneHalf, trafficDespawn, ambientEngine, stopsWhileBurning
@@ -41,6 +42,7 @@ export const bike = {
   wreckReward: { heat: 2, cash: 0 },
   bumper: { back: -0.6, front: 1.35, half: 0.7, slow: 0.82 },
   crash: { exitSpeed: 9, hurt: 1.4 },
+  ram: { mass: 1, hull: [0.62, 0.42], heavierAt: 3, sameAt: 10 },
   camera: { dist: 6.2, aimDist: 3.4, height: 1.95, fovPerSpeed: 0.35 },
   laneHalf: 1.4, trafficDespawn: 170, reachMax: 2.8, ambientEngine: true,
   tip: M => M.name + '. <em>W</em>/<em>S</em> throttle and brake, <em>A</em>/<em>D</em> lean, <em>Shift</em> boost, <em>Space</em> rear brake, <em>F</em> to get off. Guns still work.',
@@ -52,8 +54,8 @@ export const bike = {
     // ride up onto kerbs: each wheel follows the ground under it, eased so a kerb reads as a quick hop
     const tF = groundAt(b.x + fx * S.zF, b.z + fz * S.zF), tR = groundAt(b.x + fx * S.zR, b.z + fz * S.zR), k = Math.min(1, dt * 16);
     b.hF = b.hF == null || !dt ? tF : lerp(b.hF, tF, k); b.hR = b.hR == null || !dt ? tR : lerp(b.hR, tR, k);
-    m.grp.position.set(b.x, b.hR - (b.hF - b.hR) * S.zR / S.wb, b.z); m.grp.rotation.set(-Math.atan2(b.hF - b.hR, S.wb), b.yaw, 0, 'YXZ');
-    m.lean.rotation.z = b.lean; m.lean.position.y = Math.max(0, Math.abs(b.lean) - 0.75) * 0.75; // rest on the cylinder head when down
+    m.grp.position.set(b.x, b.hR - (b.hF - b.hR) * S.zR / S.wb + (b.air || 0), b.z); m.grp.rotation.set(-Math.atan2(b.hF - b.hR, S.wb), b.yaw, 0, 'YXZ');
+    m.lean.rotation.z = b.lean; m.lean.position.y = clamp(Math.abs(b.lean) - 0.75, 0, 0.6) * 0.75; // rest on the cylinder head when down
     m.steer.rotation.y = b.steer;
     m.fw.rotation.x += b.v / S.rF * dt; m.rw.rotation.x += b.v / S.rR * dt;
     m.stand.visible = b.mode === 'parked' && !b.fallen && !b.dead;
@@ -83,9 +85,30 @@ export const bike = {
       const a = b.driver; if (a) { a.x = b.x + Math.sin(b.yaw) * b.model.spec.seat; a.z = b.z + Math.cos(b.yaw) * b.model.spec.seat; a.yaw = b.yaw; }
     },
   },
-  // riderless: slide or roll to a stop, then rest on the stand or on its side
+  // rammed: thrown off its wheels with velocity (vx, vz) and an upward kick, tumbling until it lands
+  knock(b, vx, vz, up) {
+    b.kvx = vx; b.kvz = vz; b.avy = up; b.air = Math.max(b.air || 0, 0.01); b.v = 0;
+    b.spin = rnd(-1, 1) * Math.hypot(vx, vz) * 0.15; b.roll = (Math.random() < 0.5 ? 1 : -1) * (4 + up);
+    b.mode = 'fallen'; b.fallen = true; b.fallSide = -Math.sign(b.roll);
+  },
+  // riderless: fly and slide after being rammed, or roll to a stop, then rest on the stand or on its side
   coast(b, dt) {
-    if (Math.abs(b.v) > 0) {
+    if (b.kvx || b.kvz || b.air > 0) {
+      if (b.air > 0) {
+        b.avy -= 22 * dt; b.air += b.avy * dt; b.yaw += b.spin * dt; b.lean += b.roll * dt;
+        if (b.air <= 0) { // lands on its side and skids
+          b.air = 0; b.kvx *= 0.6; b.kvz *= 0.6; b.lean = Math.atan2(Math.sin(b.lean), Math.cos(b.lean));
+          emit(b.x, 0.2, b.z, 8, '#ffd23e', 4, 0.3, 0.05, -12, 1.5);
+        }
+      }
+      const sp = Math.hypot(b.kvx, b.kvz), dec = b.air > 0 ? 0 : 9 * dt;
+      if (!b.air && sp <= dec + 0.3) b.kvx = b.kvz = 0;
+      else { const k = 1 - dec / sp; b.kvx *= k; b.kvz *= k; }
+      b.x += b.kvx * dt; b.z += b.kvz * dt;
+      if (bike.collideSelf(b)) { b.kvx *= 0.4; b.kvz *= 0.4; }
+      if (!b.air && sp > 2 && Math.random() < 0.7) emit(b.x + rnd(-0.5, 0.5), 0.1, b.z + rnd(-0.5, 0.5), 1, '#ffd23e', 3, 0.25, 0.05, -12, 1.5);
+      if (b.air > 0) return;
+    } else if (Math.abs(b.v) > 0) {
       const dec = (b.fallen ? 9 : 5) * dt; b.v = Math.abs(b.v) <= dec ? 0 : b.v - Math.sign(b.v) * dec;
       b.x += Math.sin(b.yaw) * b.v * dt; b.z += Math.cos(b.yaw) * b.v * dt; if (bike.collideSelf(b)) b.v *= 0.5;
       if (b.fallen && Math.abs(b.v) > 2 && Math.random() < 0.7) emit(b.x + rnd(-0.5, 0.5), 0.1, b.z + rnd(-0.5, 0.5), 1, '#ffd23e', 3, 0.25, 0.05, -12, 1.5);
@@ -120,8 +143,8 @@ export const bike = {
     if (crash || speed > bike.crash.exitSpeed) { b.mode = 'fallen'; b.fallen = true; b.fallSide = -1; }
     else { b.mode = 'parked'; b.v = 0; }
   },
-  onPlayerEnter(b) { b.fallen = false; b.v = 0; b.steer = 0; },
-  wreck(b) { b.fallen = true; b.lean = -1.35 * b.fallSide; },
+  onPlayerEnter(b) { b.fallen = false; b.v = 0; b.steer = 0; b.kvx = b.kvz = 0; b.air = 0; },
+  wreck(b) { b.fallen = true; b.lean = -1.35 * b.fallSide; b.air = 0; b.kvx = b.kvz = 0; },
   blip(b, radar) { if (b.driver) radar.dot(b.x, b.z, '#f4f4f4', 5, false); else radar.dot(b.x, b.z, '#3ef0ff', 6, true, 'sq'); },
 };
 
