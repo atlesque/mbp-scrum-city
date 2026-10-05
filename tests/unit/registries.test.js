@@ -11,6 +11,7 @@ import { WBY } from '../../public/js/data/weapons.js';
 import { VEHICLE_MODELS } from '../../public/js/vehicles/models/index.js';
 import { KINDS } from '../../public/js/vehicles/vehicle.js';
 import { SHOP_SITES } from '../../public/js/world/city.js';
+import { LANDMARK_SITES, LANDMARK_TYPES } from '../../public/js/world/landmarks.js';
 
 describe('vehicle models', () => {
   for (const [id, m] of Object.entries(VEHICLE_MODELS)) it(id, () => {
@@ -57,5 +58,16 @@ describe('shops', () => {
   });
   it('every shop site uses a known shop type', () => {
     for (const s of SHOP_SITES) expect(SHOP_TYPES[s.type], s.type).toBeDefined();
+  });
+});
+describe('landmarks', () => {
+  it('every landmark site uses a known type and a block of its own', () => {
+    const taken = new Set(SHOP_SITES.map(s => s.block.join()).concat(['3,4'])); // shops and the hospital
+    for (const s of LANDMARK_SITES) {
+      expect(LANDMARK_TYPES[s.type], s.type).toBeDefined();
+      expect(['n', 'e', 's', 'w']).toContain(s.face);
+      expect(taken.has(s.block.join()), `block ${s.block}`).toBe(false);
+      taken.add(s.block.join());
+    }
   });
 });
