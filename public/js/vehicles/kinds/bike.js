@@ -1,7 +1,6 @@
 import { lerp, rnd } from '../../core/util.js';
-import { shadowGeo, shadowMat } from '../../characters/character.js';
+import { seatedLegs, shadowGeo, shadowMat } from '../../characters/character.js';
 import { emit } from '../../render/effects.js';
-import { GB, box, boxAB } from '../../render/geometry.js';
 import { scene } from '../../render/scene.js';
 import { groundAt } from '../../world/city.js';
 import { collide, pushOutSeg } from '../../world/collision.js';
@@ -32,6 +31,7 @@ const TURN_X = [-150, -100, -50, 0, 50, 100, 150, 200], TURN_Z = [-150, -100, -5
 //   camera                   chase distance, aiming distance and eye height
 //   verb, tip(M)             'ride' or 'drive', and the first-time help toast
 //   laneHalf, trafficDespawn, ambientEngine, stopsWhileBurning
+//   enclosed, occupantHit    riders sit inside (cars): bullets through the windows reach them via occupantHit(v, o, d, maxT)
 export const bike = {
   verb: 'ride',
   handling: { top: 34, boostTop: 46, accel: 11, boostAccel: 15, brake: 26, reverseBrake: 22, reverseTop: 5, reverseAccel: 7, handbrake: 32, coast: 1.6, drag: 0.01, turnLow: 1.8, turnHigh: 0.9, maxSteer: 0.5 },
@@ -139,13 +139,4 @@ function makeBikeMesh(M) {
   const decals = [-1, 1].map(s => { const m = new THREE.Mesh(G.decal, M.decal()); m.position.set(s * M.decalAt[0], M.decalAt[1], M.decalAt[2]); m.rotation.y = s * Math.PI / 2; lean.add(m); return m; });
   const seat = new THREE.Group(); seat.position.set(0, S.seatY, S.seat); lean.add(seat);
   return { grp, lean, steer, fw, rw, seat, stand, solid: [body, matte, stand, rw, stB, fw], lit: [glow, stG, glass, ...decals] };
-}
-// legs bent onto the pegs, built once per character
-function seatedLegs(c) {
-  if (c.sitGeo) return c.sitGeo;
-  const L = c.look, g = new GB();
-  boxAB(g, [0, 0, 0], [0, -0.06, 0.42], 0.2, 0.22, L.pants);
-  boxAB(g, [0, -0.06, 0.4], [0, -0.56, 0.3], 0.17, 0.18, L.shorts ? L.skin : L.pants);
-  box(g, 0.21, 0.1, 0.3, 0, -0.6, 0.36, L.shoes || '#2a2226');
-  return (c.sitGeo = g.geometry());
 }

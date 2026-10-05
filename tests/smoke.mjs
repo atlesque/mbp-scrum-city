@@ -1,5 +1,5 @@
-// Plays a short session in headless Chromium: boot, walk, drive a car, ride a bike, shoot someone,
-// and buy armor at the gun shop. Fails on any page error or broken step.
+// Plays a short session in headless Chromium: boot, walk, drive each kind of car, ride a bike, shoot someone,
+// shoot a driver through the window and take their car, drag a driver out, and buy armor at the gun shop. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -60,7 +60,7 @@ try {
     check(moved, 'player did not move');
   });
 
-  for (const model of ['sedan', 'gs']) {
+  for (const model of ['sedan', 'modely', 'gs']) {
     await step(`gets in and drives a ${model}`, async () => {
       const id = await game(m => {
         const { P, spawnVehicle } = __neonbay, yaw = P.yaw;
@@ -109,6 +109,59 @@ try {
     check(r.kills === before + 1, `target was not taken down (hp ${r.hp})`);
     check(r.cash > 0, 'no cash dropped');
     check(r.wanted > 0, 'no heat was added');
+  });
+
+  await step('shoots a driver through the window and takes the car', async () => {
+    const before = await game(() => __neonbay.stats.kills);
+    for (let i = 0; i < 16; i++) {
+      const done = await game(() => {
+        const { P, cam, I, spawnVehicle, spawnNpc } = __neonbay;
+        let c = window.__car;
+        if (!c) {
+          // park a car side-on so the driver's seat sits on the aim line over the right shoulder
+          cam.pitch = -0.06;
+          const yaw = cam.yaw + Math.PI / 2, tx = P.x - Math.cos(cam.yaw) * 0.55 + Math.sin(cam.yaw) * 6, tz = P.z + Math.sin(cam.yaw) * 0.55 + Math.cos(cam.yaw) * 6;
+          const sx = 0.45, sz = -0.4;
+          c = window.__car = spawnVehicle('modely', tx - (sx * Math.cos(yaw) + sz * Math.sin(yaw)), tz - (-sx * Math.sin(yaw) + sz * Math.cos(yaw)), yaw);
+          c.seatDriver(window.__driver = spawnNpc('motorist', c.x, c.z));
+        }
+        if (!window.__driver.alive) return true;
+        P.yaw = cam.yaw; I.clickQ = 0.3; return false;
+      });
+      if (done) break;
+      await until(() => __neonbay.I.clickQ === 0, undefined, 3000);
+      await page.waitForTimeout(300);
+    }
+    const r = await game(() => ({ hp: __driver.hp, kills: __neonbay.stats.kills, seated: !!__car.driver, carHp: __car.hp, max: __car.model.hp }));
+    check(r.kills === before + 1, `driver was not taken down (driver hp ${r.hp}, car hp ${r.carHp})`);
+    check(!r.seated, 'the body is still behind the wheel');
+    check(r.carHp === r.max, `shots through the glass damaged the car (hp ${r.carHp})`);
+    await game(() => { const { P } = __neonbay, at = __car.K.exitAt(__car); P.x = at.x; P.z = at.z; });
+    check(await until(() => __neonbay.G.near.length > 0), 'no prompt to get in');
+    await press('KeyF');
+    check(await until(() => __neonbay.P.vehicle === window.__car), 'F did not put the player behind the wheel');
+    await until(() => __neonbay.G.near.some(i => i.priority === 9)); // the prompt list catches up with the player being on board
+    await press('KeyF');
+    check(await until(() => !__neonbay.P.vehicle), 'F did not get the player out');
+    await game(() => __neonbay.removeEntity(__car));
+  });
+
+  await step('pulls a driver out of a stopped car', async () => {
+    await game(() => {
+      const { G, P, spawnVehicle, spawnNpc } = __neonbay; G.heat = 0; G.wanted = 0;
+      const c = window.__jack = spawnVehicle('sedan', P.x + Math.cos(P.yaw) * 1.9, P.z - Math.sin(P.yaw) * 1.9, P.yaw);
+      c.seatDriver(window.__jacked = spawnNpc('motorist', c.x, c.z));
+    });
+    check(await until(() => __neonbay.G.near.some(i => /pull the driver/.test(i.prompt))), 'no prompt to pull the driver out');
+    await press('KeyF');
+    check(await until(() => __neonbay.P.vehicle === window.__jack), 'F did not take the car');
+    const r = await game(() => ({ out: !__jacked.vehicle && __jacked.alive, heat: __neonbay.G.heat }));
+    check(r.out, 'the driver is still in the car');
+    check(r.heat > 0, 'carjacking added no heat');
+    await until(() => __neonbay.G.near.some(i => i.priority === 9)); // the prompt list catches up with the player being on board
+    await press('KeyF');
+    check(await until(() => !__neonbay.P.vehicle), 'F did not get the player out');
+    await game(() => __neonbay.removeEntity(__jack));
   });
 
   await step('buys armor at the gun shop', async () => {

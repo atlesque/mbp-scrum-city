@@ -1,5 +1,5 @@
 import { lerp, pick } from '../core/util.js';
-import { GB, UNIT, box } from '../render/geometry.js';
+import { GB, UNIT, box, boxAB } from '../render/geometry.js';
 import { scene } from '../render/scene.js';
 import { shirtMat } from '../render/textures.js';
 
@@ -109,3 +109,12 @@ export function deathAnim(a, dt) {
 const _mz = new THREE.Vector3();
 // world position of the gun muzzle (shared vector: clone it to keep it)
 export function muzzleOf(c) { return c.gunHolder.localToWorld(_mz.copy(gunGeo(c.gunId || 'pistol').muzzle)); }
+// legs bent forward for sitting on a bike or in a car, built once per character
+export function seatedLegs(c) {
+  if (c.sitGeo) return c.sitGeo;
+  const L = c.look, g = new GB();
+  boxAB(g, [0, 0, 0], [0, -0.06, 0.42], 0.2, 0.22, L.pants);
+  boxAB(g, [0, -0.06, 0.4], [0, -0.56, 0.3], 0.17, 0.18, L.shorts ? L.skin : L.pants);
+  box(g, 0.21, 0.1, 0.3, 0, -0.6, 0.36, L.shoes || '#2a2226');
+  return (c.sitGeo = g.geometry());
+}

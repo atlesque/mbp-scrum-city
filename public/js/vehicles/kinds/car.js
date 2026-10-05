@@ -1,13 +1,15 @@
 import { emit as emitEvent } from '../../core/events.js';
 import { G, P } from '../../core/state.js';
+import { seatedLegs } from '../../characters/character.js';
 import { rnd } from '../../core/util.js';
 import { emit } from '../../render/effects.js';
 import { scene } from '../../render/scene.js';
-import { collide, pushOutOBB } from '../../world/collision.js';
+import { collide, pushOutOBB, raySphere } from '../../world/collision.js';
 import { arcadeDrive, followLane, wrapMap } from '../drive.js';
 import { blockedAhead } from '../vehicle.js';
 
 const HW = 1.0, HL = 2.15; // half width and half length of the body
+const SILL = 0.95; // bottom of the windows: shots above it reach whoever is inside
 
 // Cars: four wheels, no lean, the driver sits inside out of sight. See kinds/bike.js for what each field means.
 export const car = {
@@ -20,7 +22,7 @@ export const car = {
   bumper: { back: -2.2, front: 2.6, half: 1.15, slow: 0.9 },
   crash: { exitSpeed: 9, hurt: 0.5 },
   camera: { dist: 7.4, aimDist: 4.2, height: 2.2, fovPerSpeed: 0.3 },
-  laneHalf: 1.7, trafficDespawn: Infinity, reachMax: 1.6, stopsWhileBurning: true,
+  laneHalf: 1.7, trafficDespawn: Infinity, reachMax: 1.6, stopsWhileBurning: true, enclosed: true,
   wheelbase: 2.7,
   tip: M => `The ${M.name}. <em>W</em>/<em>S</em> gas and brake, <em>A</em>/<em>D</em> steer, <em>Shift</em> boost, <em>Space</em> handbrake, <em>F</em> to get out.`,
 
@@ -39,7 +41,7 @@ export const car = {
     c.x = (F.x + R.x) / 2; c.z = (F.z + R.z) / 2; return h1 || h2;
   },
   ai: {
-    traffic(c, dt) { followLane(c, dt, car.traffic); wrapMap(c); c.yaw = Math.atan2(c.dirX, c.dirZ); },
+    traffic(c, dt) { followLane(c, dt, car.traffic); wrapMap(c); c.yaw = Math.atan2(c.dirX, c.dirZ); const a = c.driver; if (a) { a.x = c.x; a.z = c.z; a.yaw = c.yaw; } },
     // a police car racing up the player's road; it parks and lets the officers out when close
     respond(c, dt) {
       c.respT += dt;
@@ -56,10 +58,29 @@ export const car = {
     const dec = 6 * dt; c.v = Math.abs(c.v) <= dec ? 0 : c.v - Math.sign(c.v) * dec;
     c.x += Math.sin(c.yaw) * c.v * dt; c.z += Math.cos(c.yaw) * c.v * dt; if (car.collideSelf(c)) c.v *= 0.4;
   },
-  // the driver sits inside, out of sight; the seat keeps their gun where drive-by shots come from
-  seat(c, ch) { c.mesh.seat.add(ch.root); ch.root.position.set(0, 0, 0); ch.root.rotation.set(0, 0, 0); ch.root.visible = false; },
-  unseat(c, ch) { scene.add(ch.root); ch.root.visible = true; },
+  // the driver sits behind the wheel, seen through the windows; the seat keeps their gun where drive-by shots come from
+  seat(c, ch) {
+    c.mesh.seat.add(ch.root); ch.root.position.set(0, 0, 0); ch.root.rotation.set(0, 0, 0);
+    ch.shadow.visible = false; ch.legL.geometry = ch.legR.geometry = seatedLegs(ch);
+    ch.body.position.y = 0; ch.body.rotation.set(0, 0, 0); ch.legL.rotation.set(-1, 0, 0); ch.legR.rotation.set(-1, 0, 0); // knees up, feet on the floor
+    ch.armL.rotation.set(-1.1, 0, 0.1); ch.armR.rotation.set(-1.1, 0, -0.1, 'XYZ');
+  },
+  unseat(c, ch) {
+    scene.add(ch.root); ch.shadow.visible = true; ch.legL.geometry = ch.legR.geometry = ch.legGeo;
+    ch.legL.rotation.set(0, 0, 0); ch.legR.rotation.set(0, 0, 0); ch.armL.rotation.set(0, 0, 0, 'XYZ'); ch.armR.rotation.set(0, 0, 0, 'XYZ');
+  },
   aim() {},
+  // a shot through the glass at the person behind the wheel: { t, head } or null
+  occupantHit(c, o, d, maxT) {
+    const s = c.mesh.seat.position, cy = Math.cos(c.yaw), sy = Math.sin(c.yaw);
+    const x = c.x + s.x * cy + s.z * sy, z = c.z - s.x * sy + s.z * cy;
+    let best = null;
+    for (const [y, r, head] of [[s.y + 1.74, 0.2, true], [s.y + 1.2, 0.34, false]]) {
+      const t = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, x, y, z, r);
+      if (t < maxT && o.y + d.y * t > SILL && (!best || t < best.t)) best = { t, head };
+    }
+    return best;
+  },
   seatZ: () => -0.3,
   exitAt: c => ({ x: c.x + Math.cos(c.yaw) * (HW + 0.7), z: c.z - Math.sin(c.yaw) * (HW + 0.7) }),
   hitBox(c) { const sy = Math.abs(Math.sin(c.yaw)), cy = Math.abs(Math.cos(c.yaw)); return { hx: sy * HL + cy * HW, hz: cy * HL + sy * HW, h: 1.55 }; },
@@ -75,5 +96,5 @@ export const car = {
   onPlayerExit(c) { c.mode = 'parked'; },
   wreck(c) { c.wreckRoll = rnd(-0.15, 0.15); },
   blip() {},
-  dispose(c) { c.mesh.m.geometry.dispose(); },
+  dispose(c) { c.mesh.m.geometry.dispose(); if (c.mesh.win) c.mesh.win.geometry.dispose(); },
 };

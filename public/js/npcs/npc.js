@@ -27,7 +27,7 @@ const Npc = {
   },
   place() { this.c.root.position.set(this.x, 0, this.z); this.c.root.rotation.y = this.yaw; },
   raycast(o, d, maxT) {
-    if (!this.alive) return null;
+    if (!this.alive || (this.vehicle && this.vehicle.K.enclosed)) return null; // inside a car, the car decides what a shot hits
     const s = this.def.scale || 1, yo = this.vehicle ? 0.15 : 0;
     let best = null;
     const test = (y, r, head) => { const t = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, this.x, y * s + yo, this.z, r * s); if (t < maxT && (!best || t < best.t)) best = { t, head }; };

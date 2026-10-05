@@ -11,7 +11,7 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 - Break line of sight with the law and the stars flash and fade one at a time.
 - Two gun shops (pink `$` on the radar) sell an SMG, shotgun, assault rifle, minigun and rocket launcher, plus upgrades, ammo, health and armor. They close at 4+ stars.
 - Adventure bikes cruise the streets (white dots on the radar): the black BMW R 1300 GS 'Triple Black' and the Yamaha Ténéré 700 Rally in blue rally livery. Shoot or ram the rider off, walk up and press `F` to take the bike. Riderless bikes show as cyan squares.
-- Parked and passing cars can be driven too. Walk up to one and press `F`.
+- Every car can be driven: 80s sedans and the white Tesla Model Y. Traffic cars have someone at the wheel. Shoot them through the glass, or walk up to a slow or stopped car and press `F` to drag them out (that's a crime). Parked cars are free to take.
 - Dying sends you to Bay General with a 10% hospital bill. Progress saves in `localStorage`.
 
 ## Controls
@@ -23,7 +23,7 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 | Left click / right click | Shoot / zoom aim |
 | Shift / Space | Sprint / jump |
 | E | Enter a gun shop |
-| F | Get on or off a motorcycle, get in or out of a car |
+| F | Get on or off a motorcycle, get in or out of a car, pull a driver out of their car |
 | On a bike: W / S, A / D, Shift, Space | Throttle / brake, lean, boost, rear brake. You can still shoot. |
 | In a car: W / S, A / D, Shift, Space | Gas / brake, steer, boost, handbrake |
 | 1–6, mouse wheel | Switch weapons |
@@ -66,7 +66,7 @@ Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share 
 
 ```bash
 npm test             # unit tests (Vitest): rules, shop items, save migration, registry cross-checks
-npm run test:smoke   # plays the game in headless Chromium: walk, drive, ride, shoot, shop, a 5-star chase
+npm run test:smoke   # plays the game in headless Chromium: walk, drive, ride, shoot, carjack, shop, a 5-star chase
 ```
 
 The registry tests catch a typo in a new vehicle, NPC or shop (an unknown kind, behaviour, weapon or item type). Opening the game with `?debug` exposes its state as `window.__neonbay`. CI runs both suites on every pull request.
