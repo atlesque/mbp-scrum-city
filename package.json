@@ -10,7 +10,7 @@
   },
   "devDependencies": {
     "playwright": "^1.56.1",
-    "three": "^0.128.0",
+    "three": "^0.186.1",
     "vitest": "^3.2.7",
     "wrangler": "^4.147.0"
   }

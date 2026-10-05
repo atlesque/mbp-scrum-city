@@ -1,4 +1,4 @@
-// The game loads Three.js r128 as a global from the CDN; give the modules the same global here.
+// The game loads Three.js from the CDN and sets it as a global (public/js/three.js); give the modules the same global here.
 import * as THREE from 'three';
 import { vi } from 'vitest';
 

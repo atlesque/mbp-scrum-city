@@ -4,6 +4,7 @@ import { $ } from '../core/util.js';
 export const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
 renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.LinearSRGBColorSpace; // as r128 drew it
 $('stage').appendChild(renderer.domElement);
 export const canvasEl = renderer.domElement;
 export const scene = new THREE.Scene();
@@ -13,9 +14,10 @@ scene.fog = new THREE.Fog(HORIZON, 60, 290);
 export const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 1000);
 scene.add(camera);
 const SUN_DIR = new THREE.Vector3(1, 0.13, 0.32).normalize();
-scene.add(new THREE.HemisphereLight(0xffd8e8, 0x5c3c70, 0.85));
-scene.add(new THREE.AmbientLight(0x3c2c4c, 0.3));
-const sunLight = new THREE.DirectionalLight(0xffb27a, 0.9); sunLight.position.copy(SUN_DIR).multiplyScalar(100); scene.add(sunLight);
+// Lights are physically based since r155; the factor of PI keeps the brightness they had in r128
+scene.add(new THREE.HemisphereLight(0xffd8e8, 0x5c3c70, 0.85 * Math.PI));
+scene.add(new THREE.AmbientLight(0x3c2c4c, 0.3 * Math.PI));
+const sunLight = new THREE.DirectionalLight(0xffb27a, 0.9 * Math.PI); sunLight.position.copy(SUN_DIR).multiplyScalar(100); scene.add(sunLight);
 export const muzzleLight = new THREE.PointLight(0xffcf7a, 0, 14, 2); scene.add(muzzleLight);
 export const boomLight = new THREE.PointLight(0xff8a3a, 0, 60, 2); scene.add(boomLight);
 

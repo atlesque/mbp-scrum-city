@@ -22,8 +22,9 @@ const errors = [];
 page.on('pageerror', e => errors.push(e.message));
 page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
 // serve Three.js from node_modules and skip web fonts, so the test needs no network
-const three = await readFile(new URL('../node_modules/three/build/three.min.js', import.meta.url));
-await page.route('https://cdnjs.cloudflare.com/**', r => r.fulfill({ body: three, contentType: 'text/javascript' }));
+// (the CDN's .min.js files are minified copies of the package's build files)
+const threeBuild = new URL('../node_modules/three/build/', import.meta.url);
+await page.route('https://cdn.jsdelivr.net/npm/three@*/build/*', async r => r.fulfill({ body: await readFile(new URL(r.request().url().split('/').pop().replace('.min.js', '.js'), threeBuild)), contentType: 'text/javascript' }));
 await page.route('https://fonts.googleapis.com/**', r => r.fulfill({ body: '', contentType: 'text/css' }));
 await page.route('https://fonts.gstatic.com/**', r => r.fulfill({ body: '' }));
 
@@ -48,6 +49,7 @@ try {
   await step('boots to the title screen', async () => {
     await page.waitForFunction(() => !document.getElementById('playBtn').disabled, null, { timeout: 60000 });
     check(await game(() => window.__neonbay.all('npc').length > 10), 'expected the streets to be populated');
+    console.log('     three r' + await game(() => THREE.REVISION));
   });
   await page.click('#playBtn');
   await page.waitForTimeout(1000);
@@ -67,7 +69,8 @@ try {
         const v = spawnVehicle(m, P.x + Math.sin(yaw) * 2.5, P.z + Math.cos(yaw) * 2.5, yaw);
         return (v.testId = Math.random());
       }, model);
-      check(await until(() => __neonbay.G.near.length > 0), 'no prompt to get on');
+      // wait for this vehicle's prompt: the list can still hold the last one for a frame
+      check(await until(id => (__neonbay.G.near[0] || {}).prompt?.includes(__neonbay.all('vehicle').find(v => v.testId === id).model.name), id), 'no prompt to get on');
       await press('KeyF');
       check(await until(id => __neonbay.P.vehicle && __neonbay.P.vehicle.testId === id, id), 'F did not get the player on board');
       const from = await game(() => ({ x: __neonbay.P.vehicle.x, z: __neonbay.P.vehicle.z }));

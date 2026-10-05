@@ -1,3 +1,4 @@
+import './three.js'; // first, so every module below sees the THREE global
 import './core/input.js';
 import './shops/shop.js';
 import './game/rewards.js';

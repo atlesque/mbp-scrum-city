@@ -30,11 +30,14 @@ export function tracer(a, b, enemy) {
   const m = tracerPool.pop() || new THREE.Mesh(PGEO, tracerMat); m.material = enemy ? tracerMatE : tracerMat;
   m.position.copy(a).add(b).multiplyScalar(0.5); m.lookAt(b); m.scale.set(0.05, 0.05, len); scene.add(m); tracers.push({ m, life: 0.06 });
 }
+// point lights fall off with the square of distance since r155; these scale them back to their r128
+// brightness at a typical distance (2 m from the gun, 8 m from a blast)
+const MUZZLE_I = 9, BOOM_I = 150;
 const flashGeo = new THREE.OctahedronGeometry(0.22, 0), flashMat = new THREE.MeshBasicMaterial({ color: '#fff0a0', transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
 const flashes = [];
 export function muzzleFlash(p, big) {
   const m = new THREE.Mesh(flashGeo, flashMat); m.position.copy(p); m.scale.setScalar(big ? 2 : 1); m.rotation.set(rnd(0, 3), rnd(0, 3), 0); scene.add(m); flashes.push({ m, life: 0.05 });
-  muzzleLight.position.copy(p); muzzleLight.intensity = big ? 3 : 2;
+  muzzleLight.position.copy(p); muzzleLight.intensity = (big ? 3 : 2) * MUZZLE_I;
 }
 const bloodGeo = new THREE.CircleGeometry(1, 8); bloodGeo.rotateX(-Math.PI / 2);
 const bloodMat = new THREE.MeshBasicMaterial({ color: '#7a0a18', transparent: true, opacity: 0.85, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
@@ -50,13 +53,13 @@ export function boomFx(x, y, z, r) {
   m.position.set(x, y, z); scene.add(m); booms.push({ m, t: 0, r });
   emit(x, y + 0.5, z, 26, '#ff7a2a', 12, 0.8, 0.5, -6, 6); emit(x, y + 0.5, z, 18, '#ffd23e', 16, 0.5, 0.3, -8, 8); emit(x, y, z, 16, '#2a2230', 7, 1.2, 0.5, -10, 6);
   emit(x, y + 1, z, 14, '#5a5060', 2, 2.2, 0.9, 2.5, 1);
-  boomLight.position.set(x, y + 2, z); boomLight.intensity = 6;
+  boomLight.position.set(x, y + 2, z); boomLight.intensity = 6 * BOOM_I;
 }
 export function updateFx(dt) {
   for (let i = tracers.length - 1; i >= 0; i--) { const t = tracers[i]; t.life -= dt; t.m.scale.x = t.m.scale.y = 0.05 * Math.max(0.2, t.life / 0.06); if (t.life <= 0) { scene.remove(t.m); tracerPool.push(t.m); tracers.splice(i, 1); } }
   for (let i = flashes.length - 1; i >= 0; i--) { const f = flashes[i]; f.life -= dt; if (f.life <= 0) { scene.remove(f.m); flashes.splice(i, 1); } }
   for (const p of pools) if (p.t < 1) { p.t += dt * 0.5; p.m.scale.setScalar(p.max * Math.min(1, p.t * 1.5)); }
   for (let i = booms.length - 1; i >= 0; i--) { const b = booms[i]; b.t += dt; const k = b.t / 0.5; b.m.scale.setScalar(b.r * (0.3 + k * 0.9)); b.m.material.opacity = Math.max(0, 1 - k); b.m.material.color.setHSL(0.08 - k * 0.06, 1, 0.6 - k * 0.3); if (k >= 1) { scene.remove(b.m); b.m.geometry.dispose(); b.m.material.dispose(); booms.splice(i, 1); } }
-  muzzleLight.intensity = Math.max(0, muzzleLight.intensity - dt * 40);
-  boomLight.intensity = Math.max(0, boomLight.intensity - dt * 9);
+  muzzleLight.intensity = Math.max(0, muzzleLight.intensity - dt * 40 * MUZZLE_I);
+  boomLight.intensity = Math.max(0, boomLight.intensity - dt * 9 * BOOM_I);
 }

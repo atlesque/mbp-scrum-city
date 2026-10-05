@@ -33,7 +33,7 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 
 ## Project layout
 
-`public/index.html` holds the page, styles and HUD markup, and loads the game as native ES modules from `public/js/` (no build step). Three.js r128 loads from cdnjs as a global `THREE`, fonts from Google Fonts, and all sound is synthesized with the Web Audio API.
+`public/index.html` holds the page, styles and HUD markup, and loads the game as native ES modules from `public/js/` (no build step). Three.js (r186) loads from jsDelivr as an ES module in `js/three.js`, which sets it as the global `THREE`, fonts from Google Fonts, and all sound is synthesized with the Web Audio API.
 
 ```
 public/js/
