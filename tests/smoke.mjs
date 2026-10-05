@@ -43,6 +43,8 @@ async function until(fn, arg, ms = 15000) {
 }
 const press = async (key, ms = 80) => { await page.keyboard.down(key); await page.waitForTimeout(ms); await page.keyboard.up(key); };
 function check(cond, msg) { if (!cond) throw new Error(msg); }
+// clear parked and passing vehicles from around a spot, so F and E reach the one the step is about
+const clearVehicles = (x, z, keep) => game(([x, z, keep]) => { for (const v of __neonbay.all('vehicle')) if (!(keep && v[keep]) && Math.hypot(v.x - x, v.z - z) < 14) __neonbay.removeEntity(v); }, [x, z, keep]);
 
 try {
   await page.goto(`http://127.0.0.1:${server.address().port}/?debug`);
@@ -139,8 +141,9 @@ try {
     check(r.kills === before + 1, `driver was not taken down (driver hp ${r.hp}, car hp ${r.carHp})`);
     check(!r.seated, 'the body is still behind the wheel');
     check(r.carHp === r.max, `shots through the glass damaged the car (hp ${r.carHp})`);
-    await game(() => { const { P } = __neonbay, at = __car.K.exitAt(__car); P.x = at.x; P.z = at.z; });
-    check(await until(() => __neonbay.G.near.length > 0), 'no prompt to get in');
+    await game(() => { const { P } = __neonbay, at = __car.K.exitAt(__car); P.x = at.x; P.z = at.z; __car.mine = true; });
+    await clearVehicles(...await game(() => [__car.x, __car.z]), 'mine');
+    check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes('drive the Tesla')), 'no prompt to get in');
     await press('KeyF');
     check(await until(() => __neonbay.P.vehicle === window.__car), 'F did not put the player behind the wheel');
     await until(() => __neonbay.G.near.some(i => i.priority === 9)); // the prompt list catches up with the player being on board
@@ -151,11 +154,12 @@ try {
 
   await step('pulls a driver out of a stopped car', async () => {
     await game(() => {
-      const { G, P, spawnVehicle, spawnNpc } = __neonbay; G.heat = 0; G.wanted = 0;
+      const { G, P, all, removeEntity, spawnVehicle, spawnNpc } = __neonbay; G.heat = 0; G.wanted = 0;
+      for (const v of all('vehicle')) if (Math.hypot(v.x - P.x, v.z - P.z) < 14) removeEntity(v);
       const c = window.__jack = spawnVehicle('sedan', P.x + Math.cos(P.yaw) * 1.9, P.z - Math.sin(P.yaw) * 1.9, P.yaw);
       c.seatDriver(window.__jacked = spawnNpc('motorist', c.x, c.z));
     });
-    check(await until(() => __neonbay.G.near.some(i => /pull the driver/.test(i.prompt))), 'no prompt to pull the driver out');
+    check(await until(() => /pull the driver/.test((__neonbay.G.near[0] || {}).prompt)), 'no prompt to pull the driver out');
     await press('KeyF');
     check(await until(() => __neonbay.P.vehicle === window.__jack), 'F did not take the car');
     const r = await game(() => ({ out: !__jacked.vehicle && __jacked.alive, heat: __neonbay.G.heat }));
@@ -172,6 +176,7 @@ try {
       const { P, G, inv, all } = __neonbay, s = all('shop')[0];
       G.wanted = 0; G.heat = 0; inv.money = 5000; P.armor = 0; P.x = s.x; P.z = s.z;
     });
+    await clearVehicles(...await game(() => [__neonbay.P.x, __neonbay.P.z]));
     check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes('to shop at')), 'no shop prompt'); // not a parked car's E
     await press('KeyE');
     check(await until(() => __neonbay.G.state === 'shop' && !document.getElementById('shop').hidden), 'E did not open the shop');
