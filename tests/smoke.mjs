@@ -1,5 +1,5 @@
 // Plays a short session in headless Chromium: boot, walk, drive each kind of car, ride a bike, shoot someone,
-// shoot a driver through the window and take their car, drag a driver out, and buy armor at the gun shop. Fails on any page error or broken step.
+// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, walk into the edge wall and change settings. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -185,6 +185,61 @@ try {
     check(r.armor === 100 && r.money < 5000, `armor not bought (armor ${r.armor}, money ${r.money})`);
     await page.click('#shopClose');
     check(await game(() => __neonbay.G.state === 'play'), 'shop did not close');
+  });
+
+  await step('rams a parked bike out of the way', async () => {
+    // on an empty stretch of road, away from the shop's prompt
+    await clearVehicles(5, -50);
+    await game(() => { const { P, spawnVehicle } = __neonbay; P.x = 5.5; P.z = -60; window.__ram = spawnVehicle('sedan', 3, -60, 0); });
+    check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes(__ram.model.name)), 'no prompt to get in');
+    await press('KeyF');
+    check(await until(() => __neonbay.P.vehicle === window.__ram), 'F did not put the player behind the wheel');
+    // down the lane at a bike parked across it
+    await game(() => { __ram.x = 3; __ram.z = -60; __ram.yaw = 0; __ram.v = 22; window.__bike = __neonbay.spawnVehicle('gs', 3, -42, Math.PI / 2); });
+    await page.keyboard.down('KeyW');
+    const hit = await until(() => __bike.air > 0 || __bike.kvz > 0);
+    const past = await until(() => __ram.z > -38);
+    const r = await game(() => ({ v: __ram.v, z: __ram.z, bz: __bike.z }));
+    await page.keyboard.up('KeyW');
+    check(hit, 'the bike was not knocked');
+    check(past && r.v > 8, `the car stopped against the bike (speed ${r.v.toFixed(1)}, at ${r.z.toFixed(1)})`);
+    await press('KeyF');
+    check(await until(() => !__neonbay.P.vehicle), 'F did not get the player out');
+    await game(() => { __neonbay.removeEntity(__ram); __neonbay.removeEntity(__bike); });
+  });
+
+  await step('walks into the wall at the edge of the map and stops', async () => {
+    await game(() => { const { P, cam } = __neonbay; P.x = -203; P.z = -25; cam.yaw = -Math.PI / 2; });
+    await page.keyboard.down('KeyW');
+    const reached = await until(() => __neonbay.P.x < -206.5);
+    await page.waitForTimeout(1500);
+    await page.keyboard.up('KeyW');
+    const x = await game(() => __neonbay.P.x);
+    check(reached, `player never reached the wall (x ${x})`);
+    check(x > -207.6, `player went through the wall (x ${x})`);
+    const off = await game(() => __neonbay.all('vehicle').filter(v => v.mode === 'traffic' && (Math.abs(v.x) > 204 || Math.abs(v.z) > 204)).length);
+    check(off === 0, `${off} traffic vehicle(s) drove off the grid`);
+  });
+
+  await step('changes settings from the pause menu', async () => {
+    await press('KeyP');
+    check(await until(() => __neonbay.G.state === 'paused'), 'P did not pause');
+    await page.click('#pauseSettingsBtn');
+    check(await page.isVisible('#settings') && !(await page.isVisible('#pause')), 'the Settings screen did not open');
+    await page.click('#setBody .tgl[data-set="sound"]');
+    await page.locator('#setBody input[data-set="musicVolume"]').fill('0.4');
+    await page.click('#setTabs [data-tab="gameplay"]');
+    await page.click('#setBody [data-set="units"][data-val="mph"]');
+    await page.click('#setTabs [data-tab="controls"]');
+    check(await page.locator('#setBody .ctl').count() > 10, 'the Controls tab lists no keys');
+    const saved = await game(() => JSON.parse(localStorage.getItem('neonbay86.settings')));
+    check(saved.sound === false && saved.musicVolume === 0.4 && saved.units === 'mph', 'settings were not saved: ' + JSON.stringify(saved));
+    await page.keyboard.press('Escape');
+    check(await page.isVisible('#pause') && !(await page.isVisible('#settings')), 'Esc did not go back to the pause menu');
+    await page.click('#pauseSettingsBtn'); await page.click('#setTabs [data-tab="sound"]'); await page.click('#setReset'); await page.click('#setBack');
+    check(await game(() => localStorage.getItem('neonbay86.settings').includes('"sound":true')), 'reset did not restore the defaults');
+    await page.click('#resumeBtn');
+    check(await until(() => __neonbay.G.state === 'play'), 'did not resume');
   });
 
   await step('survives a five-star chase', async () => {

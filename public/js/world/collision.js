@@ -16,7 +16,8 @@ function nearColliders(x, z) {
   for (let i = ci - 1; i <= ci + 1; i++) for (let j = cj - 1; j <= cj + 1; j++) { const l = HASH.get(hkey(i, j)); if (l) for (const c of l) if (!_near.includes(c)) _near.push(c); }
   return _near;
 }
-export const W = { minX: -205, maxX: 252, minZ: -205, maxZ: 205 };
+// the play area: the inner faces of the walls round the city (world/edges.js) and the waterline
+export const W = { minX: -207.5, maxX: 252, minZ: -207.5, maxZ: 207.5 };
 export const ROADS = [-200, -150, -100, -50, 0, 50, 100, 150, 200];
 function pushOut(o, r, x0, x1, z0, z1) {
   const cx = clamp(o.x, x0, x1), cz = clamp(o.z, z0, z1), dx = o.x - cx, dz = o.z - cz, d2 = dx * dx + dz * dz;
