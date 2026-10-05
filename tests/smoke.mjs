@@ -44,10 +44,21 @@ async function until(fn, arg, ms = 15000) {
 const press = async (key, ms = 80) => { await page.keyboard.down(key); await page.waitForTimeout(ms); await page.keyboard.up(key); };
 function check(cond, msg) { if (!cond) throw new Error(msg); }
 // clear parked and passing vehicles from around a spot, so F and E reach the one the step is about
+// passing traffic and pedestrians can shove the player or the target, or step into the line of fire
+const clearLane = () => game(() => {
+  const { P, all, removeEntity } = __neonbay, near = e => Math.hypot(e.x - P.x, e.z - P.z) < 16;
+  for (const v of all('vehicle')) if (v !== window.__car && near(v)) removeEntity(v);
+  for (const n of all('npc')) if (n !== window.__target && n !== window.__driver && near(n)) removeEntity(n);
+});
 const clearVehicles = (x, z, keep) => game(([x, z, keep]) => { for (const v of __neonbay.all('vehicle')) if (!(keep && v[keep]) && Math.hypot(v.x - x, v.z - z) < 14) __neonbay.removeEntity(v); }, [x, z, keep]);
 
 try {
   await page.goto(`http://127.0.0.1:${server.address().port}/?debug`);
+  await step('shows the loading screen while it boots', async () => {
+    check(await page.isVisible('#loading'), 'loading screen is not showing');
+    await page.waitForSelector('#loading', { state: 'hidden', timeout: 60000 });
+    check(await game(() => document.getElementById('ldFill').style.width === '100%'), 'loading bar did not fill');
+  });
   await step('boots to the title screen', async () => {
     await page.waitForFunction(() => !document.getElementById('playBtn').disabled, null, { timeout: 60000 });
     check(await game(() => window.__neonbay.all('npc').length > 10), 'expected the streets to be populated');
@@ -66,6 +77,7 @@ try {
 
   for (const model of ['sedan', 'modely', 'gs']) {
     await step(`gets in and drives a ${model}`, async () => {
+      await clearVehicles(...await game(() => [__neonbay.P.x, __neonbay.P.z]));
       const id = await game(m => {
         const { P, spawnVehicle } = __neonbay, yaw = P.yaw;
         const v = spawnVehicle(m, P.x + Math.sin(yaw) * 2.5, P.z + Math.cos(yaw) * 2.5, yaw);
@@ -93,6 +105,7 @@ try {
   await step('shoots a civilian, who drops cash', async () => {
     const before = await game(() => __neonbay.stats.kills);
     for (let i = 0; i < 12; i++) {
+      await clearLane();
       const done = await game(() => {
         const { P, cam, I, all, spawnNpc } = __neonbay;
         let n = window.__target;
@@ -116,9 +129,38 @@ try {
     check(r.wanted > 0, 'no heat was added');
   });
 
+  await step('a downed juggernaut drops armor and ammo the player can pick up', async () => {
+    for (let i = 0; i < 12; i++) {
+      const done = await game(() => {
+        const { P, cam, I, inv, spawnNpc } = __neonbay;
+        let n = window.__jugg;
+        if (!n || n.removed) {
+          cam.pitch = -0.1;
+          const rx = -Math.cos(cam.yaw) * 0.55, rz = Math.sin(cam.yaw) * 0.55;
+          n = window.__jugg = spawnNpc('jugg', P.x + rx + Math.sin(cam.yaw) * 5, P.z + rz + Math.cos(cam.yaw) * 5);
+          n.update = function () { this.place && this.place(); }; // stand still, hold fire
+          n.hp = 1; P.armor = 0; inv.owned.smg = true; inv.ammo.smg = 0;
+        }
+        if (!n.alive) return true;
+        P.yaw = cam.yaw; I.clickQ = 0.3; return false;
+      });
+      if (done) break;
+      await until(() => __neonbay.I.clickQ === 0, undefined, 3000);
+      await page.waitForTimeout(300);
+    }
+    const types = await game(() => __neonbay.all('pickup').filter(p => p.def && p.life).map(p => p.type).sort());
+    check(types.includes('armor') && types.includes('ammo'), `expected armor and ammo drops, got ${types.join(', ') || 'none'}`);
+    await game(() => { const { P, all } = __neonbay, d = all('pickup').find(p => p.type === 'armor' && p.life); if (d) { P.x = d.x; P.z = d.z; } }); // it may already be drifting in
+    check(await until(() => __neonbay.P.armor >= 25), 'armor drop was not picked up');
+    await game(() => { const { P, all } = __neonbay, d = all('pickup').find(p => p.type === 'ammo' && p.life); if (d) { P.x = d.x; P.z = d.z; } }); // it may already be drifting in
+    check(await until(() => __neonbay.inv.ammo.smg > 0), 'ammo drop was not picked up');
+    await game(() => { const { inv, G } = __neonbay; delete inv.owned.smg; delete inv.ammo.smg; G.heat = 0; G.wanted = 0; });
+  });
+
   await step('shoots a driver through the window and takes the car', async () => {
     const before = await game(() => __neonbay.stats.kills);
     for (let i = 0; i < 16; i++) {
+      await clearLane();
       const done = await game(() => {
         const { P, cam, I, spawnVehicle, spawnNpc } = __neonbay;
         let c = window.__car;
@@ -246,6 +288,7 @@ try {
     await game(() => { const { G, P } = __neonbay; G.heat = 100; G.wanted = 5; G.spawnT = 0; G.heliT = 0; P.hp = 100; });
     check(await until(() => __neonbay.all('npc').some(n => n.faction === 'law' && n.alive) && __neonbay.all('vehicle').some(v => v.model.police), undefined, 40000), 'the law never showed up');
     check(await until(() => !!__neonbay.G.heli, undefined, 20000), 'no helicopter at five stars');
+    check(await until(() => !__neonbay.Sound.ready || __neonbay.Sound.intensity === 5), 'the music never reached five-star intensity');
     await page.waitForTimeout(8000);
   });
 

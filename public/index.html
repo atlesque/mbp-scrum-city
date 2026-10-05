@@ -14,6 +14,7 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
+<link rel="preload" href="/img/loading.svg" as="image" type="image/svg+xml">
 
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Neon Bay '86">
@@ -91,7 +92,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 #wname{font-family:var(--f-ui);font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan)}
 .vitals{display:flex;flex-direction:column;gap:5px;align-items:flex-end}
 .vital{display:flex;align-items:center;gap:8px;font-family:var(--f-hud);font-size:18px;font-variant-numeric:tabular-nums}
-.vital .ic{width:18px;text-align:center}
+.vital .ic{width:22px;height:22px;display:block;flex:none;overflow:visible;filter:drop-shadow(0 2px 0 #000)}
 .bar{width:150px;height:10px;background:rgba(0,0,0,.6);border:2px solid #000;border-radius:2px;overflow:hidden}
 .bar b{display:block;height:100%;width:100%;transition:width .15s}
 .bar.hp b{background:linear-gradient(90deg,#ff2f6e,var(--pink))}
@@ -206,6 +207,20 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 .sbtn.cy:hover:not([disabled]){background:rgba(62,240,255,.3)}
 .sbtn .p{color:var(--cash)}
 .shop-foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
+/* Loading screen: a full-bleed poster with the logo in a corner and a thin bar along the bottom, like an 80s crime-sim between missions */
+#loading{z-index:10;align-items:stretch;justify-content:stretch;padding:0;overflow:hidden;background:#140828;transition:opacity .6s}
+#loading.done{opacity:0;pointer-events:none}
+.ld-art{position:absolute;inset:-3%;background:#140828 url(/img/loading.svg) center/cover no-repeat;animation:ldPan 24s ease-in-out infinite alternate}
+@keyframes ldPan{from{transform:scale(1) translateX(0)}to{transform:scale(1.06) translateX(-1.5%)}}
+.ld-logo{position:absolute;left:clamp(16px,5vw,64px);top:clamp(16px,6vh,56px);font-family:var(--f-script);font-size:clamp(56px,9vw,120px);line-height:.9;color:var(--pink);margin:0;font-weight:400;text-shadow:0 0 16px rgba(255,79,163,.9),0 0 40px rgba(255,79,163,.5),4px 4px 0 #2a0b2c;transform:rotate(-6deg)}
+.ld-logo small{display:block;font-family:var(--f-hud);font-size:.32em;color:var(--cyan);letter-spacing:.2em;transform:translateX(30%);text-shadow:0 0 14px rgba(62,240,255,.8),3px 3px 0 #04252b;margin-top:6px}
+.ld-foot{position:absolute;left:0;right:0;bottom:0;padding:14px clamp(16px,5vw,64px) clamp(16px,4vh,32px);background:linear-gradient(180deg,rgba(20,8,40,0),rgba(20,8,40,.85) 45%);display:flex;flex-direction:column;gap:8px}
+.ld-row{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap}
+#ldText{font-family:var(--f-hud);font-size:18px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink)}
+#ldTip{font-size:14px;color:var(--dim);max-width:60ch;min-height:1.4em;transition:opacity .4s}
+.ld-bar{height:12px;background:rgba(0,0,0,.6);border:2px solid #000;box-shadow:0 0 0 2px var(--pink),0 0 18px rgba(255,79,163,.6);overflow:hidden}
+@media (max-aspect-ratio:1/1){.ld-art{background-position:74% center}}
+#ldFill{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--pink),var(--sun));transition:width .35s ease-out}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
@@ -225,8 +240,8 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
         <canvas id="wicon" width="240" height="112"></canvas>
       </div>
       <div class="vitals">
-        <div class="vital hp outline"><span class="ic">♥</span><span id="hpNum">100</span><div class="bar hp"><b id="hpFill"></b></div></div>
-        <div class="vital ar outline"><span class="ic">◆</span><span id="arNum">0</span><div class="bar ar"><b id="arFill" style="width:0"></b></div></div>
+        <div class="vital hp outline"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="icHeartG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8cc6"/><stop offset=".55" stop-color="#ff4fa3"/><stop offset="1" stop-color="#c8105a"/></linearGradient></defs><path d="M12 21.2C5 16.3 2 12.6 2 8.6 2 5.5 4.4 3.2 7.3 3.2c2 0 3.7 1.1 4.7 2.8 1-1.7 2.7-2.8 4.7-2.8 2.9 0 5.3 2.3 5.3 5.4 0 4-3 7.7-10 12.6Z" fill="url(#icHeartG)" stroke="#000" stroke-width="2.4" stroke-linejoin="round"/><path d="M12 18.4C6.6 14.5 4.3 11.6 4.3 8.7c0-1.8 1.4-3.2 3-3.2 1.5 0 2.6.9 3.3 2.3L12 10l1.4-2.2c.7-1.4 1.8-2.3 3.3-2.3 1.6 0 3 1.4 3 3.2 0 2.9-2.3 5.8-7.7 9.7Z" fill="none" stroke="#fff3fa" stroke-opacity=".55" stroke-width=".9" stroke-linejoin="round"/><path d="M5.6 8.6c0-1 .7-1.8 1.7-1.9" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg><span id="hpNum">100</span><div class="bar hp"><b id="hpFill"></b></div></div>
+        <div class="vital ar outline"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="icVestG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9adfff"/><stop offset=".5" stop-color="#5ec8ff"/><stop offset="1" stop-color="#2a6fd6"/></linearGradient></defs><path d="M7 2h2.6L12 8.2 14.4 2H17l.4 3.2c.3 2.4 1.6 4 3.6 4.8V20c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V10c2-.8 3.3-2.4 3.6-4.8Z" fill="url(#icVestG)" stroke="#000" stroke-width="2.2" stroke-linejoin="round"/><path d="M12 8.6V21.4M4.6 14.2h5M14.4 14.2h5M4.6 17.6h5M14.4 17.6h5" fill="none" stroke="#0b2a55" stroke-width="1.3" stroke-linecap="round"/><path d="M8 3.3l2.6 6M16 3.3l-2.6 6" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width=".9" stroke-linecap="round"/></svg><span id="arNum">0</span><div class="bar ar"><b id="arFill" style="width:0"></b></div></div>
       </div>
       <div id="money" class="outline">$00000500</div>
       <div id="stars"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div>
@@ -301,9 +316,47 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
   <section id="wasted" class="overlay" hidden>
     <div class="panel"><h2>wasted</h2><p id="wastedInfo" class="outline"></p></div>
   </section>
+
+  <section id="loading" class="overlay" aria-label="Loading">
+    <div class="ld-art" role="img" aria-label="A man in aviators stands by a sports car on Ocean Drive at sunset"></div>
+    <p class="ld-logo" aria-hidden="true">Neon Bay<small>'86</small></p>
+    <div class="ld-foot">
+      <div class="ld-row"><span id="ldText" class="outline">Loading</span><span id="ldTip" class="outline"></span></div>
+      <div class="ld-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="ldBar"><b id="ldFill"></b></div>
+    </div>
+  </section>
 </div>
 
-<script>addEventListener('load', () => setTimeout(() => { if (!window.THREE) document.getElementById('playBtn').textContent = 'Could not load the 3D engine'; }, 8000));</script>
+<script>
+// The loading screen shows from the first paint. The bar creeps on its own while the 3D engine downloads,
+// then main.js reports real progress through loadingScreen.step() and hides it with loadingScreen.done().
+window.loadingScreen = (() => {
+  const $ = id => document.getElementById(id), tips = [
+    'Break line of sight to lose a star.',
+    'Press F next to any car or bike to take it. The driver may disagree.',
+    'Bullet Bros. Guns sells upgrades. Cash first, questions never.',
+    'Press M to change the radio station.',
+    'Armor beats a hospital bill. Look for the vests around town.',
+  ];
+  let shown = 0, real = 0, tip = Math.floor(Math.random() * tips.length);
+  const paint = () => { $('ldFill').style.width = (shown * 100).toFixed(1) + '%'; $('ldBar').setAttribute('aria-valuenow', Math.round(shown * 100)); };
+  const nextTip = () => { $('ldTip').textContent = tips[tip++ % tips.length]; };
+  nextTip();
+  const tipTimer = setInterval(nextTip, 4000);
+  const creep = setInterval(() => { if (!real && shown < 0.3) { shown += (0.3 - shown) * 0.08; paint(); } }, 120);
+  return {
+    step(p, label) { real = 1; shown = Math.max(shown, p); paint(); if (label) $('ldText').textContent = label; },
+    fail(msg) { clearInterval(creep); $('ldText').textContent = msg; },
+    done() {
+      clearInterval(creep); clearInterval(tipTimer); shown = 1; paint();
+      const el = $('loading'); el.classList.add('done');
+      setTimeout(() => { el.hidden = true; }, 650);
+    },
+  };
+})();
+</script>
+
+<script>addEventListener('load', () => setTimeout(() => { if (!window.THREE) { document.getElementById('playBtn').textContent = 'Could not load the 3D engine'; loadingScreen.fail('Could not load the 3D engine'); } }, 8000));</script>
 <script type="module" src="/js/main.js"></script>
 </body>
 </html>

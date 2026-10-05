@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { HEAT, WANTED, heatToLevel, mixPick } from '../../public/js/data/wanted.js';
-import { WEAPONS, wStat } from '../../public/js/data/weapons.js';
+import { WBY, WEAPONS, wStat } from '../../public/js/data/weapons.js';
+import { NPC_TYPES } from '../../public/js/npcs/types.js';
 
 describe('wanted level', () => {
   it('maps heat to the highest level reached', () => {
@@ -34,5 +35,25 @@ describe('weapon upgrades', () => {
         expect(b.rate).toBeLessThanOrEqual(a.rate);
       }
     }
+  });
+  it('a base pump shotgun drops a police officer when a third of its pellets land', () => {
+    const w = WBY.shotgun;
+    expect(Math.ceil(w.pellets / 3) * wStat(w, 0).dmg).toBeGreaterThanOrEqual(NPC_TYPES.cop.hp);
+  });
+});
+
+describe('car explosions', () => {
+  // mirrors Vehicle.blast and Npc.blast: falloff to the edge of the radius plus a flat bonus
+  const atDist = (d, b, bonus) => b.dmg * (1 - d / b.r) + bonus;
+  it('set off the toughest car parked alongside', async () => {
+    const { car } = await import('../../public/js/vehicles/kinds/car.js');
+    const { VEHICLE_MODELS } = await import('../../public/js/vehicles/models/index.js');
+    const toughest = Math.max(...Object.values(VEHICLE_MODELS).filter(m => m.kind === 'car').map(m => m.hp));
+    expect(atDist(4.5, car.blast, 40)).toBeGreaterThanOrEqual(toughest);
+  });
+  it('kill a pedestrian most of the way out', async () => {
+    const { car } = await import('../../public/js/vehicles/kinds/car.js');
+    const { NPC_TYPES } = await import('../../public/js/npcs/types.js');
+    expect(atDist(car.blast.r * 0.9, car.blast, 30)).toBeGreaterThanOrEqual(NPC_TYPES.civilian.hp);
   });
 });
