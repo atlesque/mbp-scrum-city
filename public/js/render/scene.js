@@ -1,0 +1,36 @@
+import { $ } from '../core/util.js';
+
+// ================= RENDERER / SCENE =================
+export const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+renderer.setSize(innerWidth, innerHeight);
+$('stage').appendChild(renderer.domElement);
+export const canvasEl = renderer.domElement;
+export const scene = new THREE.Scene();
+const HORIZON = new THREE.Color('#f39a8f');
+scene.background = HORIZON;
+scene.fog = new THREE.Fog(HORIZON, 60, 290);
+export const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 1000);
+scene.add(camera);
+const SUN_DIR = new THREE.Vector3(1, 0.13, 0.32).normalize();
+scene.add(new THREE.HemisphereLight(0xffd8e8, 0x5c3c70, 0.85));
+scene.add(new THREE.AmbientLight(0x3c2c4c, 0.3));
+const sunLight = new THREE.DirectionalLight(0xffb27a, 0.9); sunLight.position.copy(SUN_DIR).multiplyScalar(100); scene.add(sunLight);
+export const muzzleLight = new THREE.PointLight(0xffcf7a, 0, 14, 2); scene.add(muzzleLight);
+export const boomLight = new THREE.PointLight(0xff8a3a, 0, 60, 2); scene.add(boomLight);
+
+export const sky = new THREE.Mesh(new THREE.SphereGeometry(700, 32, 16), new THREE.ShaderMaterial({
+  side: THREE.BackSide, depthWrite: false, fog: false,
+  uniforms: { sunDir: { value: SUN_DIR }, cHor: { value: HORIZON }, cMid: { value: new THREE.Color('#c25a9c') }, cTop: { value: new THREE.Color('#2b1855') } },
+  vertexShader: 'varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+  fragmentShader: `uniform vec3 sunDir; uniform vec3 cHor; uniform vec3 cMid; uniform vec3 cTop; varying vec3 vDir;
+    void main(){ vec3 d = normalize(vDir); float h = d.y;
+      vec3 col = mix(cHor, cMid, smoothstep(0.02, 0.22, h)); col = mix(col, cTop, smoothstep(0.22, 0.75, h));
+      float s = max(dot(d, normalize(sunDir)), 0.0);
+      col += vec3(1.0, 0.55, 0.25) * pow(s, 10.0) * 0.55;
+      float disc = smoothstep(0.9965, 0.9975, s);
+      float stripes = step(0.5, fract((d.y - 0.06) * 90.0)) + step(0.14, d.y);
+      col = mix(col, mix(vec3(1.0,0.83,0.42), vec3(1.0,0.4,0.55), smoothstep(0.2,0.0,d.y-0.05)), disc * clamp(stripes,0.0,1.0));
+      gl_FragColor = vec4(col, 1.0); }`
+}));
+sky.renderOrder = -10; scene.add(sky);

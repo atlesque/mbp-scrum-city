@@ -1,0 +1,7 @@
+export const ENEMY = {
+  cop: { name: 'Police', hp: 70, speed: 4.8, gun: 'pistol', dmg: 7, rate: 1.2, burst: 1, gap: 0.2, acc: 0.38, range: 34, reward: 150, heat: 5, look: { skin: null, shirt: '#8ab8ec', pants: '#1d2a4a', hat: 'cap', hatColor: '#1d2a4a', badge: true, shorts: false, hairStyle: 'short' } },
+  swat: { name: 'SWAT', hp: 170, speed: 5.0, gun: 'smg', dmg: 4, rate: 1.7, burst: 4, gap: 0.1, acc: 0.32, range: 30, reward: 300, heat: 6, look: { shirt: '#22242c', pants: '#1b1c22', hat: 'helmet', hatColor: '#121318', vest: '#30333e', glasses: true, longSleeve: true, gloves: '#111' } },
+  fbi: { name: 'Federal agent', hp: 230, speed: 5.4, gun: 'rifle', dmg: 6, rate: 1.6, burst: 3, gap: 0.12, acc: 0.34, range: 40, reward: 500, heat: 7, look: { shirt: '#17171c', pants: '#17171c', glasses: true, tie: true, longSleeve: true, hairStyle: 'short' } },
+  army: { name: 'Soldier', hp: 330, speed: 4.8, gun: 'rifle', dmg: 6, rate: 1.5, burst: 3, gap: 0.11, acc: 0.36, range: 46, reward: 750, heat: 8, look: { shirt: '#5d6b3c', pants: '#4c5732', hat: 'helmet', hatColor: '#4a5530', vest: '#3e4728', longSleeve: true, shoes: '#2a2418' } },
+  jugg: { name: 'Juggernaut', hp: 1600, speed: 3.0, gun: 'minigun', dmg: 4, rate: 2.8, burst: 12, gap: 0.06, acc: 0.28, range: 38, reward: 3000, heat: 12, scale: 1.32, look: { shirt: '#2b302b', pants: '#222622', hat: 'helmet', hatColor: '#1a1d1a', vest: '#3a403a', glasses: true, longSleeve: true, gloves: '#111' } },
+};
