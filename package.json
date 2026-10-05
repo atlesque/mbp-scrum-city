@@ -1,0 +1,13 @@
+{
+  "name": "mbp-scrum-city",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Neon Bay '86: a low-poly 80s beach-city shooter for desktop browsers, built with Three.js.",
+  "scripts": {
+    "dev": "wrangler pages dev public",
+    "deploy": "wrangler pages deploy public --project-name neon-bay-86 --branch main"
+  },
+  "devDependencies": {
+    "wrangler": "^4.147.0"
+  }
+}

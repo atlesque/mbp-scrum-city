@@ -1,0 +1,9 @@
+# Node dependencies
+node_modules
+
+# Wrangler local state and logs
+.wrangler
+.dev.vars*
+
+# OS files
+.DS_Store
