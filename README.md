@@ -8,6 +8,7 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 
 - Taking people down drops cash and raises your wanted level (1–5 stars).
 - Each star brings tougher enemies: police, police cars, SWAT, federal agents with a helicopter, then soldiers and minigun heavies.
+- Downed police, SWAT, feds, soldiers and heavies can also drop armor (blue) and ammo (yellow) for every gun you own that uses it. Tougher enemies drop more often; a heavy always drops both.
 - Break line of sight with the law and the stars flash and fade one at a time.
 - Two gun shops (pink `$` on the radar) sell an SMG, shotgun, assault rifle, minigun and rocket launcher, plus upgrades, ammo, health and armor. They close at 4+ stars.
 - Adventure bikes cruise the streets (white dots on the radar): the black BMW R 1300 GS 'Triple Black' and the Yamaha Ténéré 700 Rally in blue rally livery. Shoot or ram the rider off, walk up and press `F` to take the bike. Riderless bikes show as cyan squares.
@@ -49,7 +50,7 @@ public/js/
   render/ ui/ characters/ combat/ data/
 ```
 
-Everything in the world is an entity in `entities/registry.js`. Entities opt into traits (`update`, `raycast`, `onShot`, `blast`, `pushOut`, `blip`, `interaction`, `shouldDespawn`, `dispose`), so shooting, explosions, collisions, the radar and the E/F prompt work for anything new without touching those systems. Systems talk through `core/events.js` (`npc:killed`, `vehicle:wrecked`, `shop:purchase`, …); `game/rewards.js` turns those into cash and heat.
+Everything in the world is an entity in `entities/registry.js`. Entities opt into traits (`update`, `raycast`, `onShot`, `blast`, `pushOut`, `blip`, `interaction`, `shouldDespawn`, `dispose`), so shooting, explosions, collisions, the radar and the E/F prompt work for anything new without touching those systems. Systems talk through `core/events.js` (`npc:killed`, `vehicle:wrecked`, `shop:purchase`, …); `game/rewards.js` turns those into cash, drops and heat.
 
 Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share image `og-image.jpg`, `robots.txt` and `sitemap.xml`.
 
@@ -57,7 +58,7 @@ Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share 
 
 **A new vehicle.** Add a file to `public/js/vehicles/models/` whose default export describes it (`id`, `kind`, `name`, `short`, `hp`, `engine`, optional `traffic: { weight, speed }`, and the mesh or geometry its kind expects), then list it in `models/index.js`. `kind: 'bike'` or `'car'` gives it physics, seating, camera and crash rules; a model can override `handling`. A traffic weight above 0 puts it on the roads. A new kind of vehicle (a boat, a truck) is a new file in `vehicles/kinds/` implementing the hooks documented at the top of `kinds/bike.js`.
 
-**A new NPC.** Add an entry to `NPC_TYPES` in `npcs/types.js` (faction, behaviour, hp, look, cash, heat, and weapon stats if armed). Spawn it with `spawnNpc(id, x, z)`, through a wanted level's `mix` in `data/wanted.js`, or with a row in `POPULATION` in `game/population.js`. New behaviours go in `npcs/behaviours.js`.
+**A new NPC.** Add an entry to `NPC_TYPES` in `npcs/types.js` (faction, behaviour, hp, look, cash, heat, `drops`, and weapon stats if armed). Spawn it with `spawnNpc(id, x, z)`, through a wanted level's `mix` in `data/wanted.js`, or with a row in `POPULATION` in `game/population.js`. New behaviours go in `npcs/behaviours.js`.
 
 **A new shop.** Add an entry to `SHOP_TYPES` in `shops/types.js` (name, marker, storefront, catalogue) and place it in `SHOP_SITES` in `world/city.js`. New kinds of goods are an entry in `ITEM_TYPES` in `shops/items.js` with `render` and `act`.
 

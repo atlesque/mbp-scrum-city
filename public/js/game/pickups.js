@@ -1,5 +1,6 @@
 import { Sound } from '../core/audio.js';
 import { G, P, inv, stats } from '../core/state.js';
+import { WEAPONS } from '../data/weapons.js';
 import { $, lerp } from '../core/util.js';
 import { addEntity, removeEntity } from '../entities/registry.js';
 import { PGEO } from '../render/effects.js';
@@ -55,6 +56,43 @@ export function dropCash(x, z, val) {
   m.position.set(x, 0.5, z); scene.add(m);
   return addEntity(Object.assign(Object.create(Cash), { x, z, val, m, life: 40 }));
 }
+// What fallen enemies leave behind (see `drops` in npcs/types.js). useful(player, inv) says whether the
+// player can use it right now (if not, it stays put); take(player, inv) applies it and returns the feed label.
+const ammoMat = new THREE.MeshBasicMaterial({ color: '#ffd23e' }), ammoGeo = new THREE.BoxGeometry(0.5, 0.3, 0.3);
+const ammoGuns = inv => WEAPONS.filter(w => inv.owned[w.id] && !w.infinite);
+export const DROP_TYPES = {
+  armor: { color: '#5ec8ff',
+    useful: player => player.armor < 100,
+    take(player) { player.armor = Math.min(100, player.armor + 25); return '+25 armor'; },
+    mesh() { const m = new THREE.Group(), a = new THREE.Mesh(new THREE.OctahedronGeometry(0.32, 0), arMat); a.scale.set(1, 1.2, 0.45); m.add(a); return m; } },
+  // a quarter of a shop pack for every gun the player owns that uses ammo
+  ammo: { color: '#ffd23e',
+    useful: (player, inv) => ammoGuns(inv).length > 0,
+    take(player, inv) { for (const w of ammoGuns(inv)) inv.ammo[w.id] = (inv.ammo[w.id] || 0) + Math.max(1, Math.round(w.ammoPack / 4)); return '+ammo'; },
+    mesh() { const m = new THREE.Group(); m.add(new THREE.Mesh(ammoGeo, ammoMat)); return m; } },
+};
+
+// a dropped armor vest or ammo box: like cash, drifts to the player when close and vanishes after 40 s
+const Drop = {
+  kind: 'pickup',
+  blipLayer: 0,
+  update(dt) {
+    const p = this, d = Math.hypot(P.x - p.x, P.z - p.z);
+    p.m.rotation.y += dt * 2.5; p.m.position.y = 0.55 + Math.sin(G.time * 3 + p.x) * 0.12;
+    p.life -= dt; if (p.life <= 0) { removeEntity(p); return; }
+    if (d > 5 || !P.alive || !p.def.useful(P, inv)) return;
+    if (d < 1.2) { Sound.pickup(); feed(p.def.take(P, inv), false, p.def.color); removeEntity(p); return; }
+    p.x = lerp(p.x, P.x, dt * 6); p.z = lerp(p.z, P.z, dt * 6); p.m.position.x = p.x; p.m.position.z = p.z;
+  },
+  blip(radar) { radar.dot(this.x, this.z, this.def.color, 4, false, 'sq'); },
+  dispose() { scene.remove(this.m); },
+};
+export function dropItem(type, x, z) {
+  const def = DROP_TYPES[type], m = def.mesh();
+  m.position.set(x, 0.55, z); scene.add(m);
+  return addEntity(Object.assign(Object.create(Drop), { type, def, x, z, m, life: 40 }));
+}
+
 export function reward(x, z, val, label) { inv.money += val; stats.earned += val; Sound.cash(); feed((label ? label + '  ' : '') + '+$' + val); }
 function feed(text, bad, color) {
   const el = document.createElement('div'); el.className = 'outline' + (bad ? ' bad' : ''); el.textContent = text; if (color) el.style.color = color;
