@@ -1,11 +1,11 @@
 import { emit as emitEvent } from '../../core/events.js';
 import { G, P } from '../../core/state.js';
 import { seatedLegs } from '../../characters/character.js';
-import { rnd } from '../../core/util.js';
+import { angDiff, rnd } from '../../core/util.js';
 import { emit } from '../../render/effects.js';
 import { scene } from '../../render/scene.js';
 import { collide, pushOutOBB, raySphere } from '../../world/collision.js';
-import { arcadeDrive, followLane, wrapMap } from '../drive.js';
+import { arcadeDrive, followLane, keepOnGrid } from '../drive.js';
 import { blockedAhead } from '../vehicle.js';
 
 const HW = 1.0, HL = 2.15; // half width and half length of the body
@@ -21,6 +21,7 @@ export const car = {
   wreckReward: { heat: 3, cash: [40, 160] },
   bumper: { back: -2.2, front: 2.6, half: 1.15, slow: 0.9 },
   crash: { exitSpeed: 9, hurt: 0.5 },
+  ram: { mass: 4, hull: [1.15, HW], heavierAt: 3, sameAt: Infinity }, // see vehicles/knock.js
   camera: { dist: 7.4, aimDist: 4.2, height: 2.2, fovPerSpeed: 0.3 },
   laneHalf: 1.7, trafficDespawn: Infinity, reachMax: 1.6, stopsWhileBurning: true, enclosed: true,
   wheelbase: 2.7,
@@ -41,7 +42,7 @@ export const car = {
     c.x = (F.x + R.x) / 2; c.z = (F.z + R.z) / 2; return h1 || h2;
   },
   ai: {
-    traffic(c, dt) { followLane(c, dt, car.traffic); wrapMap(c); c.yaw = Math.atan2(c.dirX, c.dirZ); const a = c.driver; if (a) { a.x = c.x; a.z = c.z; a.yaw = c.yaw; } },
+    traffic(c, dt) { followLane(c, dt, car.traffic); keepOnGrid(c, dt); c.yaw += angDiff(c.yaw, Math.atan2(c.dirX, c.dirZ)) * Math.min(1, dt * 5); const a = c.driver; if (a) { a.x = c.x; a.z = c.z; a.yaw = c.yaw; } },
     // a police car racing up the player's road; it parks and lets the officers out when close
     respond(c, dt) {
       c.respT += dt;

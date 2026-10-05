@@ -1,4 +1,5 @@
 import { curWeapon } from '../combat/combat.js';
+import { settings } from '../core/settings.js';
 import { G, I, P, inv } from '../core/state.js';
 import { $, clamp } from '../core/util.js';
 
@@ -30,8 +31,11 @@ export function updateHUD() {
     $('money').textContent = '$' + String(Math.max(0, inv.money)).padStart(8, '0');
     [...$('stars').children].forEach((s, i) => s.classList.toggle('on', i < G.wanted));
   }
-  const v = P.vehicle, kmh = v ? Math.round(Math.abs(v.v) * 3.6) : -1;
-  if (kmh !== updateHUD.kmh) { updateHUD.kmh = kmh; $('speedo').hidden = kmh < 0; $('hint').hidden = kmh >= 0; if (kmh >= 0) $('kmh').textContent = String(kmh).padStart(3, '0'); }
+  const v = P.vehicle, mph = settings.units === 'mph', spd = v ? Math.round(Math.abs(v.v) * (mph ? 2.237 : 3.6)) : -1, sk = spd + settings.units;
+  if (sk !== updateHUD.spd) {
+    updateHUD.spd = sk; $('speedo').hidden = spd < 0; $('hint').hidden = spd >= 0;
+    if (spd >= 0) { $('kmh').textContent = String(spd).padStart(3, '0'); $('spdUnit').textContent = mph ? 'mph' : 'km/h'; }
+  }
   if (v) $('vehHp').style.width = clamp(v.hp / v.model.hp * 100, 0, 100) + '%';
   if (G.hitT > 0) { G.hitT -= 1 / 60; if (G.hitT <= 0) $('crosshair').className = ''; }
   const spread = (P.moveSpeed > 6 ? 2 : P.moveSpeed > 1 ? 1.4 : 1) * (I.mouseR ? 0.55 : 1) * w.spread * 300;
