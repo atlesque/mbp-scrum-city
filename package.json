@@ -4,9 +4,14 @@
   "private": true,
   "description": "Neon Bay '86: a low-poly 80s beach-city shooter for desktop browsers, built with Three.js.",
   "scripts": {
-    "dev": "wrangler pages dev public"
+    "dev": "wrangler pages dev public",
+    "test": "vitest run",
+    "test:smoke": "node tests/smoke.mjs"
   },
   "devDependencies": {
+    "playwright": "^1.56.1",
+    "three": "^0.128.0",
+    "vitest": "^3.2.7",
     "wrangler": "^4.147.0"
   }
 }
