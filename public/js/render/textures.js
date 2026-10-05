@@ -2,23 +2,34 @@ import { seeded } from '../core/util.js';
 
 // ================= TEXTURES =================
 export function makeCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+// Returns the facade map, its emissive map, and light(frac), which redraws the emissive map with that
+// share of the windows switched on. The 22% lit in the daytime map stay on; the rest come on in a fixed order.
 export function windowTextures() {
   const S = 256, c = makeCanvas(S, S), e = makeCanvas(S, S), x = c.getContext('2d'), y = e.getContext('2d');
-  x.fillStyle = '#fff'; x.fillRect(0, 0, S, S); y.fillStyle = '#000'; y.fillRect(0, 0, S, S);
-  const r = seeded(7);
+  x.fillStyle = '#fff'; x.fillRect(0, 0, S, S);
+  const r = seeded(7), wins = [];
   for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) {
-    const px = i * 32, py = j * 32, lit = r() < 0.22;
+    const px = i * 32, py = j * 32, roll = r(), lit = roll < 0.22;
     x.fillStyle = '#d9d2df'; x.fillRect(px + 4, py + 6, 24, 22);
     const g = x.createLinearGradient(px, py, px + 32, py + 32);
     if (lit) { g.addColorStop(0, '#ffe7a8'); g.addColorStop(1, '#ffb877'); } else { g.addColorStop(0, '#5a7fa8'); g.addColorStop(1, '#2c3d66'); }
     x.fillStyle = g; x.fillRect(px + 6, py + 8, 20, 18);
     x.fillStyle = 'rgba(255,255,255,.35)'; x.fillRect(px + 15, py + 8, 2, 18);
     if (!lit && r() < 0.3) { x.fillStyle = 'rgba(240,230,220,.75)'; x.fillRect(px + 6, py + 8, 20, 6 + r() * 10); }
-    if (lit) { y.fillStyle = r() < 0.5 ? '#ffcf8a' : '#ffa8d0'; y.fillRect(px + 6, py + 8, 20, 18); }
+    // windows lit only at night sit on a blue pane, so they glow a little softer
+    wins.push({ px, py, roll, col: lit ? (r() < 0.5 ? '#ffcf8a' : '#ffa8d0') : (i + j) % 3 ? '#b8905a' : '#a8708c' });
   }
   const t = new THREE.CanvasTexture(c), te = new THREE.CanvasTexture(e);
   [t, te].forEach(q => { q.wrapS = q.wrapT = THREE.RepeatWrapping; q.anisotropy = 4; });
-  return [t, te];
+  let shown = -1;
+  function light(frac) {
+    const n = wins.filter(w => w.roll < frac).length; if (n === shown) return; shown = n;
+    y.fillStyle = '#000'; y.fillRect(0, 0, S, S);
+    for (const w of wins) if (w.roll < frac) { y.fillStyle = w.col; y.fillRect(w.px + 6, w.py + 8, 20, 18); }
+    te.needsUpdate = true;
+  }
+  light(0.22);
+  return [t, te, light];
 }
 const shirtCache = {};
 export function shirtMat(base, a, b) {

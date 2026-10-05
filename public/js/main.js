@@ -18,6 +18,7 @@ import { managePopulation } from './game/population.js';
 import { updateWanted } from './game/wanted.js';
 import { findSpot, spawnNpc } from './npcs/npc.js';
 import { updateFx, updateParts } from './render/effects.js';
+import { buildLighting, lighting, updateLighting } from './render/lighting.js';
 import { camera, renderer, scene, sky } from './render/scene.js';
 import { spawnShop } from './shops/shop.js';
 import { updateHUD } from './ui/hud.js';
@@ -43,7 +44,7 @@ function frame(now) {
     // every person, vehicle, pickup and shop in the world
     for (const e of all()) if (e.update && !e.removed) e.update(dt);
     updateEngineSound();
-    updateRockets(dt); updateParts(dt); updateFx(dt);
+    updateRockets(dt); updateParts(dt); updateFx(dt); updateLighting(dt);
     if (G.state !== 'title') updateWanted(dt);
     managePopulation(dt);
     // water swell
@@ -79,7 +80,7 @@ async function start(data) {
   await loadStep(0.35, 'Tuning Neon FM');
   try { await Promise.race([Promise.all([document.fonts.load('80px "Yellowtail"'), document.fonts.load('80px "Bowlby One"')]), new Promise(r => setTimeout(r, 2500))]); } catch (e) {}
   await loadStep(0.5, 'Pouring Ocean Drive');
-  buildWorld();
+  buildWorld(); buildLighting();
   await loadStep(0.7, 'Planting the palm trees');
   buildMap(); load(data);
   P.c = makeCharacter({ skin: '#eab48f', shirt: '#2fb8c9', pa: '#ff6fae', pb: '#f6f1e7', pants: '#f4f0e6', hair: '#3a2416', hairStyle: 'mullet', glasses: true, shoes: '#f6f1e7' });
@@ -105,7 +106,7 @@ async function start(data) {
 }
 try { window.claude && window.claude.hot && window.claude.hot.snapshot && window.claude.hot.snapshot(() => ({ inv: serialize(inv, stats), cur: inv.cur })); } catch (e) {}
 // ?debug exposes the game state to the console and to the smoke test
-if (/[?&]debug\b/.test(location.search)) window.__neonbay = { G, I, P, Sound, cam, inv, stats, entities, all, removeEntity, spawnVehicle, spawnNpc, spawnShop };
+if (/[?&]debug\b/.test(location.search)) window.__neonbay = { G, I, P, Sound, cam, inv, stats, entities, all, removeEntity, spawnVehicle, spawnNpc, spawnShop, lighting };
 requestAnimationFrame(frame);
 const hot = window.claude && window.claude.hot;
 if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});

@@ -12,6 +12,8 @@ const NEON = ['#ff2fa8', '#21f7ff', '#b04bff', '#39ff88', '#ffcf3a', '#ff5a3d'];
 export const signs = [], parkRects = [], healthSpots = [], armorSpots = [];
 // filled by buildWorld: where shop doors are ({ type, x, z }) and where parked cars stand
 export const shopSpots = [], lotSpots = [];
+// street lamp heads ({ x, y, z }), lit at night by render/lighting.js
+export const lamps = [];
 // Which blocks of the 8x8 grid hold a shop, and which way the storefront faces ('n' street side, 'e' beach side).
 // The shop type (shops/types.js) supplies the storefront colours and sign.
 export const SHOP_SITES = [
@@ -21,7 +23,7 @@ export const SHOP_SITES = [
 export let SPAWN = { x: -25, z: 7.5, yaw: Math.PI };
 const HOTEL_NAMES = ['The Palms', 'Coral', 'Flamingo', 'Starlite', 'Breakers', 'Sunrise', 'Paradise', 'Tides', 'Seashell', 'Lagoon', 'Boulevard', 'Moonglow', 'Avalon', 'Riviera'];
 const SHOP_NAMES = ['Diner', 'Disco', 'Arcade', 'Video', 'Liquor', 'Pawn', 'Cafe', 'Club 86', 'Motel', 'Bar', 'Records', 'Tattoo', 'Pizza', 'Roller'];
-export let winMat, plainMat, neonMat, waterMesh, waterBase;
+export let winMat, plainMat, neonMat, waterMesh, waterBase, lightWindows;
 
 function blockKind(i, j) {
   if (i === 3 && j === 4) return 'hospital';
@@ -51,6 +53,7 @@ function lamp(gb, ng, x, z, ry) {
   const ax = Math.sin(ry), az = Math.cos(ry);
   box(gb, 0.12, 0.12, 1.6, x + ax * 0.7, 6, z + az * 0.7, '#3b3446', ry);
   box(ng, 0.4, 0.14, 0.7, x + ax * 1.4, 5.92, z + az * 1.4, '#ffe6a8', ry);
+  lamps.push({ x: x + ax * 1.4, y: 5.8, z: z + az * 1.4 });
 }
 function addSign(text, x, y, z, ry, w, color, font) { signs.push({ text, x, y, z, ry, w, color, font }); }
 function building(walls, plain, neon, x0, x1, z0, z1, h, style, face, signText) {
@@ -201,7 +204,7 @@ export function buildWorld() {
   healthSpots.push([210, -40], [212, 90]); armorSpots.push([214, 20]);
   buildEdges(plain);
 
-  const [wt, we] = windowTextures();
+  const [wt, we, lw] = windowTextures(); lightWindows = lw;
   winMat = new THREE.MeshLambertMaterial({ map: wt, vertexColors: true, emissiveMap: we, emissive: 0xffffff });
   plainMat = new THREE.MeshLambertMaterial({ vertexColors: true });
   neonMat = new THREE.MeshBasicMaterial({ vertexColors: true });

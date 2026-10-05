@@ -291,6 +291,12 @@ try {
     check(await until(() => !__neonbay.Sound.ready || __neonbay.Sound.intensity === 5), 'the music never reached five-star intensity');
     await page.waitForTimeout(8000);
   });
+
+  await step('lights the streets at night', async () => {
+    await game(() => __neonbay.lighting.set(1));
+    check(await until(() => __neonbay.lighting.lit.lamps > 0 && __neonbay.lighting.lit.beams > 0), 'no street lamps or headlights came on');
+    await game(() => __neonbay.lighting.set(null));
+  });
 } finally {
   await browser.close(); server.close();
 }
