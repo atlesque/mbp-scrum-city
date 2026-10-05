@@ -9,6 +9,7 @@
 //   wanted:lost       {}
 //   shop:purchase     { shop, item, action, price }
 //   player:died       { fee }
+//   settings:changed  { id, value }                    the player changed something on the Settings screen
 const handlers = new Map();
 
 export function on(name, fn) {

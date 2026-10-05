@@ -4,6 +4,7 @@ import { scene } from '../render/scene.js';
 import { crossTexture, neonTexture, windowTextures } from '../render/textures.js';
 import { SHOP_TYPES } from '../shops/types.js';
 import { ROADS, addCollider } from './collision.js';
+import { buildEdges } from './edges.js';
 
 // ================= WORLD =================
 const PASTEL = ['#f7a8c4', '#8fe3d6', '#ffd0a1', '#c9b3f2', '#a7e8a1', '#fff1c9', '#ffb3a7', '#9fd4ff', '#f4ece6', '#ffc6e7', '#b8f0e6', '#ffe0b3'];
@@ -198,6 +199,7 @@ export function buildWorld() {
   for (let x = -330; x <= 200; x += 34) { ring(x, -238); ring(x, 238); ring(x, -280); ring(x, 280); }
   for (let z = -200; z <= 200; z += 34) { ring(-238, z); ring(-280, z); }
   healthSpots.push([210, -40], [212, 90]); armorSpots.push([214, 20]);
+  buildEdges(plain);
 
   const [wt, we] = windowTextures();
   winMat = new THREE.MeshLambertMaterial({ map: wt, vertexColors: true, emissiveMap: we, emissive: 0xffffff });
