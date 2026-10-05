@@ -12,6 +12,7 @@ import { toast } from '../ui/hud.js';
 import { rayBox } from '../world/collision.js';
 import { bike } from './kinds/bike.js';
 import { car } from './kinds/car.js';
+import { knockImpulse, touching } from './knock.js';
 import { burntMat } from './materials.js';
 import { VEHICLE_MODELS } from './models/index.js';
 
@@ -70,7 +71,7 @@ const Vehicle = {
   },
   onRocket() { this.damage(999, true); },
   blast(x, y, z, R, dmg, byPlayer) { const d = Math.hypot(this.x - x, this.z - z); if (d < R && !this.dead) this.damage(dmg * (1 - d / R) + 40, byPlayer ? 'boom' : false); },
-  pushOut(o, r) { return this.K.pushOut(this, o, r); },
+  pushOut(o, r) { return !(this.ghostT > G.time) && this.K.pushOut(this, o, r); }, // a vehicle just rammed flies through whatever hit it
   blip(radar) { if (this.driver !== P && !this.dead) this.K.blip(this, radar); },
   interaction(p) {
     if (p.vehicle || this.driver === P || this.dead || this.burnT > 0) return null;
@@ -140,6 +141,7 @@ const controls = () => ({
 export function driveByPlayer(v, dt) {
   const K = v.K;
   K.drive(v, dt, controls());
+  ram(v);
   const fx = Math.sin(v.yaw), fz = Math.cos(v.yaw), nx = v.x, nz = v.z;
   if (K.collideSelf(v)) {
     // how squarely we hit: the push-out direction against our direction of travel
@@ -166,6 +168,21 @@ export function driveByPlayer(v, dt) {
   // camera swings in behind when the mouse is idle
   if (G.time - (P.lookT || 0) > 1.2 && Math.abs(v.v) > 3 && !I.mouseR) cam.yaw += angDiff(cam.yaw, v.yaw) * Math.min(1, dt * 2.2);
   P.x = v.x; P.z = v.z; P.y = 0; P.vy = 0; P.grounded = true; P.yaw = v.yaw; P.moveSpeed = Math.abs(v.v); P.vx = fx * v.v; P.vz = fz * v.v;
+}
+
+// send lighter vehicles we drive into flying (see knock.js); anything we only bump stops us as usual
+function ram(v) {
+  if (!v.K.ram || !v.v) return;
+  for (const b of all('vehicle')) {
+    if (b === v || b.dead || b.driver === P || b.ghostT > G.time || Math.abs(b.x - v.x) > 6 || Math.abs(b.z - v.z) > 6 || !touching(v, b)) continue;
+    const k = knockImpulse(v, b); if (!k) continue;
+    const a = b.driver;
+    if (a) { b.ejectDriver(false); a.svx = k.vx * 0.7; a.svz = k.vz * 0.7; a.hurt(k.closing * 4, new THREE.Vector3(k.vx, 0, k.vz).normalize(), true); }
+    b.ghostT = G.time + 0.6; b.K.knock(b, k.vx, k.vz, k.up); b.damage(k.closing * 1.2, true);
+    v.v *= k.keep;
+    Sound.thud(clamp(k.closing / 25, 0.3, 1), 0); cam.shake = Math.max(cam.shake, clamp(k.closing / 50, 0.1, 0.5)); alarm(v.x, v.z, 25);
+    emit(b.x, 0.8, b.z, 8, '#ffd23e', 5, 0.35, 0.06);
+  }
 }
 
 // something ahead of a vehicle on its lane: 'player', 'ped' or 'car' (any vehicle)
