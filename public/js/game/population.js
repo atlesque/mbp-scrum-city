@@ -5,7 +5,7 @@ import { findSpot, spawnNpc } from '../npcs/npc.js';
 import { spawnTrafficBike, spawnTrafficCar } from '../vehicles/traffic.js';
 
 // ================= POPULATION =================
-// How busy the bay is. Each row keeps `target()` of whatever `counts` matches alive near the player,
+// How busy the city is. Each row keeps `target()` of whatever `counts` matches alive near the player,
 // calling `spawn()` up to `perTick` times every half second. Add a row to populate a new NPC or vehicle type.
 // busy() scales a target by the player's Crowds and traffic setting.
 const busy = n => Math.round(n * (DENSITY[settings.density] || 1));

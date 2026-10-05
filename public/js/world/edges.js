@@ -138,7 +138,7 @@ function tree(gb, x, z, s, r) {
 }
 
 // ---- graffiti: one strip of wall, ART_LEN metres long, tiled along every edge ----
-const WORDS = ['NEON BAY', "'86", 'RAD', 'NO EXIT', 'FREEDOM', 'VICE', 'TUBULAR', 'WILD STYLE', 'PEACE', 'DREAM', 'BAY CREW', 'GNARLY'];
+const WORDS = ['SCRUM CITY', 'MBP', 'RAD', 'NO EXIT', 'FREEDOM', 'VICE', 'TUBULAR', 'WILD STYLE', 'PEACE', 'DREAM', 'CITY CREW', 'GNARLY'];
 const SPRAY = ['#ff2fa8', '#21f7ff', '#b04bff', '#39ff88', '#ffcf3a', '#ff5a3d', '#ff8fd0', '#5fa8ff'];
 function graffitiTexture() {
   const W = 3072, Ht = 320, c = makeCanvas(W, Ht), x = c.getContext('2d'), r = seeded(1989), rp = a => a[Math.floor(r() * a.length)];

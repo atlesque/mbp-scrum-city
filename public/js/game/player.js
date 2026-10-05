@@ -139,5 +139,5 @@ export function respawn() {
   P.c.body.rotation.x = 0; P.c.body.position.y = 0;
   const w = curWeapon(); inv.mag[w.id] = Math.max(inv.mag[w.id] || 0, 0);
   $('wasted').hidden = true; canvasEl.style.filter = '';
-  G.state = 'play'; showBig('Bay General discharged you');
+  G.state = 'play'; showBig('City General discharged you');
 }

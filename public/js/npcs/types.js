@@ -1,7 +1,7 @@
 import { pick } from '../core/util.js';
 import { HAIR, SKIN, randomLook } from '../characters/character.js';
 
-// Every kind of person in the bay. To add one, add an entry here; spawn it with spawnNpc(id, x, z).
+// Every kind of person in the city. To add one, add an entry here; spawn it with spawnNpc(id, x, z).
 //   behaviour  an entry in BEHAVIOURS (npcs/behaviours.js): wander, hunt, ride
 //   faction    'civilian' people panic at gunfire and count as witnesses; 'law' hunt the player while wanted
 //   look       a function returning a character look, or an object laid over a plain uniformed look
