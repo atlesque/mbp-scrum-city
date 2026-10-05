@@ -82,6 +82,7 @@ export function explosion(x, y, z, R, dmg, byPlayer) {
   const dP = Math.hypot(x - P.x, z - P.z);
   Sound.boom(clamp(1.2 - dP / 140, 0, 1.2), pan3d(x, z)); cam.shake = Math.max(cam.shake, clamp(1 - dP / 40, 0, 1) * 0.9);
   for (const e of all()) if (e.blast && !e.removed) e.blast(x, y, z, R, dmg, byPlayer);
+  for (const e of all()) if (e.fling && !e.removed) e.fling(x, y, z, R); // a second pass, so whoever the blast just killed flies too
   if (dP < R && P.alive) hurtPlayer((dmg * (1 - dP / R) + 10) * (byPlayer ? 0.35 : 0.6));
   alarm(x, z, 50);
 }
