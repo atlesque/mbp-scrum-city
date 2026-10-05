@@ -137,9 +137,9 @@ try {
     }
     const types = await game(() => __neonbay.all('pickup').filter(p => p.def && p.life).map(p => p.type).sort());
     check(types.includes('armor') && types.includes('ammo'), `expected armor and ammo drops, got ${types.join(', ') || 'none'}`);
-    await game(() => { const { P, all } = __neonbay, d = all('pickup').find(p => p.type === 'armor' && p.life); P.x = d.x; P.z = d.z; });
+    await game(() => { const { P, all } = __neonbay, d = all('pickup').find(p => p.type === 'armor' && p.life); if (d) { P.x = d.x; P.z = d.z; } }); // it may already be drifting in
     check(await until(() => __neonbay.P.armor >= 25), 'armor drop was not picked up');
-    await game(() => { const { P, all } = __neonbay, d = all('pickup').find(p => p.type === 'ammo' && p.life); P.x = d.x; P.z = d.z; });
+    await game(() => { const { P, all } = __neonbay, d = all('pickup').find(p => p.type === 'ammo' && p.life); if (d) { P.x = d.x; P.z = d.z; } }); // it may already be drifting in
     check(await until(() => __neonbay.inv.ammo.smg > 0), 'ammo drop was not picked up');
     await game(() => { const { inv, G } = __neonbay; delete inv.owned.smg; delete inv.ammo.smg; G.heat = 0; G.wanted = 0; });
   });
