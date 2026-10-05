@@ -1786,9 +1786,23 @@ function bikeCollide(b) {
   const h1 = collide(F, 0.42, b), h2 = collide(R, 0.42, b);
   b.x = (F.x + R.x) / 2; b.z = (F.z + R.z) / 2; return h1 || h2;
 }
+// top of the ground slabs laid down in buildWorld: block sidewalks, park and lot surfaces, the beach
+function groundAt(x, z) {
+  if (x > 204) return x >= 205 && x <= 208 ? 0.14 : x < 254 ? 0.1 : 0;
+  const i = Math.round((x + 175) / 50), j = Math.round((z + 175) / 50);
+  if (i < 0 || i > 7 || j < 0 || j > 7) return 0;
+  const dx = Math.abs(x + 175 - i * 50), dz = Math.abs(z + 175 - j * 50);
+  if (dx > 19.15 || dz > 19.15) return 0;
+  if (dx > 19 || dz > 19) return 0.1;
+  if (dx < 16 && dz < 16) { const k = blockKind(i, j); if (k === 'park') return dx < 1.2 || dz < 1.2 ? 0.225 : 0.21; if (k === 'lot') return 0.19; }
+  return 0.14;
+}
 function poseBike(b, dt) {
-  const m = b.mesh;
-  m.grp.position.set(b.x, 0, b.z); m.grp.rotation.y = b.yaw;
+  const m = b.mesh, S = b.M.spec, fx = Math.sin(b.yaw), fz = Math.cos(b.yaw);
+  // ride up onto kerbs: each wheel follows the ground under it, eased so a kerb reads as a quick hop
+  const tF = groundAt(b.x + fx * S.zF, b.z + fz * S.zF), tR = groundAt(b.x + fx * S.zR, b.z + fz * S.zR), k = Math.min(1, dt * 16);
+  b.hF = b.hF == null || !dt ? tF : lerp(b.hF, tF, k); b.hR = b.hR == null || !dt ? tR : lerp(b.hR, tR, k);
+  m.grp.position.set(b.x, b.hR - (b.hF - b.hR) * S.zR / S.wb, b.z); m.grp.rotation.set(-Math.atan2(b.hF - b.hR, S.wb), b.yaw, 0, 'YXZ');
   m.lean.rotation.z = b.lean; m.lean.position.y = Math.max(0, Math.abs(b.lean) - 0.75) * 0.75; // rest on the cylinder head when down
   m.steer.rotation.y = b.steer;
   m.fw.rotation.x += b.v / b.M.spec.rF * dt; m.rw.rotation.x += b.v / b.M.spec.rR * dt;
