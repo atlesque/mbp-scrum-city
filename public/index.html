@@ -1868,7 +1868,9 @@ function ridePlayer(b, dt) {
   if (brk) b.v = b.v > 0.4 ? b.v - 26 * dt : Math.max(-5, b.v - 7 * dt);
   if (keys.Space) b.v -= Math.sign(b.v) * Math.min(Math.abs(b.v), 32 * dt);
   if (!thr && !brk) b.v -= Math.sign(b.v) * Math.min(Math.abs(b.v), (1.6 + 0.01 * b.v * b.v) * dt);
-  b.steer = lerp(b.steer, st * lerp(0.55, 0.08, clamp(Math.abs(b.v) / 40, 0, 1)), Math.min(1, dt * 7));
+  // soft steering: cap the turn rate (gentler the faster you go), ease into a lean and settle back a bit quicker
+  const sp = Math.abs(b.v), maxYaw = lerp(1.8, 0.9, clamp(sp / 40, 0, 1)), maxSteer = sp < 0.5 ? 0.5 : Math.min(0.5, Math.atan(maxYaw * b.M.spec.wb / sp));
+  b.steer = lerp(b.steer, st * maxSteer, Math.min(1, dt * (st ? 3.5 : 5)));
   const yawRate = b.v * Math.tan(b.steer) / b.M.spec.wb; b.yaw += yawRate * dt;
   const fx = Math.sin(b.yaw), fz = Math.cos(b.yaw);
   b.x += fx * b.v * dt; b.z += fz * b.v * dt;
