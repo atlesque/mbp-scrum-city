@@ -44,6 +44,12 @@ async function until(fn, arg, ms = 15000) {
 const press = async (key, ms = 80) => { await page.keyboard.down(key); await page.waitForTimeout(ms); await page.keyboard.up(key); };
 function check(cond, msg) { if (!cond) throw new Error(msg); }
 // clear parked and passing vehicles from around a spot, so F and E reach the one the step is about
+// passing traffic and pedestrians can shove the player or the target, or step into the line of fire
+const clearLane = () => game(() => {
+  const { P, all, removeEntity } = __neonbay, near = e => Math.hypot(e.x - P.x, e.z - P.z) < 16;
+  for (const v of all('vehicle')) if (v !== window.__car && near(v)) removeEntity(v);
+  for (const n of all('npc')) if (n !== window.__target && n !== window.__driver && near(n)) removeEntity(n);
+});
 const clearVehicles = (x, z, keep) => game(([x, z, keep]) => { for (const v of __neonbay.all('vehicle')) if (!(keep && v[keep]) && Math.hypot(v.x - x, v.z - z) < 14) __neonbay.removeEntity(v); }, [x, z, keep]);
 
 try {
@@ -66,6 +72,7 @@ try {
 
   for (const model of ['sedan', 'modely', 'gs']) {
     await step(`gets in and drives a ${model}`, async () => {
+      await clearVehicles(...await game(() => [__neonbay.P.x, __neonbay.P.z]));
       const id = await game(m => {
         const { P, spawnVehicle } = __neonbay, yaw = P.yaw;
         const v = spawnVehicle(m, P.x + Math.sin(yaw) * 2.5, P.z + Math.cos(yaw) * 2.5, yaw);
@@ -93,6 +100,7 @@ try {
   await step('shoots a civilian, who drops cash', async () => {
     const before = await game(() => __neonbay.stats.kills);
     for (let i = 0; i < 12; i++) {
+      await clearLane();
       const done = await game(() => {
         const { P, cam, I, all, spawnNpc } = __neonbay;
         let n = window.__target;
@@ -119,6 +127,7 @@ try {
   await step('shoots a driver through the window and takes the car', async () => {
     const before = await game(() => __neonbay.stats.kills);
     for (let i = 0; i < 16; i++) {
+      await clearLane();
       const done = await game(() => {
         const { P, cam, I, spawnVehicle, spawnNpc } = __neonbay;
         let c = window.__car;
