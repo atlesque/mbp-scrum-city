@@ -10,7 +10,8 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 - Each star brings tougher enemies: police, police cars, SWAT, federal agents with a helicopter, then soldiers and minigun heavies.
 - Break line of sight with the law and the stars flash and fade one at a time.
 - Two gun shops (pink `$` on the radar) sell an SMG, shotgun, assault rifle, minigun and rocket launcher, plus upgrades, ammo, health and armor. They close at 4+ stars.
-- Black BMW R 1300 GS 'Triple Black' adventure bikes cruise the streets (white dots on the radar). Shoot or ram the rider off, walk up and press `F` to take the bike. Riderless bikes show as cyan squares.
+- Adventure bikes cruise the streets (white dots on the radar): the black BMW R 1300 GS 'Triple Black' and the Yamaha Ténéré 700 Rally in blue rally livery. Shoot or ram the rider off, walk up and press `F` to take the bike. Riderless bikes show as cyan squares.
+- Bikes are registered in `BIKE_MODELS` in `public/index.html`; each entry supplies its geometry, wheels, side decal and riding dimensions.
 - Dying sends you to Bay General with a 10% hospital bill. Progress saves in `localStorage`.
 
 ## Controls
