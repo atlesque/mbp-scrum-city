@@ -1,14 +1,22 @@
-import { parkedCars } from '../core/state.js';
 import { spick, srange, srnd } from '../core/util.js';
 import { CYL6, GB, UNIT, addGeo, box, wallBox } from '../render/geometry.js';
 import { scene } from '../render/scene.js';
-import { crossTexture, glyphSprite, neonTexture, windowTextures } from '../render/textures.js';
+import { crossTexture, neonTexture, windowTextures } from '../render/textures.js';
+import { SHOP_TYPES } from '../shops/types.js';
 import { ROADS, addCollider } from './collision.js';
 
 // ================= WORLD =================
 const PASTEL = ['#f7a8c4', '#8fe3d6', '#ffd0a1', '#c9b3f2', '#a7e8a1', '#fff1c9', '#ffb3a7', '#9fd4ff', '#f4ece6', '#ffc6e7', '#b8f0e6', '#ffe0b3'];
 const NEON = ['#ff2fa8', '#21f7ff', '#b04bff', '#39ff88', '#ffcf3a', '#ff5a3d'];
-export const signs = [], shops = [], parkRects = [], healthSpots = [], armorSpots = [];
+export const signs = [], parkRects = [], healthSpots = [], armorSpots = [];
+// filled by buildWorld: where shop doors are ({ type, x, z }) and where parked cars stand
+export const shopSpots = [], lotSpots = [];
+// Which blocks of the 8x8 grid hold a shop, and which way the storefront faces ('n' street side, 'e' beach side).
+// The shop type (shops/types.js) supplies the storefront colours and sign.
+export const SHOP_SITES = [
+  { block: [4, 3], type: 'gunshop', face: 'n' },
+  { block: [6, 5], type: 'gunshop', face: 'e' },
+];
 export let SPAWN = { x: -25, z: 7.5, yaw: Math.PI };
 const HOTEL_NAMES = ['The Palms', 'Coral', 'Flamingo', 'Starlite', 'Breakers', 'Sunrise', 'Paradise', 'Tides', 'Seashell', 'Lagoon', 'Boulevard', 'Moonglow', 'Avalon', 'Riviera'];
 const SHOP_NAMES = ['Diner', 'Disco', 'Arcade', 'Video', 'Liquor', 'Pawn', 'Cafe', 'Club 86', 'Motel', 'Bar', 'Records', 'Tattoo', 'Pizza', 'Roller'];
@@ -16,7 +24,7 @@ export let winMat, plainMat, neonMat, waterMesh, waterBase;
 
 function blockKind(i, j) {
   if (i === 3 && j === 4) return 'hospital';
-  if ((i === 4 && j === 3) || (i === 6 && j === 5)) return 'gunshop';
+  if (SHOP_SITES.some(s => s.block[0] === i && s.block[1] === j)) return 'shop';
   if ([[2, 2], [5, 6], [1, 5], [6, 1], [3, 7], [0, 3], [7, 3]].some(([a, b]) => a === i && b === j)) return 'park';
   if ([[4, 6], [2, 0], [5, 2], [0, 7]].some(([a, b]) => a === i && b === j)) return 'lot';
   return 'city';
@@ -112,7 +120,7 @@ export function buildWorld() {
     if (kind === 'lot') {
       box(plain, 32, 0.06, 32, cx, 0.16, cz, '#6b6274');
       for (let k = -3; k <= 3; k++) { box(plain, 0.2, 0.02, 5, cx + k * 4, 0.2, cz - 8, '#f4f0f6'); box(plain, 0.2, 0.02, 5, cx + k * 4, 0.2, cz + 8, '#f4f0f6'); }
-      for (let k = -3; k < 3; k++) for (const s of [-1, 1]) if (srnd() < 0.55) parkedCars.push({ x: cx + k * 4 + 2, z: cz + s * 8, dirX: 0, dirZ: s });
+      for (let k = -3; k < 3; k++) for (const s of [-1, 1]) if (srnd() < 0.55) lotSpots.push({ x: cx + k * 4 + 2, z: cz + s * 8, yaw: s > 0 ? 0 : Math.PI });
       armorSpots.push([cx, cz]);
       continue;
     }
@@ -129,10 +137,10 @@ export function buildWorld() {
       continue;
     }
     const lots = [];
-    if (kind === 'gunshop') {
-      const isBeach = i === 6;
-      if (isBeach) { lots.push({ x0: cx + 2, x1: cx + 16, z0: cz - 8, z1: cz + 8, face: 'e', shop: true }); lots.push({ x0: cx - 16, x1: cx, z0: cz - 16, z1: cz + 16, face: 'w' }); }
-      else { lots.push({ x0: cx - 7, x1: cx + 9, z0: cz - 16, z1: cz - 4, face: 'n', shop: true }); lots.push({ x0: cx - 16, x1: cx + 16, z0: cz - 1, z1: cz + 16, face: 's' }); }
+    if (kind === 'shop') {
+      const site = SHOP_SITES.find(s => s.block[0] === i && s.block[1] === j);
+      if (site.face === 'e') { lots.push({ x0: cx + 2, x1: cx + 16, z0: cz - 8, z1: cz + 8, face: 'e', shop: site.type }); lots.push({ x0: cx - 16, x1: cx, z0: cz - 16, z1: cz + 16, face: 'w' }); }
+      else { lots.push({ x0: cx - 7, x1: cx + 9, z0: cz - 16, z1: cz - 4, face: 'n', shop: site.type }); lots.push({ x0: cx - 16, x1: cx + 16, z0: cz - 1, z1: cz + 16, face: 's' }); }
     } else if (district === 'deco') {
       lots.push({ x0: cx - 16, x1: cx - 1, z0: cz - 16, z1: cz + 16, face: 'w' });
       lots.push({ x0: cx + 1, x1: cx + 16, z0: cz - 16, z1: cz - 1, face: i === 7 ? 'e' : 'n' });
@@ -145,16 +153,16 @@ export function buildWorld() {
     }
     for (const L of lots) {
       if (L.shop) {
-        const h = 6, w = L.x1 - L.x0, d = L.z1 - L.z0, scx = (L.x0 + L.x1) / 2, scz = (L.z0 + L.z1) / 2;
-        wallBox(walls, plain, scx, h / 2, scz, w, h, d, '#ffd0e5');
-        box(plain, w + 0.6, 0.7, d + 0.6, scx, h + 0.35, scz, '#2b1b3d');
+        const h = 6, w = L.x1 - L.x0, d = L.z1 - L.z0, scx = (L.x0 + L.x1) / 2, scz = (L.z0 + L.z1) / 2, sf = SHOP_TYPES[L.shop].storefront;
+        wallBox(walls, plain, scx, h / 2, scz, w, h, d, sf.wall);
+        box(plain, w + 0.6, 0.7, d + 0.6, scx, h + 0.35, scz, sf.roof);
         const fn = L.face === 'e' ? [1, 0] : [0, -1];
         const fx = scx + fn[0] * w / 2, fz = scz + fn[1] * d / 2;
-        box(neon, fn[0] ? 0.15 : w + 0.6, 0.15, fn[0] ? d + 0.6 : 0.15, fx + fn[0] * 0.35, h + 0.75, fz + fn[1] * 0.35, '#ff2fa8');
-        box(plain, fn[0] ? 2 : w * 0.8, 0.16, fn[0] ? d * 0.8 : 2, fx + fn[0], 3.0, fz + fn[1], '#ff4fa3');
-        signs.push({ text: 'Bullet Bros. Guns', x: fx + fn[0] * 0.4, y: 4.6, z: fz + fn[1] * 0.4, ry: Math.atan2(fn[0], fn[1]), w: 10, color: '#ff3fae', font: '"Yellowtail", cursive' });
+        box(neon, fn[0] ? 0.15 : w + 0.6, 0.15, fn[0] ? d + 0.6 : 0.15, fx + fn[0] * 0.35, h + 0.75, fz + fn[1] * 0.35, sf.neon);
+        box(plain, fn[0] ? 2 : w * 0.8, 0.16, fn[0] ? d * 0.8 : 2, fx + fn[0], 3.0, fz + fn[1], sf.awning);
+        signs.push({ text: sf.sign.text, x: fx + fn[0] * 0.4, y: 4.6, z: fz + fn[1] * 0.4, ry: Math.atan2(fn[0], fn[1]), w: 10, color: sf.sign.color, font: sf.sign.font });
         addCollider(L.x0, L.x1, L.z0, L.z1, h, true);
-        shops.push({ x: fx + fn[0] * 2.2, z: fz + fn[1] * 2.2 });
+        shopSpots.push({ type: L.shop, x: fx + fn[0] * 2.2, z: fz + fn[1] * 2.2 });
         continue;
       }
       const inset = 0.6, x0 = L.x0 + inset, x1 = L.x1 - inset, z0 = L.z0 + inset, z1 = L.z1 - inset;
@@ -211,12 +219,6 @@ export function buildWorld() {
     const mat = new THREE.MeshBasicMaterial({ map: s.cross ? crossT : neonTexture(s.text, s.color, s.font), transparent: true, depthWrite: false });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(s.w, s.cross ? s.w : s.w / 4), mat);
     m.position.set(s.x, s.y, s.z); m.rotation.y = s.ry; scene.add(m);
-  }
-  // shop markers
-  for (const sh of shops) {
-    const ring = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 2.2, 24, 1, true), new THREE.MeshBasicMaterial({ color: '#ff4fa3', transparent: true, opacity: 0.32, side: THREE.DoubleSide, depthWrite: false }));
-    ring.position.set(sh.x, 1.1, sh.z); scene.add(ring);
-    const g = glyphSprite('$', '#ff4fa3', 1.6); g.position.set(sh.x, 3, sh.z); scene.add(g); sh.glyph = g; sh.ring = ring;
   }
 }
 // top of the ground slabs laid down in buildWorld: block sidewalks, park and lot surfaces, the beach

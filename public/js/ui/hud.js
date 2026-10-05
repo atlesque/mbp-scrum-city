@@ -30,9 +30,9 @@ export function updateHUD() {
     $('money').textContent = '$' + String(Math.max(0, inv.money)).padStart(8, '0');
     [...$('stars').children].forEach((s, i) => s.classList.toggle('on', i < G.wanted));
   }
-  const kmh = P.bike ? Math.round(Math.abs(P.bike.v) * 3.6) : -1;
+  const v = P.vehicle, kmh = v ? Math.round(Math.abs(v.v) * 3.6) : -1;
   if (kmh !== updateHUD.kmh) { updateHUD.kmh = kmh; $('speedo').hidden = kmh < 0; $('hint').hidden = kmh >= 0; if (kmh >= 0) $('kmh').textContent = String(kmh).padStart(3, '0'); }
-  if (P.bike) $('bikeHp').style.width = clamp(P.bike.hp / 1.6, 0, 100) + '%';
+  if (v) $('vehHp').style.width = clamp(v.hp / v.model.hp * 100, 0, 100) + '%';
   if (G.hitT > 0) { G.hitT -= 1 / 60; if (G.hitT <= 0) $('crosshair').className = ''; }
   const spread = (P.moveSpeed > 6 ? 2 : P.moveSpeed > 1 ? 1.4 : 1) * (I.mouseR ? 0.55 : 1) * w.spread * 300;
   const off = clamp(spread, 0, 16);

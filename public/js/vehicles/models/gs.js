@@ -155,3 +155,11 @@ export function gsDecalMat() {
   const t = new THREE.CanvasTexture(c); t.anisotropy = 4;
   return (gsDecal = new THREE.MeshLambertMaterial({ map: t, transparent: true, depthWrite: false }));
 }
+
+export default {
+  id: 'gs', kind: 'bike', name: 'BMW R 1300 GS', short: 'R 1300 GS', tag: 'GS',
+  hp: 160,
+  spec: GS, geos: gsGeos, wheel: gsWheelGeo, decal: gsDecalMat, decalAt: [0.152, 0.81, -0.44],
+  engine: { rev: 1 },
+  traffic: { weight: 1, speed: [14, 18] },
+};

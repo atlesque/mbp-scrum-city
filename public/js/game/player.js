@@ -1,17 +1,21 @@
 import { animateChar, deathAnim } from '../characters/character.js';
 import { curWeapon, finishReload, playerShoot } from '../combat/combat.js';
 import { Sound } from '../core/audio.js';
+import { emit } from '../core/events.js';
 import { save } from '../core/save.js';
-import { G, I, P, cam, cars, enemies, inv, keys, peds } from '../core/state.js';
+import { G, I, P, cam, inv, keys } from '../core/state.js';
 import { $, angDiff, clamp, lerp, rnd } from '../core/util.js';
 import { wStat } from '../data/weapons.js';
-import { faceTo, removeActor } from '../npcs/actors.js';
-import { camera, canvasEl, scene } from '../render/scene.js';
-import { showBig } from '../ui/hud.js';
-import { dismountBike, nearestFreeBike, ridePlayer, riderArms } from '../vehicles/bikes.js';
-import { removeCar } from '../vehicles/cars.js';
-import { SPAWN, shops } from '../world/city.js';
+import { all, removeEntity } from '../entities/registry.js';
+import { emit as emitFx } from '../render/effects.js';
+import { faceTo, onFoot } from '../npcs/npc.js';
+import { camera, canvasEl } from '../render/scene.js';
+import { showBig, toast } from '../ui/hud.js';
+import { removeHeli } from '../vehicles/heli.js';
+import { driveByPlayer } from '../vehicles/vehicle.js';
+import { SPAWN } from '../world/city.js';
 import { collide, wallHit } from '../world/collision.js';
+import { updateInteraction } from './interact.js';
 
 // ================= PLAYER =================
 export const camTarget = new THREE.Vector3();
@@ -24,11 +28,30 @@ export function updatePlayer(dt) {
   const aimingNow = I.mouseR || I.mouseL || I.clickQ > 0 || G.time - P.lastShot < 0.7;
   P.aiming = aimingNow;
   P.aimPitch = cam.pitch;
-  if (P.bike) {
-    ridePlayer(P.bike, dt);
-    if (P.bike) riderArms(P.c, aimingNow ? clamp(angDiff(P.bike.yaw, cam.yaw), -2.4, 2.4) : null, cam.pitch);
-  } else {
-  // move
+  const v = P.vehicle;
+  if (v) {
+    driveByPlayer(v, dt);
+    if (P.vehicle) v.K.aim(v, P.c, aimingNow ? clamp(angDiff(v.yaw, cam.yaw), -2.4, 2.4) : null, cam.pitch);
+  } else walk(dt, aimingNow);
+  // weapon
+  const w = curWeapon(), st = wStat(w, inv.lvl[w.id] || 0);
+  if (G.reloadT > 0) { G.reloadT -= dt; if (G.reloadT <= 0) { G.reloadT = 0; finishReload(); } }
+  G.fireCd -= dt;
+  if (w.spin) G.spin = (I.mouseL || I.clickQ > 0) ? Math.min(1, G.spin + dt * 2.5) : Math.max(0, G.spin - dt * 2);
+  I.clickQ = Math.max(0, I.clickQ - dt);
+  if ((I.mouseL || I.clickQ > 0) && G.fireCd <= 0 && G.state === 'play') {
+    if (w.auto ? (I.mouseL || I.clickQ > 0) : I.clickQ > 0) { if (!w.spin || G.spin >= 1) { playerShoot(); I.clickQ = 0; } else G.fireCd = 0.05; }
+  }
+  if (P.c.gun && w.spin && G.spin > 0) P.c.gun.rotation.y += dt * G.spin * 40;
+  if (!P.vehicle) {
+    // separation from people
+    for (const a of all('npc')) { if (!onFoot(a)) continue; const dx = a.x - P.x, dz = a.z - P.z, d = Math.hypot(dx, dz); if (d < 0.75 && d > 0.001) { const k = (0.75 - d) * 0.5; a.x += dx / d * k; a.z += dz / d * k; P.x -= dx / d * k; P.z -= dz / d * k; } }
+    animateChar(P, dt);
+    P.c.root.position.set(P.x, 0, P.z); P.c.root.rotation.y = P.yaw;
+  }
+  updateInteraction();
+}
+function walk(dt, aimingNow) {
   let ix = 0, iz = 0;
   if (keys.KeyW || keys.ArrowUp) iz += 1; if (keys.KeyS || keys.ArrowDown) iz -= 1;
   if (keys.KeyA || keys.ArrowLeft) ix -= 1; if (keys.KeyD || keys.ArrowRight) ix += 1;
@@ -47,40 +70,47 @@ export function updatePlayer(dt) {
   // facing and aim
   if (aimingNow) faceTo(P, cam.yaw, dt, 20);
   else if (ml > 0) faceTo(P, Math.atan2(mx, mz), dt, 10);
-  }
-  // weapon
-  const w = curWeapon(), st = wStat(w, inv.lvl[w.id] || 0);
-  if (G.reloadT > 0) { G.reloadT -= dt; if (G.reloadT <= 0) { G.reloadT = 0; finishReload(); } }
-  G.fireCd -= dt;
-  if (w.spin) G.spin = (I.mouseL || I.clickQ > 0) ? Math.min(1, G.spin + dt * 2.5) : Math.max(0, G.spin - dt * 2);
-  I.clickQ = Math.max(0, I.clickQ - dt);
-  if ((I.mouseL || I.clickQ > 0) && G.fireCd <= 0 && G.state === 'play') {
-    if (w.auto ? (I.mouseL || I.clickQ > 0) : I.clickQ > 0) { if (!w.spin || G.spin >= 1) { playerShoot(); I.clickQ = 0; } else G.fireCd = 0.05; }
-  }
-  if (P.c.gun && w.spin && G.spin > 0) P.c.gun.rotation.y += dt * G.spin * 40;
-  if (!P.bike) {
-    // separation from people
-    for (const list of [peds, enemies]) for (const a of list) { if (!a.alive) continue; const dx = a.x - P.x, dz = a.z - P.z, d = Math.hypot(dx, dz); if (d < 0.75 && d > 0.001) { const k = (0.75 - d) * 0.5; a.x += dx / d * k; a.z += dz / d * k; P.x -= dx / d * k; P.z -= dz / d * k; } }
-    animateChar(P, dt);
-    P.c.root.position.set(P.x, 0, P.z); P.c.root.rotation.y = P.yaw;
-  }
-  // shop and bike proximity
-  const near = P.bike ? null : shops.find(s => Math.hypot(s.x - P.x, s.z - P.z) < 2.2);
-  P.nearBike = P.bike || near || !P.alive ? null : nearestFreeBike();
-  const pr = $('prompt');
-  if (near && G.state === 'play') { pr.hidden = false; pr.innerHTML = G.wanted >= 4 ? 'Shutters down. Lose some heat first (under 4 ★)' : 'Press <kbd>E</kbd> to shop at Bullet Bros. Guns'; }
-  else if (P.nearBike && G.state === 'play') { pr.hidden = false; pr.innerHTML = 'Press <kbd>F</kbd> to ride the ' + P.nearBike.M.name; }
-  else pr.hidden = true;
-  P.nearShop = !!near;
 }
+
+// ---- getting on and off vehicles ----
+const told = {};
+export function enterVehicle(v) {
+  P.vehicle = v; v.driver = P; v.mode = 'player'; v.K.onPlayerEnter(v);
+  v.K.seat(v, P.c); P.x = v.x; P.z = v.z; P.y = 0; P.vy = 0; P.grounded = true; P.lookT = -9;
+  $('prompt').hidden = true; G.hudCache = ''; $('vehName').textContent = v.model.short;
+  if (!told[v.model.id]) { told[v.model.id] = true; toast(v.K.tip(v.model), 7); }
+  emit('vehicle:enter', { vehicle: v });
+}
+export function exitVehicle(crash) {
+  const v = P.vehicle; if (!v) return;
+  P.vehicle = null; v.driver = null; v.K.unseat(v, P.c);
+  const sp = Math.abs(v.v), at = v.K.exitAt(v);
+  P.x = at.x; P.z = at.z; collide(P, 0.38);
+  P.y = 0; P.vy = 0; P.grounded = true; P.yaw = v.yaw; P.vx = P.vz = 0; P.moveSpeed = 0;
+  P.c.root.position.set(P.x, 0, P.z); P.c.root.rotation.y = P.yaw;
+  v.K.onPlayerExit(v, crash, sp);
+  if (sp > v.K.crash.exitSpeed) hurtPlayer(Math.min(60, sp * 1.1));
+  G.hudCache = '';
+  emit('vehicle:exit', { vehicle: v, crash });
+}
+
+export function hurtPlayer(d) {
+  if (!P.alive || G.state !== 'play') return;
+  if (P.armor > 0) { const a = Math.min(P.armor, d * 0.7); P.armor -= a; d -= a; }
+  P.hp -= d; Sound.hurt(); cam.shake = Math.max(cam.shake, 0.15);
+  const vg = $('vignette'); vg.style.opacity = '1'; clearTimeout(hurtPlayer.t); hurtPlayer.t = setTimeout(() => { vg.style.opacity = '0'; }, 140);
+  emitFx(P.x, P.y + 1.2, P.z, 4, '#b3122a', 3, 0.5, 0.08);
+  if (P.hp <= 0) die();
+}
+
 export function updateCamera(dt) {
-  const aim = I.mouseR && P.alive, ride = !!P.bike, sp = ride ? Math.abs(P.bike.v) : 0;
-  cam.dist = lerp(cam.dist, aim ? (ride ? 3.4 : 2.4) : (ride ? 6.2 : 4.6), Math.min(1, dt * 10));
-  cam.fov = lerp(cam.fov, aim ? 52 : 70 + Math.min(14, sp * 0.35), Math.min(1, dt * 10));
+  const v = P.vehicle, C = v && v.K.camera, aim = I.mouseR && P.alive, sp = v ? Math.abs(v.v) : 0;
+  cam.dist = lerp(cam.dist, aim ? (C ? C.aimDist : 2.4) : (C ? C.dist : 4.6), Math.min(1, dt * 10));
+  cam.fov = lerp(cam.fov, aim ? 52 : 70 + Math.min(14, sp * (C ? C.fovPerSpeed : 0)), Math.min(1, dt * 10));
   if (Math.abs(camera.fov - cam.fov) > 0.01) { camera.fov = cam.fov; camera.updateProjectionMatrix(); }
   const cp = Math.cos(cam.pitch), d = new THREE.Vector3(Math.sin(cam.yaw) * cp, Math.sin(cam.pitch), Math.cos(cam.yaw) * cp);
   const right = new THREE.Vector3(-Math.cos(cam.yaw), 0, Math.sin(cam.yaw));
-  camTarget.set(P.x, (P.alive ? P.y : 0) + (ride ? 1.95 : 1.62), P.z).addScaledVector(right, aim ? 0.7 : 0.55);
+  camTarget.set(P.x, (P.alive ? P.y : 0) + (C ? C.height : 1.62), P.z).addScaledVector(right, aim ? 0.7 : 0.55);
   let dist = cam.dist;
   const back = d.clone().negate(), tw = wallHit(camTarget.x, camTarget.y, camTarget.z, back.x, back.y, back.z, dist + 0.3);
   if (tw < dist + 0.3) dist = Math.max(0.6, tw - 0.3);
@@ -91,18 +121,18 @@ export function updateCamera(dt) {
 }
 export function die() {
   P.alive = false; P.deadT = 0; P.aiming = false; P.hp = 0; G.state = 'dead'; G.deadT = 0; I.mouseL = false; I.mouseR = false;
-  if (P.bike) dismountBike(true);
+  if (P.vehicle) exitVehicle(true);
   const fee = Math.min(inv.money, Math.round(inv.money * 0.1));
   inv.money -= fee; save();
   $('wastedInfo').textContent = fee > 0 ? `Hospital bill: $${fee.toLocaleString()}` : 'Patched up for free. Lucky you.';
   $('wasted').hidden = false; canvasEl.style.filter = 'grayscale(0.85) contrast(1.1)';
   $('prompt').hidden = true;
   Sound.setSiren(0); Sound.setHeli(0);
+  emit('player:died', { fee });
 }
 export function respawn() {
-  for (const e of enemies.slice()) removeActor(enemies, e);
-  if (G.heli) { scene.remove(G.heli.grp); scene.remove(G.heli.beam); G.heli = null; }
-  for (const c of cars.slice()) if (c.cop || c.dead) removeCar(c);
+  for (const e of all()) if ((e.kind === 'npc' && e.faction === 'law') || (e.kind === 'vehicle' && (e.model.police || e.dead))) removeEntity(e);
+  removeHeli();
   G.wanted = 0; G.heat = 0; G.lostT = 0; G.heliT = 15;
   P.x = SPAWN.x; P.z = SPAWN.z; P.y = 0; P.hp = 100; P.alive = true; P.deadT = 0; P.yaw = SPAWN.yaw; cam.yaw = SPAWN.yaw; cam.pitch = -0.08;
   P.c.body.rotation.x = 0; P.c.body.position.y = 0;

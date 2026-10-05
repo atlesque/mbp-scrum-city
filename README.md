@@ -11,7 +11,7 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 - Break line of sight with the law and the stars flash and fade one at a time.
 - Two gun shops (pink `$` on the radar) sell an SMG, shotgun, assault rifle, minigun and rocket launcher, plus upgrades, ammo, health and armor. They close at 4+ stars.
 - Adventure bikes cruise the streets (white dots on the radar): the black BMW R 1300 GS 'Triple Black' and the Yamaha Ténéré 700 Rally in blue rally livery. Shoot or ram the rider off, walk up and press `F` to take the bike. Riderless bikes show as cyan squares.
-- Bikes are registered in `BIKE_MODELS` in `public/index.html`; each entry supplies its geometry, wheels, side decal and riding dimensions.
+- Parked and passing cars can be driven too. Walk up to one and press `F`.
 - Dying sends you to Bay General with a 10% hospital bill. Progress saves in `localStorage`.
 
 ## Controls
@@ -23,8 +23,9 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 | Left click / right click | Shoot / zoom aim |
 | Shift / Space | Sprint / jump |
 | E | Enter a gun shop |
-| F | Get on or off a motorcycle |
+| F | Get on or off a motorcycle, get in or out of a car |
 | On a bike: W / S, A / D, Shift, Space | Throttle / brake, lean, boost, rear brake. You can still shoot. |
+| In a car: W / S, A / D, Shift, Space | Gas / brake, steer, boost, handbrake |
 | 1–6, mouse wheel | Switch weapons |
 | R | Reload |
 | M | Toggle the radio |
@@ -32,9 +33,43 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 
 ## Project layout
 
-Everything lives in `public/index.html`: the game code, styles, and all sound (synthesized with the Web Audio API). Three.js r128 loads from cdnjs and fonts from Google Fonts. There is no build step.
+`public/index.html` holds the page, styles and HUD markup, and loads the game as native ES modules from `public/js/` (no build step). Three.js r128 loads from cdnjs as a global `THREE`, fonts from Google Fonts, and all sound is synthesized with the Web Audio API.
 
-Alongside it in `public/`: the favicon set (`favicon.svg`, `favicon.ico`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`), `site.webmanifest`, the social share image `og-image.jpg` (1200×630, a capture of the title screen), `robots.txt` and `sitemap.xml`. SEO and Open Graph tags point at the production URL.
+```
+public/js/
+  main.js            boot and the frame loop: updates every entity in the registry
+  core/              state, input, audio, save (versioned), event bus, helpers
+  entities/          the registry every person, vehicle, pickup and shop lives in
+  vehicles/          the shared vehicle layer: vehicle.js, kinds/ (bike, car), models/, traffic, helicopter
+  npcs/              NPC_TYPES, behaviours (wander, hunt, ride) and the Npc entity
+  shops/             SHOP_TYPES, item types and the shop entity and menu
+  game/              player, interaction prompts, rewards, wanted level, population, pickups
+  world/             city layout, collision, radar
+  render/ ui/ characters/ combat/ data/
+```
+
+Everything in the world is an entity in `entities/registry.js`. Entities opt into traits (`update`, `raycast`, `onShot`, `blast`, `pushOut`, `blip`, `interaction`, `shouldDespawn`, `dispose`), so shooting, explosions, collisions, the radar and the E/F prompt work for anything new without touching those systems. Systems talk through `core/events.js` (`npc:killed`, `vehicle:wrecked`, `shop:purchase`, …); `game/rewards.js` turns those into cash and heat.
+
+Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share image `og-image.jpg`, `robots.txt` and `sitemap.xml`.
+
+## Extending the game
+
+**A new vehicle.** Add a file to `public/js/vehicles/models/` whose default export describes it (`id`, `kind`, `name`, `short`, `hp`, `engine`, optional `traffic: { weight, speed }`, and the mesh or geometry its kind expects), then list it in `models/index.js`. `kind: 'bike'` or `'car'` gives it physics, seating, camera and crash rules; a model can override `handling`. A traffic weight above 0 puts it on the roads. A new kind of vehicle (a boat, a truck) is a new file in `vehicles/kinds/` implementing the hooks documented at the top of `kinds/bike.js`.
+
+**A new NPC.** Add an entry to `NPC_TYPES` in `npcs/types.js` (faction, behaviour, hp, look, cash, heat, and weapon stats if armed). Spawn it with `spawnNpc(id, x, z)`, through a wanted level's `mix` in `data/wanted.js`, or with a row in `POPULATION` in `game/population.js`. New behaviours go in `npcs/behaviours.js`.
+
+**A new shop.** Add an entry to `SHOP_TYPES` in `shops/types.js` (name, marker, storefront, catalogue) and place it in `SHOP_SITES` in `world/city.js`. New kinds of goods are an entry in `ITEM_TYPES` in `shops/items.js` with `render` and `act`.
+
+**Saves.** When the save shape changes, bump `SAVE_VERSION` in `core/save.js` and add a migration from the previous version.
+
+## Tests
+
+```bash
+npm test             # unit tests (Vitest): rules, shop items, save migration, registry cross-checks
+npm run test:smoke   # plays the game in headless Chromium: walk, drive, ride, shoot, shop, a 5-star chase
+```
+
+The registry tests catch a typo in a new vehicle, NPC or shop (an unknown kind, behaviour, weapon or item type). Opening the game with `?debug` exposes its state as `window.__neonbay`. CI runs both suites on every pull request.
 
 ## Develop and deploy
 

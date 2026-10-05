@@ -1,7 +1,8 @@
-import { G, P, bikes, cam, enemies, pickups } from '../core/state.js';
+import { P, cam } from '../core/state.js';
+import { entities } from '../entities/registry.js';
 import { $, angDiff } from '../core/util.js';
 import { makeCanvas } from '../render/textures.js';
-import { SPAWN, parkRects, shops } from './city.js';
+import { SPAWN, parkRects } from './city.js';
 import { ROADS, tallBoxes } from './collision.js';
 
 // ================= MAP / RADAR =================
@@ -31,20 +32,30 @@ export function drawRadar() {
     const dx = (wx - P.x) * MAP.s * zoom, dz = (wz - P.z) * MAP.s * zoom, a = cam.yaw - Math.PI, ca = Math.cos(a), sa = Math.sin(a);
     return [Rr + dx * ca - dz * sa, Rr + dx * sa + dz * ca];
   };
-  const blip = (wx, wz, col, size, edge, shape) => {
-    let [bx, by] = toR(wx, wz); const dx = bx - Rr, dy = by - Rr, d = Math.hypot(dx, dy);
-    if (d > Rr - 10) { if (!edge) return; bx = Rr + dx / d * (Rr - 12); by = Rr + dy / d * (Rr - 12); }
-    c.fillStyle = col; c.strokeStyle = '#000'; c.lineWidth = 3;
-    if (shape === 'sq') { c.fillRect(bx - size, by - size, size * 2, size * 2); c.strokeRect(bx - size, by - size, size * 2, size * 2); }
-    else { c.beginPath(); c.arc(bx, by, size, 0, 7); c.fill(); c.stroke(); }
+  // what entities draw with in their blip(radar) trait
+  const radar = {
+    flash: (performance.now() / 250 | 0) % 2,
+    dot(wx, wz, col, size, edge, shape) {
+      let [bx, by] = toR(wx, wz); const dx = bx - Rr, dy = by - Rr, d = Math.hypot(dx, dy);
+      if (d > Rr - 10) { if (!edge) return; bx = Rr + dx / d * (Rr - 12); by = Rr + dy / d * (Rr - 12); }
+      c.fillStyle = col; c.strokeStyle = '#000'; c.lineWidth = 3;
+      if (shape === 'sq') { c.fillRect(bx - size, by - size, size * 2, size * 2); c.strokeRect(bx - size, by - size, size * 2, size * 2); }
+      else { c.beginPath(); c.arc(bx, by, size, 0, 7); c.fill(); c.stroke(); }
+    },
+    // a letter that stays pinned to the rim when out of range
+    glyph(wx, wz, ch, col) {
+      const [bx, by] = toR(wx, wz); const dx = bx - Rr, dy = by - Rr, d = Math.hypot(dx, dy), k = d > Rr - 16 ? (Rr - 18) / d : 1;
+      c.font = '30px "Bowlby One", Impact'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 6; c.strokeStyle = '#000';
+      c.strokeText(ch, Rr + dx * k, Rr + dy * k); c.fillStyle = col; c.fillText(ch, Rr + dx * k, Rr + dy * k);
+    },
   };
-  const flashOn = (performance.now() / 250 | 0) % 2;
-  for (const p of pickups) if (p.active && p.type !== 'cash') blip(p.x, p.z, p.type === 'health' ? '#ff5a7a' : '#5ec8ff', 6, false, 'sq');
-  for (const sh of shops) { const [bx, by] = toR(sh.x, sh.z); const dx = bx - Rr, dy = by - Rr, d = Math.hypot(dx, dy); const k = d > Rr - 16 ? (Rr - 18) / d : 1; c.font = '30px "Bowlby One", Impact'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 6; c.strokeStyle = '#000'; c.strokeText('$', Rr + dx * k, Rr + dy * k); c.fillStyle = '#ff4fa3'; c.fillText('$', Rr + dx * k, Rr + dy * k); }
+  const blips = []; for (const e of entities) if (e.blip) blips.push(e);
+  blips.sort((a, b) => a.blipLayer - b.blipLayer);
+  let i = 0;
+  for (; i < blips.length && blips[i].blipLayer <= 1; i++) blips[i].blip(radar);
+  // hospital cross
   { const [bx, by] = toR(SPAWN.x, SPAWN.z); if (Math.hypot(bx - Rr, by - Rr) < Rr - 10) { c.fillStyle = '#fff'; c.fillRect(bx - 9, by - 3, 18, 6); c.fillRect(bx - 3, by - 9, 6, 18); c.fillStyle = '#ff3344'; c.fillRect(bx - 7, by - 2, 14, 4); c.fillRect(bx - 2, by - 7, 4, 14); } }
-  for (const b of bikes) { if (b === P.bike || b.dead) continue; if (b.rider) blip(b.x, b.z, '#f4f4f4', 5, false); else blip(b.x, b.z, '#3ef0ff', 6, true, 'sq'); }
-  for (const e of enemies) if (e.alive) blip(e.x, e.z, e.type === 'cop' ? (flashOn ? '#ff3b4e' : '#4a7dff') : '#ff3b4e', 7, true);
-  if (G.heli && G.heli.alive) blip(G.heli.x, G.heli.z, flashOn ? '#ffd23e' : '#ff3b4e', 11, true, 'sq');
+  for (; i < blips.length; i++) blips[i].blip(radar);
   // player arrow
   c.save(); c.translate(Rr, Rr); c.rotate(-angDiff(cam.yaw, P.yaw));
   c.beginPath(); c.moveTo(0, -16); c.lineTo(11, 12); c.lineTo(0, 6); c.lineTo(-11, 12); c.closePath(); c.fillStyle = '#fff'; c.strokeStyle = '#000'; c.lineWidth = 4; c.stroke(); c.fill(); c.restore();

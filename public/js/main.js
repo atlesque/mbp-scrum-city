@@ -1,23 +1,26 @@
 import './core/input.js';
 import './shops/shop.js';
+import './game/rewards.js';
 import { makeCharacter, setGun } from './characters/character.js';
 import { selectWeapon, updateRockets } from './combat/combat.js';
-import { load, save } from './core/save.js';
-import { G, P, bikes, cars, enemies, inv, parkedCars, peds, stats } from './core/state.js';
+import { load, save, serialize } from './core/save.js';
+import { G, I, P, cam, inv, stats } from './core/state.js';
 import { $ } from './core/util.js';
 import { WEAPONS, wStat } from './data/weapons.js';
-import { makePickup, updatePickups } from './game/pickups.js';
+import { all, count, entities, removeEntity } from './entities/registry.js';
+import { makePickup } from './game/pickups.js';
 import { respawn, updateCamera, updatePlayer } from './game/player.js';
 import { managePopulation } from './game/population.js';
 import { updateWanted } from './game/wanted.js';
-import { findSpot, spawnPed, updateEnemy, updatePed } from './npcs/actors.js';
+import { findSpot, spawnNpc } from './npcs/npc.js';
 import { updateFx, updateParts } from './render/effects.js';
 import { camera, renderer, scene, sky } from './render/scene.js';
+import { spawnShop } from './shops/shop.js';
 import { updateHUD } from './ui/hud.js';
-import { spawnBikerNear, updateBike, updateEngineSound } from './vehicles/bikes.js';
-import { spawnCar, spawnTraffic, updateCar } from './vehicles/cars.js';
-import { updateHeli } from './vehicles/heli.js';
-import { armorSpots, buildWorld, healthSpots, shops, waterBase, waterMesh } from './world/city.js';
+import { updateEngineSound } from './vehicles/engine.js';
+import { spawnTrafficBike, spawnTrafficCar } from './vehicles/traffic.js';
+import { spawnVehicle } from './vehicles/vehicle.js';
+import { armorSpots, buildWorld, healthSpots, lotSpots, shopSpots, waterBase, waterMesh } from './world/city.js';
 import { buildMap, drawRadar } from './world/radar.js';
 
 // ================= MAIN LOOP =================
@@ -31,21 +34,17 @@ function frame(now) {
     G.time += dt;
     if (G.state === 'play') updatePlayer(dt);
     else if (G.state === 'dead') { updatePlayer(dt); G.deadT += dt; if (G.deadT > 3.6) respawn(); }
-    for (const p of peds.slice()) updatePed(p, dt);
-    G.shootersNow = enemies.filter(e => e.alive && e.burst > 0).length;
-    for (const e of enemies.slice()) updateEnemy(e, dt);
-    for (const c of cars.slice()) updateCar(c, dt);
-    for (const b of bikes.slice()) updateBike(b, dt);
+    G.shootersNow = count(e => e.kind === 'npc' && e.alive && e.burst > 0);
+    // every person, vehicle, pickup and shop in the world
+    for (const e of all()) if (e.update && !e.removed) e.update(dt);
     updateEngineSound();
-    if (G.heli) updateHeli(dt);
-    updateRockets(dt); updateParts(dt); updateFx(dt); updatePickups(dt);
+    updateRockets(dt); updateParts(dt); updateFx(dt);
     if (G.state !== 'title') updateWanted(dt);
     managePopulation(dt);
     // water swell
     const pos = waterMesh.geometry.attributes.position, arr = pos.array;
     for (let i = 0; i < arr.length; i += 3) { const x = waterBase[i], z = waterBase[i + 2]; arr[i + 1] = 0.1 + Math.sin(x * 0.11 + G.time * 1.3) * 0.28 + Math.cos(z * 0.09 + G.time * 0.9) * 0.22; }
     pos.needsUpdate = true; waterMesh.geometry.computeVertexNormals();
-    for (const sh of shops) { sh.glyph.position.y = 3 + Math.sin(G.time * 2) * 0.2; sh.ring.material.opacity = 0.25 + Math.sin(G.time * 4) * 0.08; }
   }
   if (G.state === 'title') {
     const t = G.time * 0.05;
@@ -74,16 +73,19 @@ async function start(data) {
   for (const w of WEAPONS) if (inv.owned[w.id] && inv.mag[w.id] == null) inv.mag[w.id] = wStat(w, inv.lvl[w.id] || 0).mag;
   for (const s of healthSpots) makePickup('health', s[0], s[1]);
   for (const s of armorSpots) makePickup('armor', s[0], s[1]);
-  for (const pc of parkedCars) { const c = spawnCar(pc.x, pc.z, pc.dirX, pc.dirZ, 'lot'); c.mesh.grp.rotation.y = pc.dirZ > 0 ? 0 : Math.PI; }
+  for (const s of shopSpots) spawnShop(s.type, s.x, s.z);
+  for (const s of lotSpots) spawnVehicle('sedan', s.x, s.z, s.yaw).home = true;
   P.x = 230; P.z = -40;
-  for (let i = 0; i < 26; i++) spawnTraffic(false);
-  for (let i = 0; i < 4; i++) spawnBikerNear();
-  for (let i = 0; i < 30; i++) { const s = findSpot(5, 80, false, false); if (s) spawnPed(s.x, s.z); }
+  for (let i = 0; i < 26; i++) spawnTrafficCar(false);
+  for (let i = 0; i < 4; i++) spawnTrafficBike();
+  for (let i = 0; i < 30; i++) { const s = findSpot(5, 80, false, false); if (s) spawnNpc('civilian', s.x, s.z); }
   G.state = 'title';
   const b = $('playBtn'); b.disabled = false; b.textContent = inv.money > 500 || stats.kills ? `Back to the bay ($${inv.money.toLocaleString()})` : 'Hit the streets';
   setInterval(() => { if (G.state === 'play') save(); }, 5000);
 }
-try { window.claude && window.claude.hot && window.claude.hot.snapshot && window.claude.hot.snapshot(() => ({ inv: { money: inv.money, owned: inv.owned, lvl: inv.lvl, ammo: inv.ammo, stats }, cur: inv.cur })); } catch (e) {}
+try { window.claude && window.claude.hot && window.claude.hot.snapshot && window.claude.hot.snapshot(() => ({ inv: serialize(inv, stats), cur: inv.cur })); } catch (e) {}
+// ?debug exposes the game state to the console and to the smoke test
+if (/[?&]debug\b/.test(location.search)) window.__neonbay = { G, I, P, cam, inv, stats, entities, all, removeEntity, spawnVehicle, spawnNpc, spawnShop };
 requestAnimationFrame(frame);
 const hot = window.claude && window.claude.hot;
 if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});

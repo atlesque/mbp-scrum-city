@@ -106,3 +106,6 @@ export function deathAnim(a, dt) {
   a.c.legL.rotation.x = lerp(a.c.legL.rotation.x, 0.2, k); a.c.legR.rotation.x = lerp(a.c.legR.rotation.x, -0.15, k);
   a.c.armR.rotation.x = lerp(a.c.armR.rotation.x, -2.6, k); a.c.armL.rotation.x = lerp(a.c.armL.rotation.x, -2.9, k);
 }
+const _mz = new THREE.Vector3();
+// world position of the gun muzzle (shared vector: clone it to keep it)
+export function muzzleOf(c) { return c.gunHolder.localToWorld(_mz.copy(gunGeo(c.gunId || 'pistol').muzzle)); }

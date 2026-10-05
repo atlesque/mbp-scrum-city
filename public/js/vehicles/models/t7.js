@@ -180,3 +180,11 @@ export function t7DecalMat() {
   const t = new THREE.CanvasTexture(c); t.anisotropy = 4;
   return (t7Decal = new THREE.MeshLambertMaterial({ map: t, transparent: true, depthWrite: false }));
 }
+
+export default {
+  id: 't7', kind: 'bike', name: 'Yamaha Ténéré 700 Rally', short: 'Ténéré 700', tag: 'Ténéré',
+  hp: 160,
+  spec: T7, geos: t7Geos, wheel: t7WheelGeo, decal: t7DecalMat, decalAt: [0.249, 0.88, 0.38],
+  engine: { rev: 1.12 },
+  traffic: { weight: 1, speed: [14, 18] },
+};

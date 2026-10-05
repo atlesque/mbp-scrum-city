@@ -208,8 +208,8 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
     <div id="radio">Neon FM 86.0</div>
     <div id="prompt" hidden></div>
     <div id="bigText" class="outline"></div>
-    <div id="speedo" hidden><b id="kmh" class="outline">000</b><span class="u">km/h</span><div class="bar bk"><b id="bikeHp"></b></div><span class="u"><span id="bikeName">R 1300 GS</span> · <kbd>F</kbd> off</span></div>
-    <div id="hint"><kbd>F</kbd> bike · <kbd>1</kbd>–<kbd>6</kbd> / wheel switch · <kbd>R</kbd> reload · <kbd>M</kbd> radio · <kbd>Esc</kbd> pause</div>
+    <div id="speedo" hidden><b id="kmh" class="outline">000</b><span class="u">km/h</span><div class="bar bk"><b id="vehHp"></b></div><span class="u"><span id="vehName">R 1300 GS</span> · <kbd>F</kbd> off</span></div>
+    <div id="hint"><kbd>F</kbd> ride / drive · <kbd>1</kbd>–<kbd>6</kbd> / wheel switch · <kbd>R</kbd> reload · <kbd>M</kbd> radio · <kbd>Esc</kbd> pause</div>
   </div>
 
   <section id="title" class="overlay">
@@ -224,7 +224,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
         <div><kbd>Shift</kbd><span>Sprint</span></div>
         <div><kbd>Space</kbd><span>Jump</span></div>
         <div><kbd>E</kbd><span>Enter gun shop</span></div>
-        <div><kbd>F</kbd><span>Ride / leave bike</span></div>
+        <div><kbd>F</kbd><span>Ride, drive, get off</span></div>
         <div><kbd>1–6</kbd><span>Weapons</span></div>
       </div>
       <p class="small">More heat, tougher squads: police, SWAT, federal agents, the army, and a chopper overhead. Lose a star by breaking line of sight.</p>
@@ -245,12 +245,12 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
   <section id="shop" class="overlay" hidden>
     <div class="shop-panel">
       <div class="shop-head">
-        <div><h2>Bullet Bros. Guns</h2><div class="sub" id="shopSub">Est. 1979 · No questions asked</div></div>
+        <div><h2 id="shopName">Bullet Bros. Guns</h2><div class="sub" id="shopSub">Est. 1979 · No questions asked</div></div>
         <div id="shopMoney">$0</div>
       </div>
       <div class="shop-grid" id="shopGrid"></div>
       <div class="shop-foot">
-        <span class="small">Upgrades raise damage, magazine size and fire rate. Progress saves in this browser.</span>
+        <span class="small" id="shopFoot">Upgrades raise damage, magazine size and fire rate. Progress saves in this browser.</span>
         <button id="shopClose" class="btn">Back outside (E)</button>
       </div>
     </div>

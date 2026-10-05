@@ -1,14 +1,14 @@
 import { cycleWeapon, selectWeapon, startReload } from '../combat/combat.js';
 import { Sound } from './audio.js';
 import { save } from './save.js';
-import { G, I, P, cam, keys, peds, stats } from './state.js';
+import { G, I, P, cam, keys, stats } from './state.js';
 import { $, clamp } from './util.js';
 import { WEAPONS } from '../data/weapons.js';
-import { removeActor } from '../npcs/actors.js';
+import { all, removeEntity } from '../entities/registry.js';
+import { interact } from '../game/interact.js';
 import { camera, canvasEl, renderer } from '../render/scene.js';
-import { closeShop, openShop } from '../shops/shop.js';
+import { closeShop } from '../shops/shop.js';
 import { drawWeaponIcon, showRadio, toast } from '../ui/hud.js';
-import { dismountBike, mountBike } from '../vehicles/bikes.js';
 import { SPAWN } from '../world/city.js';
 
 export function requestLock(fromClick) {
@@ -41,8 +41,7 @@ document.addEventListener('keydown', e => {
   if (G.state !== 'play') return;
   keys[e.code] = true;
   if (e.code === 'KeyR') startReload();
-  if (e.code === 'KeyE' && P.nearShop) openShop();
-  else if ((e.code === 'KeyF' || e.code === 'KeyE') && P.alive) { if (P.bike) dismountBike(false); else if (P.nearBike) mountBike(P.nearBike); }
+  if ((e.code === 'KeyF' || e.code === 'KeyE') && P.alive) interact(e.code);
   if (e.code === 'KeyM') { const on = Sound.toggleMusic(); showRadio(on ? 'Neon FM 86.0' : 'Radio off'); }
   if (e.code === 'KeyP' || (e.code === 'Escape' && I.noLock)) pauseGame();
   const n = parseInt(e.key, 10); if (n >= 1 && n <= 6) selectWeapon(WEAPONS[n - 1].id);
@@ -63,12 +62,12 @@ $('resumeBtn').addEventListener('click', () => resumeGame(true));
 $('playBtn').addEventListener('click', () => {
   Sound.init(); $('title').hidden = true; $('hud').hidden = false; G.state = 'play';
   P.x = SPAWN.x; P.z = SPAWN.z; P.yaw = cam.yaw = SPAWN.yaw; cam.pitch = -0.08;
-  for (const p of peds.slice()) if (Math.hypot(p.x - P.x, p.z - P.z) < 6) removeActor(peds, p);
+  for (const n of all('npc')) if (!n.vehicle && Math.hypot(n.x - P.x, n.z - P.z) < 6) removeEntity(n);
   requestLock(true); drawWeaponIcon(); G.hudCache = '';
   setTimeout(() => showRadio('Neon FM 86.0'), 600);
   if (G.firstPlay) {
     G.firstPlay = false;
-    const tips = ['Welcome to <em>Neon Bay</em>. Click to grab the mouse, then <em>WASD</em> and aim.', 'Taking people down drops cash, and raises your <em>wanted level</em>.', 'Break line of sight with the law to make the stars flash and fade.', '<em>BMW R 1300 GS</em> and <em>Yamaha Ténéré 700 Rally</em> riders cruise the bay (white dots on the radar). Knock one off and press <em>F</em> to ride it.', 'Spend your cash at <em>Bullet Bros. Guns</em>. Follow the pink <em>$</em> on the radar.'];
+    const tips = ['Welcome to <em>Neon Bay</em>. Click to grab the mouse, then <em>WASD</em> and aim.', 'Taking people down drops cash, and raises your <em>wanted level</em>.', 'Break line of sight with the law to make the stars flash and fade.', '<em>BMW R 1300 GS</em> and <em>Yamaha Ténéré 700 Rally</em> riders cruise the bay (white dots on the radar). Knock one off and press <em>F</em> to ride it.', 'Parked and passing cars are yours too. Walk up to one and press <em>F</em> to drive.', 'Spend your cash at <em>Bullet Bros. Guns</em>. Follow the pink <em>$</em> on the radar.'];
     tips.forEach((t, i) => setTimeout(() => G.state === 'play' && toast(t, 5), 400 + i * 6000));
   }
 });

@@ -1,4 +1,4 @@
-import { bikes, cars } from '../core/state.js';
+import { entities } from '../entities/registry.js';
 import { clamp } from '../core/util.js';
 
 // ================= COLLISION =================
@@ -16,7 +16,7 @@ function nearColliders(x, z) {
   for (let i = ci - 1; i <= ci + 1; i++) for (let j = cj - 1; j <= cj + 1; j++) { const l = HASH.get(hkey(i, j)); if (l) for (const c of l) if (!_near.includes(c)) _near.push(c); }
   return _near;
 }
-const W = { minX: -205, maxX: 252, minZ: -205, maxZ: 205 };
+export const W = { minX: -205, maxX: 252, minZ: -205, maxZ: 205 };
 export const ROADS = [-200, -150, -100, -50, 0, 50, 100, 150, 200];
 function pushOut(o, r, x0, x1, z0, z1) {
   const cx = clamp(o.x, x0, x1), cz = clamp(o.z, z0, z1), dx = o.x - cx, dz = o.z - cz, d2 = dx * dx + dz * dz;
@@ -25,18 +25,30 @@ function pushOut(o, r, x0, x1, z0, z1) {
   else { const l = o.x - x0, rr = x1 - o.x, t = o.z - z0, b = z1 - o.z, m = Math.min(l, rr, t, b); if (m === l) o.x = x0 - r; else if (m === rr) o.x = x1 + r; else if (m === t) o.z = z0 - r; else o.z = z1 + r; }
   return true;
 }
-// bikes are a capsule along their heading
-function pushOutSeg(o, r, b) {
-  const fx = Math.sin(b.yaw), fz = Math.cos(b.yaw), t = clamp((o.x - b.x) * fx + (o.z - b.z) * fz, -0.8, 0.85), cx = b.x + fx * t, cz = b.z + fz * t;
+// a capsule along a heading (bikes): the segment runs from `back` to `front` metres along the yaw
+export function pushOutSeg(o, r, x, z, yaw, back, front) {
+  const fx = Math.sin(yaw), fz = Math.cos(yaw), t = clamp((o.x - x) * fx + (o.z - z) * fz, back, front), cx = x + fx * t, cz = z + fz * t;
   const dx = o.x - cx, dz = o.z - cz, d2 = dx * dx + dz * dz; if (d2 >= r * r) return false;
   const d = Math.sqrt(d2); if (d > 1e-4) { o.x = cx + dx / d * r; o.z = cz + dz / d * r; } else { o.x = cx + fz * r; o.z = cz - fx * r; }
   return true;
 }
+// a box turned to a heading (cars): half width hw across, half length hl along the yaw
+const _lo = { x: 0, z: 0 };
+export function pushOutOBB(o, r, x, z, yaw, hw, hl) {
+  const fx = Math.sin(yaw), fz = Math.cos(yaw), rx = o.x - x, rz = o.z - z;
+  _lo.x = rx * fz - rz * fx; _lo.z = rx * fx + rz * fz; // into box space: x across, z along
+  if (!pushOut(_lo, r, -hw, hw, -hl, hl)) return false;
+  o.x = x + _lo.x * fz + _lo.z * fx; o.z = z - _lo.x * fx + _lo.z * fz;
+  return true;
+}
+// push a moving circle out of buildings, props and anything in the world with a pushOut trait
 export function collide(o, r, self) {
   let hit = false;
   for (const c of nearColliders(o.x, o.z)) if (pushOut(o, r, c.x0, c.x1, c.z0, c.z1)) hit = true;
-  for (const car of cars) { if (Math.abs(car.x - o.x) > 6 || Math.abs(car.z - o.z) > 6) continue; if (pushOut(o, r, car.x - car.hx, car.x + car.hx, car.z - car.hz, car.z + car.hz)) hit = true; }
-  for (const b of bikes) { if (b === self || Math.abs(b.x - o.x) > 3 || Math.abs(b.z - o.z) > 3) continue; if (pushOutSeg(o, r + 0.3, b)) hit = true; }
+  for (const e of entities) {
+    if (!e.pushOut || e === self || Math.abs(e.x - o.x) > 6 || Math.abs(e.z - o.z) > 6) continue;
+    if (e.pushOut(o, r)) hit = true;
+  }
   const ox = o.x, oz = o.z; o.x = clamp(o.x, W.minX, W.maxX); o.z = clamp(o.z, W.minZ, W.maxZ);
   return hit || ox !== o.x || oz !== o.z;
 }
