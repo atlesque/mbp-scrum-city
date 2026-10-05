@@ -1,5 +1,5 @@
 import { seeded } from '../core/util.js';
-import { CYL6, GB, addGeo, box, hexa, sphG } from '../render/geometry.js';
+import { CYL6, GB, addGeo, box, hexa } from '../render/geometry.js';
 import { scene } from '../render/scene.js';
 import { makeCanvas } from '../render/textures.js';
 import { carMesh } from '../vehicles/models/sedan.js';
@@ -26,7 +26,7 @@ const cops = [];
 
 export function buildEdges(plain) {
   const r = seeded(208), rr = (a, b) => a + r() * (b - a), rp = arr => arr[Math.floor(r() * arr.length)];
-  const art = new GB(), woods = new GB();
+  const art = new GB(), leafMat = new THREE.MeshLambertMaterial({ vertexColors: true });
   for (const E of EDGES) {
     const yaw = E.alongX ? Math.PI / 2 : 0; // facing along the edge
     // a box `len` along the edge, `dep` deep, its near face `o` beyond the inner face
@@ -65,10 +65,12 @@ export function buildEdges(plain) {
     // grass and a wood beyond the wall, tall enough to show over it
     const len = E.to - E.from, [gx, gz] = E.at((E.from + E.to) / 2, 9);
     box(plain, E.alongX ? len : 16, 0.04, E.alongX ? 16 : len, gx, 0.02, gz, '#3d6b45');
-    for (let a = E.from + 2; a < E.to; a += 3.4) for (const row of [6, 10, 14]) {
+    const woods = {}; // in 50 m chunks, so the ones out of view are culled
+    for (let a = E.from + 2; a < E.to; a += 3.8) for (const row of [6, 10.5]) {
       const ta = a + rr(-1.4, 1.4), [x, z] = E.at(ta, row + rr(-1, 1)), s = rr(0.8, 1.35);
-      tree(woods, x, z, s, r);
+      tree(woods[Math.floor(ta / 50)] ||= new GB(), x, z, s, r);
     }
+    for (const k in woods) scene.add(new THREE.Mesh(woods[k].geometry(), leafMat));
     // nothing gets past the wall or the roadblocks
     const [ax, az] = E.at(E.from, 0), [bx, bz] = E.at(E.to, 1);
     addCollider(Math.min(ax, bx), Math.max(ax, bx), Math.min(az, bz), Math.max(az, bz), H, true);
@@ -77,10 +79,10 @@ export function buildEdges(plain) {
   for (let z = -FACE + 2; z < FACE; z += 5) {
     box(plain, 0.18, 1.6, 0.18, 252.6, 0.5, z, '#8a6a4a');
     box(plain, 0.05, 0.05, 5, 252.6, 0.95, z + 2.5, '#f4ece6');
-    for (let k = 1; k < 5; k++) addGeo(plain, sphG(), 252.6, 0.95, z + k, 0.38, 0.38, 0.38, 0, 0, 0, k % 2 ? '#ff4b3e' : '#ffffff');
+    for (let k = 1; k < 5; k++) addGeo(plain, BLOB, 252.6, 0.95, z + k, 0.19, 0.19, 0.19, 0, 0, 0, k % 2 ? '#ff4b3e' : '#ffffff');
   }
   const artMat = new THREE.MeshLambertMaterial({ map: graffitiTexture(), transparent: true, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-  scene.add(new THREE.Mesh(art.geometry(), artMat), new THREE.Mesh(woods.geometry(), new THREE.MeshLambertMaterial({ vertexColors: true })));
+  scene.add(new THREE.Mesh(art.geometry(), artMat));
 }
 
 // the roadblock cruisers' lights flash out of step with each other
@@ -127,7 +129,7 @@ function tree(gb, x, z, s, r) {
     for (let k = 0; k < 3; k++) addGeo(gb, PINE, x, (3 + k * 2.2) * s, z, (2.6 - k * 0.7) * s, 3.4 * s, (2.6 - k * 0.7) * s, 0, r() * 3, 0, col());
   } else {
     addGeo(gb, CYL6, x, 2.2 * s, z, 0.5 * s, 4.4 * s, 0.5 * s, 0, 0, 0, '#5a4030');
-    const n = 2 + (r() * 2 | 0);
+    const n = 2;
     for (let k = 0; k < n; k++) {
       const R = (2 + r() * 1.2) * s;
       addGeo(gb, BLOB, x + (r() - 0.5) * 2 * s, (5 + k * 1.6 + r()) * s, z + (r() - 0.5) * 2 * s, R, R * 0.85, R, r(), r() * 3, 0, col());
