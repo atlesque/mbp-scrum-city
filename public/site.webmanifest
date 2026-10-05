@@ -1,0 +1,14 @@
+{
+  "name": "Neon Bay '86",
+  "short_name": "Neon Bay",
+  "description": "A free low-poly 80s beach-city shooter for desktop browsers.",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#170c28",
+  "theme_color": "#170c28",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

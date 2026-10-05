@@ -3,9 +3,54 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Neon Bay '86: a low-poly 80s beach-city shooter for desktop browsers.">
+<title>Neon Bay '86 · Free 80s Open-City Shooter in Your Browser</title>
+<meta name="description" content="Neon Bay '86 is a free low-poly 80s beach-city shooter you play in your browser. Shoot for cash, outrun a 5-star wanted level, and upgrade your guns at Bullet Bros. No download needed.">
 <meta name="theme-color" content="#170c28">
-<title>Neon Bay '86</title>
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://mbp-scrum-city.atlesque.dev/">
+
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Neon Bay '86">
+<meta property="og:title" content="Neon Bay '86 · Free 80s browser shooter">
+<meta property="og:description" content="Ocean Drive at dusk. Shoot for cash, outrun the heat, and spend it at Bullet Bros. Guns. Play free in your browser.">
+<meta property="og:url" content="https://mbp-scrum-city.atlesque.dev/">
+<meta property="og:image" content="https://mbp-scrum-city.atlesque.dev/og-image.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Neon Bay '86 logo glowing over a low-poly pastel beach city at dusk">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Neon Bay '86 · Free 80s browser shooter">
+<meta name="twitter:description" content="Ocean Drive at dusk. Shoot for cash, outrun the heat, and spend it at Bullet Bros. Guns. Play free in your browser.">
+<meta name="twitter:image" content="https://mbp-scrum-city.atlesque.dev/og-image.jpg">
+<meta name="twitter:image:alt" content="Neon Bay '86 logo glowing over a low-poly pastel beach city at dusk">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "VideoGame",
+  "name": "Neon Bay '86",
+  "url": "https://mbp-scrum-city.atlesque.dev/",
+  "image": "https://mbp-scrum-city.atlesque.dev/og-image.jpg",
+  "description": "A free low-poly 80s beach-city shooter for desktop browsers. Shoot for cash, outrun a 5-star wanted level of police, SWAT, federal agents and the army, and upgrade your guns at Bullet Bros.",
+  "genre": ["Action", "Shooter", "Open world"],
+  "gamePlatform": "Web browser",
+  "applicationCategory": "Game",
+  "operatingSystem": "Any (desktop browser with WebGL)",
+  "playMode": "SinglePlayer",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "author": { "@type": "Organization", "name": "Atlesque" }
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Chakra+Petch:wght@400;600;700&family=Yellowtail&display=swap">
@@ -73,6 +118,12 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 #prompt kbd{font-family:var(--f-hud);color:var(--pink);padding:0 4px}
 #bigText{position:absolute;left:0;right:0;top:30%;text-align:center;font-family:var(--f-hud);font-size:38px;letter-spacing:.06em;color:#ffd23e;opacity:0;transition:opacity .25s}
 #bigText.show{opacity:1}
+#speedo{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:6px 16px;background:var(--panel);border:2px solid var(--cyan);border-radius:4px;white-space:nowrap}
+#kmh{font-family:var(--f-hud);font-size:30px;line-height:1;font-variant-numeric:tabular-nums;color:var(--ink)}
+#speedo .u{font-weight:700;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan)}
+#speedo .bar{width:80px}
+.bar.bk b{background:linear-gradient(90deg,#8d93a3,#eef1f7)}
+#speedo kbd{font-family:var(--f-hud);color:var(--pink);padding:0 2px}
 #hint{position:absolute;right:28px;bottom:22px;font-size:12px;color:var(--dim);letter-spacing:.06em;text-align:right;line-height:1.6}
 #hint kbd{font-family:var(--f-ui);font-weight:700;color:var(--ink);background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.3);border-radius:3px;padding:0 5px}
 
@@ -157,7 +208,8 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
     <div id="radio">Neon FM 86.0</div>
     <div id="prompt" hidden></div>
     <div id="bigText" class="outline"></div>
-    <div id="hint"><kbd>1</kbd>–<kbd>6</kbd> / wheel switch · <kbd>R</kbd> reload · <kbd>M</kbd> radio · <kbd>Esc</kbd> pause</div>
+    <div id="speedo" hidden><b id="kmh" class="outline">000</b><span class="u">km/h</span><div class="bar bk"><b id="bikeHp"></b></div><span class="u">R 1300 GS · <kbd>F</kbd> off</span></div>
+    <div id="hint"><kbd>F</kbd> bike · <kbd>1</kbd>–<kbd>6</kbd> / wheel switch · <kbd>R</kbd> reload · <kbd>M</kbd> radio · <kbd>Esc</kbd> pause</div>
   </div>
 
   <section id="title" class="overlay">
@@ -172,10 +224,12 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
         <div><kbd>Shift</kbd><span>Sprint</span></div>
         <div><kbd>Space</kbd><span>Jump</span></div>
         <div><kbd>E</kbd><span>Enter gun shop</span></div>
+        <div><kbd>F</kbd><span>Ride / leave bike</span></div>
         <div><kbd>1–6</kbd><span>Weapons</span></div>
       </div>
       <p class="small">More heat, tougher squads: police, SWAT, federal agents, the army, and a chopper overhead. Lose a star by breaking line of sight.</p>
       <p class="mobile-note">Built for desktop with a mouse and keyboard.</p>
+      <noscript><p class="mobile-note">Turn on JavaScript to play.</p></noscript>
       <button id="playBtn" class="btn" disabled>Loading the bay…</button>
     </div>
   </section>
@@ -226,7 +280,7 @@ if (!window.THREE) { $('playBtn').textContent = 'Could not load the 3D engine'; 
 
 // ================= AUDIO =================
 const Sound = (() => {
-  let ctx = null, sfx, mus, noise, reverbIn, sirenGain, heliGain, musicOn = true, seq = null, step = 0, nextT = 0;
+  let ctx = null, sfx, mus, noise, reverbIn, sirenGain, heliGain, engO1, engO2, engF, engG, musicOn = true, seq = null, step = 0, nextT = 0;
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
   function makeNoise() { const b = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate); const d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; }
   function impulse(sec, decay) { const len = ctx.sampleRate * sec, b = ctx.createBuffer(2, len, ctx.sampleRate); for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay); } return b; }
@@ -250,6 +304,11 @@ const Sound = (() => {
     const hf = ctx.createBiquadFilter(); hf.type = 'lowpass'; hf.frequency.value = 380;
     const chop = ctx.createGain(); chop.gain.value = 0.5; const clfo = ctx.createOscillator(); clfo.type = 'square'; clfo.frequency.value = 13; const cg = ctx.createGain(); cg.gain.value = 0.5; clfo.connect(cg); cg.connect(chop.gain);
     heliGain = ctx.createGain(); heliGain.gain.value = 0; hn.connect(hf); hf.connect(chop); chop.connect(heliGain); heliGain.connect(sfx); hn.start(); clfo.start();
+    // boxer twin: low saw at the firing rate plus a square octave, through a resonant lowpass
+    engO1 = ctx.createOscillator(); engO1.type = 'sawtooth'; engO1.frequency.value = 18;
+    engO2 = ctx.createOscillator(); engO2.type = 'square'; engO2.frequency.value = 36; const e2g = ctx.createGain(); e2g.gain.value = 0.35;
+    engF = ctx.createBiquadFilter(); engF.type = 'lowpass'; engF.frequency.value = 300; engF.Q.value = 4;
+    engG = ctx.createGain(); engG.gain.value = 0; engO1.connect(engF); engO2.connect(e2g); e2g.connect(engF); engF.connect(engG); engG.connect(sfx); engO1.start(); engO2.start();
     startMusic();
   }
   function env(g, t, a, peak, dur) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); }
@@ -294,6 +353,8 @@ const Sound = (() => {
     star() { if (!ctx) return; const t = ctx.currentTime, o = out(0.4, 0); tone(o, t, 'triangle', 880, 0, 0.15, 0.6); tone(o, t + 0.12, 'triangle', 660, 0, 0.3, 0.6); },
     buy() { if (!ctx) return; const t = ctx.currentTime, o = out(0.35, 0); [784, 988, 1175, 1568].forEach((f, i) => tone(o, t + i * 0.06, 'square', f, 0, 0.09, 0.3)); nz(o, t + 0.25, 0.08, 'bandpass', 3000, 3, 0.6); },
     deny() { if (!ctx) return; const t = ctx.currentTime, o = out(0.35, 0); tone(o, t, 'square', 220, 0, 0.12, 0.4); tone(o, t + 0.13, 'square', 165, 0, 0.2, 0.4); },
+    thud(vol, pan) { if (!ctx || vol < 0.02) return; const t = ctx.currentTime, o = out(vol, pan); nz(o, t, 0.22, 'lowpass', 420, 1, 1.1, 0.7); tone(o, t, 'sine', 140, 45, 0.2, 0.9); },
+    setEngine(vol, rpm) { if (!ctx) return; const t = ctx.currentTime, f = rpm / 60; engO1.frequency.setTargetAtTime(f, t, 0.06); engO2.frequency.setTargetAtTime(f * 2.02, t, 0.06); engF.frequency.setTargetAtTime(160 + f * 6, t, 0.08); engG.gain.setTargetAtTime(vol, t, 0.12); },
     setSiren(v) { if (ctx) sirenGain.gain.setTargetAtTime(v, ctx.currentTime, 0.3); },
     setHeli(v) { if (ctx) heliGain.gain.setTargetAtTime(v, ctx.currentTime, 0.3); },
     toggleMusic() { musicOn = !musicOn; if (ctx) mus.gain.setTargetAtTime(musicOn ? 0.32 : 0, ctx.currentTime, 0.2); return musicOn; },
@@ -380,10 +441,13 @@ class GB {
 const UNIT = new THREE.BoxGeometry(1, 1, 1).toNonIndexed();
 const CYL6 = new THREE.CylinderGeometry(0.5, 0.5, 1, 6, 1).toNonIndexed();
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _e = new THREE.Euler(), _nm = new THREE.Matrix3(), _v = new THREE.Vector3(), _n = new THREE.Vector3(), _c = new THREE.Color();
-function addGeo(gb, geo, x, y, z, sx, sy, sz, rx, ry, rz, color, order) {
-  _m.compose(_p.set(x, y, z), _q.setFromEuler(_e.set(rx, ry, rz, order || 'XYZ')), _s.set(sx, sy, sz)); _nm.getNormalMatrix(_m); _c.set(color);
+function pushGeo(gb, geo, m, color) {
+  _nm.getNormalMatrix(m); _c.set(color);
   const pos = geo.attributes.position, nor = geo.attributes.normal;
-  for (let i = 0; i < pos.count; i++) { _v.fromBufferAttribute(pos, i).applyMatrix4(_m); _n.fromBufferAttribute(nor, i).applyMatrix3(_nm).normalize(); gb.v(_v.x, _v.y, _v.z, _n.x, _n.y, _n.z, _c, 0.001, 0.001); }
+  for (let i = 0; i < pos.count; i++) { _v.fromBufferAttribute(pos, i).applyMatrix4(m); _n.fromBufferAttribute(nor, i).applyMatrix3(_nm).normalize(); gb.v(_v.x, _v.y, _v.z, _n.x, _n.y, _n.z, _c, 0.001, 0.001); }
+}
+function addGeo(gb, geo, x, y, z, sx, sy, sz, rx, ry, rz, color, order) {
+  _m.compose(_p.set(x, y, z), _q.setFromEuler(_e.set(rx, ry, rz, order || 'XYZ')), _s.set(sx, sy, sz)); pushGeo(gb, geo, _m, color);
 }
 const box = (gb, w, h, d, x, y, z, col, ry) => addGeo(gb, UNIT, x, y, z, w, h, d, 0, ry || 0, 0, col);
 // walls get window UVs in world space; tops/bottoms go to the plain builder
@@ -485,10 +549,18 @@ function pushOut(o, r, x0, x1, z0, z1) {
   else { const l = o.x - x0, rr = x1 - o.x, t = o.z - z0, b = z1 - o.z, m = Math.min(l, rr, t, b); if (m === l) o.x = x0 - r; else if (m === rr) o.x = x1 + r; else if (m === t) o.z = z0 - r; else o.z = z1 + r; }
   return true;
 }
-function collide(o, r) {
+// bikes are a capsule along their heading
+function pushOutSeg(o, r, b) {
+  const fx = Math.sin(b.yaw), fz = Math.cos(b.yaw), t = clamp((o.x - b.x) * fx + (o.z - b.z) * fz, -0.8, 0.85), cx = b.x + fx * t, cz = b.z + fz * t;
+  const dx = o.x - cx, dz = o.z - cz, d2 = dx * dx + dz * dz; if (d2 >= r * r) return false;
+  const d = Math.sqrt(d2); if (d > 1e-4) { o.x = cx + dx / d * r; o.z = cz + dz / d * r; } else { o.x = cx + fz * r; o.z = cz - fx * r; }
+  return true;
+}
+function collide(o, r, self) {
   let hit = false;
   for (const c of nearColliders(o.x, o.z)) if (pushOut(o, r, c.x0, c.x1, c.z0, c.z1)) hit = true;
   for (const car of cars) { if (Math.abs(car.x - o.x) > 6 || Math.abs(car.z - o.z) > 6) continue; if (pushOut(o, r, car.x - car.hx, car.x + car.hx, car.z - car.hz, car.z + car.hz)) hit = true; }
+  for (const b of bikes) { if (b === self || Math.abs(b.x - o.x) > 3 || Math.abs(b.z - o.z) > 3) continue; if (pushOutSeg(o, r + 0.3, b)) hit = true; }
   const ox = o.x, oz = o.z; o.x = clamp(o.x, W.minX, W.maxX); o.z = clamp(o.z, W.minZ, W.maxZ);
   return hit || ox !== o.x || oz !== o.z;
 }
@@ -849,7 +921,7 @@ function makeCharacter(L) {
   if (L.hat === 'helmet') { box(hg, 0.36, 0.2, 0.36, 0, 0.42, -0.01, L.hatColor); box(hg, 0.37, 0.06, 0.04, 0, 0.33, 0.17, L.hatColor); }
   const head = new THREE.Mesh(hg.geometry(), charMat); head.position.y = 1.5; body.add(head);
   if (L.scale) root.scale.setScalar(L.scale);
-  return { root, body, legL, legR, armL, armR, head, gunHolder, gun: null, gunId: null };
+  return { root, body, legL, legR, armL, armR, head, gunHolder, gun: null, gunId: null, shadow: sh, legGeo, look: L };
 }
 function setGun(c, id) {
   if (c.gunId === id) return;
@@ -862,7 +934,7 @@ function randomLook() {
   return { skin: pick(SKIN), shirt, pa: hawaii ? pick(['#ffffff', '#ffe066', '#ff4fa3', '#3fd6c8']) : null, pb: hawaii ? pick(['#2f8f55', '#1e6f6a', '#5b3fa0']) : null,
     pants: pick(PANTS), shorts: Math.random() < 0.5, hair: pick(HAIR), hairStyle: pick(['short', 'short', 'long', 'mullet', 'bald', 'afro', 'long']), glasses: Math.random() < 0.35, shoes: pick(['#2a2226', '#f4f0f6', '#7a4e2a', '#ff7eb6']) };
 }
-function disposeChar(c) { c.root.traverse(o => { if (o.isMesh && o.geometry !== UNIT && o.geometry !== shadowGeo && !Object.values(GUN_DEF).some(g => g.geo === o.geometry)) o.geometry.dispose(); }); scene.remove(c.root); }
+function disposeChar(c) { if (c.sitGeo) c.sitGeo.dispose(); c.legGeo.dispose(); c.root.traverse(o => { if (o.isMesh && o.geometry !== UNIT && o.geometry !== shadowGeo && !Object.values(GUN_DEF).some(g => g.geo === o.geometry)) o.geometry.dispose(); }); scene.remove(c.root); }
 function animateChar(a, dt) {
   const c = a.c, sp = a.moveSpeed || 0;
   a.phase = (a.phase || 0) + dt * (sp * 2.3 + (sp > 0.1 ? 2 : 0));
@@ -981,7 +1053,7 @@ const cam = { yaw: Math.PI, pitch: -0.08, dist: 4.6, shake: 0, fov: 70 };
 const inv = { money: 500, owned: { pistol: true }, lvl: { pistol: 0 }, mag: { pistol: 12 }, ammo: {}, cur: 'pistol' };
 const stats = { kills: 0, cops: 0, best: 0, earned: 0 };
 let shootersNow = 0, wanted = 0, heat = 0, lostT = 0, seenNow = false, spawnT = 0, copCarT = 0, heliT = 0;
-const peds = [], enemies = [], cars = [], pickups = [], rockets = [], parkedCars = [];
+const peds = [], enemies = [], cars = [], pickups = [], rockets = [], parkedCars = [], bikes = [], riders = [];
 let heli = null, reloadT = 0, fireCd = 0, spin = 0, time = 0, deadT = 0, toastT = 0, bigT = 0, hitT = 0, firstPlay = true;
 const keys = {}; let clickQ = 0, mouseL = false, mouseR = false, locked = false, noLock = false, mouseDX = 0, mouseDY = 0;
 
@@ -1046,7 +1118,10 @@ function vol3d(x, z) { const d = Math.hypot(x - P.x, z - P.z); return clamp(1 - 
 function pan3d(x, z) { const dx = x - P.x, dz = z - P.z, d = Math.hypot(dx, dz) || 1; return clamp((dx * -Math.cos(cam.yaw) + dz * Math.sin(cam.yaw)) / d, -1, 1) * 0.8; }
 
 function updatePed(a, dt) {
-  if (!a.alive) { deathAnim(a, dt); a.c.root.position.set(a.x, 0, a.z); a.c.root.rotation.y = a.yaw; return; }
+  if (!a.alive) {
+    if (a.svx || a.svz) { a.x += a.svx * dt; a.z += a.svz * dt; const k = Math.max(0, 1 - dt * 2.5); a.svx *= k; a.svz *= k; if (Math.abs(a.svx) + Math.abs(a.svz) < 0.2) a.svx = a.svz = 0; collide(a, 0.3); }
+    deathAnim(a, dt); a.c.root.position.set(a.x, 0, a.z); a.c.root.rotation.y = a.yaw; return;
+  }
   let speed = 1.4, dx = 0, dz = 0;
   if (a.state === 'flee') {
     a.timer -= dt; if (a.timer <= 0) { a.state = 'walk'; a.panic = false; a.tx = a.x; a.tz = a.z; }
@@ -1172,6 +1247,7 @@ function blockedAhead(c, range, ignoreCars) {
   for (const p of peds) if (p.alive && test(p.x, p.z, 1.6)) return 'ped';
   for (const e of enemies) if (e.alive && test(e.x, e.z, 1.6)) return 'ped';
   if (!ignoreCars) for (const o of cars) if (o !== c && test(o.x, o.z, 1.7)) return 'car';
+  if (!ignoreCars) for (const o of bikes) if (o !== c && o !== P.bike && test(o.x, o.z, 1.4)) return 'car';
   return null;
 }
 function damageCar(c, dmg, byPlayer) {
@@ -1299,11 +1375,15 @@ function castShot(o, d, maxT) {
   const tw = wallHit(o.x, o.y, o.z, d.x, d.y, d.z, maxT); if (tw < best.t) best = { t: tw, kind: 'wall' };
   if (d.y < -1e-4) { const tg = -o.y / d.y; if (tg < best.t) best = { t: tg, kind: 'ground' }; }
   for (const c of cars) { const t = rayBox(o.x, o.y, o.z, d.x, d.y, d.z, c.x - c.hx, 0, c.z - c.hz, c.x + c.hx, 1.55, c.z + c.hz); if (t < best.t) best = { t, kind: 'car', car: c }; }
-  const scan = (list) => { for (const a of list) { if (!a.alive) continue; const s = a.def && a.def.scale || 1;
-    const tb = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, a.x, 1.05 * s, a.z, 0.44 * s); if (tb < best.t) best = { t: tb, kind: 'actor', a, head: false };
-    const tl = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, a.x, 0.5 * s, a.z, 0.32 * s); if (tl < best.t) best = { t: tl, kind: 'actor', a, head: false };
-    const th = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, a.x, 1.74 * s, a.z, 0.2 * s); if (th < best.t) best = { t: th, kind: 'actor', a, head: true }; } };
-  scan(peds); scan(enemies);
+  for (const b of bikes) {
+    if (b === P.bike) continue; const sy = Math.abs(Math.sin(b.yaw)), cy = Math.abs(Math.cos(b.yaw)), hx = sy * 1.05 + cy * 0.32, hz = cy * 1.05 + sy * 0.32;
+    const t = rayBox(o.x, o.y, o.z, d.x, d.y, d.z, b.x - hx, 0, b.z - hz, b.x + hx, b.fallen ? 0.6 : 0.98, b.z + hz); if (t < best.t) best = { t, kind: 'bike', bike: b };
+  }
+  const scan = (list) => { for (const a of list) { if (!a.alive) continue; const s = a.def && a.def.scale || 1, yo = a.bike ? 0.15 : 0;
+    const tb = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, a.x, 1.05 * s + yo, a.z, 0.44 * s); if (tb < best.t) best = { t: tb, kind: 'actor', a, head: false };
+    const tl = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, a.x, 0.5 * s + yo, a.z, 0.32 * s); if (tl < best.t) best = { t: tl, kind: 'actor', a, head: false };
+    const th = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, a.x, 1.74 * s + yo, a.z, 0.2 * s); if (th < best.t) best = { t: th, kind: 'actor', a, head: true }; } };
+  scan(peds); scan(enemies); scan(riders);
   if (heli && !heli.falling) { const t = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, heli.x, heli.y, heli.z, 3); if (t < best.t) best = { t, kind: 'heli' }; }
   best.p = o.clone().addScaledVector(d, best.t);
   return best;
@@ -1332,6 +1412,7 @@ function playerShoot() {
       tracer(muz, h.p, false);
       if (h.kind === 'actor') { hitAny = true; if (h.head) headAny = true; damageActor(h.a, st.dmg * (h.head ? 2.2 : 1), _d, true); }
       else if (h.kind === 'car') { damageCar(h.car, st.dmg, true); emit(h.p.x, h.p.y, h.p.z, 3, '#ffe9a8', 5, 0.25, 0.06); hitAny = true; }
+      else if (h.kind === 'bike') { damageBike(h.bike, st.dmg, true); emit(h.p.x, h.p.y, h.p.z, 3, '#ffe9a8', 5, 0.25, 0.06); hitAny = true; }
       else if (h.kind === 'heli') { damageHeli(st.dmg); hitAny = true; }
       else if (h.kind !== 'none') emit(h.p.x, h.p.y, h.p.z, 3, h.kind === 'ground' ? '#c8b8a8' : '#f4e8f0', 3, 0.35, 0.07);
     }
@@ -1347,9 +1428,12 @@ function damageActor(a, dmg, dir, byPlayer) {
   emit(a.x, 1.2, a.z, 6, '#c0142c', 3.5, 0.5, 0.09);
   if (a.kind === 'ped' && a.state !== 'flee') { a.state = 'flee'; a.timer = 10; a.fx = P.x; a.fz = P.z; a.panic = true; }
   if (a.kind === 'enemy') { a.los = true; a.losT = 0.3; }
+  if (a.bike) a.bike.top = 24; // a wounded biker guns it
   if (a.hp <= 0) killActor(a, dir, byPlayer);
 }
 function killActor(a, dir, byPlayer) {
+  const wasBiker = !!a.bike; if (wasBiker) ejectRider(a.bike);
+  if (wasBiker && byPlayer && !killActor.told) { killActor.told = true; setTimeout(() => toast('That GS is up for grabs. Walk over and press <em>F</em> to ride it.', 5), 600); }
   a.alive = false; a.deadT = 0; a.aiming = false; a.panic = false; a.moveSpeed = 0;
   if (dir) a.yaw = Math.atan2(-dir.x, -dir.z);
   bloodPool(a.x, a.z); emit(a.x, 1, a.z, 10, '#a30f24', 4, 0.7, 0.1);
@@ -1372,6 +1456,7 @@ function updateRockets(dt) {
     if (h.kind !== 'none' || r.life <= 0) {
       if (h.kind === 'heli') damageHeli(r.dmg * 2);
       if (h.kind === 'car') damageCar(h.car, 999, true);
+      if (h.kind === 'bike') damageBike(h.bike, 999, true);
       explosion(h.p.x, Math.max(0.3, h.p.y), h.p.z, 7, r.dmg, true);
       scene.remove(r.m); rockets.splice(i, 1); continue;
     }
@@ -1383,11 +1468,12 @@ function explosion(x, y, z, R, dmg, byPlayer) {
   const dP = Math.hypot(x - P.x, z - P.z);
   Sound.boom(clamp(1.2 - dP / 140, 0, 1.2), pan3d(x, z)); cam.shake = Math.max(cam.shake, clamp(1 - dP / 40, 0, 1) * 0.9);
   const dir = new THREE.Vector3();
-  for (const list of [peds, enemies]) for (const a of list) {
+  for (const list of [peds, enemies, riders]) for (const a of list.slice()) {
     if (!a.alive) continue; const d = Math.hypot(a.x - x, a.z - z);
     if (d < R) { dir.set(a.x - x, 0, a.z - z).normalize().negate(); damageActor(a, dmg * (1 - d / R) + 30, dir, !!byPlayer); }
   }
   for (const c of cars) { const d = Math.hypot(c.x - x, c.z - z); if (d < R && !c.dead) damageCar(c, dmg * (1 - d / R) + 40, byPlayer ? 'boom' : false); }
+  for (const b of bikes.slice()) { const d = Math.hypot(b.x - x, b.z - z); if (d < R) damageBike(b, dmg * (1 - d / R) + 40, byPlayer ? 'boom' : false); }
   if (heli && Math.hypot(heli.x - x, heli.y - y, heli.z - z) < R + 3) damageHeli(dmg);
   if (dP < R && P.alive) hurtPlayer((dmg * (1 - dP / R) + 10) * (byPlayer ? 0.35 : 0.6));
   alarm(x, z, 50);

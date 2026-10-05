@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://mbp-scrum-city.atlesque.dev/sitemap.xml

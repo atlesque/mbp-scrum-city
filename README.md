@@ -30,6 +30,8 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 
 Everything lives in `public/index.html`: the game code, styles, and all sound (synthesized with the Web Audio API). Three.js r128 loads from cdnjs and fonts from Google Fonts. There is no build step.
 
+Alongside it in `public/`: the favicon set (`favicon.svg`, `favicon.ico`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`), `site.webmanifest`, the social share image `og-image.jpg` (1200×630, a capture of the title screen), `robots.txt` and `sitemap.xml`. SEO and Open Graph tags point at the production URL.
+
 ## Develop and deploy
 
 ```bash
