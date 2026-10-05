@@ -14,7 +14,7 @@ export function laneFor(roadPos, dirX, dirZ) {
 export const nearestRoad = v => ROADS.reduce((a, b) => Math.abs(b - v) < Math.abs(a - v) ? b : a);
 const clear = (x, z) => !all('vehicle').some(o => Math.abs(o.x - x) < 8 && Math.abs(o.z - z) < 8);
 
-// a car somewhere on the grid, out of sight if `far`
+// a car with someone at the wheel somewhere on the grid, out of sight if `far`
 export function spawnTrafficCar(far) {
   for (let i = 0; i < 20; i++) {
     const vertical = Math.random() < 0.5, road = pick(ROADS.slice(1, -1).concat([200])), s = Math.random() < 0.5 ? 1 : -1;
@@ -23,7 +23,8 @@ export function spawnTrafficCar(far) {
     const x = vertical ? L.x : along, z = vertical ? along : L.z;
     if (far && Math.hypot(x - P.x, z - P.z) < 70) continue;
     if (!clear(x, z)) continue;
-    const c = spawnVehicle(pickTrafficModel('car'), x, z, Math.atan2(dx, dz), 'traffic'); c.v = 10; return c;
+    const c = spawnVehicle(pickTrafficModel('car'), x, z, Math.atan2(dx, dz), 'traffic'); c.v = 10;
+    c.seatDriver(spawnNpc('motorist', x, z)); return c;
   }
 }
 

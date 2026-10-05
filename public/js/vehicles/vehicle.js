@@ -58,17 +58,34 @@ const Vehicle = {
   raycast(o, d, maxT) {
     if (this.driver === P) return null;
     const b = this.K.hitBox(this), t = rayBox(o.x, o.y, o.z, d.x, d.y, d.z, this.x - b.hx, 0, this.z - b.hz, this.x + b.hx, b.h, this.z + b.hz);
-    return t < maxT ? { t } : null;
+    if (!(t < maxT)) return null;
+    // through the windows of a closed vehicle, the shot can find the driver instead of the bodywork
+    const a = this.driver;
+    if (a && a.alive && this.K.occupantHit) { const h = this.K.occupantHit(this, o, d, maxT); if (h) return { t: h.t, head: h.head, occupant: true }; }
+    return { t };
   },
-  onShot(hit, dmg) { this.damage(dmg, true); emit(hit.p.x, hit.p.y, hit.p.z, 3, '#ffe9a8', 5, 0.25, 0.06); return { head: false }; },
+  onShot(hit, dmg, dir) {
+    if (hit.occupant && this.driver && this.driver.alive) { emit(hit.p.x, hit.p.y, hit.p.z, 4, '#cfe6ff', 4, 0.3, 0.05); return this.driver.onShot(hit, dmg, dir); }
+    this.damage(dmg, true); emit(hit.p.x, hit.p.y, hit.p.z, 3, '#ffe9a8', 5, 0.25, 0.06); return { head: false };
+  },
   onRocket() { this.damage(999, true); },
   blast(x, y, z, R, dmg, byPlayer) { const d = Math.hypot(this.x - x, this.z - z); if (d < R && !this.dead) this.damage(dmg * (1 - d / R) + 40, byPlayer ? 'boom' : false); },
   pushOut(o, r) { return this.K.pushOut(this, o, r); },
   blip(radar) { if (this.driver !== P && !this.dead) this.K.blip(this, radar); },
   interaction(p) {
-    if (p.vehicle || this.driver || this.dead || this.burnT > 0) return null;
+    if (p.vehicle || this.driver === P || this.dead || this.burnT > 0) return null;
+    // someone at the wheel of a slow car can be dragged out; anyone on a bike has to be shot or rammed off
+    const jack = !!this.driver;
+    if (jack && !(this.K.enclosed && this.driver.alive && Math.abs(this.v) < 5)) return null;
     const dist = this.K.reach(this, p); if (dist > this.K.reachMax) return null;
+    if (jack) return { keys: ['KeyF'], priority: 0, dist, prompt: `Press <kbd>F</kbd> to pull the driver out of the ${this.model.name}`, run: () => this.jack() };
     return { keys: ['KeyF', 'KeyE'], priority: 0, dist, prompt: `Press <kbd>F</kbd> to ${this.K.verb} the ${this.model.name}`, run: () => enterVehicle(this) };
+  },
+  // the player drags the driver out and takes the wheel
+  jack() {
+    const a = this.driver; this.ejectDriver(true); alarm(this.x, this.z, 20);
+    emitEvent('vehicle:jacked', { vehicle: this, driver: a });
+    enterVehicle(this);
   },
   shouldDespawn() {
     if (this.driver === P) return false;
@@ -89,8 +106,10 @@ const Vehicle = {
     const a = this.driver; if (!a || a === P) return;
     this.driver = null; a.vehicle = null;
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw), s = this.K.seatZ(this);
-    a.x = this.x + fx * s; a.z = this.z + fz * s; a.yaw = this.yaw; this.K.unseat(this, a.c); a.place();
-    a.svx = survive ? 0 : fx * this.v * 0.7; a.svz = survive ? 0 : fz * this.v * 0.7;
+    // out of a car's door, or off the back of a bike and along the road
+    if (this.K.enclosed) { const at = this.K.exitAt(this); a.x = at.x; a.z = at.z; } else { a.x = this.x + fx * s; a.z = this.z + fz * s; }
+    a.yaw = this.yaw; this.K.unseat(this, a.c); a.place();
+    const slide = survive || this.K.enclosed ? 0 : 0.7; a.svx = fx * this.v * slide; a.svz = fz * this.v * slide;
     a.become('wander');
     if (survive) { a.state = 'flee'; a.timer = 9; a.fx = P.x; a.fz = P.z; a.panic = true; }
     this.K.onDriverGone(this);

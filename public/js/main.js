@@ -74,7 +74,7 @@ async function start(data) {
   for (const s of healthSpots) makePickup('health', s[0], s[1]);
   for (const s of armorSpots) makePickup('armor', s[0], s[1]);
   for (const s of shopSpots) spawnShop(s.type, s.x, s.z);
-  for (const s of lotSpots) spawnVehicle('sedan', s.x, s.z, s.yaw).home = true;
+  lotSpots.forEach((s, i) => { spawnVehicle(i % 3 ? 'sedan' : 'modely', s.x, s.z, s.yaw).home = true; });
   P.x = 230; P.z = -40;
   for (let i = 0; i < 26; i++) spawnTrafficCar(false);
   for (let i = 0; i < 4; i++) spawnTrafficBike();

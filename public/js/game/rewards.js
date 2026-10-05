@@ -30,6 +30,9 @@ on('vehicle:wrecked', ({ vehicle, byPlayer }) => {
   const cash = cashOf(r.cash); if (cash > 0) dropCash(vehicle.x + rnd(-2, 2), vehicle.z + rnd(-2, 2), cash);
 });
 
+// dragging someone out of their car is a crime
+on('vehicle:jacked', () => addHeat(2));
+
 // a police car that reaches the player lets two officers out, one on each side
 on('police:arrived', ({ vehicle: c }) => {
   if (G.wanted <= 0) return;
