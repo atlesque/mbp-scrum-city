@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { HEAT, WANTED, heatToLevel, mixPick } from '../../public/js/data/wanted.js';
-import { WEAPONS, wStat } from '../../public/js/data/weapons.js';
+import { WBY, WEAPONS, wStat } from '../../public/js/data/weapons.js';
+import { NPC_TYPES } from '../../public/js/npcs/types.js';
 
 describe('wanted level', () => {
   it('maps heat to the highest level reached', () => {
@@ -34,5 +35,9 @@ describe('weapon upgrades', () => {
         expect(b.rate).toBeLessThanOrEqual(a.rate);
       }
     }
+  });
+  it('a base pump shotgun drops a police officer when a third of its pellets land', () => {
+    const w = WBY.shotgun;
+    expect(Math.ceil(w.pellets / 3) * wStat(w, 0).dmg).toBeGreaterThanOrEqual(NPC_TYPES.cop.hp);
   });
 });
