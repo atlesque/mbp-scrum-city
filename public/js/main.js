@@ -24,6 +24,7 @@ import { updateEngineSound } from './vehicles/engine.js';
 import { spawnTrafficBike, spawnTrafficCar } from './vehicles/traffic.js';
 import { spawnVehicle } from './vehicles/vehicle.js';
 import { armorSpots, buildWorld, healthSpots, lotSpots, shopSpots, waterBase, waterMesh } from './world/city.js';
+import { updateEdges } from './world/edges.js';
 import { buildMap, drawRadar } from './world/radar.js';
 
 // ================= MAIN LOOP =================
@@ -50,6 +51,7 @@ function frame(now) {
       for (let i = 0; i < arr.length; i += 3) { const x = waterBase[i], z = waterBase[i + 2]; arr[i + 1] = 0.1 + Math.sin(x * 0.11 + G.time * 1.3) * 0.28 + Math.cos(z * 0.09 + G.time * 0.9) * 0.22; }
       pos.needsUpdate = true; waterMesh.geometry.computeVertexNormals();
     }
+    updateEdges(G.time);
   }
   if (G.state === 'title') {
     const t = G.time * 0.05;
