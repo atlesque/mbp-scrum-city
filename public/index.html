@@ -154,6 +154,35 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 @keyframes wasted{0%{opacity:0;transform:scale(1.6) rotate(-4deg)}100%{opacity:1;transform:scale(1) rotate(-4deg)}}
 #wastedInfo{font-weight:700;font-size:18px}
 
+/* Settings */
+.menu-btn{flex:0 0 auto;font-size:15px;letter-spacing:.08em;text-transform:uppercase;padding:9px 26px}
+#settings{background:rgba(23,12,40,.7)}
+.settings-panel{width:100%;max-width:640px;max-height:100%;overflow:auto;background:var(--panel);border:2px solid var(--cyan);border-radius:8px;box-shadow:0 0 40px rgba(62,240,255,.3);padding:20px 22px;box-sizing:border-box;display:flex;flex-direction:column;gap:16px}
+.settings-head{display:flex;flex-direction:column;gap:12px}
+.settings-head h2{margin:0;font-family:var(--f-script);font-size:52px;line-height:1;color:var(--cyan);text-shadow:0 0 14px rgba(62,240,255,.7),3px 3px 0 #000}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid rgba(255,255,255,.12);padding-bottom:10px}
+.tabs button,.seg button,.tgl{font-family:var(--f-ui);font-weight:700;font-size:13px;letter-spacing:.06em;color:var(--ink);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.2);border-radius:4px;padding:7px 14px;cursor:pointer}
+.tabs button{text-transform:uppercase}
+.tabs button[aria-selected="true"]{background:var(--pink);border-color:var(--pink);color:var(--night)}
+.seg{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}
+.seg button[aria-checked="true"]{background:rgba(62,240,255,.22);border-color:var(--cyan)}
+.tgl{min-width:64px}
+.tgl[aria-checked="true"]{background:rgba(62,240,255,.22);border-color:var(--cyan);color:var(--cyan)}
+.tabs button:focus-visible,.seg button:focus-visible,.tgl:focus-visible,.set-range input:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+#setBody{display:flex;flex-direction:column;gap:4px;min-height:200px}
+.set-row{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 16px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.set-label{font-weight:600;font-size:15px}
+.set-range{display:flex;align-items:center;gap:10px}
+.set-range input{width:min(220px,48vw);accent-color:var(--pink)}
+.set-range output{font-family:var(--f-hud);font-size:15px;min-width:52px;text-align:right;color:var(--cyan);font-variant-numeric:tabular-nums}
+.set-controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px 22px}
+.set-controls h3{margin:0 0 6px;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--pink)}
+.ctl{display:flex;gap:10px;align-items:baseline;font-size:14px;padding:2px 0}
+.ctl kbd{font-family:var(--f-ui);font-weight:700;font-size:12px;color:var(--night);background:var(--cyan);border-radius:3px;padding:1px 6px;white-space:nowrap;min-width:20px;text-align:center}
+.settings-foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
+.settings-foot .sbtn{flex:0 0 auto}
+#setBack{margin-left:auto}
+
 /* Shop */
 #shop{background:rgba(23,12,40,.7)}
 .shop-panel{width:100%;max-width:980px;max-height:100%;overflow:auto;background:var(--panel);border:2px solid var(--pink);border-radius:8px;box-shadow:0 0 40px rgba(255,79,163,.35);padding:20px 22px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px}
@@ -223,7 +252,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
     <div id="radio">Neon FM 86.0</div>
     <div id="prompt" hidden></div>
     <div id="bigText" class="outline"></div>
-    <div id="speedo" hidden><b id="kmh" class="outline">000</b><span class="u">km/h</span><div class="bar bk"><b id="vehHp"></b></div><span class="u"><span id="vehName">R 1300 GS</span> · <kbd>F</kbd> off</span></div>
+    <div id="speedo" hidden><b id="kmh" class="outline">000</b><span class="u" id="spdUnit">km/h</span><div class="bar bk"><b id="vehHp"></b></div><span class="u"><span id="vehName">R 1300 GS</span> · <kbd>F</kbd> off</span></div>
     <div id="hint"><kbd>F</kbd> ride / drive · <kbd>1</kbd>–<kbd>6</kbd> / wheel switch · <kbd>R</kbd> reload · <kbd>M</kbd> radio · <kbd>Esc</kbd> pause</div>
   </div>
 
@@ -246,6 +275,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
       <p class="mobile-note">Built for desktop with a mouse and keyboard.</p>
       <noscript><p class="mobile-note">Turn on JavaScript to play.</p></noscript>
       <button id="playBtn" class="btn" disabled>Loading the bay…</button>
+      <button id="titleSettingsBtn" class="sbtn cy menu-btn">Settings</button>
     </div>
   </section>
 
@@ -253,7 +283,19 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
     <div class="panel">
       <h2>Paused</h2>
       <button id="resumeBtn" class="btn">Back to the streets</button>
+      <button id="pauseSettingsBtn" class="sbtn cy menu-btn">Settings</button>
       <p class="small" id="pauseStats"></p>
+    </div>
+  </section>
+
+  <section id="settings" class="overlay" hidden>
+    <div class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="settings-head"><h2 id="settingsTitle">Settings</h2><div class="tabs" role="tablist" id="setTabs"></div></div>
+      <div id="setBody"></div>
+      <div class="settings-foot">
+        <button id="setReset" class="sbtn">Reset to defaults</button>
+        <button id="setBack" class="btn">Back (Esc)</button>
+      </div>
     </div>
   </section>
 

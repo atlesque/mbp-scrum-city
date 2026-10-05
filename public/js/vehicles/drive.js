@@ -18,7 +18,7 @@ export function arcadeDrive(v, dt, c, wb) {
 }
 
 // Lane following for AI traffic: slow for whatever is ahead, honk at the player, nudge past stuck
-// vehicles, then wrap around the edge of the map. T holds the kind's traffic tuning.
+// vehicles. T holds the kind's traffic tuning. keepOnGrid afterwards turns it at the edge of the map.
 export function followLane(v, dt, T) {
   v.ignoreT -= dt; v.hornT -= dt;
   const blk = blockedAhead(v, T.look, v.ignoreT > 0);
@@ -29,7 +29,24 @@ export function followLane(v, dt, T) {
   } else { v.v = Math.min(v.top, v.v + T.accel * dt); v.waitT = 0; }
   v.x += v.dirX * v.v * dt; v.z += v.dirZ * v.v * dt;
 }
-export function wrapMap(v) {
-  if (v.x > 204) v.x = -214; else if (v.x < -214) v.x = 204;
-  if (v.z > 214) v.z = -214; else if (v.z < -214) v.z = 214;
+// The city is walled in, so traffic turns onto the ring road at the edge instead of driving off it:
+// a road meeting the ring turns either way, the ring turns inwards at its corners, and traffic on the
+// ring sometimes turns back into town at a junction. Lanes match laneFor in traffic.js.
+const RING = 200, IN_ROADS = [-150, -100, -50, 0, 50, 100, 150];
+const nearRoad = p => IN_ROADS.concat([-RING, RING]).reduce((a, b) => Math.abs(b - p) < Math.abs(a - p) ? b : a);
+export function keepOnGrid(v, dt) {
+  const alongX = v.dirX !== 0, pos = alongX ? v.x : v.z, dir = alongX ? v.dirX : v.dirZ, road = nearRoad(alongX ? v.z : v.x);
+  // the lane of a crossing road r when turning towards t
+  const lane = (r, t) => alongX ? r - 3 * t : r + 3 * t;
+  const turn = (t, at) => { if (alongX) { v.x = at; v.dirX = 0; v.dirZ = t; } else { v.z = at; v.dirZ = 0; v.dirX = t; } v.edgeT = 0; };
+  // nearing the edge: pick a way once (always inwards on the ring), then turn on reaching that lane
+  if (Math.abs(road) === RING) v.edgeT = -Math.sign(road);
+  else if (!v.edgeT && pos * dir > RING - 12) v.edgeT = Math.random() < 0.5 ? 1 : -1;
+  const edge = lane(RING * dir, v.edgeT || 1);
+  if (v.edgeT && (pos - edge) * dir >= 0) return turn(v.edgeT, edge);
+  // on the ring: now and then turn back into town
+  if (Math.abs(road) === RING && dt) {
+    const prev = pos - dir * v.v * dt, t = -Math.sign(road);
+    for (const r of IN_ROADS) { const l = lane(r, t); if ((prev - l) * (pos - l) < 0 && Math.random() < 0.3) return turn(t, l); }
+  }
 }
