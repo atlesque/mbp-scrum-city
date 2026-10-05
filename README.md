@@ -2,7 +2,7 @@
 
 A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash, outrun the wanted level, and spend the money on better guns at Bullet Bros. Guns.
 
-**Live:** https://mbp-scrum-city.atlesque.dev (also https://neon-bay-86.pages.dev)
+**Live:** https://mbp-scrum-city.atlesque.dev (also https://mbp-scrum-city.pages.dev)
 
 ## Gameplay
 
@@ -35,7 +35,11 @@ Everything lives in `public/index.html`: the game code, styles, and all sound (s
 ```bash
 npm install
 npm run dev      # local server via wrangler pages dev
-npm run deploy   # deploy to the neon-bay-86 Cloudflare Pages project
 ```
 
-Deploying needs a Wrangler login (`npx wrangler login`) on the Cloudflare account that owns the `neon-bay-86` Pages project.
+Deploys run automatically through the Cloudflare Pages GitHub integration (project `mbp-scrum-city`):
+
+- Pushing to `main` deploys to production.
+- Pushing any other branch or opening a pull request creates a preview deployment.
+
+There is no build step. Pages serves the `public/` directory as is.
