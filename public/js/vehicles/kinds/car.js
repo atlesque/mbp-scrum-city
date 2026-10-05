@@ -21,6 +21,7 @@ export const car = {
   wreckReward: { heat: 3, cash: [40, 160] },
   bumper: { back: -2.2, front: 2.6, half: 1.15, slow: 0.9 },
   crash: { exitSpeed: 9, hurt: 0.5 },
+  ram: { mass: 4, hull: [1.15, HW], heavierAt: 3, sameAt: Infinity }, // see vehicles/knock.js
   camera: { dist: 7.4, aimDist: 4.2, height: 2.2, fovPerSpeed: 0.3 },
   laneHalf: 1.7, trafficDespawn: Infinity, reachMax: 1.6, stopsWhileBurning: true, enclosed: true,
   wheelbase: 2.7,

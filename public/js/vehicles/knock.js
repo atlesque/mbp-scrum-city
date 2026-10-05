@@ -1,0 +1,40 @@
+import { clamp } from '../core/util.js';
+
+// Ramming: a heavier vehicle (a car into a bike) or one closing fast enough (a bike into a bike)
+// sends the other flying instead of stopping dead against it. A kind takes part with
+//   ram: { mass, hull: [offset, radius], heavierAt, sameAt }   who outweighs whom, its body as two circles
+//                                                           along the heading, and the closing speeds that knock
+//   knock(v, vx, vz, up)                                    a kind that can be sent flying (bikes)
+
+// the closing speed of `a` on `b` along the line between them: positive when they are coming together
+export function closingSpeed(a, b) {
+  const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz) || 1, nx = dx / d, nz = dz / d;
+  const avx = Math.sin(a.yaw) * a.v, avz = Math.cos(a.yaw) * a.v;
+  const sl = b.kvx || b.kvz, bvx = sl ? b.kvx : Math.sin(b.yaw) * b.v, bvz = sl ? b.kvz : Math.cos(b.yaw) * b.v;
+  return { closing: (avx - bvx) * nx + (avz - bvz) * nz, nx, nz };
+}
+
+// does `a`'s body touch `b`'s? `pad` widens a's hull so a hit is caught before the push-out stops it
+const _o = { x: 0, z: 0 };
+export function touching(a, b, pad = 0.15) {
+  const [off, r] = a.K.ram.hull, fx = Math.sin(a.yaw), fz = Math.cos(a.yaw);
+  for (const s of [1, -1]) { _o.x = a.x + fx * off * s; _o.z = a.z + fz * off * s; if (b.K.pushOut(b, _o, r + pad)) return true; }
+  return false;
+}
+
+// how hard `a` rams `b`: { vx, vz, up, closing, keep } (b's new velocity, its upward kick, and the share of
+// speed `a` keeps) or null when it is only a bump and the usual push-out should stop `a`
+export function knockImpulse(a, b) {
+  const A = a.K.ram, B = b.K.ram;
+  if (!A || !B || !b.K.knock || b.dead || A.mass < B.mass) return null;
+  const { closing, nx, nz } = closingSpeed(a, b);
+  // a riderless bike lying in the road gets shoved along like a lighter one, not ridden into like a wall
+  if (closing < (A.mass > B.mass || (b.fallen && !b.driver) ? A.heavierAt : A.sameAt)) return null;
+  // an elastic share of the closing speed along the line of impact, plus a shove the way `a` is going
+  const share = A.mass / (A.mass + B.mass), fwd = Math.abs(a.v) * 0.35 * Math.sign(a.v);
+  const push = closing * 2 * share * 0.8;
+  return {
+    vx: nx * push + Math.sin(a.yaw) * fwd, vz: nz * push + Math.cos(a.yaw) * fwd,
+    up: clamp(closing * 0.35 * share, 1.5, 9), closing, keep: 1 - (1 - share) * 0.6,
+  };
+}
