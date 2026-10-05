@@ -1,0 +1,22 @@
+// Tiny event bus so systems can react to what happens in the game without importing each other.
+//
+// Events the game emits:
+//   npc:killed        { npc, byPlayer, dir, vehicle }   vehicle: what the NPC was riding, if anything
+//   vehicle:wrecked   { vehicle, byPlayer }
+//   vehicle:enter     { vehicle }                       the player got on or in
+//   vehicle:exit      { vehicle, crash }
+//   wanted:up         { level }
+//   wanted:lost       {}
+//   shop:purchase     { shop, item, action, price }
+//   player:died       { fee }
+const handlers = new Map();
+
+export function on(name, fn) {
+  if (!handlers.has(name)) handlers.set(name, []);
+  handlers.get(name).push(fn);
+  return () => { const l = handlers.get(name); l.splice(l.indexOf(fn), 1); };
+}
+
+export function emit(name, payload = {}) {
+  for (const fn of handlers.get(name) || []) fn(payload);
+}
