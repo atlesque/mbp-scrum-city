@@ -98,7 +98,7 @@ async function start(data) {
   await loadStep(0.9, 'Waking up the neighbourhood');
   for (let i = 0; i < 30; i++) { const s = findSpot(5, 80, false, false); if (s) spawnNpc('civilian', s.x, s.z); }
   G.state = 'title';
-  const b = $('playBtn'); b.disabled = false; b.textContent = inv.money > 500 || stats.kills ? `Back to the bay ($${inv.money.toLocaleString()})` : 'Hit the streets';
+  const b = $('playBtn'); b.disabled = false; b.textContent = inv.money > 500 || stats.kills ? `Back to the city ($${inv.money.toLocaleString()})` : 'Hit the streets';
   setInterval(() => { if (G.state === 'play') save(); }, 5000);
   // hold on the full bar until the title camera has drawn the city once
   await loadStep(1, 'Ready');

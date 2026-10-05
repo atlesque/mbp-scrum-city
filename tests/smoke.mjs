@@ -1,5 +1,5 @@
 // Plays a short session in headless Chromium: boot, walk, drive each kind of car, ride a bike, shoot someone,
-// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, walk into the edge wall and change settings. Fails on any page error or broken step.
+// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, shunt a parked car, walk into the edge wall and change settings. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -265,6 +265,36 @@ try {
     check(await until(() => __body.peak > 1 && __bystander.peak > 1), 'the bodies were not thrown into the air');
     check(await until(() => !__body.y && !__bystander.y), 'the bodies did not come back down');
     await game(() => { __neonbay.removeEntity(__boom); __neonbay.removeEntity(__body); __neonbay.removeEntity(__bystander); });
+  });
+
+  await step('shunts a parked car down the road', async () => {
+    await clearVehicles(5, -50);
+    await game(() => { const { P, spawnVehicle } = __neonbay; P.x = 5.5; P.z = -60; window.__ram = spawnVehicle('sedan', 3, -60, 0); });
+    check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes(__ram.model.name)), 'no prompt to get in');
+    await press('KeyF');
+    check(await until(() => __neonbay.P.vehicle === window.__ram), 'F did not put the player behind the wheel');
+    // into the back of a car parked in the lane
+    await game(() => { __ram.x = 3; __ram.z = -60; __ram.yaw = 0; __ram.v = 20; window.__hit = __neonbay.spawnVehicle('sedan', 3, -45, 0); });
+    const hit = await until(() => __hit.z > -42);
+    // both roll to a stop with the cars apart
+    const still = await until(() => !__hit.kvz && Math.abs(__ram.v) < 0.3, null, 25000);
+    const r = await game(() => ({ z: __hit.z, hp: __hit.hp, max: __hit.model.hp, gap: __hit.z - __ram.z, v: __ram.v }));
+    check(hit, `the parked car was not pushed (at ${r.z.toFixed(1)})`);
+    check(still, `the cars never came to rest (car at ${r.z.toFixed(1)}, speed ${r.v.toFixed(1)})`);
+    check(r.hp < r.max, 'the parked car took no damage');
+    check(r.gap > 4, `the cars ended up inside each other (${r.gap.toFixed(1)} m apart)`);
+    await press('KeyF');
+    check(await until(() => !__neonbay.P.vehicle), 'F did not get the player out');
+    await game(() => { __neonbay.removeEntity(__ram); __neonbay.removeEntity(__hit); });
+  });
+
+  await step('traffic keeps out of other cars', async () => {
+    const pairs = await game(() => {
+      const cars = __neonbay.all('vehicle').filter(v => v.mode === 'traffic' && v.K.slide && !v.dead), out = [];
+      for (let i = 0; i < cars.length; i++) for (let j = i + 1; j < cars.length; j++) if (Math.hypot(cars[i].x - cars[j].x, cars[i].z - cars[j].z) < 1.5) out.push([cars[i].x, cars[i].z].map(Math.round).join(','));
+      return out;
+    });
+    check(!pairs.length, `traffic cars driving through each other at ${pairs.join(' ')}`);
   });
 
   await step('walks into the wall at the edge of the map and stops', async () => {

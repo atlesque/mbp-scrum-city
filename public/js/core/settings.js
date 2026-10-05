@@ -28,7 +28,7 @@ export const SETTINGS = [
 // what the choices mean to the game
 export const RENDER_SCALE = { low: 0.6, medium: 1, high: 1.5, ultra: 2 }; // cap on the device pixel ratio
 export const DRAW_DISTANCE = { near: 180, normal: 290, far: 420 }; // where the fog closes in, in metres
-export const DENSITY = { light: 0.6, normal: 1, busy: 1.3 }; // scales how many people and cars the bay keeps around
+export const DENSITY = { light: 0.6, normal: 1, busy: 1.3 }; // scales how many people and cars the city keeps around
 
 export const DEFAULTS = Object.fromEntries(SETTINGS.map(s => [s.id, s.def]));
 export const settings = { ...DEFAULTS };

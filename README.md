@@ -1,4 +1,4 @@
-# Neon Bay '86
+# MBP - Scrum City
 
 A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash, outrun the wanted level, and spend the money on better guns at Bullet Bros. Guns.
 
@@ -12,8 +12,8 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 - Break line of sight with the law and the stars flash and fade one at a time.
 - Two gun shops (pink `$` on the radar) sell an SMG, shotgun, assault rifle, minigun and rocket launcher, plus upgrades, ammo, health and armor. They close at 4+ stars.
 - Adventure bikes cruise the streets (white dots on the radar): the black BMW R 1300 GS 'Triple Black' and the Yamaha Ténéré 700 Rally in blue rally livery. Shoot or ram the rider off, walk up and press `F` to take the bike. Riderless bikes show as cyan squares.
-- Every car can be driven: 80s sedans and the white Tesla Model Y. Traffic cars have someone at the wheel. Shoot them through the glass, or walk up to a slow or stopped car and press `F` to drag them out (that's a crime). Parked cars are free to take.
-- Dying sends you to Bay General with a 10% hospital bill. Progress saves in `localStorage`.
+- Every car can be driven: 80s sedans and the white Tesla Model Y. Traffic cars have someone at the wheel. Shoot them through the glass, or walk up to a slow or stopped car and press `F` to drag them out (that's a crime). Parked cars are free to take. Cars crash into each other: drive into one and it skids off, dented and spinning if you hit it off-centre, and can knock into the next one along.
+- Dying sends you to City General with a 10% hospital bill. Progress saves in `localStorage`.
 - **Settings** (pause menu or title screen): sound on/off, effects and music volume, render quality, draw distance, animated waves, mouse sensitivity, invert look, field of view, camera shake, crowd and traffic density, km/h or mph, and a read-only list of the controls. Settings save in this browser, separately from game progress.
 
 ## Controls
@@ -61,6 +61,8 @@ Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share 
 **A new NPC.** Add an entry to `NPC_TYPES` in `npcs/types.js` (faction, behaviour, hp, look, cash, heat, `drops`, and weapon stats if armed). Spawn it with `spawnNpc(id, x, z)`, through a wanted level's `mix` in `data/wanted.js`, or with a row in `POPULATION` in `game/population.js`. New behaviours go in `npcs/behaviours.js`.
 
 **A new shop.** Add an entry to `SHOP_TYPES` in `shops/types.js` (name, marker, storefront, catalogue) and place it in `SHOP_SITES` in `world/city.js`. New kinds of goods are an entry in `ITEM_TYPES` in `shops/items.js` with `render` and `act`.
+
+**A new landmark.** Add a builder to `LANDMARK_TYPES` in `world/landmarks.js` (it draws in block-local metres with the front facing north) and place it in `LANDMARK_SITES` with the block it takes and the street it faces. The three Flemish government buildings there (VAC Gent, the Herman Teirlinck and the Belpaire building) are worked examples.
 
 **A new setting.** Add a row to `SETTINGS` in `core/settings.js` (a toggle, range or choice, on the Sound, Graphics or Gameplay tab), then read `settings.<id>` where it matters or apply it in `apply()` in `ui/settings.js`. The Settings screen, saving and validation pick it up on their own.
 

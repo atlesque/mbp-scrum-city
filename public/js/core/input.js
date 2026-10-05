@@ -71,7 +71,7 @@ $('playBtn').addEventListener('click', () => {
   setTimeout(() => showRadio('Neon FM 86.0'), 600);
   if (G.firstPlay) {
     G.firstPlay = false;
-    const tips = ['Welcome to <em>Neon Bay</em>. Click to grab the mouse, then <em>WASD</em> and aim.', 'Taking people down drops cash, and raises your <em>wanted level</em>.', 'Break line of sight with the law to make the stars flash and fade.', '<em>BMW R 1300 GS</em> and <em>Yamaha Ténéré 700 Rally</em> riders cruise the bay (white dots on the radar). Knock one off and press <em>F</em> to ride it.', 'Parked and passing cars are yours too. Walk up to one and press <em>F</em> to drive.', 'Spend your cash at <em>Bullet Bros. Guns</em>. Follow the pink <em>$</em> on the radar.'];
+    const tips = ['Welcome to <em>Scrum City</em>. Click to grab the mouse, then <em>WASD</em> and aim.', 'Taking people down drops cash, and raises your <em>wanted level</em>.', 'Break line of sight with the law to make the stars flash and fade.', '<em>BMW R 1300 GS</em> and <em>Yamaha Ténéré 700 Rally</em> riders cruise the city (white dots on the radar). Knock one off and press <em>F</em> to ride it.', 'Parked and passing cars are yours too. Walk up to one and press <em>F</em> to drive.', 'Spend your cash at <em>Bullet Bros. Guns</em>. Follow the pink <em>$</em> on the radar.'];
     tips.forEach((t, i) => setTimeout(() => G.state === 'play' && toast(t, 5), 400 + i * 6000));
   }
 });

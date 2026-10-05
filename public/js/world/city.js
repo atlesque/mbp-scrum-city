@@ -5,6 +5,7 @@ import { crossTexture, neonTexture, windowTextures } from '../render/textures.js
 import { SHOP_TYPES } from '../shops/types.js';
 import { ROADS, addCollider } from './collision.js';
 import { buildEdges } from './edges.js';
+import { buildLandmark, landmarkAt } from './landmarks.js';
 
 // ================= WORLD =================
 const PASTEL = ['#f7a8c4', '#8fe3d6', '#ffd0a1', '#c9b3f2', '#a7e8a1', '#fff1c9', '#ffb3a7', '#9fd4ff', '#f4ece6', '#ffc6e7', '#b8f0e6', '#ffe0b3'];
@@ -27,6 +28,7 @@ export let winMat, plainMat, neonMat, waterMesh, waterBase, lightWindows;
 
 function blockKind(i, j) {
   if (i === 3 && j === 4) return 'hospital';
+  if (landmarkAt(i, j)) return 'landmark';
   if (SHOP_SITES.some(s => s.block[0] === i && s.block[1] === j)) return 'shop';
   if ([[2, 2], [5, 6], [1, 5], [6, 1], [3, 7], [0, 3], [7, 3]].some(([a, b]) => a === i && b === j)) return 'park';
   if ([[4, 6], [2, 0], [5, 2], [0, 7]].some(([a, b]) => a === i && b === j)) return 'lot';
@@ -128,13 +130,17 @@ export function buildWorld() {
       armorSpots.push([cx, cz]);
       continue;
     }
+    if (kind === 'landmark') {
+      buildLandmark({ walls, plain, neon, sign: s => signs.push(s) }, landmarkAt(i, j), cx, cz);
+      continue;
+    }
     if (kind === 'hospital') {
       const x0 = cx - 14, x1 = cx + 14, z0 = cz - 13, z1 = cz + 14, h = 15;
       wallBox(walls, plain, cx, h / 2, (z0 + z1) / 2, 28, h, 27, '#f5f3f0');
       box(plain, 28.6, 0.6, 27.6, cx, h + 0.3, (z0 + z1) / 2, '#5fd1c4'); box(plain, 28.4, 0.4, 27.4, cx, 3.4, (z0 + z1) / 2, '#5fd1c4');
       box(plain, 10, 0.25, 3, cx, 3.1, z0 - 1.4, '#ffffff'); box(neon, 10, 0.1, 0.1, cx, 3.0, z0 - 2.9, '#ff4455');
       signs.push({ cross: true, x: cx, y: 9.5, z: z0 - 0.3, ry: Math.PI, w: 4 });
-      signs.push({ text: 'Bay General', x: cx, y: 5.3, z: z0 - 0.3, ry: Math.PI, w: 10, color: '#5ff3ff', font: '"Bowlby One", Impact, sans-serif' });
+      signs.push({ text: 'City General', x: cx, y: 5.3, z: z0 - 0.3, ry: Math.PI, w: 10, color: '#5ff3ff', font: '"Bowlby One", Impact, sans-serif' });
       addCollider(x0, x1, z0, z1, h, true);
       SPAWN = { x: cx + 4, z: cz - 17.6, yaw: Math.PI / 2 };
       healthSpots.push([cx + 8, cz - 17.2]);
