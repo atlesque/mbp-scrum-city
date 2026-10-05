@@ -9,6 +9,7 @@ import { interact } from '../game/interact.js';
 import { camera, canvasEl, renderer } from '../render/scene.js';
 import { closeShop } from '../shops/shop.js';
 import { drawWeaponIcon, showRadio, toast } from '../ui/hud.js';
+import { closeSettings, settingsOpen } from '../ui/settings.js';
 import { SPAWN } from '../world/city.js';
 
 export function requestLock(fromClick) {
@@ -36,6 +37,7 @@ canvasEl.addEventListener('contextmenu', e => e.preventDefault());
 document.addEventListener('wheel', e => { if (G.state === 'play') cycleWeapon(e.deltaY > 0 ? 1 : -1); }, { passive: true });
 document.addEventListener('keydown', e => {
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code) && G.state === 'play') e.preventDefault();
+  if (settingsOpen()) { if (e.code === 'Escape') { e.preventDefault(); closeSettings(); } return; }
   if (G.state === 'shop') { if (e.code === 'KeyE' || e.code === 'Escape') { e.preventDefault(); closeShop(); } return; }
   if (G.state === 'paused') { if (e.code === 'Enter' || e.code === 'KeyP') resumeGame(); return; }
   if (G.state !== 'play') return;
@@ -55,6 +57,8 @@ function pauseGame() {
   G.state = 'paused'; I.mouseL = false; I.mouseR = false; for (const k in keys) keys[k] = false;
   $('pause').hidden = false; $('pauseStats').textContent = `${stats.kills} takedowns · ${stats.cops} law enforcement · best heat ${'★'.repeat(stats.best) || 'none'} · $${stats.earned.toLocaleString()} earned`;
   Sound.setSiren(0); Sound.setHeli(0); Sound.setEngine(0, 1000); save();
+  // free the mouse (P keeps it captured) so the menu can be clicked
+  if (document.pointerLockElement) document.exitPointerLock();
   setTimeout(() => $('resumeBtn').focus(), 20);
 }
 function resumeGame(fromClick) { if (G.state !== 'paused') return; $('pause').hidden = true; G.state = 'play'; requestLock(fromClick === true); }

@@ -1,5 +1,5 @@
 // Plays a short session in headless Chromium: boot, walk, drive each kind of car, ride a bike, shoot someone,
-// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike and walk into the edge wall. Fails on any page error or broken step.
+// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, walk into the edge wall and change settings. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -219,6 +219,27 @@ try {
     check(x > -207.6, `player went through the wall (x ${x})`);
     const off = await game(() => __neonbay.all('vehicle').filter(v => v.mode === 'traffic' && (Math.abs(v.x) > 204 || Math.abs(v.z) > 204)).length);
     check(off === 0, `${off} traffic vehicle(s) drove off the grid`);
+  });
+
+  await step('changes settings from the pause menu', async () => {
+    await press('KeyP');
+    check(await until(() => __neonbay.G.state === 'paused'), 'P did not pause');
+    await page.click('#pauseSettingsBtn');
+    check(await page.isVisible('#settings') && !(await page.isVisible('#pause')), 'the Settings screen did not open');
+    await page.click('#setBody .tgl[data-set="sound"]');
+    await page.locator('#setBody input[data-set="musicVolume"]').fill('0.4');
+    await page.click('#setTabs [data-tab="gameplay"]');
+    await page.click('#setBody [data-set="units"][data-val="mph"]');
+    await page.click('#setTabs [data-tab="controls"]');
+    check(await page.locator('#setBody .ctl').count() > 10, 'the Controls tab lists no keys');
+    const saved = await game(() => JSON.parse(localStorage.getItem('neonbay86.settings')));
+    check(saved.sound === false && saved.musicVolume === 0.4 && saved.units === 'mph', 'settings were not saved: ' + JSON.stringify(saved));
+    await page.keyboard.press('Escape');
+    check(await page.isVisible('#pause') && !(await page.isVisible('#settings')), 'Esc did not go back to the pause menu');
+    await page.click('#pauseSettingsBtn'); await page.click('#setTabs [data-tab="sound"]'); await page.click('#setReset'); await page.click('#setBack');
+    check(await game(() => localStorage.getItem('neonbay86.settings').includes('"sound":true')), 'reset did not restore the defaults');
+    await page.click('#resumeBtn');
+    check(await until(() => __neonbay.G.state === 'play'), 'did not resume');
   });
 
   await step('survives a five-star chase', async () => {
