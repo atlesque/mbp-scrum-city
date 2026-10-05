@@ -1,5 +1,5 @@
 // Plays a short session in headless Chromium: boot, walk, drive each kind of car, ride a bike, shoot someone,
-// shoot a driver through the window and take their car, drag a driver out, and buy armor at the gun shop. Fails on any page error or broken step.
+// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, and walk into the edge wall. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -185,6 +185,19 @@ try {
     check(r.armor === 100 && r.money < 5000, `armor not bought (armor ${r.armor}, money ${r.money})`);
     await page.click('#shopClose');
     check(await game(() => __neonbay.G.state === 'play'), 'shop did not close');
+  });
+
+  await step('walks into the wall at the edge of the map and stops', async () => {
+    await game(() => { const { P, cam } = __neonbay; P.x = -203; P.z = -25; cam.yaw = -Math.PI / 2; });
+    await page.keyboard.down('KeyW');
+    const reached = await until(() => __neonbay.P.x < -206.5);
+    await page.waitForTimeout(1500);
+    await page.keyboard.up('KeyW');
+    const x = await game(() => __neonbay.P.x);
+    check(reached, `player never reached the wall (x ${x})`);
+    check(x > -207.6, `player went through the wall (x ${x})`);
+    const off = await game(() => __neonbay.all('vehicle').filter(v => v.mode === 'traffic' && (Math.abs(v.x) > 204 || Math.abs(v.z) > 204)).length);
+    check(off === 0, `${off} traffic vehicle(s) drove off the grid`);
   });
 
   await step('survives a five-star chase', async () => {

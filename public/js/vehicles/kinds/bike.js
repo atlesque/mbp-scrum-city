@@ -4,7 +4,7 @@ import { emit } from '../../render/effects.js';
 import { scene } from '../../render/scene.js';
 import { groundAt } from '../../world/city.js';
 import { collide, pushOutSeg } from '../../world/collision.js';
-import { arcadeDrive, followLane, wrapMap } from '../drive.js';
+import { arcadeDrive, followLane, keepOnGrid } from '../drive.js';
 
 const bikeMat = new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 60, specular: 0x2e2e36 });
 const bikeMatteMat = new THREE.MeshLambertMaterial({ vertexColors: true });
@@ -75,7 +75,7 @@ export const bike = {
         if (b.dirZ) { for (const r of TURN_Z) for (const t of [1, -1]) { const lz = r + 3 * t; if ((oz - lz) * (b.z - lz) < 0 && Math.random() < 0.28) { b.dirX = t; b.dirZ = 0; b.z = lz; b.turnCd = 1.5; b.v *= 0.75; break turn; } } }
         else for (const r of TURN_X) for (const t of [1, -1]) { const lx = r - 3 * t; if ((ox - lx) * (b.x - lx) < 0 && Math.random() < 0.28) { b.dirX = 0; b.dirZ = t; b.x = lx; b.turnCd = 1.5; b.v *= 0.75; break turn; } }
       }
-      wrapMap(b);
+      keepOnGrid(b, dt);
       const ty = Math.atan2(b.dirX, b.dirZ), dyaw = Math.atan2(Math.sin(ty - b.yaw), Math.cos(ty - b.yaw));
       if (Math.abs(dyaw) > 2.5) b.yaw = ty; else b.yaw += dyaw * Math.min(1, dt * 5);
       b.steer = lerp(b.steer, Math.max(-0.45, Math.min(0.45, dyaw * 0.6)), Math.min(1, dt * 8));
