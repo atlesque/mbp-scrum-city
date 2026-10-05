@@ -14,7 +14,15 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
-<link rel="preload" href="/img/loading.svg" as="image" type="image/svg+xml">
+<script>
+// Pick one of the loading posters at random on every load and start fetching it before the CSS asks for it.
+(() => {
+  const src = '/img/loading/' + (1 + Math.floor(Math.random() * 9)) + '.webp';
+  document.documentElement.style.setProperty('--ld-art', 'url(' + src + ')');
+  const l = document.createElement('link'); l.rel = 'preload'; l.as = 'image'; l.type = 'image/webp'; l.href = src;
+  document.head.append(l);
+})();
+</script>
 
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Neon Bay '86">
@@ -133,7 +141,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 #title{background:linear-gradient(180deg,rgba(23,12,40,.15) 0%,rgba(23,12,40,.55) 55%,rgba(23,12,40,.92) 100%)}
 .title-card{max-width:760px;width:100%;text-align:center;display:flex;flex-direction:column;align-items:center;gap:18px}
 .logo{font-family:var(--f-script);font-size:clamp(72px,13vw,150px);line-height:.9;color:var(--pink);margin:0;text-shadow:0 0 18px rgba(255,79,163,.9),0 0 46px rgba(255,79,163,.55),4px 4px 0 #2a0b2c;transform:rotate(-6deg);text-wrap:balance}
-.logo small{display:block;font-family:var(--f-hud);font-size:.32em;color:var(--cyan);letter-spacing:.2em;transform:translateX(30%);text-shadow:0 0 14px rgba(62,240,255,.8),3px 3px 0 #04252b;margin-top:6px}
+.logo small{display:block;font-family:var(--f-hud);font-size:.32em;color:var(--cyan);letter-spacing:.2em;text-shadow:0 0 14px rgba(62,240,255,.8),3px 3px 0 #04252b;margin-top:6px}
 .tagline{font-size:17px;max-width:56ch;color:var(--ink);line-height:1.5;margin:6px 0 0}
 .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 18px;width:100%;max-width:640px;font-size:14px;text-align:left;background:var(--panel);padding:14px 18px;border-radius:6px;border:1px solid rgba(255,79,163,.4);box-sizing:border-box}
 .controls div{display:flex;gap:10px;align-items:baseline;min-width:0}
@@ -207,19 +215,19 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 .sbtn.cy:hover:not([disabled]){background:rgba(62,240,255,.3)}
 .sbtn .p{color:var(--cash)}
 .shop-foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
-/* Loading screen: a full-bleed poster with the logo in a corner and a thin bar along the bottom, like an 80s crime-sim between missions */
+/* Loading screen: a full-bleed poster (picked at random in <head>) with the logo in the empty top-right and a thin bar along the bottom, like an 80s crime-sim between missions */
 #loading{z-index:10;align-items:stretch;justify-content:stretch;padding:0;overflow:hidden;background:#140828;transition:opacity .6s}
 #loading.done{opacity:0;pointer-events:none}
-.ld-art{position:absolute;inset:-3%;background:#140828 url(/img/loading.svg) center/cover no-repeat;animation:ldPan 24s ease-in-out infinite alternate}
+.ld-art{position:absolute;inset:-3%;background:#140828 var(--ld-art,none) 30% center/cover no-repeat;animation:ldPan 24s ease-in-out infinite alternate}
 @keyframes ldPan{from{transform:scale(1) translateX(0)}to{transform:scale(1.06) translateX(-1.5%)}}
-.ld-logo{position:absolute;left:clamp(16px,5vw,64px);top:clamp(16px,6vh,56px);font-family:var(--f-script);font-size:clamp(56px,9vw,120px);line-height:.9;color:var(--pink);margin:0;font-weight:400;text-shadow:0 0 16px rgba(255,79,163,.9),0 0 40px rgba(255,79,163,.5),4px 4px 0 #2a0b2c;transform:rotate(-6deg)}
-.ld-logo small{display:block;font-family:var(--f-hud);font-size:.32em;color:var(--cyan);letter-spacing:.2em;transform:translateX(30%);text-shadow:0 0 14px rgba(62,240,255,.8),3px 3px 0 #04252b;margin-top:6px}
+.ld-logo{position:absolute;right:clamp(16px,5vw,64px);text-align:right;top:clamp(16px,6vh,56px);font-family:var(--f-script);font-size:clamp(56px,9vw,120px);line-height:.9;color:var(--pink);margin:0;font-weight:400;text-shadow:0 0 16px rgba(255,79,163,.9),0 0 40px rgba(255,79,163,.5),4px 4px 0 #2a0b2c;transform:rotate(-6deg)}
+.ld-logo small{display:block;font-family:var(--f-hud);font-size:.32em;color:var(--cyan);letter-spacing:.2em;text-shadow:0 0 14px rgba(62,240,255,.8),3px 3px 0 #04252b;margin-top:6px}
 .ld-foot{position:absolute;left:0;right:0;bottom:0;padding:14px clamp(16px,5vw,64px) clamp(16px,4vh,32px);background:linear-gradient(180deg,rgba(20,8,40,0),rgba(20,8,40,.85) 45%);display:flex;flex-direction:column;gap:8px}
 .ld-row{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap}
 #ldText{font-family:var(--f-hud);font-size:18px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink)}
 #ldTip{font-size:14px;color:var(--dim);max-width:60ch;min-height:1.4em;transition:opacity .4s}
 .ld-bar{height:12px;background:rgba(0,0,0,.6);border:2px solid #000;box-shadow:0 0 0 2px var(--pink),0 0 18px rgba(255,79,163,.6);overflow:hidden}
-@media (max-aspect-ratio:1/1){.ld-art{background-position:74% center}}
+@media (max-aspect-ratio:1/1){.ld-art{background-position:22% center}.ld-logo{top:auto;bottom:clamp(140px,20vh,200px)}}
 #ldFill{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--pink),var(--sun));transition:width .35s ease-out}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
@@ -318,7 +326,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
   </section>
 
   <section id="loading" class="overlay" aria-label="Loading">
-    <div class="ld-art" role="img" aria-label="A man in aviators stands by a sports car on Ocean Drive at sunset"></div>
+    <div class="ld-art" aria-hidden="true"></div>
     <p class="ld-logo" aria-hidden="true">Neon Bay<small>'86</small></p>
     <div class="ld-foot">
       <div class="ld-row"><span id="ldText" class="outline">Loading</span><span id="ldTip" class="outline"></span></div>
