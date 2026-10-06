@@ -13,6 +13,7 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 - Two gun shops (pink `$` on the radar) sell an SMG, shotgun, assault rifle, minigun and rocket launcher, plus upgrades, ammo, health and armor. They close at 4+ stars.
 - Adventure bikes cruise the streets (white dots on the radar): the black BMW R 1300 GS 'Triple Black' and the Yamaha Ténéré 700 Rally in blue rally livery. Shoot or ram the rider off, walk up and press `F` to take the bike. Riderless bikes show as cyan squares.
 - Every car can be driven: 80s sedans and the white Tesla Model Y. Traffic cars have someone at the wheel. Shoot them through the glass, or walk up to a slow or stopped car and press `F` to drag them out (that's a crime). Parked cars are free to take. Cars crash into each other: drive into one and it skids off, dented and spinning if you hit it off-centre, and can knock into the next one along.
+- Eight buildings around the city have a lit **Roof** door at street level (green squares on the radar). Press `E` there to take the stairs up to a fenced rooftop with a view over the city, and `E` at the stair hut's **Exit** door to come back down.
 - Dying sends you to City General with a 10% hospital bill. Progress saves in `localStorage`.
 - **Settings** (pause menu or title screen): sound on/off, effects and music volume, render quality, draw distance, animated waves, mouse sensitivity, invert look, field of view, camera shake, crowd and traffic density, km/h or mph, and a read-only list of the controls. Settings save in this browser, separately from game progress.
 
@@ -24,7 +25,7 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 | Mouse | Look and aim (click to capture the mouse) |
 | Left click / right click | Shoot / zoom aim (with the sniper rifle, right click steps the scope through 2.25x, 9x and back out) |
 | Shift / Space | Sprint / jump |
-| E | Enter a gun shop |
+| E | Enter a gun shop, take the stairs to a roof and back down |
 | F | Get on or off a motorcycle, get in or out of a car, pull a driver out of their car |
 | On a bike: W / S, A / D, Shift, Space | Throttle / brake, lean, boost, rear brake. You can still shoot. |
 | In a car: W / S, A / D, Shift, Space | Gas / brake, steer, boost, handbrake. Steer with the handbrake to drift; hold the gas to keep the slide going, countersteer to straighten out. |
@@ -64,6 +65,8 @@ Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share 
 
 **A new shop.** Add an entry to `SHOP_TYPES` in `shops/types.js` (name, marker, storefront, catalogue) and place it in `SHOP_SITES` in `world/city.js`. New kinds of goods are an entry in `ITEM_TYPES` in `shops/items.js` with `render` and `act`.
 
+**More rooftop doors.** `ROOF_COUNT` in `world/rooftops.js` sets how many buildings get one. They are chosen from the flat-roofed city buildings after the city is built (the first next to the spawn, then each as far from the others as it can be), without the seeded random, so the rest of the layout doesn't move. `makeRoof` lays out the door, railings, stair hut and air-con units; the player's `P.roof` says which roof they are on, and `game/rooftop.js` holds the door entity. `node tests/roof-shots.mjs <folder>` takes screenshots of a door and its roof by day and night.
+
 **A new landmark.** Add a model file to `world/landmark-models/` and list it in `LANDMARK_MODELS` (it builds with the small kit in `kit.js`, in block-local metres with the front facing north, and marks its solid volumes with `k.solid()`), then place it in `LANDMARK_SITES` in `world/landmarks.js` with the block it takes and the street it faces, and give it a name sign in `SIGNS` there. Preview it at `/dev/landmarks.html?b=<type>`. The three Flemish government buildings (VAC Gent, the Herman Teirlinck and the Belpaire building) are worked examples. A site can also point at a `.glb` file instead (see `world/models.js`).
 
 **A building made in another tool.** Export it as glTF binary (`.glb`) into `public/models/` and give its site a `model`: `{ block: [2, 3], type: 'vac', face: 'e', model: 'vac.glb' }`. The game loads it before building the city (`world/models.js`, Three's GLTFLoader from the same CDN build) and draws it in place of the builder; if the file is missing or broken the site falls back to its builder (or a plain block when `type` is left out). For it to drop in cleanly:
@@ -86,7 +89,7 @@ Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share 
 
 ```bash
 npm test             # unit tests (Vitest): rules, shop items, save migration, registry cross-checks
-npm run test:smoke   # plays the game in headless Chromium: walk, drive, ride, shoot, carjack, shop, a 5-star chase
+npm run test:smoke   # plays the game in headless Chromium: walk, drive, ride, shoot, carjack, shop, go up to a roof, a 5-star chase
 ```
 
 The registry tests catch a typo in a new vehicle, NPC or shop (an unknown kind, behaviour, weapon or item type). Opening the game with `?debug` exposes its state as `window.__neonbay`. CI runs the unit tests on every pull request. The smoke test is too slow and timing-sensitive for shared CI runners, so it runs locally instead: `npm run test:smoke` must pass on your machine before a pull request is merged (run `npx playwright install chromium` once first).
