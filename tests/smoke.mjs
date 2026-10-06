@@ -1,5 +1,5 @@
 // Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone,
-// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, shunt a parked car, walk into the edge wall and change settings. Fails on any page error or broken step.
+// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, shunt a parked car, drift, drive up a kerb, walk into the edge wall and change settings. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -299,6 +299,94 @@ try {
     await press('KeyF');
     check(await until(() => !__neonbay.P.vehicle), 'F did not get the player out');
     await game(() => { __neonbay.removeEntity(__ram); __neonbay.removeEntity(__hit); });
+  });
+
+  await step('drifts a car round with the handbrake', async () => {
+    // on the open beach, where a slide has room to run
+    await clearVehicles(228, -60);
+    await game(() => { const { P, spawnVehicle } = __neonbay; P.x = 230.5; P.z = -60; window.__ram = spawnVehicle('sedan', 228, -60, 0); });
+    check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes(__ram.model.name)), 'no prompt to get in');
+    await press('KeyF');
+    check(await until(() => __neonbay.P.vehicle === window.__ram), 'F did not put the player behind the wheel');
+    await game(() => { __ram.x = 228; __ram.z = -60; __ram.yaw = 0; __ram.v = 22; __ram.peakSkid = 0; const up = __ram.update; __ram.update = function (dt) { up.call(this, dt); this.peakSkid = Math.max(this.peakSkid, this.skid || 0); this.drifted ||= this.drifting; }; });
+    for (const k of ['KeyW', 'KeyA', 'Space']) await page.keyboard.down(k);
+    const drifting = await until(() => __ram.drifted);
+    await page.keyboard.up('Space');
+    const skidding = await until(() => __ram.peakSkid > 0, null, 3000);
+    for (const k of ['KeyW', 'KeyA']) await page.keyboard.up(k);
+    const r = await game(() => ({ slip: __ram.slip, v: __ram.v, x: __ram.x, z: __ram.z }));
+    check(drifting, `the handbrake turn did not start a drift (slip ${r.slip.toFixed(1)}, speed ${r.v.toFixed(1)})`);
+    check(skidding, 'the drift left no skid');
+    await page.keyboard.down('KeyS');
+    await until(() => Math.abs(__ram.v) < 3);
+    await page.keyboard.up('KeyS');
+    await press('KeyF');
+    check(await until(() => !__neonbay.P.vehicle), 'F did not get the player out');
+    await game(() => __neonbay.removeEntity(__ram));
+  });
+
+  await step('drives up onto the sidewalk instead of through it', async () => {
+    await clearVehicles(5, -75);
+    await game(() => { const { P, spawnVehicle } = __neonbay; P.x = 2; P.z = -73.5; window.__ram = spawnVehicle('sedan', 2, -75, Math.PI / 2); });
+    check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes(__ram.model.name)), 'no prompt to get in');
+    await press('KeyF');
+    check(await until(() => __neonbay.P.vehicle === window.__ram), 'F did not put the player behind the wheel');
+    // across the lane towards the block at x 6 to 44, kerb first
+    await game(() => { __ram.x = 2; __ram.z = -75; __ram.yaw = Math.PI / 2; __ram.v = 6; });
+    await page.keyboard.down('KeyW');
+    const up = await until(() => __ram.x > 10);
+    await page.keyboard.up('KeyW');
+    await page.keyboard.down('KeyS');
+    await until(() => Math.abs(__ram.v) < 1);
+    await page.keyboard.up('KeyS');
+    const y = await game(() => __ram.mesh.grp.position.y);
+    check(up, `the car did not get onto the sidewalk (x ${(await game(() => __ram.x)).toFixed(1)})`);
+    check(y > 0.12, `the car sank into the sidewalk (body at y ${y.toFixed(2)})`);
+    await press('KeyF');
+    check(await until(() => !__neonbay.P.vehicle), 'F did not get the player out');
+    await game(() => __neonbay.removeEntity(__ram));
+  });
+
+  await step('rams burnt-out wrecks out of the way', async () => {
+    await clearVehicles(5, -50);
+    await game(() => { const { P, spawnVehicle } = __neonbay; P.x = 5.5; P.z = -60; window.__ram = spawnVehicle('sedan', 3, -60, 0); });
+    check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes(__ram.model.name)), 'no prompt to get in');
+    await press('KeyF');
+    check(await until(() => __neonbay.P.vehicle === window.__ram), 'F did not put the player behind the wheel');
+    // a wrecked car and, further on, a wrecked bike across the lane (the wrecks keep their hp so the player takes no blast)
+    await game(() => {
+      const { spawnVehicle } = __neonbay, wreck = v => { v.dead = true; v.K.wreck(v); return v; };
+      window.__wcar = wreck(spawnVehicle('sedan', 3, -47, 0)); window.__wbike = wreck(spawnVehicle('gs', 3, -32, Math.PI / 2));
+      __ram.x = 3; __ram.z = -60; __ram.yaw = 0; __ram.v = 20;
+    });
+    const car = await until(() => __wcar.z > -44);
+    await game(() => { __ram.x = 3; __ram.z = -46; __ram.yaw = 0; __ram.v = 20; __wcar.x = 12; __wcar.kvx = __wcar.kvz = __wcar.kspin = 0; });
+    const bike = await until(() => __wbike.z > -29);
+    const r = await game(() => ({ cz: __wcar.z, bz: __wbike.z }));
+    check(car, `the wrecked car was not pushed (at ${r.cz.toFixed(1)})`);
+    check(bike, `the wrecked bike was not knocked (at ${r.bz.toFixed(1)})`);
+    await press('KeyF');
+    check(await until(() => !__neonbay.P.vehicle), 'F did not get the player out');
+    await game(() => { __neonbay.removeEntity(__ram); __neonbay.removeEntity(__wcar); __neonbay.removeEntity(__wbike); });
+  });
+
+  await step('an explosion throws wrecks around', async () => {
+    await clearVehicles(5, -85);
+    await game(() => {
+      const { P, spawnVehicle } = __neonbay; P.x = 5.5; P.z = -55;
+      const wreck = v => { v.dead = true; v.K.wreck(v); v.peak = 0; const up = v.update; v.update = function (dt) { up.call(this, dt); this.peak = Math.max(this.peak, this.air || 0); }; return v; };
+      window.__wcar = wreck(spawnVehicle('sedan', 3, -80, 0)); window.__wbike = wreck(spawnVehicle('gs', 3, -90, Math.PI / 2));
+      window.__boom = spawnVehicle('sedan', 3, -85.5, Math.PI / 2); window.__start = [__wcar.z, __wbike.z];
+      __boom.explode();
+    });
+    try {
+      check(await until(() => __wcar.peak > 0.3 && __wbike.peak > 0.3, null, 60000), 'the wrecks were not thrown into the air');
+      check(await until(() => !__wcar.air && !__wbike.air && !__wcar.kvz && !__wbike.kvz, null, 60000), 'the wrecks did not come back down and stop');
+      const r = await game(() => ({ c: __wcar.z - __start[0], b: __start[1] - __wbike.z }));
+      check(r.c > 1 && r.b > 1, `the wrecks were not thrown away from the blast (car ${r.c.toFixed(1)} m, bike ${r.b.toFixed(1)} m)`);
+    } finally {
+      await game(() => { __neonbay.removeEntity(__boom); __neonbay.removeEntity(__wcar); __neonbay.removeEntity(__wbike); });
+    }
   });
 
   await step('traffic keeps out of other cars', async () => {

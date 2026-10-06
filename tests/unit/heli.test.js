@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { G, P } from '../../public/js/core/state.js';
 import { WBY, wStat } from '../../public/js/data/weapons.js';
-import { HELI_HP, removeHeli, spawnHeli } from '../../public/js/vehicles/heli.js';
-import { tallBoxes } from '../../public/js/world/collision.js';
+import { HELI_HP, aimLight, removeHeli, spawnHeli } from '../../public/js/vehicles/heli.js';
+import { addCollider, colliders, tallBoxes } from '../../public/js/world/collision.js';
 
 vi.mock('../../public/js/game/pickups.js', () => ({ reward() {} }));
 
@@ -59,5 +59,27 @@ describe('police helicopter', () => {
     try {
       for (let i = 0; i < 100; i++) { h.update(0.02); expect(h.burst).toBe(0); }
     } finally { tallBoxes.splice(tallBoxes.indexOf(wall), 1); G.wanted = 0; }
+  });
+  it('shines its searchlight down to the street when nothing is in the way', () => {
+    const h = chopper(); h.grp.position.set(h.x, h.y, h.z);
+    const t = aimLight(h);
+    expect(t).toBeCloseTo(Math.hypot(26, 27.2), 3);
+    expect(h.spot.position.y).toBeCloseTo(0.05, 3);
+  });
+  it('stops its searchlight at a building between it and the player', () => {
+    const h = chopper(); h.grp.position.set(h.x, h.y, h.z);
+    // a tower block between the chopper (z 26) and the player (z 0)
+    addCollider(-10, 10, 10, 16, 40, true);
+    try {
+      const t = aimLight(h);
+      expect(t).toBeLessThan(Math.hypot(26, 27.2) * 0.5);
+      // the spot lands on the tower's far wall, facing the chopper
+      expect(h.spot.position.z).toBeCloseTo(16.05, 2);
+      expect(h.spot.position.y).toBeGreaterThan(5);
+      const n = new THREE.Vector3(0, 0, 1).applyQuaternion(h.spot.quaternion);
+      expect(n.z).toBeCloseTo(1, 5);
+      // the beam ends at the wall too
+      expect(h.beam.scale.y).toBeCloseTo(t, 5);
+    } finally { colliders.pop(); tallBoxes.pop(); }
   });
 });

@@ -1,16 +1,20 @@
 import { emit as emitEvent } from '../../core/events.js';
 import { G, P } from '../../core/state.js';
 import { seatedLegs } from '../../characters/character.js';
-import { angDiff, rnd } from '../../core/util.js';
+import { angDiff, clamp, lerp, rnd } from '../../core/util.js';
 import { emit } from '../../render/effects.js';
 import { scene } from '../../render/scene.js';
+import { groundAt } from '../../world/city.js';
 import { collide, pushOutOBB, raySphere } from '../../world/collision.js';
 import { all } from '../../entities/registry.js';
-import { arcadeDrive, followLane, keepLane, keepOnGrid } from '../drive.js';
+import { driftDrive, followLane, keepLane, keepOnGrid } from '../drive.js';
 import { blockedAhead } from '../vehicle.js';
+import { skidMark } from '../skids.js';
 
 const HW = 1.0, HL = 2.15; // half width and half length of the body
 const SILL = 0.95; // bottom of the windows: shots above it reach whoever is inside
+const WX = 0.82, WZ = 1.35; // wheels: half the track and half the wheelbase
+const SKID = 3; // sideways speed (m/s) above which the tyres squeal, smoke and leave marks
 
 // Cars: four wheels, no lean, the driver sits inside out of sight. See kinds/bike.js for what each field means.
 // AI traffic keeps its body out of other cars' instead of driving through them
@@ -28,7 +32,8 @@ function keepApart(c) {
 
 export const car = {
   verb: 'drive',
-  handling: { top: 30, boostTop: 40, accel: 8, boostAccel: 11, brake: 24, reverseBrake: 18, reverseTop: 7, reverseAccel: 6, handbrake: 18, coast: 1.2, drag: 0.006, turnLow: 1.4, turnHigh: 0.7, maxSteer: 0.6 },
+  handling: { top: 30, boostTop: 40, accel: 8, boostAccel: 11, brake: 24, reverseBrake: 18, reverseTop: 7, reverseAccel: 6, handbrake: 7, coast: 1.2, drag: 0.006, turnLow: 2.0, turnHigh: 1.0, maxSteer: 0.65,
+    steerRate: 6, grip: 10, gripFast: 5, drift: { min: 9, grip: 3, throttleGrip: 2, handbrakeGrip: 1.4, turn: 1.3, angle: 0.75, keep: 0.8, exit: 1.2, hold: 0.5 } }, // see driftDrive in drive.js
   traffic: { look: 7.5, decel: 30, accel: 6, patience: 3, hornAfter: 1.5, passFor: 3.5 },
   fx: { smokeRate: 4, smokeY: 1.2, smokeSpeed: 1.5, smokeLife: 2, smokeSize: 0.6, fireRate: 0.6, fireY: 1.3, fireSize: 0.35, spread: 0.6, fuse: 1.6, boomFuse: 0.25 },
   blast: { y: 0.8, r: 9, dmg: 240 }, // big enough to set off a car parked alongside and drop anyone within a few metres
@@ -38,18 +43,39 @@ export const car = {
   ram: { mass: 4, hull: [1.15, HW], heavierAt: 3, sameAt: Infinity }, // see vehicles/knock.js
   camera: { dist: 7.4, aimDist: 4.2, height: 2.2, fovPerSpeed: 0.3 },
   laneHalf: 1.7, trafficDespawn: Infinity, reachMax: 1.6, stopsWhileBurning: true, enclosed: true,
-  wheelbase: 2.7,
-  tip: M => `The ${M.name}. <em>W</em>/<em>S</em> gas and brake, <em>A</em>/<em>D</em> steer, <em>Shift</em> boost, <em>Space</em> handbrake, <em>F</em> to get out.`,
+  wheelbase: WZ * 2,
+  tip: M => `The ${M.name}. <em>W</em>/<em>S</em> gas and brake, <em>A</em>/<em>D</em> steer, <em>Shift</em> boost, <em>Space</em> handbrake (steer with it to drift), <em>F</em> to get out.`,
 
   build(v) { return v.model.mesh(v); },
   pose(c, dt) {
-    const m = c.mesh;
-    m.grp.position.set(c.x, 0, c.z); m.grp.rotation.set(0, c.yaw, c.wreckRoll || 0);
+    const m = c.mesh, fx = Math.sin(c.yaw), fz = Math.cos(c.yaw);
+    // sit on whatever is under the wheels (kerbs, park paths, the beach), eased so a kerb reads as a bump
+    const g = (l, a) => groundAt(c.x + fz * l + fx * a, c.z - fx * l + fz * a);
+    const fl = g(-WX, WZ), fr = g(WX, WZ), rl = g(-WX, -WZ), rr = g(WX, -WZ), k = Math.min(1, dt * 14);
+    const tP = Math.atan2((fl + fr) - (rl + rr), 4 * WZ), tR = Math.atan2((fr + rr) - (fl + rl), 4 * WX), tY = (fl + fr + rl + rr) / 4;
+    if (c.gy == null || !dt) { c.gy = tY; c.gp = tP; c.gr = tR; } else { c.gy = lerp(c.gy, tY, k); c.gp = lerp(c.gp, tP, k); c.gr = lerp(c.gr, tR, k); }
+    // the body leans out of a turn and rocks on a slide
+    const lean = c.driver === P ? clamp((c.v || 0) * (c.yawRate || 0) * 0.005 - (c.slip || 0) * 0.004, -0.07, 0.07) : 0;
+    c.lean = dt ? lerp(c.lean || 0, lean, Math.min(1, dt * 6)) : lean;
+    m.grp.position.set(c.x, c.gy + (c.air || 0), c.z); m.grp.rotation.set(-c.gp, c.yaw, c.gr + c.lean + (c.wreckRoll || 0), 'YXZ');
     if (c.dead || c.burnT > 0) return;
     if (m.lr) { const on = (G.time * 6 | 0) % 2 === 0; m.lr.visible = on; m.lb.visible = !on; }
     if (c.hp < 50 && dt && Math.random() < dt * 6) emit(c.x + Math.sin(c.yaw) * 1.8, 1.1, c.z + Math.cos(c.yaw) * 1.8, 1, '#8a8090', 1, 1.4, 0.4, 2, 1);
   },
-  drive(v, dt, c) { arcadeDrive(v, dt, c, car.wheelbase); },
+  drive(v, dt, c) { driftDrive(v, dt, c, car.wheelbase); },
+  // sliding: tyre smoke and black marks off the rear wheels, and a squeal (see updateEngineSound)
+  afterDrive(c, dt) {
+    const s = Math.abs(c.slip || 0), on = s > SKID && Math.abs(c.v) > 2;
+    c.skid = on ? clamp((s - SKID) / 8, 0.15, 1) : 0;
+    const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw);
+    for (const l of [-WX, WX]) {
+      const x = c.x + fz * l - fx * WZ, z = c.z - fx * l - fz * WZ, key = l < 0 ? 'skidL' : 'skidR', last = c[key];
+      if (on && last) skidMark(last.x, last.z, x, z, groundAt(x, z));
+      c[key] = on ? { x, z } : null;
+      if (on && Math.random() < dt * 9 * c.skid) emit(x, 0.15 + c.gy, z, 1, '#d8d2e0', 1.2, 0.8, 0.22, 1.5, 1);
+    }
+  },
+
   collideSelf(c) {
     const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw), F = { x: c.x + fx * 1.15, z: c.z + fz * 1.15 }, R = { x: c.x - fx * 1.15, z: c.z - fz * 1.15 };
     const h1 = collide(F, HW, c), h2 = collide(R, HW, c);
@@ -76,7 +102,9 @@ export const car = {
   },
   // shoved by another car (see vehicles/knock.js): skid sideways and spin until the tyres bite
   slide(c, dt) {
-    const sp = Math.hypot(c.kvx || 0, c.kvz || 0), dec = 11 * dt;
+    // thrown by a blast: up in the air there's no road to skid on, so it keeps its speed until it lands with a bump
+    if (c.air > 0) { c.avy -= 22 * dt; c.air += c.avy * dt; if (c.air <= 0) { c.air = 0; c.avy = 0; c.kvx *= 0.7; c.kvz *= 0.7; emit(c.x, 0.2, c.z, 10, '#ffd23e', 4, 0.3, 0.06, -12, 1.5); } }
+    const sp = Math.hypot(c.kvx || 0, c.kvz || 0), dec = c.air > 0 ? 0 : 11 * dt;
     if (sp <= dec) c.kvx = c.kvz = 0; else { const k = 1 - dec / sp; c.kvx *= k; c.kvz *= k; }
     c.kspin = Math.abs(c.kspin || 0) < 0.05 ? 0 : c.kspin * Math.max(0, 1 - dt * 3);
     c.x += c.kvx * dt; c.z += c.kvz * dt; c.yaw += c.kspin * dt;
@@ -126,8 +154,13 @@ export const car = {
     return Math.hypot(Math.max(0, Math.abs(lx) - HW), Math.max(0, Math.abs(lz) - HL));
   },
   onDriverGone(c) { c.mode = 'parked'; },
-  onPlayerEnter(c) { c.v = 0; c.steer = 0; },
-  onPlayerExit(c) { c.mode = 'parked'; },
+  onPlayerEnter(c) { c.v = 0; c.steer = 0; c.slip = 0; c.drifting = false; },
+  // bailing out of a slide leaves the car skidding on the way it was going
+  onPlayerExit(c) {
+    c.mode = 'parked'; c.skid = 0; c.skidL = c.skidR = null;
+    if (Math.abs(c.slip || 0) > 1) { const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw); c.kvx = fx * c.v + fz * c.slip; c.kvz = fz * c.v - fx * c.slip; c.kspin = (c.yawRate || 0) * 0.5; c.v = 0; }
+    c.slip = 0; c.drifting = false; c.yawRate = 0;
+  },
   wreck(c) { c.wreckRoll = rnd(-0.15, 0.15); },
   blip() {},
   dispose(c) { c.mesh.m.geometry.dispose(); if (c.mesh.win) c.mesh.win.geometry.dispose(); },
