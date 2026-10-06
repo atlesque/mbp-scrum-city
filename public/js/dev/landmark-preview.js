@@ -33,7 +33,8 @@ document.getElementById('info').textContent = `${LANDMARK_MODELS[type].name} · 
 
 // preset views: [azimuth from the street front (deg), elevation (deg), distance factor, target height factor]
 const VIEWS = [[-35, 4, 1.25, 0.42], [40, 14, 1.35, 0.4], [150, 32, 1.6, 0.25], [0, 2, 1.1, 0.4]];
-let [az, el, dist, th] = VIEWS[+q.get('view') || 0] || VIEWS[0];
+const qv = (q.get('view') || '0').split(',').map(Number); // a preset index, or az,el,dist,th for any view
+let [az, el, dist, th] = qv.length === 4 ? qv : VIEWS[qv[0]] || VIEWS[0];
 const R0 = Math.max(H, 40) * 1.2;
 function place() {
   const a = THREE.MathUtils.degToRad(az), e = THREE.MathUtils.degToRad(el), r = R0 * dist;

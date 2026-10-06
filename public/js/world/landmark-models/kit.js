@@ -25,6 +25,11 @@ export class Kit {
   }
   // a box rotated about y (for fins and slanted parts), given its centre and size
   rbox(mat, x, y, z, w, h, d, ry, col) { addGeo(this.gb[mat], UNIT, x, y, z, w, h, d, 0, ry, 0, col); }
+  // a thin bar lying flat on a face, tilted `ang` radians within the face plane (lettering, logos, braces)
+  stroke(mat, F, t, y, len, thick, ang, out, col, depth = 0.08) {
+    const [ox, oz] = F.o, [dx, dz] = F.d, [nx, nz] = F.n, o = out + depth / 2;
+    addGeo(this.gb[mat], UNIT, ox + dx * t + nx * o, y, oz + dz * t + nz * o, len, thick, depth, 0, -Math.atan2(dz, dx), ang, col, 'YXZ');
+  }
   // any convex 8-corner solid (ramps, sloped roofs)
   hexa(mat, P8, col) { hexa(this.gb[mat], P8, col); }
   // a flat vertical panel on a face: `t` along the face from its start corner, y from y0 to y1, `out` metres proud of it
