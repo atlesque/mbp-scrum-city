@@ -9,6 +9,7 @@ import { save } from '../core/save.js';
 import { settings } from '../core/settings.js';
 import { G, I, P, cam, inv, keys } from '../core/state.js';
 import { $, angDiff, clamp, lerp, rnd } from '../core/util.js';
+import { reloadOf } from '../data/reloads.js';
 import { loadAll, wStat } from '../data/weapons.js';
 import { all, removeEntity } from '../entities/registry.js';
 import { emit as emitFx } from '../render/effects.js';
@@ -43,6 +44,7 @@ export function updatePlayer(dt) {
   // weapon
   const w = curWeapon(), st = wStat(w, inv.lvl[w.id] || 0);
   if (G.reloadT > 0) { G.reloadT -= dt; if (G.reloadT <= 0) { G.reloadT = 0; finishReload(); } }
+  P.reload = G.reloadT > 0 ? { anim: reloadOf(w.id).anim, u: 1 - G.reloadT / w.reload } : null;
   G.fireCd -= dt;
   if (w.spin) G.spin = (I.mouseL || I.clickQ > 0) ? Math.min(1, G.spin + dt * 2.5) : Math.max(0, G.spin - dt * 2);
   I.clickQ = Math.max(0, I.clickQ - dt);

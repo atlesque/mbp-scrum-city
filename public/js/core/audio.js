@@ -1,4 +1,5 @@
 import { LEAD, musicLayers } from '../data/music.js';
+import { RELOADS, SFX_DIR, reloadOf } from '../data/reloads.js';
 import { clamp } from './util.js';
 import { HEAR, airCutoff, distToEar, doppler, falloff, listenerPose } from './spatial.js';
 
@@ -33,7 +34,7 @@ export const Sound = (() => {
     skidF = ctx.createBiquadFilter(); skidF.type = 'bandpass'; skidF.frequency.value = 1500; skidF.Q.value = 9;
     const klfo = ctx.createOscillator(); klfo.frequency.value = 7; const klg = ctx.createGain(); klg.gain.value = 90; klfo.connect(klg); klg.connect(skidF.frequency);
     skidGain = ctx.createGain(); skidGain.gain.value = 0; kn.connect(skidF); skidF.connect(skidGain); skidGain.connect(sfx); kn.start(); klfo.start();
-    startMusic();
+    startMusic(); loadSamples();
   }
   function musicLevel() { return musicOn ? 0.32 * mix.music : 0; }
   function env(g, t, a, peak, dur) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); }
@@ -180,6 +181,23 @@ export const Sound = (() => {
     const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
     const g = ctx.createGain(); env(g, t, a || 0.004, peak, dur); o.connect(g); g.connect(dest); o.start(t); o.stop(t + dur + 0.05); return o;
   }
+  // recorded sounds (public/sfx/), decoded once; until one has loaded (or if it fails) its synthesized stand-in plays
+  const buffers = {};
+  let reloadSrc = null;
+  function loadSamples() {
+    for (const { sound } of Object.values(RELOADS)) {
+      if (!sound || sound in buffers) continue;
+      buffers[sound] = null;
+      fetch(`${SFX_DIR}${sound}.mp3`).then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status)).then(b => ctx.decodeAudioData(b)).then(buf => { buffers[sound] = buf; }).catch(() => {});
+    }
+  }
+  // a loaded sound played once: its source node, null when it is too far off to hear, false when not loaded
+  function sample(name, vol, at, prof = HEAR.reload) {
+    const buf = buffers[name]; if (!buf) return false;
+    const o = out(vol, at, prof); if (!o) return null;
+    const s = ctx.createBufferSource(); s.buffer = buf; s.connect(o); s.start(); return s;
+  }
+  function stopReload() { if (reloadSrc) { try { reloadSrc.stop(); } catch (e) { /* already ended */ } reloadSrc = null; } }
   const PROG = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]];
   const GUN = { pistol: [3600, .22, 150, .9], smg: [5200, .1, 210, .6], shotgun: [2300, .55, 80, 1.35], rifle: [5600, .17, 130, .85], minigun: [6200, .07, 240, .5], rpg: [1400, .7, 60, .9], sniper: [3800, .5, 70, 1.45] };
   // `at` is where it was fired (a world point), or nothing for the player's own gun
@@ -205,7 +223,18 @@ export const Sound = (() => {
     scream(vol, at) { if (!ctx) return; const t = ctx.currentTime, o = out(vol * 0.5, at, HEAR.voice); if (!o) return; const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1100 + Math.random() * 500; f.Q.value = 2.5; f.connect(o); const b = 380 + Math.random() * 300; const os = tone(f, t, 'sawtooth', b * 1.6, b * 0.7, 0.55, 0.9, 0.02); const v = ctx.createOscillator(); v.frequency.value = 7; const vg = ctx.createGain(); vg.gain.value = 30; v.connect(vg); vg.connect(os.frequency); v.start(t); v.stop(t + 0.6); },
     cash() { if (!ctx) return; const t = ctx.currentTime, o = out(0.3); tone(o, t, 'square', 1046, 0, 0.07, 0.35); tone(o, t + 0.07, 'square', 1568, 0, 0.12, 0.35); },
     pickup() { if (!ctx) return; const t = ctx.currentTime, o = out(0.35); [523, 659, 784, 1046].forEach((f, i) => tone(o, t + i * 0.05, 'triangle', f, 0, 0.1, 0.5)); },
-    reload() { if (!ctx) return; const t = ctx.currentTime, o = out(0.5); nz(o, t, 0.04, 'bandpass', 2800, 3, 0.8); nz(o, t + 0.22, 0.05, 'bandpass', 1900, 3, 0.9); },
+    // a gun's own reload sound (data/reloads.js), from the player's hands or `at` a world point; a new reload,
+    // or switching guns, cuts the player's last one off
+    reload(id, vol = 1, at = null) {
+      if (!ctx) return; if (!at) stopReload();
+      const name = reloadOf(id).sound, src = name && sample(name, 0.6 * vol, at);
+      if (src === null) return; // too far off to hear
+      if (src) { if (!at) reloadSrc = src; return; }
+      const t = ctx.currentTime, o = out(0.5 * vol, at, HEAR.reload); if (!o) return;
+      nz(o, t, 0.04, 'bandpass', 2800, 3, 0.8); nz(o, t + 0.22, 0.05, 'bandpass', 1900, 3, 0.9);
+    },
+    stopReload() { if (ctx) stopReload(); },
+    get samplesLoaded() { return Object.keys(buffers).filter(k => buffers[k]); },
     empty() { if (!ctx) return; nz(out(0.4), ctx.currentTime, 0.03, 'highpass', 4000, 2, 0.7); },
     horn(vol, at) { if (!ctx) return; const t = ctx.currentTime, o = out(vol * 0.25, at, HEAR.horn); if (!o) return; tone(o, t, 'square', 392, 0, 0.45, 0.5, 0.01); tone(o, t, 'square', 494, 0, 0.45, 0.4, 0.01); },
     star() { if (!ctx) return; const t = ctx.currentTime, o = out(0.4); tone(o, t, 'triangle', 880, 0, 0.15, 0.6); tone(o, t + 0.12, 'triangle', 660, 0, 0.3, 0.6); },
