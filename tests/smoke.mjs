@@ -200,7 +200,8 @@ try {
       P.x = 5.5; P.z = -60; P.hp = 100; P.armor = 0;
       for (const n of all('npc')) if (Math.hypot(n.x - 5.5, n.z + 50) < 20) removeEntity(n);
       const n = window.__rpg = spawnNpc('jugg', 5.5, -40);
-      n.fireT = 0;
+      // a dead-on aim: a missed rocket flies past, and the next one is too far off at software-rendering speed
+      n.fireT = 0; n.def = { ...n.def, acc: 2 };
     });
     const hurt = await until(() => __neonbay.P.hp < 100, undefined, 30000);
     const r = await game(() => ({ hp: __neonbay.P.hp, alive: __rpg.alive, d: Math.hypot(__rpg.x - __neonbay.P.x, __rpg.z - __neonbay.P.z) }));
