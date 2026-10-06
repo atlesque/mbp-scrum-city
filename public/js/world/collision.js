@@ -4,11 +4,17 @@ import { clamp } from '../core/util.js';
 // ================= COLLISION =================
 export const colliders = [], tallBoxes = [], HASH = new Map(), HC = 20;
 const hkey = (i, j) => (i + 100) * 1000 + (j + 100);
-export function addCollider(x0, x1, z0, z1, h, tall) {
-  const c = { x0, x1, z0, z1, h, tall: !!tall }; colliders.push(c); if (tall) tallBoxes.push(c);
-  for (let i = Math.floor(x0 / HC); i <= Math.floor(x1 / HC); i++) for (let j = Math.floor(z0 / HC); j <= Math.floor(z1 / HC); j++) {
-    const k = hkey(i, j); if (!HASH.has(k)) HASH.set(k, []); HASH.get(k).push(c);
-  }
+export function addCollider(x0, x1, z0, z1, h, tall) { return placeCollider({ x0, x1, z0, z1, h, tall: !!tall }); }
+const cells = (c, f) => { for (let i = Math.floor(c.x0 / HC); i <= Math.floor(c.x1 / HC); i++) for (let j = Math.floor(c.z0 / HC); j <= Math.floor(c.z1 / HC); j++) f(hkey(i, j)); };
+export function placeCollider(c) {
+  colliders.push(c); if (c.tall) tallBoxes.push(c);
+  cells(c, k => { if (!HASH.has(k)) HASH.set(k, []); HASH.get(k).push(c); });
+  return c;
+}
+// take one out again (a prop that got knocked over, world/props.js); placeCollider puts it back
+export function removeCollider(c) {
+  const drop = l => { const i = l ? l.indexOf(c) : -1; if (i >= 0) l.splice(i, 1); };
+  drop(colliders); drop(tallBoxes); cells(c, k => drop(HASH.get(k)));
 }
 const _near = [];
 function nearColliders(x, z) {

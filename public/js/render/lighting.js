@@ -2,6 +2,7 @@ import { G, P } from '../core/state.js';
 import { clamp, lerp } from '../core/util.js';
 import { all } from '../entities/registry.js';
 import { lamps, lightWindows, winMat } from '../world/city.js';
+import { lampsVersion } from '../world/props.js';
 import { setModelNight } from '../world/models.js';
 import { makeCanvas } from './textures.js';
 import { HORIZON, ambientLight, camera, hemiLight, scene, sky, sunLight } from './scene.js';
@@ -45,7 +46,7 @@ function glowTexture(stretch) {
 const glowMat = (map, color) => new THREE.MeshBasicMaterial({ map, color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -4 });
 function flatQuad(w, l) { const g = new THREE.PlaneGeometry(w, l); g.rotateX(-Math.PI / 2); return g; }
 
-let lampPools, carPools, carFlares, lampSlots, carSlots, beam;
+let lampPools, lampsSeen = 0, carPools, carFlares, lampSlots, carSlots, beam;
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1), _e = new THREE.Euler(), _f = new THREE.Vector3();
 
 export function buildLighting() {
@@ -96,9 +97,15 @@ export function updateLighting(dt) {
   // lamps switch on at dusk; the real lights go to the lamps nearest a point just ahead of the camera
   const on = clamp((n - 0.15) / 0.3, 0, 1);
   lampPools.material.opacity = 0.3 * on;
+  // a knocked-down lamp (world/props.js) leaves no pool of light behind
+  if (lampsSeen !== lampsVersion) {
+    lampsSeen = lampsVersion;
+    lamps.forEach((L, i) => { _m.makeTranslation(L.x, 0.17, L.z); if (L.dead) _m.scale(_s.set(0, 0, 0)); lampPools.setMatrixAt(i, _m); }); _s.set(1, 1, 1);
+    lampPools.instanceMatrix.needsUpdate = true;
+  }
   _f.set(0, 0, -1).applyQuaternion(camera.quaternion); _f.y = 0; _f.normalize();
   const fx = camera.position.x + _f.x * 12, fz = camera.position.z + _f.z * 12;
-  assign(lampSlots, on > 0 ? nearest(lamps, fx, fz, LAMP_LIGHTS) : [], dt, (l, L) => l.position.set(L.x, L.y, L.z));
+  assign(lampSlots, on > 0 ? nearest(lamps.filter(L => !L.dead), fx, fz, LAMP_LIGHTS) : [], dt, (l, L) => l.position.set(L.x, L.y, L.z));
   for (const s of lampSlots) s.l.intensity = LAMP_I * on * s.k;
   const shown = on > 0;
   if (lampSlots[0].l.visible !== shown) for (const l of [...lampSlots, ...carSlots].map(s => s.l).concat(beam)) l.visible = shown;

@@ -8,7 +8,7 @@ import { groundAt } from '../../world/city.js';
 import { collide, pushOutOBB, raySphere } from '../../world/collision.js';
 import { all } from '../../entities/registry.js';
 import { driftDrive, followLane, keepLane, keepOnGrid } from '../drive.js';
-import { blockedAhead } from '../vehicle.js';
+import { blockedAhead, smash } from '../vehicle.js';
 import { skidMark } from '../skids.js';
 import { rolling, spinWheels } from '../wheels.js';
 
@@ -36,6 +36,8 @@ function keepApart(c) {
 }
 
 export const car = {
+  // the capsule it breaks props with (world/props.js): half its length either side of the centre, and how wide
+  hull: { half: 1.15, r: HW },
   verb: 'drive',
   handling: { top: 30, boostTop: 40, accel: 8, boostAccel: 11, brake: 24, reverseBrake: 18, reverseTop: 7, reverseAccel: 6, handbrake: 7, coast: 1.2, drag: 0.006, turnLow: 2.0, turnHigh: 1.0, maxSteer: 0.65,
     steerRate: 6, grip: 10, gripFast: 5, drift: { min: 9, grip: 3, throttleGrip: 2, handbrakeGrip: 1.4, turn: 1.3, angle: 0.75, keep: 0.8, exit: 1.2, hold: 0.5 } }, // see driftDrive in drive.js
@@ -114,6 +116,7 @@ export const car = {
     if (sp <= dec) c.kvx = c.kvz = 0; else { const k = 1 - dec / sp; c.kvx *= k; c.kvz *= k; }
     c.kspin = Math.abs(c.kspin || 0) < 0.05 ? 0 : c.kspin * Math.max(0, 1 - dt * 3);
     c.x += c.kvx * dt; c.z += c.kvz * dt; c.yaw += c.kspin * dt;
+    if (!(c.air > 0)) smash(c, c.kvx, c.kvz); // a car sent skidding takes palms and lamps down too
     if (car.collideSelf(c)) { c.kvx *= 0.5; c.kvz *= 0.5; c.kspin *= 0.5; }
     if (sp > 4 && dt && Math.random() < dt * 20) emit(c.x + rnd(-1, 1), 0.15, c.z + rnd(-1, 1), 1, '#cfc8d8', 2, 0.6, 0.35, 1, 1); // tyre smoke
     // a traffic car comes out of it facing along its road again
