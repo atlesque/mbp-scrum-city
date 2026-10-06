@@ -17,11 +17,12 @@ export function migrate(d) {
   return v === SAVE_VERSION ? d : null;
 }
 export function serialize(inv, stats) {
-  return { v: SAVE_VERSION, money: inv.money, weapons: { owned: inv.owned, lvl: inv.lvl, ammo: inv.ammo }, stats };
+  return { v: SAVE_VERSION, money: inv.money, weapons: { owned: inv.owned, lvl: inv.lvl, ammo: inv.ammo, found: inv.found }, stats };
 }
 export function apply(d, inv, stats) {
   if (typeof d.money === 'number') inv.money = d.money;
   Object.assign(inv.owned, d.weapons.owned); Object.assign(inv.lvl, d.weapons.lvl); Object.assign(inv.ammo, d.weapons.ammo);
+  inv.found = Object.assign({}, d.weapons.found); // picked-up weapons, lost on death (loseFound in data/weapons.js)
   Object.assign(stats, d.stats);
 }
 

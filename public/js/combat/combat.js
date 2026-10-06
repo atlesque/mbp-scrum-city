@@ -15,6 +15,7 @@ import { boltOut } from './scope.js';
 import { drawWeaponIcon, toast } from '../ui/hud.js';
 import { raySphere, wallHit } from '../world/collision.js';
 import { nextMelee } from './melee.js';
+import { throwItem, throwVelocity } from './throwables.js';
 
 // ================= COMBAT =================
 const _d = new THREE.Vector3();
@@ -33,6 +34,7 @@ export function castShot(o, d, maxT, skip) {
 export function curWeapon() { return WBY[inv.cur]; }
 export function playerShoot() {
   const w = curWeapon(), st = wStat(w, inv.lvl[w.id] || 0);
+  if (w.thrown) { playerThrow(w); return; }
   if (G.reloadT > 0) return;
   if ((inv.mag[w.id] || 0) <= 0) { startReload(); if ((inv.mag[w.id] || 0) <= 0) { Sound.empty(); G.fireCd = 0.3; } return; }
   inv.mag[w.id]--; G.fireCd = st.rate; P.lastShot = G.time;
@@ -61,6 +63,16 @@ export function playerShoot() {
   // gunfire is a crime when people are around
   alarm(P.x, P.z, 32);
   if (G.wanted === 0 && all('npc').some(n => n.faction === 'civilian' && n.alive && !n.vehicle && Math.hypot(n.x - P.x, n.z - P.z) < 22)) addHeat(0.12);
+}
+
+// a grenade or molotov from the hand, lobbed toward the crosshair; the last one thrown puts the weapon away
+function playerThrow(w) {
+  if ((inv.ammo[w.id] || 0) <= 0) { Sound.empty(); G.fireCd = 0.3; return; }
+  inv.ammo[w.id]--; G.fireCd = w.rate; P.lastShot = G.time;
+  const from = new THREE.Vector3(P.x + Math.sin(cam.yaw) * 0.6, (P.y || 0) + 1.7, P.z + Math.cos(cam.yaw) * 0.6);
+  throwItem(w.id, from, throwVelocity(cam.yaw, cam.pitch));
+  Sound.swing(0.8);
+  if (inv.ammo[w.id] <= 0) { delete inv.owned[w.id]; if (inv.found) delete inv.found[w.id]; selectWeapon('pistol'); }
 }
 
 const rockets = [];
@@ -105,7 +117,7 @@ export function explosion(x, y, z, R, dmg, byPlayer, power = 1) {
 }
 export function startReload() {
   const w = curWeapon(), st = wStat(w, inv.lvl[w.id] || 0);
-  if (G.reloadT > 0 || inv.mag[w.id] >= st.mag) return;
+  if (w.thrown || G.reloadT > 0 || inv.mag[w.id] >= st.mag) return;
   if (!w.infinite && (inv.ammo[w.id] || 0) <= 0) { if (startReload.warn !== w.id) toast(`Out of ${w.name} ammo. Restock at <em>Bullet Bros. Guns</em> ($ on the radar).`); startReload.warn = w.id; return; }
   G.reloadT = w.reload; G.scope = G.rescope = 0; Sound.reload(w.id);
 }

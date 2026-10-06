@@ -15,7 +15,7 @@ export const SHOP_TYPES = {
     marker: { glyph: '$', color: '#ff4fa3' },
     storefront: { wall: '#ffd0e5', roof: '#2b1b3d', neon: '#ff2fa8', awning: '#ff4fa3', sign: { text: 'Bullet Bros. Guns', color: '#ff3fae', font: '"Yellowtail", cursive' } },
     catalogue: [
-      ...WEAPONS.filter(w => !w.builtin).map(w => ({ type: 'weapon', id: w.id })),
+      ...WEAPONS.filter(w => !w.builtin && !w.dropOnly).map(w => ({ type: 'weapon', id: w.id })),
       { type: 'heal', name: 'Street medic', blurb: 'A bandage, a bottle of something, and a pat on the back.', price: 250 },
       { type: 'armor', name: 'Kevlar vest', blurb: "Soaks up most of each bullet until it's shredded.", price: 400 },
     ],

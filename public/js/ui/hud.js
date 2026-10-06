@@ -25,6 +25,8 @@ export function drawWeaponIcon() {
     machete: [[-100, -8, 46, 18], [-54, -14, 8, 30], [-46, -10, 130, 22], [84, -6, 18, 16]],
     katana: [[-112, -7, 64, 15], [-48, -16, 8, 32], [-40, -5, 150, 11], [110, -3, 6, 7]],
     chainsaw: [[-100, -24, 70, 44], [-96, -36, 46, 12], [-30, -12, 140, 20], [-104, 20, 30, 10]],
+    grenade: [[-30, -24, 60, 64], [-36, -12, 72, 10], [-36, 10, 72, 10], [-12, -40, 24, 18], [12, -36, 14, 50], [-30, -52, 16, 14]],
+    molotov: [[-28, -10, 56, 60], [-12, -36, 24, 28], [-8, -50, 16, 16], [-4, -64, 14, 16]],
   };
   for (const s of shapes[id]) { x.strokeRect(s[0], s[1], s[2], s[3]); }
   for (const s of shapes[id]) { x.fillRect(s[0], s[1], s[2], s[3]); }
@@ -32,7 +34,7 @@ export function drawWeaponIcon() {
 }
 export function updateHUD() {
   const w = curWeapon(), mag = inv.mag[w.id] || 0;
-  const ammoStr = w.melee ? '' : G.reloadT > 0 ? 'Reloading' : `${mag}<span>/${w.infinite ? '∞' : (inv.ammo[w.id] || 0)}</span>`;
+  const ammoStr = w.melee ? '' : w.thrown ? `${inv.ammo[w.id] || 0}` : G.reloadT > 0 ? 'Reloading' : `${mag}<span>/${w.infinite ? '∞' : (inv.ammo[w.id] || 0)}</span>`;
   const key = [ammoStr, w.name, Math.ceil(P.hp), Math.ceil(P.armor), inv.money, G.wanted].join('|');
   if (key !== G.hudCache) {
     G.hudCache = key;

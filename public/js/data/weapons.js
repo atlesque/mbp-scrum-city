@@ -8,6 +8,7 @@
 //   blade   cuts rather than bruises; combo: every third punch is a kick; auto: hold to keep cutting
 //   rate is the time between swings, and an upgrade level makes swings harder and quicker like it does for guns
 const melee = (w) => ({ melee: true, infinite: true, mag: 0, spread: 0, range: w.reach, auto: false, pellets: 1, ammoPrice: 0, ammoPack: 0, recoil: 0, reload: 0, hits: 1, upRate: 0.06, ...w });
+const thrown = (w) => ({ thrown: true, dropOnly: true, price: 0, mag: 0, spread: 0, range: 0, auto: false, pellets: 1, ammoPrice: 0, recoil: 0, reload: 0, up: 0, ...w });
 export const WEAPONS = [
   melee({ id: 'fist', name: 'Fists', price: 0, dmg: 9, rate: 0.36, reach: 1.25, arc: 0.7, knock: 2.5, anim: 'punch', combo: true, up: 0, builtin: true }),
   melee({ id: 'knuckles', name: 'Brass Knuckles', price: 250, dmg: 16, rate: 0.36, reach: 1.25, arc: 0.7, knock: 3.2, anim: 'punch', combo: true, up: 150 }),
@@ -26,6 +27,12 @@ export const WEAPONS = [
   { id: 'rpg', name: 'Rocket Launcher', price: 25000, dmg: 420, rate: 1.1, mag: 1, spread: 0.004, range: 300, auto: false, pellets: 1, ammoPrice: 600, ammoPack: 5, recoil: 0.07, reload: 1.6, up: 8000, rocket: true, twoHand: true, upDmg: 0.5, upBlast: 0.25 },
   // bolt-action with a two-step scope (combat/scope.js): wild from the hip, pin-point through the glass (scopeSpread)
   { id: 'sniper', name: 'Magnum Sniper', price: 9000, dmg: 140, rate: 1.4, mag: 10, spread: 0.05, scopeSpread: 0.0006, range: 300, auto: false, pellets: 1, ammoPrice: 400, ammoPack: 20, recoil: 0.09, reload: 3.0, up: 3000, twoHand: true, scope: true },
+  // Thrown weapons (combat/throwables.js) aren't sold: they come off fallen soldiers and feds. There's no magazine,
+  // inv.ammo holds how many are left and ammoPack is how many one pickup gives. Throwing the last one puts it away.
+  //   grenade  bounces, then goes off after fuse seconds with a blast of radius blast
+  //   molotov  bursts where it lands and leaves a pool of fire of radius fire that burns for burn seconds, dmg per second
+  thrown({ id: 'grenade', name: 'Grenade', dmg: 260, rate: 0.9, ammoPack: 3, fuse: 2.4, blast: 7 }),
+  thrown({ id: 'molotov', name: 'Molotov', dmg: 30, rate: 0.9, ammoPack: 3, fire: 3.6, burn: 7 }),
 ];
 export const WBY = Object.fromEntries(WEAPONS.map(w => [w.id, w]));
 export const MELEE = WEAPONS.filter(w => w.melee), GUNS = WEAPONS.filter(w => !w.melee);
@@ -46,4 +53,13 @@ export function loadAll(inv) {
     inv.mag[w.id] = (inv.mag[w.id] || 0) + take;
     if (!w.infinite) inv.ammo[w.id] = (inv.ammo[w.id] || 0) - take;
   }
+}
+
+// Weapons the player picked up (street pickups, enemy drops) are marked in inv.found and only lent: getting wasted
+// takes them back. Bought weapons stay. Returns the ids taken, for the wasted screen.
+export function loseFound(inv) {
+  const lost = Object.keys(inv.found || {}).filter(id => inv.found[id] && inv.owned[id] && !WBY[id]?.builtin);
+  for (const id of lost) { delete inv.owned[id]; inv.mag[id] = 0; inv.ammo[id] = 0; inv.lvl[id] = 0; }
+  inv.found = {};
+  return lost;
 }
