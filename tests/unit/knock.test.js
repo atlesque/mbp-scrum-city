@@ -1,6 +1,6 @@
 // Ramming rules: cars send bikes flying, bikes only knock each other over at speed, cars shove cars.
 import { describe, expect, it } from 'vitest';
-import { blastThrow, closingSpeed, knockImpulse, shoveImpulse, touching, velocity } from '../../public/js/vehicles/knock.js';
+import { blastThrow, closingSpeed, knockImpulse, rideOver, shoveImpulse, touching, velocity } from '../../public/js/vehicles/knock.js';
 import { KINDS } from '../../public/js/vehicles/vehicle.js';
 
 const at = (kind, x, z, yaw, v) => ({ K: KINDS[kind], x, z, yaw, v, dead: false });
@@ -93,5 +93,38 @@ describe('wrecks thrown by blasts', () => {
   it('leaves alone what is out of reach, and the vehicle going up at the centre', () => {
     expect(blastThrow(8, 0, 7, 1)).toBeNull();
     expect(blastThrow(0, 0, 7, 1)).toBeNull();
+  });
+});
+
+describe('riding over cars', () => {
+  it('a bike nosing into a parked car rides up over it', () => {
+    const b = at('bike', 0, 0, 0, 8), c = at('car', 0, 3.1, 0, 0);
+    expect(rideOver(b, c)).toBeCloseTo(8);
+  });
+  it('a bike hitting a car hard crashes into it instead', () => {
+    expect(rideOver(at('bike', 0, 0, 0, 20), at('car', 0, 3.1, 0, 0))).toBeNull();
+  });
+  it('a bike catching up with a car going the same way rides over it, but not one coming head-on', () => {
+    expect(rideOver(at('bike', 0, 0, 0, 20), at('car', 0, 3.1, 0, 14))).not.toBeNull();
+    expect(rideOver(at('bike', 0, 0, 0, 8), at('car', 0, 3.1, Math.PI, 8))).toBeNull();
+  });
+  it('a bike rides over a wreck, but not a car in the air, and not while barely rolling', () => {
+    expect(rideOver(at('bike', 0, 0, 0, 8), Object.assign(at('car', 0, 3.1, 0, 0), { dead: true }))).not.toBeNull();
+    expect(rideOver(at('bike', 0, 0, 0, 8), Object.assign(at('car', 0, 3.1, 0, 0), { air: 1 }))).toBeNull();
+    expect(rideOver(at('bike', 0, 0, 0, 1), at('car', 0, 3.1, 0, 0))).toBeNull();
+  });
+  it('only bikes ride over, and only over cars that are in reach', () => {
+    expect(rideOver(at('car', 0, 0, 0, 8), at('car', 0, 4.4, 0, 0))).toBeNull();
+    expect(rideOver(at('bike', 0, 0, 0, 8), at('bike', 0, 1.5, 0, 0))).toBeNull();
+    expect(rideOver(at('bike', 0, 0, 0, 8), at('car', 0, 6, 0, 0))).toBeNull();
+  });
+  it('a car is low at the bumpers, highest at the roof, and nothing off its body', () => {
+    const c = at('car', 0, 0, 0, 0), top = z => KINDS.car.topAt(c, 0, z);
+    expect(top(2.1)).toBeLessThan(0.9);
+    expect(top(0)).toBeGreaterThan(1.4);
+    expect(top(1.5)).toBeGreaterThan(top(2.1));
+    expect(top(-1.5)).toBeLessThan(top(0));
+    expect(KINDS.car.topAt(c, 0.98, 0)).toBeLessThan(top(0));
+    expect(top(2.5)).toBe(-Infinity);
   });
 });

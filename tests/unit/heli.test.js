@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { G, P } from '../../public/js/core/state.js';
 import { WBY, wStat } from '../../public/js/data/weapons.js';
-import { HELI_HP, aimLight, removeHeli, spawnHeli } from '../../public/js/vehicles/heli.js';
+import { spawnNpc } from '../../public/js/npcs/npc.js';
+import { HELI_HP, aimLight, removeHeli, searchlightShade, spawnHeli } from '../../public/js/vehicles/heli.js';
+import { spawnVehicle } from '../../public/js/vehicles/vehicle.js';
 import { addCollider, colliders, tallBoxes } from '../../public/js/world/collision.js';
 
 vi.mock('../../public/js/game/pickups.js', () => ({ reward() {} }));
@@ -46,6 +48,17 @@ describe('police helicopter', () => {
     expect(G.heli).toBeNull();
     expect(h.removed).toBe(true);
   });
+  it('wrecks the cars and drops the people it crashes among, like a vehicle explosion', () => {
+    const h = chopper();
+    const car = spawnVehicle('sedan', 6, 26, 0), far = spawnVehicle('sedan', 30, 26, 0);
+    const npc = spawnNpc('civilian', -8, 26), body = spawnNpc('civilian', 2, 28); body.kill(null, false);
+    h.damage(HELI_HP);
+    for (let i = 0; i < 200 && G.heli; i++) h.update(0.05);
+    expect(car.burnT > 0 || car.dead).toBe(true);
+    expect(npc.alive).toBe(false);
+    expect(body.y > 0 || body.vy > 0).toBe(true); // thrown
+    expect(far.hp).toBe(far.model.hp);
+  });
   it('holds fire until it has seen the player for a moment', () => {
     const h = chopper(); G.wanted = 5; P.alive = true; h.fireT = 0;
     h.update(0.01);
@@ -81,5 +94,16 @@ describe('police helicopter', () => {
       // the beam ends at the wall too
       expect(h.beam.scale.y).toBeCloseTo(t, 5);
     } finally { colliders.pop(); tallBoxes.pop(); }
+  });
+  it('lets the buildings either side of an alley shadow the searchlight cone', () => {
+    const h = chopper(); h.grp.position.set(h.x, h.y, h.z);
+    // an alley 3 m wide running from the player towards the chopper: the line down the middle is clear,
+    // but the cone is wider than the alley, so both walls must cut it
+    addCollider(-12, -1.5, -5, 40, 30, true); addCollider(1.5, 12, -5, 40, 30, true);
+    try {
+      expect(aimLight(h)).toBeCloseTo(Math.hypot(26, 27.2), 3);
+      expect(searchlightShade.nBox.value).toBe(2);
+      expect(searchlightShade.origin.value.y).toBeCloseTo(27.2, 3);
+    } finally { colliders.splice(-2); tallBoxes.splice(-2); }
   });
 });

@@ -15,6 +15,7 @@ import { all, count, entities, removeEntity } from './entities/registry.js';
 import { makePickup, makeWeaponPickup } from './game/pickups.js';
 import { respawn, updateCamera, updatePlayer } from './game/player.js';
 import { managePopulation } from './game/population.js';
+import { spawnRoofDoor } from './game/rooftop.js';
 import { updateWanted } from './game/wanted.js';
 import { findSpot, spawnNpc } from './npcs/npc.js';
 import { updateFx, updateParts } from './render/effects.js';
@@ -29,6 +30,7 @@ import { loadLandmarkModels } from './world/landmarks.js';
 import { SPAWN, armorSpots, buildWorld, healthSpots, lotSpots, shopSpots, waterBase, waterMesh } from './world/city.js';
 import { isFree } from './world/collision.js';
 import { updateEdges } from './world/edges.js';
+import { ROOFS } from './world/rooftops.js';
 import { buildMap, drawRadar } from './world/radar.js';
 
 // ================= MAIN LOOP =================
@@ -111,6 +113,7 @@ async function start(data) {
   for (const s of armorSpots) makePickup('armor', s[0], s[1]);
   placeMeleePickups();
   for (const s of shopSpots) spawnShop(s.type, s.x, s.z);
+  for (const r of ROOFS) spawnRoofDoor(r);
   lotSpots.forEach((s, i) => { spawnVehicle(i % 3 ? 'sedan' : 'modely', s.x, s.z, s.yaw).home = true; });
   P.x = 230; P.z = -40;
   for (let i = 0; i < 26; i++) spawnTrafficCar(false);
@@ -126,7 +129,7 @@ async function start(data) {
 }
 try { window.claude && window.claude.hot && window.claude.hot.snapshot && window.claude.hot.snapshot(() => ({ inv: serialize(inv, stats), cur: inv.cur })); } catch (e) {}
 // ?debug exposes the game state to the console and to the smoke test
-if (/[?&]debug\b/.test(location.search)) window.__neonbay = { G, I, P, Sound, cam, inv, stats, entities, all, removeEntity, spawnVehicle, spawnNpc, spawnShop, lighting };
+if (/[?&]debug\b/.test(location.search)) window.__neonbay = { G, I, P, Sound, cam, inv, stats, entities, all, removeEntity, spawnVehicle, spawnNpc, spawnShop, lighting, ROOFS };
 requestAnimationFrame(frame);
 const hot = window.claude && window.claude.hot;
 if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});

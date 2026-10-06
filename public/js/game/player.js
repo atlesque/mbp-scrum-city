@@ -18,12 +18,13 @@ import { removeHeli } from '../vehicles/heli.js';
 import { driveByPlayer } from '../vehicles/vehicle.js';
 import { SPAWN } from '../world/city.js';
 import { collide, wallHit } from '../world/collision.js';
+import { collideRoof, roofHit } from '../world/rooftops.js';
 import { updateInteraction } from './interact.js';
 
 // ================= PLAYER =================
 export const camTarget = new THREE.Vector3();
 export function updatePlayer(dt) {
-  if (!P.alive) { deathAnim(P, dt); P.c.root.position.set(P.x, 0, P.z); P.c.root.rotation.y = P.yaw; return; }
+  if (!P.alive) { deathAnim(P, dt); P.c.root.position.set(P.x, floorY(), P.z); P.c.root.rotation.y = P.yaw; return; }
   // look
   const sens = (I.mouseR ? 0.0013 : 0.0022) * settings.sensitivity, sensY = settings.invertY ? -sens : sens;
   if (I.mouseDX || I.mouseDY) P.lookT = G.time;
@@ -53,28 +54,34 @@ export function updatePlayer(dt) {
   if (P.c.gun && w.spin && G.spin > 0) P.c.gun.rotation.y += dt * G.spin * 40;
   if (!P.vehicle) {
     // separation from people
-    for (const a of all('npc')) { if (!onFoot(a)) continue; const dx = a.x - P.x, dz = a.z - P.z, d = Math.hypot(dx, dz); if (d < 0.75 && d > 0.001) { const k = (0.75 - d) * 0.5; a.x += dx / d * k; a.z += dz / d * k; P.x -= dx / d * k; P.z -= dz / d * k; } }
+    for (const a of all('npc')) { if (!onFoot(a) || P.roof) continue; const dx = a.x - P.x, dz = a.z - P.z, d = Math.hypot(dx, dz); if (d < 0.75 && d > 0.001) { const k = (0.75 - d) * 0.5; a.x += dx / d * k; a.z += dz / d * k; P.x -= dx / d * k; P.z -= dz / d * k; } }
     animateChar(P, dt);
-    P.c.root.position.set(P.x, 0, P.z); P.c.root.rotation.y = P.yaw;
+    P.c.root.position.set(P.x, floorY(), P.z); P.c.root.rotation.y = P.yaw;
   }
   updateInteraction();
 }
+// what the player stands on: the street, or the roof they took the stairs up to (P.y is measured from the street)
+const floorY = () => P.roof ? P.roof.floor : 0;
 function walk(dt, aimingNow) {
   let ix = 0, iz = 0;
-  if (keys.KeyW || keys.ArrowUp) iz += 1; if (keys.KeyS || keys.ArrowDown) iz -= 1;
-  if (keys.KeyA || keys.ArrowLeft) ix -= 1; if (keys.KeyD || keys.ArrowRight) ix += 1;
+  if (!G.stairs) { // standing still while the screen is black
+    if (keys.KeyW || keys.ArrowUp) iz += 1; if (keys.KeyS || keys.ArrowDown) iz -= 1;
+    if (keys.KeyA || keys.ArrowLeft) ix -= 1; if (keys.KeyD || keys.ArrowRight) ix += 1;
+  }
   const fx = Math.sin(cam.yaw), fz = Math.cos(cam.yaw), rx = -Math.cos(cam.yaw), rz = Math.sin(cam.yaw);
   let mx = fx * iz + rx * ix, mz = fz * iz + rz * ix; const ml = Math.hypot(mx, mz);
   const sprint = (keys.ShiftLeft || keys.ShiftRight) && !I.mouseR && iz >= 0;
   const speed = (sprint ? 8.2 : 5.0) * (P.swing ? 0.6 : 1); // a swing slows you down
   if (ml > 0) { mx /= ml; mz /= ml; }
   P.vx = lerp(P.vx || 0, mx * speed, Math.min(1, dt * 12)); P.vz = lerp(P.vz || 0, mz * speed, Math.min(1, dt * 12));
-  const ox = P.x, oz = P.z; P.x += P.vx * dt; P.z += P.vz * dt; collide(P, 0.38);
+  const ox = P.x, oz = P.z; P.x += P.vx * dt; P.z += P.vz * dt;
+  if (P.roof) collideRoof(P, 0.38, P.roof); else collide(P, 0.38);
   P.moveSpeed = Math.hypot(P.x - ox, P.z - oz) / Math.max(dt, 1e-4);
   // jump
-  if (keys.Space && P.grounded) { P.vy = 6.2; P.grounded = false; }
-  if (!P.grounded) { P.vy -= 18 * dt; P.y += P.vy * dt; if (P.y <= 0) { P.y = 0; P.vy = 0; P.grounded = true; } }
-  P.jumpY = P.y;
+  const floor = floorY();
+  if (keys.Space && P.grounded && !G.stairs) { P.vy = 6.2; P.grounded = false; }
+  if (!P.grounded) { P.vy -= 18 * dt; P.y += P.vy * dt; if (P.y <= floor) { P.y = floor; P.vy = 0; P.grounded = true; } }
+  P.jumpY = P.y - floor;
   // facing and aim
   if (aimingNow) faceTo(P, cam.yaw, dt, 20);
   else if (ml > 0) faceTo(P, Math.atan2(mx, mz), dt, 10);
@@ -84,7 +91,7 @@ function walk(dt, aimingNow) {
 const told = {};
 export function enterVehicle(v) {
   P.vehicle = v; v.driver = P; v.mode = 'player'; v.K.onPlayerEnter(v);
-  v.K.seat(v, P.c); P.x = v.x; P.z = v.z; P.y = 0; P.vy = 0; P.grounded = true; P.lookT = -9;
+  v.K.seat(v, P.c); P.x = v.x; P.z = v.z; P.y = 0; P.roof = null; P.vy = 0; P.grounded = true; P.lookT = -9;
   $('prompt').hidden = true; G.hudCache = ''; $('vehName').textContent = v.model.short;
   if (!told[v.model.id]) { told[v.model.id] = true; toast(v.K.tip(v.model), 7); }
   emit('vehicle:enter', { vehicle: v });
@@ -121,7 +128,9 @@ export function updateCamera(dt) {
   const right = new THREE.Vector3(-Math.cos(cam.yaw), 0, Math.sin(cam.yaw));
   camTarget.set(P.x, (P.alive ? P.y : 0) + (C ? C.height : 1.62), P.z).addScaledVector(right, aim ? 0.7 : 0.55);
   let dist = cam.dist;
-  const back = d.clone().negate(), tw = wallHit(camTarget.x, camTarget.y, camTarget.z, back.x, back.y, back.z, dist + 0.3);
+  const back = d.clone().negate();
+  let tw = wallHit(camTarget.x, camTarget.y, camTarget.z, back.x, back.y, back.z, dist + 0.3);
+  if (P.roof) tw = roofHit(P.roof, camTarget.x, camTarget.y, camTarget.z, back.x, back.y, back.z, tw);
   if (tw < dist + 0.3) dist = Math.max(0.6, tw - 0.3);
   camera.position.copy(camTarget).addScaledVector(d, -dist);
   if (camera.position.y < 0.3) camera.position.y = 0.3;
@@ -143,7 +152,7 @@ export function respawn() {
   for (const e of all()) if ((e.kind === 'npc' && e.faction === 'law') || (e.kind === 'vehicle' && (e.model.police || e.dead))) removeEntity(e);
   removeHeli();
   G.wanted = 0; G.heat = 0; G.lostT = 0; G.heliT = 15;
-  P.x = SPAWN.x; P.z = SPAWN.z; P.y = 0; P.hp = 100; P.alive = true; P.deadT = 0; P.yaw = SPAWN.yaw; cam.yaw = SPAWN.yaw; cam.pitch = -0.08;
+  P.x = SPAWN.x; P.z = SPAWN.z; P.y = 0; P.roof = null; P.hp = 100; P.alive = true; P.deadT = 0; P.yaw = SPAWN.yaw; cam.yaw = SPAWN.yaw; cam.pitch = -0.08;
   P.c.body.rotation.x = 0; P.c.body.position.y = 0; P.swing = null;
   loadAll(inv); G.reloadT = 0;
   $('wasted').hidden = true; canvasEl.style.filter = '';
