@@ -1,6 +1,7 @@
 import { setGun, muzzleOf } from '../characters/character.js';
 import { Sound } from '../core/audio.js';
 import { HEAR } from '../core/spatial.js';
+import { blastShake, stackShake } from './shake.js';
 import { G, I, P, cam, inv } from '../core/state.js';
 import { $, clamp, rnd } from '../core/util.js';
 import { WBY, WEAPONS, wStat } from '../data/weapons.js';
@@ -92,7 +93,8 @@ function hitsPlayer(o, d, maxT) {
 export function explosion(x, y, z, R, dmg, byPlayer, power = 1) {
   boomFx(x, y, z, R * 0.7);
   const dP = Math.hypot(x - P.x, z - P.z, Math.max(0, Math.abs(y - P.y) - 2)); // a blast in the street doesn't reach a roof
-  Sound.boom(1.2, { x, y, z }, HEAR.boom); cam.shake = Math.max(cam.shake, clamp(1 - dP / 40, 0, 1) * 0.9);
+  Sound.boom(1.2, { x, y, z }, HEAR.boom);
+  cam.shake = stackShake(cam.shake, blastShake(R, Math.hypot(x - P.x, z - P.z, y - P.y)));
   for (const e of all()) if (e.blast && !e.removed) e.blast(x, y, z, R, dmg, byPlayer);
   for (const e of all()) if (e.fling && !e.removed) e.fling(x, y, z, R, power); // a second pass, so whoever the blast just killed flies too
   if (dP < R && P.alive) hurtPlayer((dmg * (1 - dP / R) + 10) * (byPlayer ? 0.35 : 0.6));
