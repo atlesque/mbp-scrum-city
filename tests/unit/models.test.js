@@ -62,12 +62,20 @@ describe('glb building models', () => {
     expect(near([c.x0, c.x1, c.z0, c.z1, c.h], [-80, -70, -31, -19, 7.5])).toBe(true);
     expect(o.children[0].geometry).toBe(m.group.children[0].geometry); // shared, not copied
   });
-  it('falls back to the hand-built landmark when the file is missing', async () => {
+  it('falls back to the detailed landmark model when the file is missing', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const s = { block: [2, 3], type: 'vac', face: 'e', model: 'not-there.glb' }, spy = vi.spyOn(LANDMARK_TYPES, 'vac');
+    const s = { block: [2, 3], type: 'vac', face: 'e', model: 'not-there.glb' }, before = colliders.length;
     await loadLandmarkModels([s]);
-    const noop = () => {};
-    buildLandmark({ walls: { v: noop }, plain: { v: noop }, neon: { v: noop }, sign: noop }, s, -75, -25);
+    const noop = () => {}, signs = [];
+    const o = buildLandmark({ walls: { v: noop }, plain: { v: noop }, neon: { v: noop }, sign: x => signs.push(x) }, s, -75, -25);
+    expect(o.children[0].name).toBe('vac'); // the model from world/landmark-models/
+    expect(colliders.length).toBe(before + 3); // its two slabs and the link wing
+    for (const c of colliders.slice(before)) expect(c.x0 >= -92 && c.x1 <= -58 && c.z0 >= -42 && c.z1 <= -8).toBe(true);
+    expect(signs.map(x => x.text)).toEqual(['VAC Gent']);
+  });
+  it('falls back to the hand-built placeholder for a type without a model or builder', () => {
+    const spy = vi.spyOn(LANDMARK_TYPES, 'placeholder'), noop = () => {};
+    buildLandmark({ walls: { v: noop }, plain: { v: noop }, neon: { v: noop }, sign: noop }, { block: [0, 0], type: 'unknown', face: 'n' }, 0, 0);
     expect(spy).toHaveBeenCalled();
   });
 });

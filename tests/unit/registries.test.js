@@ -12,6 +12,7 @@ import { VEHICLE_MODELS } from '../../public/js/vehicles/models/index.js';
 import { KINDS } from '../../public/js/vehicles/vehicle.js';
 import { SHOP_SITES } from '../../public/js/world/city.js';
 import { LANDMARK_SITES, LANDMARK_TYPES } from '../../public/js/world/landmarks.js';
+import { LANDMARK_MODELS } from '../../public/js/world/landmark-models/index.js';
 
 describe('vehicle models', () => {
   for (const [id, m] of Object.entries(VEHICLE_MODELS)) it(id, () => {
@@ -64,7 +65,7 @@ describe('landmarks', () => {
   it('every landmark site uses a known type and a block of its own', () => {
     const taken = new Set(SHOP_SITES.map(s => s.block.join()).concat(['3,4'])); // shops and the hospital
     for (const s of LANDMARK_SITES) {
-      expect(LANDMARK_TYPES[s.type], s.type).toBeDefined();
+      expect(LANDMARK_TYPES[s.type] || LANDMARK_MODELS[s.type], s.type).toBeDefined();
       expect(['n', 'e', 's', 'w']).toContain(s.face);
       expect(taken.has(s.block.join()), `block ${s.block}`).toBe(false);
       taken.add(s.block.join());
