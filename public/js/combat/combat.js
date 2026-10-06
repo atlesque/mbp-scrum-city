@@ -107,7 +107,7 @@ export function startReload() {
   const w = curWeapon(), st = wStat(w, inv.lvl[w.id] || 0);
   if (G.reloadT > 0 || inv.mag[w.id] >= st.mag) return;
   if (!w.infinite && (inv.ammo[w.id] || 0) <= 0) { if (startReload.warn !== w.id) toast(`Out of ${w.name} ammo. Restock at <em>Bullet Bros. Guns</em> ($ on the radar).`); startReload.warn = w.id; return; }
-  G.reloadT = w.reload; G.scope = G.rescope = 0; Sound.reload();
+  G.reloadT = w.reload; G.scope = G.rescope = 0; Sound.reload(w.id);
 }
 export function finishReload() {
   const w = curWeapon(), st = wStat(w, inv.lvl[w.id] || 0), need = st.mag - (inv.mag[w.id] || 0);
@@ -117,7 +117,7 @@ export function finishReload() {
 export function selectWeapon(id) {
   if (!inv.owned[id] || inv.cur === id) return;
   const w = WBY[id];
-  inv.cur = id; G.reloadT = 0; G.spin = 0; G.scope = G.rescope = 0; setGun(P.c, id); P.twoHand = !!w.twoHand;
+  inv.cur = id; if (G.reloadT > 0) Sound.stopReload(); G.reloadT = 0; G.spin = 0; G.scope = G.rescope = 0; setGun(P.c, id); P.twoHand = !!w.twoHand;
   P.melee = w.melee ? w.anim : null; P.swing = null; if (w.melee) P.lastMelee = id;
   if (inv.mag[id] == null) inv.mag[id] = 0;
   drawWeaponIcon(); startReload.warn = null;
