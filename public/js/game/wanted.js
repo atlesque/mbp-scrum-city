@@ -48,10 +48,15 @@ export function updateWanted(dt) {
     if (L && L.heli && !G.heli) { G.heliT -= dt; if (G.heliT <= 0) spawnHeli(); }
   } else starsEl.classList.remove('flash');
   G.seenNow = false;
-  // siren: nearest police car, or faint while hunted on foot
-  let sv = 0, sp = 0;
-  if (G.wanted > 0) { sv = 0.025; for (const c of all('vehicle')) if (c.model.police && !c.dead) { const cv = vol3d(c.x, c.z) * 0.09; if (cv > sv) { sv = cv; sp = pan3d(c.x, c.z); } } }
-  Sound.setSiren(G.state === 'play' ? sv : 0, sp);
+  const siren = sirenMix();
+  Sound.setSiren(G.state === 'play' ? siren.v : 0, siren.pan);
   Sound.setIntensity(G.wanted);
   Sound.setHeli(G.heli && G.state === 'play' ? clamp(1 - Math.hypot(G.heli.x - P.x, G.heli.z - P.z) / 120, 0, 1) * 0.5 : 0, G.heli ? pan3d(G.heli.x, G.heli.z) : 0);
+}
+
+// siren: only once police cars are out, as loud as the nearest one and panned towards it; silent while only cops on foot hunt you
+export function sirenMix() {
+  let v = 0, pan = 0;
+  if (G.wanted > 0) for (const c of all('vehicle')) if (isPolice(c) && !c.dead) { const cv = vol3d(c.x, c.z) * 0.09; if (cv > v) { v = cv; pan = pan3d(c.x, c.z); } }
+  return { v, pan };
 }
