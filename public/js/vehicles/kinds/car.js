@@ -163,5 +163,6 @@ export const car = {
   },
   wreck(c) { c.wreckRoll = rnd(-0.15, 0.15); },
   blip() {},
-  dispose(c) { c.mesh.m.geometry.dispose(); if (c.mesh.win) c.mesh.win.geometry.dispose(); },
+  // the detailed models share one geometry between all their cars (models/carkit.js), so that stays
+  dispose(c) { for (const m of [c.mesh.m, c.mesh.win, c.mesh.lamps]) if (m && !m.geometry.userData.shared) m.geometry.dispose(); },
 };

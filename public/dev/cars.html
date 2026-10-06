@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Car Previews</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #cfe0ee; overflow: hidden; font: 14px/1.4 system-ui, sans-serif; }
+  #ui { position: fixed; left: 12px; top: 12px; display: flex; gap: 6px; flex-wrap: wrap; z-index: 1; }
+  #ui button { border: 0; border-radius: 6px; padding: 6px 10px; background: #fffd; cursor: pointer; }
+  #ui button.on { background: #ffe615; }
+  #info { position: fixed; left: 12px; bottom: 12px; background: #fffd; border-radius: 6px; padding: 6px 10px; z-index: 1; }
+  body.shot #ui, body.shot #info { display: none; }
+</style>
+</head>
+<body>
+<div id="stage" hidden></div><!-- render/scene.js (pulled in by the shared materials) puts the game canvas here -->
+<div id="ui"></div>
+<div id="info">Drag to orbit, scroll to zoom.</div>
+<script type="module" src="/js/dev/car-preview.js"></script>
+</body>
+</html>

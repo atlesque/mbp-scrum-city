@@ -84,7 +84,7 @@ try {
     check(moved, 'player did not move');
   });
 
-  for (const model of ['sedan', 'modely', 'gs']) {
+  for (const model of ['sedan', 'modely', 'modelyblue', 'eqa', 'bmw5', 'gs']) {
     await step(`gets in and drives a ${model}`, async () => {
       await clearVehicles(...await game(() => [__neonbay.P.x, __neonbay.P.z]));
       const id = await game(m => {
