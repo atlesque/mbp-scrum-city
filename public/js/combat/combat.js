@@ -41,7 +41,7 @@ export function playerShoot() {
   cam.pitch = clamp(cam.pitch + w.recoil * (0.6 + Math.random() * 0.6), -1.1, 1.2); cam.yaw += (Math.random() - 0.5) * w.recoil * 0.6; cam.shake = Math.max(cam.shake, w.recoil * 2.2);
   if (w.rocket) {
     const tgt = castShot(origin, dir, 300).p, rd = tgt.clone().sub(muz).normalize();
-    fireRocket(muz, rd, st.dmg);
+    fireRocket(muz, rd, st.dmg, st.blastMul);
   } else {
     let hitAny = false, headAny = false;
     for (let k = 0; k < w.pellets; k++) {
@@ -60,9 +60,9 @@ export function playerShoot() {
 }
 
 const rockets = [];
-function fireRocket(from, dir, dmg) {
+function fireRocket(from, dir, dmg, blastMul) {
   const m = new THREE.Mesh(PGEO, pmat('#5b6a3a')); m.scale.set(0.16, 0.16, 0.7); m.position.copy(from); m.lookAt(from.clone().add(dir)); scene.add(m);
-  rockets.push({ m, p: from.clone(), d: dir.clone(), life: 5, dmg });
+  rockets.push({ m, p: from.clone(), d: dir.clone(), life: 5, dmg, blastMul });
 }
 export function updateRockets(dt) {
   for (let i = rockets.length - 1; i >= 0; i--) {
@@ -71,7 +71,7 @@ export function updateRockets(dt) {
     emit(r.p.x, r.p.y, r.p.z, 1, '#c8c0c8', 0.5, 0.8, 0.25, 1.5, 0.3);
     if (h.kind !== 'none' || r.life <= 0) {
       if (h.kind === 'entity' && h.entity.onRocket) h.entity.onRocket(r.dmg);
-      explosion(h.p.x, Math.max(0.3, h.p.y), h.p.z, 7, r.dmg, true);
+      explosion(h.p.x, Math.max(0.3, h.p.y), h.p.z, 7 * r.blastMul, r.dmg, true);
       scene.remove(r.m); rockets.splice(i, 1); continue;
     }
     r.p.copy(h.p); r.m.position.copy(r.p);
