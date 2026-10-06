@@ -26,6 +26,7 @@ const TURN_X = [-150, -100, -50, 0, 50, 100, 150, 200], TURN_Z = [-150, -100, -5
 //   hitBox(v)                axis-aligned box for bullets { hx, hz, h }
 //   pushOut(v, o, r)         keep people and other vehicles out
 //   reach(v, p), reachMax    how close the player must be to get on
+//   jack, shoveOff(v, a, p)  carjacking: the prompt's verb, and optionally where the ejected rider `a` lands
 //   onDriverGone(v), wreck(v), blip(v, radar), dispose(v)
 //   fx, blast, wreckReward   fire and smoke, explosion size, heat and cash for wrecking one
 //   bumper                   zone ahead that runs people over: back, front, half width, speed kept
@@ -48,7 +49,7 @@ export const bike = {
   ram: { mass: 1, hull: [0.62, 0.42], heavierAt: 3, sameAt: 10 },
   ridesOver: 12, // m/s: meet a car slower than this and ride up over it, faster and crash into it
   camera: { dist: 6.2, aimDist: 3.4, height: 1.95, fovPerSpeed: 0.35 },
-  laneHalf: 1.4, trafficDespawn: 170, reachMax: 2.8, ambientEngine: true,
+  laneHalf: 1.4, trafficDespawn: 170, reachMax: 2.8, ambientEngine: true, jack: 'shove the rider off',
   tip: M => M.name + '. <em>W</em>/<em>S</em> throttle and brake, <em>A</em>/<em>D</em> lean, <em>Shift</em> boost, <em>Space</em> rear brake, <em>F</em> to get off. Guns still work.',
 
   init(v) { v.lean = -0.12; v.fallen = false; v.fallSide = 1; },
@@ -154,6 +155,12 @@ export const bike = {
   hitBox(b) { const sy = Math.abs(Math.sin(b.yaw)), cy = Math.abs(Math.cos(b.yaw)); return { hx: sy * 1.05 + cy * 0.32, hz: cy * 1.05 + sy * 0.32, h: b.fallen ? 0.6 : 0.98 }; },
   pushOut(b, o, r) { return Math.abs(b.x - o.x) <= 3 && Math.abs(b.z - o.z) <= 3 && pushOutSeg(o, r + 0.3, b.x, b.z, b.yaw, -0.8, 0.85); },
   reach: (b, p) => Math.hypot(b.x - p.x, b.z - p.z),
+  // carjacked: the rider is shoved off the side away from the player, goes down on the road and gets up again
+  shoveOff(b, a, p) {
+    const sx = Math.cos(b.yaw), sz = -Math.sin(b.yaw), side = (p.x - b.x) * sx + (p.z - b.z) * sz > 0 ? -1 : 1;
+    a.x = b.x + sx * side * 0.7; a.z = b.z + sz * side * 0.7; a.svx = sx * side * 5; a.svz = sz * side * 5;
+    a.yaw = Math.atan2(-a.svx, -a.svz); a.downT = 1.8; a.stagT = 0; a.place();
+  },
   onDriverGone(b) { b.mode = 'fallen'; b.fallen = true; b.fallSide = Math.random() < 0.5 ? 1 : -1; },
   onPlayerExit(b, crash, speed) {
     if (crash || speed > bike.crash.exitSpeed) { b.mode = 'fallen'; b.fallen = true; b.fallSide = -1; }
