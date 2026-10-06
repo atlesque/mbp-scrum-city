@@ -13,7 +13,7 @@ import { toast } from '../ui/hud.js';
 import { rayBox } from '../world/collision.js';
 import { bike } from './kinds/bike.js';
 import { car } from './kinds/car.js';
-import { knockImpulse, shoveImpulse, touching } from './knock.js';
+import { blastThrow, knockImpulse, shoveImpulse, touching } from './knock.js';
 import { burntMat } from './materials.js';
 import { VEHICLE_MODELS } from './models/index.js';
 
@@ -28,9 +28,14 @@ const Vehicle = {
   update(dt) {
     const K = this.K, fx = K.fx;
     // shoved by another car: skid and spin along, knocking into whatever else is in the way
-    const sliding = K.slide && (this.kvx || this.kvz || this.kspin) && this.driver !== P;
+    const sliding = K.slide && (this.kvx || this.kvz || this.kspin || this.air > 0) && this.driver !== P;
     if (sliding) { K.slide(this, dt); shoveAround(this); }
-    if (this.dead) { this.deadT += dt; if (Math.random() < dt * fx.smokeRate) emit(this.x, fx.smokeY, this.z, 1, '#3a3240', fx.smokeSpeed, fx.smokeLife, fx.smokeSize, 2, 1); K.pose(this, 0); return; }
+    if (this.dead) {
+      this.deadT += dt; if (Math.random() < dt * fx.smokeRate) emit(this.x, fx.smokeY, this.z, 1, '#3a3240', fx.smokeSpeed, fx.smokeLife, fx.smokeSize, 2, 1);
+      // a wreck knocked or thrown by a blast still flies and skids to a stop (a car's slide already ran above)
+      if (!K.slide && (this.kvx || this.kvz || this.air > 0)) K.coast(this, dt);
+      K.pose(this, dt); return;
+    }
     if (this.burnT > 0) {
       this.burnT -= dt;
       if (Math.random() < fx.fireRate) emit(this.x + rnd(-fx.spread, fx.spread), fx.fireY, this.z + rnd(-fx.spread, fx.spread), 1, Math.random() < 0.5 ? '#ff7a2a' : '#ffd23e', 1, 0.5, fx.fireSize, 4, 1);
@@ -74,6 +79,13 @@ const Vehicle = {
     this.damage(dmg, true); emit(hit.p.x, hit.p.y, hit.p.z, 3, '#ffe9a8', 5, 0.25, 0.06); return { head: false };
   },
   onRocket() { this.damage(999, true); },
+  // after every blast() has landed: wrecks, and vehicles the blast set burning, get thrown (see knock.js)
+  fling(x, y, z, R) {
+    if (!(this.dead || this.burnT > 0) || this.driver === P) return;
+    const t = blastThrow(this.x - x, this.z - z, R, this.K.ram.mass); if (!t) return;
+    if (this.K.slide) { this.kvx = (this.kvx || 0) + t.vx; this.kvz = (this.kvz || 0) + t.vz; this.kspin = (this.kspin || 0) + t.spin; this.avy = Math.max(this.avy || 0, 0) + t.up; this.air = Math.max(this.air || 0, 0.01); this.v = 0; }
+    else this.K.knock(this, (this.kvx || 0) + t.vx, (this.kvz || 0) + t.vz, t.up);
+  },
   blast(x, y, z, R, dmg, byPlayer) { const d = Math.hypot(this.x - x, this.z - z); if (d < R && !this.dead) this.damage(dmg * (1 - d / R) + 40, byPlayer ? 'boom' : false); },
   pushOut(o, r) { return !(this.ghostT > G.time) && this.K.pushOut(this, o, r); }, // a vehicle just rammed flies through whatever hit it
   blip(radar) { if (this.driver !== P && !this.dead) this.K.blip(this, radar); },
@@ -152,6 +164,7 @@ export function driveByPlayer(v, dt) {
     // how squarely we hit: the push-out direction against our direction of travel
     const px = v.x - nx, pz = v.z - nz, pl = Math.hypot(px, pz) || 1, head = Math.max(0, -(px * fx + pz * fz) / pl * Math.sign(v.v)), impact = Math.abs(v.v) * head;
     v.v = impact > 7 ? -Math.sign(v.v) * impact * 0.12 : v.v * (1 - head * 0.9);
+    if (v.slip) v.slip *= 0.3; // a slide into a wall ends against it
     if (impact > 7) {
       Sound.thud(clamp(impact / 25, 0.3, 1), panFor(-px, -pz, cam.yaw, 0)); cam.shake = Math.max(cam.shake, clamp(impact / 40, 0.1, 0.7));
       v.damage(impact * 1.6, false); if (impact > 15 && P.vehicle === v) hurtPlayer((impact - 13) * K.crash.hurt);
@@ -172,7 +185,7 @@ export function driveByPlayer(v, dt) {
   if (K.afterDrive) K.afterDrive(v, dt);
   // camera swings in behind when the mouse is idle
   if (G.time - (P.lookT || 0) > 1.2 && Math.abs(v.v) > 3 && !I.mouseR) cam.yaw += angDiff(cam.yaw, v.yaw) * Math.min(1, dt * 2.2);
-  P.x = v.x; P.z = v.z; P.y = 0; P.vy = 0; P.grounded = true; P.yaw = v.yaw; P.moveSpeed = Math.abs(v.v); P.vx = fx * v.v; P.vz = fz * v.v;
+  P.x = v.x; P.z = v.z; P.y = 0; P.vy = 0; P.grounded = true; P.yaw = v.yaw; P.moveSpeed = Math.abs(v.v); P.vx = fx * v.v + fz * (v.slip || 0); P.vz = fz * v.v - fx * (v.slip || 0);
 }
 
 // send lighter vehicles we drive into flying and shove cars along (see knock.js); anything we only bump stops
@@ -186,14 +199,14 @@ function ram(v) {
       const k = shoveImpulse(v, b); if (!k) continue;
       shove(v, b, k, true); shoved = true;
       // what's left of our speed, along the way we're pointing
-      v.v = k.avx * Math.sin(v.yaw) + k.avz * Math.cos(v.yaw);
+      v.v = k.avx * Math.sin(v.yaw) + k.avz * Math.cos(v.yaw); if (v.slip != null) v.slip = k.avx * Math.cos(v.yaw) - k.avz * Math.sin(v.yaw);
       const hit = k.closing - 6; if (hit > 0) v.damage(hit * 1.4, false);
       if (k.closing > 16 && P.vehicle === v) hurtPlayer((k.closing - 14) * v.K.crash.hurt);
       Sound.thud(clamp(k.closing / 25, 0.3, 1), panFor(b.x - v.x, b.z - v.z, cam.yaw, 0)); cam.shake = Math.max(cam.shake, clamp(k.closing / 40, 0.1, 0.7));
       if (k.closing > 8) alarm(v.x, v.z, 25);
       continue;
     }
-    if (b.dead || !touching(v, b)) continue;
+    if (!touching(v, b)) continue;
     const k = knockImpulse(v, b); if (!k) continue;
     const a = b.driver;
     if (a) { b.ejectDriver(false); a.svx = k.vx * 0.7; a.svz = k.vz * 0.7; a.hurt(k.closing * 4, new THREE.Vector3(k.vx, 0, k.vz).normalize(), true); }
