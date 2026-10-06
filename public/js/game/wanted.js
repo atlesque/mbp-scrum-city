@@ -1,8 +1,8 @@
 import { Sound } from '../core/audio.js';
 import { emit } from '../core/events.js';
-import { pan3d, vol3d } from '../core/spatial.js';
-import { G, P, stats } from '../core/state.js';
-import { $, clamp } from '../core/util.js';
+import { at } from '../core/spatial.js';
+import { G, stats } from '../core/state.js';
+import { $ } from '../core/util.js';
 import { HEAT, WANTED, heatToLevel, mixPick } from '../data/wanted.js';
 import { all, count } from '../entities/registry.js';
 import { findSpot, spawnNpc } from '../npcs/npc.js';
@@ -48,15 +48,20 @@ export function updateWanted(dt) {
     if (L && L.heli && !G.heli) { G.heliT -= dt; if (G.heliT <= 0) spawnHeli(); }
   } else starsEl.classList.remove('flash');
   G.seenNow = false;
-  const siren = sirenMix();
-  Sound.setSiren(G.state === 'play' ? siren.v : 0, siren.pan);
+  Sound.loops('siren', sirenSources());
+  Sound.loops('rotor', rotorSources());
   Sound.setIntensity(G.wanted);
-  Sound.setHeli(G.heli && G.state === 'play' ? clamp(1 - Math.hypot(G.heli.x - P.x, G.heli.z - P.z) / 120, 0, 1) * 0.5 : 0, G.heli ? pan3d(G.heli.x, G.heli.z) : 0);
 }
 
-// siren: only once police cars are out, as loud as the nearest one and panned towards it; silent while only cops on foot hunt you
-export function sirenMix() {
-  let v = 0, pan = 0;
-  if (G.wanted > 0) for (const c of all('vehicle')) if (isPolice(c) && !c.dead) { const cv = vol3d(c.x, c.z) * 0.09; if (cv > v) { v = cv; pan = pan3d(c.x, c.z); } }
-  return { v, pan };
+// sirens: one per police car out hunting you, each playing from its car (core/audio.js keeps the loudest few);
+// none while only cops on foot hunt you
+export function sirenSources() {
+  const out = [];
+  if (G.wanted > 0 && G.state === 'play') for (const c of all('vehicle')) if (isPolice(c) && !c.dead) out.push({ key: c, ...at(c, 1.6), vol: SIREN_VOL });
+  return out;
+}
+export const SIREN_VOL = 0.09, ROTOR_VOL = 0.5;
+// the chopper's rotor, from the chopper, up in the air
+export function rotorSources() {
+  return G.state === 'play' ? all('heli').map(h => ({ key: h, ...at(h, 1), vol: ROTOR_VOL })) : [];
 }

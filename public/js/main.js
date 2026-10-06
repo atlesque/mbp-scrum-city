@@ -41,6 +41,7 @@ function frame(now) {
     G.time += dt;
     if (G.state === 'play') updatePlayer(dt);
     else if (G.state === 'dead') { updatePlayer(dt); G.deadT += dt; if (G.deadT > 3.6) respawn(); }
+    Sound.listen(); // the ears follow the player and the camera before this frame's sounds play
     G.shootersNow = count(e => e.kind === 'npc' && e.alive && e.burst > 0);
     // every person, vehicle, pickup and shop in the world
     for (const e of all()) if (e.update && !e.removed) e.update(dt);
