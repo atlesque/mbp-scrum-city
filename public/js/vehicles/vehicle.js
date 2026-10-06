@@ -77,7 +77,7 @@ const Vehicle = {
   onRocket() { this.damage(999, true); },
   // thrown by a blast, after it has done its damage: a rider comes off first; the player's own ride stays put
   fling(x, y, z, R, power) {
-    const K = this.K; if (!K.toss || this.driver === P || (this.dead && !K.slide)) return;
+    const K = this.K; if (!K.toss || this.driver === P || this.dead) return; // wrecks: see the pushable-wrecks change
     const l = blastLaunch(this.x - x, this.z - z, R, Math.random, power); if (!l) return;
     if (this.driver && !K.enclosed) this.ejectDriver(false);
     const s = K.tossScale; this.ghostT = G.time + 0.4; K.toss(this, l.vx * s, l.vz * s, l.vy * s);

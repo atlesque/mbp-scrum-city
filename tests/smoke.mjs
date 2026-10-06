@@ -167,11 +167,13 @@ try {
   });
 
   await step('a juggernaut fires a rocket that hurts the player', async () => {
-    await clearLane();
+    // down an open stretch of road, so nothing stands between them
+    await clearVehicles(5, -50);
     await game(() => {
-      const { P, cam, spawnNpc } = __neonbay;
-      P.hp = 100; P.armor = 0;
-      const n = window.__rpg = spawnNpc('jugg', P.x + Math.sin(cam.yaw) * 20, P.z + Math.cos(cam.yaw) * 20);
+      const { P, all, removeEntity, spawnNpc } = __neonbay;
+      P.x = 5.5; P.z = -60; P.hp = 100; P.armor = 0;
+      for (const n of all('npc')) if (Math.hypot(n.x - 5.5, n.z + 50) < 20) removeEntity(n);
+      const n = window.__rpg = spawnNpc('jugg', 5.5, -40);
       n.fireT = 0;
     });
     const hurt = await until(() => __neonbay.P.hp < 100, undefined, 30000);
@@ -192,7 +194,8 @@ try {
     });
     check(await until(() => window.__peak > 1), `the car was not thrown (peak ${await game(() => window.__peak)} m)`);
     check(await until(() => !(__tossed.air > 0)), 'the car never landed');
-    await game(() => __neonbay.removeEntity(__tossed));
+    // blowing up a car is a crime: drop the heat so the police don't crowd the steps that follow
+    await game(() => { const { G, all, removeEntity } = __neonbay; removeEntity(__tossed); G.heat = 0; G.wanted = 0; for (const n of all('npc')) if (n.faction === 'law') removeEntity(n); });
   });
 
   await step('shoots a driver through the window and takes the car', async () => {
