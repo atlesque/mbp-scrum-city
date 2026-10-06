@@ -24,6 +24,9 @@ export const HELI_HP = 700;
 const BODY_R = 3, TAIL_BACK = 4.4, TAIL_R = 1.6, ROTOR_Y = 1, ROTOR_R = 4.5;
 // the searchlight hangs under the cabin and its cone widens by BEAM_SPREAD per metre
 const BEAM_Y = -0.8, BEAM_SPREAD = 0.06;
+// the crash goes off like a vehicle explosion, only bigger than a car's (r 9, dmg 240): it wrecks the cars and drops the people
+// it comes down among, and throws the dead and the wrecks harder
+export const CRASH_BLAST = { y: 1, r: 12, dmg: 300, power: 1.4 };
 const _o = new THREE.Vector3(), _d = new THREE.Vector3(), _e = new THREE.Vector3(), _n = new THREE.Vector3(), _z = new THREE.Vector3(0, 0, 1);
 const Heli = {
   kind: 'heli',
@@ -40,7 +43,7 @@ const Heli = {
     if (h.falling) {
       h.vy -= 14 * dt; h.y += h.vy * dt; h.grp.rotation.y += dt * 5; h.grp.rotation.z += dt * 0.6;
       if (Math.random() < 0.8) emit(h.x, h.y, h.z, 1, '#3a3240', 2, 1.5, 0.8, 2, 1);
-      if (h.y <= 1) { explosion(h.x, 1, h.z, 9, 200, true); removeHeli(40); return; }
+      if (h.y <= CRASH_BLAST.y) { explosion(h.x, CRASH_BLAST.y, h.z, CRASH_BLAST.r, CRASH_BLAST.dmg, true, CRASH_BLAST.power); removeHeli(40); return; }
       h.grp.position.set(h.x, h.y, h.z); return;
     }
     if (G.wanted < 4) {
