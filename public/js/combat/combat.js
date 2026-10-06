@@ -13,6 +13,7 @@ import { PGEO, boomFx, emit, muzzleFlash, pmat, tracer } from '../render/effects
 import { scene } from '../render/scene.js';
 import { drawWeaponIcon, toast } from '../ui/hud.js';
 import { raySphere, wallHit } from '../world/collision.js';
+import { nextMelee } from './melee.js';
 
 // ================= COMBAT =================
 const _d = new THREE.Vector3();
@@ -113,10 +114,14 @@ export function finishReload() {
 }
 export function selectWeapon(id) {
   if (!inv.owned[id] || inv.cur === id) return;
-  inv.cur = id; G.reloadT = 0; G.spin = 0; setGun(P.c, id); P.twoHand = !!WBY[id].twoHand;
+  const w = WBY[id];
+  inv.cur = id; G.reloadT = 0; G.spin = 0; setGun(P.c, id); P.twoHand = !!w.twoHand;
+  P.melee = w.melee ? w.anim : null; P.swing = null; if (w.melee) P.lastMelee = id;
   if (inv.mag[id] == null) inv.mag[id] = 0;
   drawWeaponIcon(); startReload.warn = null;
 }
+// Q: fists and the melee weapons the player owns (combat/melee.js)
+export function cycleMelee() { const id = nextMelee(inv.cur, inv.owned, P.lastMelee); if (id) selectWeapon(id); }
 export function cycleWeapon(dir) {
   const owned = WEAPONS.filter(w => inv.owned[w.id]); let i = owned.findIndex(w => w.id === inv.cur);
   i = (i + dir + owned.length) % owned.length; selectWeapon(owned[i].id);

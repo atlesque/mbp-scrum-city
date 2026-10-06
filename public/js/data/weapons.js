@@ -1,5 +1,23 @@
 // ================= GAME DATA =================
+// Melee weapons come first (fists, then the street set), the guns after them. A melee weapon never runs out:
+//   reach   how far in front of the player a swing lands, in metres (plus the target's own width)
+//   arc     half the angle in front of the player a swing covers, in radians
+//   knock   how hard a hit shoves someone (m/s); hard hits knock people down, and a kill throws the body
+//   anim    the swing (combat/melee.js MELEE_ANIMS): punch, swing, stab, chop, saw
+//   hits    how many people one swing can land on
+//   blade   cuts rather than bruises; combo: every third punch is a kick; auto: hold to keep cutting
+//   rate is the time between swings, and an upgrade level makes swings harder and quicker like it does for guns
+const melee = (w) => ({ melee: true, infinite: true, mag: 0, spread: 0, range: w.reach, auto: false, pellets: 1, ammoPrice: 0, ammoPack: 0, recoil: 0, reload: 0, hits: 1, upRate: 0.06, ...w });
 export const WEAPONS = [
+  melee({ id: 'fist', name: 'Fists', price: 0, dmg: 9, rate: 0.36, reach: 1.25, arc: 0.7, knock: 2.5, anim: 'punch', combo: true, up: 0, builtin: true }),
+  melee({ id: 'knuckles', name: 'Brass Knuckles', price: 250, dmg: 16, rate: 0.36, reach: 1.25, arc: 0.7, knock: 3.2, anim: 'punch', combo: true, up: 150 }),
+  melee({ id: 'knife', name: 'Knife', price: 400, dmg: 30, rate: 0.42, reach: 1.35, arc: 0.55, knock: 1, anim: 'stab', blade: true, up: 250 }),
+  melee({ id: 'nightstick', name: 'Nightstick', price: 500, dmg: 24, rate: 0.5, reach: 1.7, arc: 0.8, knock: 4.5, anim: 'chop', up: 300 }),
+  melee({ id: 'golf', name: 'Golf Club', price: 700, dmg: 30, rate: 0.66, reach: 2.0, arc: 0.9, knock: 6.5, anim: 'swing', twoHand: true, up: 400 }),
+  melee({ id: 'bat', name: 'Baseball Bat', price: 800, dmg: 36, rate: 0.7, reach: 1.95, arc: 0.95, knock: 7.5, anim: 'swing', twoHand: true, hits: 2, up: 450 }),
+  melee({ id: 'machete', name: 'Machete', price: 1200, dmg: 44, rate: 0.58, reach: 1.8, arc: 0.8, knock: 3, anim: 'chop', blade: true, up: 600 }),
+  melee({ id: 'katana', name: 'Katana', price: 2500, dmg: 62, rate: 0.6, reach: 2.2, arc: 1.0, knock: 4, anim: 'swing', blade: true, twoHand: true, hits: 3, up: 1200 }),
+  melee({ id: 'chainsaw', name: 'Chainsaw', price: 4500, dmg: 13, rate: 0.09, reach: 1.8, arc: 0.6, knock: 0.6, anim: 'saw', blade: true, twoHand: true, auto: true, hits: 2, up: 2000, upRate: 0.04 }),
   { id: 'pistol', name: 'Pistol', price: 0, dmg: 26, rate: 0.26, mag: 12, spread: 0.012, range: 140, auto: false, pellets: 1, ammoPrice: 0, ammoPack: 0, infinite: true, recoil: 0.014, reload: 1.1, up: 350 },
   { id: 'smg', name: 'Micro SMG', price: 1200, dmg: 15, rate: 0.075, mag: 30, spread: 0.04, range: 110, auto: true, pellets: 1, ammoPrice: 120, ammoPack: 120, recoil: 0.007, reload: 1.4, up: 700, twoHand: true },
   { id: 'shotgun', name: 'Pump Shotgun', price: 2500, dmg: 30, rate: 0.85, mag: 6, spread: 0.06, range: 50, auto: false, pellets: 9, ammoPrice: 200, ammoPack: 24, recoil: 0.06, reload: 2.0, up: 1200, twoHand: true },
@@ -8,6 +26,7 @@ export const WEAPONS = [
   { id: 'rpg', name: 'Rocket Launcher', price: 25000, dmg: 420, rate: 1.1, mag: 1, spread: 0.004, range: 300, auto: false, pellets: 1, ammoPrice: 600, ammoPack: 5, recoil: 0.07, reload: 1.6, up: 8000, rocket: true, twoHand: true, upDmg: 0.5, upBlast: 0.25 },
 ];
 export const WBY = Object.fromEntries(WEAPONS.map(w => [w.id, w]));
+export const MELEE = WEAPONS.filter(w => w.melee), GUNS = WEAPONS.filter(w => !w.melee);
 // what each upgrade level adds: +30% damage, +25% magazine and 8% faster fire, unless a weapon sets its own
 // upDmg / upMag / upRate; upBlast grows a rocket's blast radius (blastMul scales the base radius)
 export const wStat = (w, lvl) => ({
@@ -18,7 +37,7 @@ export const wStat = (w, lvl) => ({
 });
 // top up every owned gun's magazine from its spare ammo (the pistol never runs out)
 export function loadAll(inv) {
-  for (const w of WEAPONS) {
+  for (const w of GUNS) {
     if (!inv.owned[w.id]) continue;
     const need = Math.max(0, wStat(w, inv.lvl[w.id] || 0).mag - (inv.mag[w.id] || 0));
     const take = w.infinite ? need : Math.min(need, inv.ammo[w.id] || 0);

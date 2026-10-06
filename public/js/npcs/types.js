@@ -10,11 +10,12 @@ import { HAIR, SKIN, randomLook } from '../characters/character.js';
 //   heat       wanted heat added when the player takes them down
 //   radar      blip colour, or 'siren' for flashing red and blue; omit to stay off the radar
 //   despawn    distance from the player at which they are cleared away
+//   fightBack  chance that someone the player punches (and doesn't knock down) squares up and punches back, for punch damage
 // Armed types also set gun, dmg, rate (seconds between bursts), burst, gap (seconds within a burst),
 // acc (hit chance), range and speed. rocket: true fires slow rockets instead (dmg is the blast's), and
 // minRange keeps them far enough out not to be caught in their own blast.
 export const NPC_TYPES = {
-  civilian: { name: 'Civilian', faction: 'civilian', behaviour: 'wander', hp: 40, walkSpeed: 1.4, runSpeed: 6.3, look: randomLook, cash: [30, 120], heat: 3, screams: true, despawn: 115 },
+  civilian: { name: 'Civilian', faction: 'civilian', behaviour: 'wander', hp: 40, walkSpeed: 1.4, runSpeed: 6.3, look: randomLook, cash: [30, 120], heat: 3, screams: true, despawn: 115, fightBack: 0.3, punch: 5 },
   motorist: { name: 'Driver', faction: 'civilian', behaviour: 'ride', hp: 40, walkSpeed: 1.4, runSpeed: 6.3, look: randomLook, cash: [40, 140], heat: 3, screams: true, despawn: 115 },
   biker: { name: 'Biker', faction: 'civilian', behaviour: 'ride', hp: 50, walkSpeed: 1.4, runSpeed: 6.3, look: bikerLook, cash: [30, 120], heat: 3, screams: true, despawn: 115 },
   cop: { name: 'Police', faction: 'law', behaviour: 'hunt', hp: 70, speed: 4.8, gun: 'pistol', dmg: 7, rate: 1.2, burst: 1, gap: 0.2, acc: 0.38, range: 34, cash: 150, drops: { armor: 0.35, ammo: 0.6 }, heat: 5, radar: 'siren', despawn: 130,

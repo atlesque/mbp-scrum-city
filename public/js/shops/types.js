@@ -10,12 +10,12 @@ import { WEAPONS } from '../data/weapons.js';
 export const SHOP_TYPES = {
   gunshop: {
     name: 'Bullet Bros. Guns', tagline: 'Est. 1979', calm: 'No questions asked',
-    footer: 'Upgrades raise damage, magazine size and fire rate, plus blast radius for rockets. Progress saves in this browser.',
+    footer: 'Upgrades raise damage, magazine size and fire rate, plus blast radius for rockets; on a bat or a blade, harder and quicker swings. Press Q to put the guns away. Progress saves in this browser.',
     closedAtWanted: 4,
     marker: { glyph: '$', color: '#ff4fa3' },
     storefront: { wall: '#ffd0e5', roof: '#2b1b3d', neon: '#ff2fa8', awning: '#ff4fa3', sign: { text: 'Bullet Bros. Guns', color: '#ff3fae', font: '"Yellowtail", cursive' } },
     catalogue: [
-      ...WEAPONS.map(w => ({ type: 'weapon', id: w.id })),
+      ...WEAPONS.filter(w => !w.builtin).map(w => ({ type: 'weapon', id: w.id })),
       { type: 'heal', name: 'Street medic', blurb: 'A bandage, a bottle of something, and a pat on the back.', price: 250 },
       { type: 'armor', name: 'Kevlar vest', blurb: "Soaks up most of each bullet until it's shredded.", price: 400 },
     ],
