@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HEAT, WANTED, heatToLevel, mixPick } from '../../public/js/data/wanted.js';
+import { HEAT, RADAR_GLOW, RADAR_PULSE_FROM, WANTED, heatToLevel, mixPick } from '../../public/js/data/wanted.js';
 import { WBY, WEAPONS, wStat } from '../../public/js/data/weapons.js';
 import { NPC_TYPES } from '../../public/js/npcs/types.js';
 
@@ -22,6 +22,13 @@ describe('wanted level', () => {
     expect(mixPick(mix, 0.1)).toBe('cop');
     expect(mixPick(mix, 0.5)).toBe('swat');
     expect(mixPick(mix, 1)).toBe('swat');
+  });
+  it('glows the minimap red, stronger with every star', () => {
+    expect(RADAR_GLOW).toHaveLength(HEAT.length);
+    expect(RADAR_GLOW[0]).toBe(0);
+    for (let i = 1; i < RADAR_GLOW.length; i++) expect(RADAR_GLOW[i]).toBeGreaterThan(RADAR_GLOW[i - 1]);
+    expect(RADAR_GLOW.at(-1)).toBe(1);
+    expect(RADAR_PULSE_FROM).toBeLessThan(HEAT.length);
   });
 });
 
