@@ -6,6 +6,7 @@ import { angDiff, clamp, rnd } from '../core/util.js';
 import { addEntity, all, removeEntity } from '../entities/registry.js';
 import { explosion } from '../combat/combat.js';
 import { enterVehicle, exitVehicle, hurtPlayer } from '../game/player.js';
+import { blastLaunch } from '../npcs/fling.js';
 import { alarm, onFoot } from '../npcs/npc.js';
 import { emit } from '../render/effects.js';
 import { scene } from '../render/scene.js';
@@ -28,7 +29,7 @@ const Vehicle = {
   update(dt) {
     const K = this.K, fx = K.fx;
     // shoved by another car: skid and spin along, knocking into whatever else is in the way
-    const sliding = K.slide && (this.kvx || this.kvz || this.kspin) && this.driver !== P;
+    const sliding = K.slide && (this.kvx || this.kvz || this.kspin || this.air > 0) && this.driver !== P;
     if (sliding) { K.slide(this, dt); shoveAround(this); }
     if (this.dead) { this.deadT += dt; if (Math.random() < dt * fx.smokeRate) emit(this.x, fx.smokeY, this.z, 1, '#3a3240', fx.smokeSpeed, fx.smokeLife, fx.smokeSize, 2, 1); K.pose(this, 0); return; }
     if (this.burnT > 0) {
@@ -74,6 +75,13 @@ const Vehicle = {
     this.damage(dmg, true); emit(hit.p.x, hit.p.y, hit.p.z, 3, '#ffe9a8', 5, 0.25, 0.06); return { head: false };
   },
   onRocket() { this.damage(999, true); },
+  // thrown by a blast, after it has done its damage: a rider comes off first; the player's own ride stays put
+  fling(x, y, z, R, power) {
+    const K = this.K; if (!K.toss || this.driver === P || (this.dead && !K.slide)) return;
+    const l = blastLaunch(this.x - x, this.z - z, R, Math.random, power); if (!l) return;
+    if (this.driver && !K.enclosed) this.ejectDriver(false);
+    const s = K.tossScale; this.ghostT = G.time + 0.4; K.toss(this, l.vx * s, l.vz * s, l.vy * s);
+  },
   blast(x, y, z, R, dmg, byPlayer) { const d = Math.hypot(this.x - x, this.z - z); if (d < R && !this.dead) this.damage(dmg * (1 - d / R) + 40, byPlayer ? 'boom' : false); },
   pushOut(o, r) { return !(this.ghostT > G.time) && this.K.pushOut(this, o, r); }, // a vehicle just rammed flies through whatever hit it
   blip(radar) { if (this.driver !== P && !this.dead) this.K.blip(this, radar); },

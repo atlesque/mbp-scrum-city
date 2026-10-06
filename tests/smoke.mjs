@@ -1,4 +1,4 @@
-// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, take a juggernaut's rocket,
+// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, take a juggernaut's rocket, throw a car with a rocket,
 // shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, shunt a parked car, walk into the edge wall and change settings. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
@@ -179,6 +179,20 @@ try {
     check(hurt, `no rocket hit the player (hp ${r.hp}, juggernaut ${r.d.toFixed(1)} m away)`);
     check(r.alive, 'the juggernaut was caught in its own blast');
     await game(() => { const { P, G, removeEntity } = __neonbay; removeEntity(__rpg); P.hp = 100; G.heat = 0; G.wanted = 0; });
+  });
+
+  await step('a rocket throws a parked car into the air', async () => {
+    await clearLane();
+    await game(async () => {
+      const { P, cam, spawnVehicle } = __neonbay, { fireRocket } = await import('/js/combat/combat.js');
+      const fx = Math.sin(cam.yaw), fz = Math.cos(cam.yaw);
+      const c = window.__tossed = spawnVehicle('sedan', P.x + fx * 14, P.z + fz * 14, cam.yaw + Math.PI / 2);
+      window.__peak = 0; const slide = c.K.slide; c.K = Object.assign(Object.create(c.K), { slide(v, dt) { slide(v, dt); if (v === c) window.__peak = Math.max(window.__peak, v.air || 0); } });
+      fireRocket(new THREE.Vector3(P.x + fx * 2, 1, P.z + fz * 2), new THREE.Vector3(fx, -0.02, fz), 420);
+    });
+    check(await until(() => window.__peak > 1), `the car was not thrown (peak ${await game(() => window.__peak)} m)`);
+    check(await until(() => !(__tossed.air > 0)), 'the car never landed');
+    await game(() => __neonbay.removeEntity(__tossed));
   });
 
   await step('shoots a driver through the window and takes the car', async () => {

@@ -25,7 +25,7 @@ export const NPC_TYPES = {
     look: { shirt: '#17171c', pants: '#17171c', glasses: true, tie: true, longSleeve: true, hairStyle: 'short' } },
   army: { name: 'Soldier', faction: 'law', behaviour: 'hunt', hp: 330, speed: 4.8, gun: 'rifle', dmg: 6, rate: 1.5, burst: 3, gap: 0.11, acc: 0.36, range: 46, cash: 750, drops: { armor: 0.75, ammo: 0.9 }, heat: 8, radar: '#ff3b4e', despawn: 130,
     look: { shirt: '#5d6b3c', pants: '#4c5732', hat: 'helmet', hatColor: '#4a5530', vest: '#3e4728', longSleeve: true, shoes: '#2a2418' } },
-  jugg: { name: 'Juggernaut', faction: 'law', behaviour: 'hunt', hp: 1600, speed: 3.0, gun: 'rpg', rocket: true, dmg: 60, rate: 3.4, burst: 1, gap: 0.2, acc: 0.45, range: 48, minRange: 11, cash: 3000, drops: { armor: 1, ammo: 1 }, heat: 12, scale: 1.32, bigFlash: true, radar: '#ff3b4e', despawn: 130,
+  jugg: { name: 'Juggernaut', faction: 'law', behaviour: 'hunt', hp: 1600, speed: 3.0, gun: 'rpg', rocket: true, dmg: 60, rate: 3.4, burst: 1, gap: 0.2, acc: 0.45, range: 50, minRange: 14, cash: 3000, drops: { armor: 1, ammo: 1 }, heat: 12, scale: 1.32, bigFlash: true, radar: '#ff3b4e', despawn: 130,
     look: { shirt: '#2b302b', pants: '#222622', hat: 'helmet', hatColor: '#1a1d1a', vest: '#3a403a', glasses: true, longSleeve: true, gloves: '#111' } },
 };
 

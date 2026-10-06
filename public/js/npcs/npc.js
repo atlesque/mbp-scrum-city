@@ -45,9 +45,9 @@ const Npc = {
     this.hurt(dmg * (1 - d / R) + 30, new THREE.Vector3(this.x - x, 0, this.z - z).normalize().negate(), !!byPlayer);
   },
   // after a blast has done its damage, the dead within reach (old bodies and fresh ones) are thrown
-  fling(x, y, z, R) {
+  fling(x, y, z, R, power) {
     if (this.alive || this.vehicle) return;
-    const l = blastLaunch(this.x - x, this.z - z, R); if (l) launch(this, l);
+    const l = blastLaunch(this.x - x, this.z - z, R, Math.random, power); if (l) launch(this, l);
   },
   hurt(dmg, dir, byPlayer) {
     if (!this.alive) return;

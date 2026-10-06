@@ -15,16 +15,17 @@ export const FLING = {
 };
 
 // launch for a body at offset (dx, dz) from a blast of radius R, or null when out of reach.
-// rand() picks a direction when the body sits right on the centre.
-export function blastLaunch(dx, dz, R, rand = Math.random) {
+// rand() picks a direction when the body sits right on the centre; power above 1 throws further
+// (rockets), mostly outward with a bit more height.
+export function blastLaunch(dx, dz, R, rand = Math.random, power = 1) {
   const d = Math.hypot(dx, dz); if (d >= R) return null;
   const f = 1 - d / R;
   let nx = dx / d, nz = dz / d;
   if (!(d > 0.05)) { const a = rand() * Math.PI * 2; nx = Math.cos(a); nz = Math.sin(a); }
-  const out = FLING.minOut + (FLING.maxOut - FLING.minOut) * f;
+  const out = (FLING.minOut + (FLING.maxOut - FLING.minOut) * f) * power, lift = Math.sqrt(power);
   return {
     vx: nx * out, vz: nz * out,
-    vy: FLING.minUp + (FLING.maxUp - FLING.minUp) * f,
+    vy: (FLING.minUp + (FLING.maxUp - FLING.minUp) * f) * lift,
     spin: FLING.spin * (0.4 + 0.6 * f),
   };
 }

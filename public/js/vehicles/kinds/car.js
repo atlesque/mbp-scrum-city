@@ -44,7 +44,7 @@ export const car = {
   build(v) { return v.model.mesh(v); },
   pose(c, dt) {
     const m = c.mesh;
-    m.grp.position.set(c.x, 0, c.z); m.grp.rotation.set(0, c.yaw, c.wreckRoll || 0);
+    m.grp.position.set(c.x, c.air || 0, c.z); m.grp.rotation.set(c.tilt || 0, c.yaw, c.wreckRoll || 0, 'YXZ');
     if (c.dead || c.burnT > 0) return;
     if (m.lr) { const on = (G.time * 6 | 0) % 2 === 0; m.lr.visible = on; m.lb.visible = !on; }
     if (c.hp < 50 && dt && Math.random() < dt * 6) emit(c.x + Math.sin(c.yaw) * 1.8, 1.1, c.z + Math.cos(c.yaw) * 1.8, 1, '#8a8090', 1, 1.4, 0.4, 2, 1);
@@ -74,9 +74,23 @@ export const car = {
       else c.v = 0;
     },
   },
+  // thrown by an explosion: up into the air, tumbling end over end and spinning, then the usual skid on landing
+  tossScale: 0.5,
+  toss(c, vx, vz, up) {
+    c.kvx = (c.kvx || 0) + vx; c.kvz = (c.kvz || 0) + vz; c.avy = Math.max(c.avy || 0, 0) + up; c.air = Math.max(c.air || 0, 0.01);
+    c.kspin = (c.kspin || 0) + rnd(-1, 1) * Math.hypot(vx, vz) * 0.12; c.tiltV = (Math.random() < 0.5 ? 1 : -1) * up * (c.dead || c.burnT > 0 ? 0.35 : 0.08); c.tilt = c.tilt || 0; c.v = 0;
+  },
   // shoved by another car (see vehicles/knock.js): skid sideways and spin until the tyres bite
   slide(c, dt) {
-    const sp = Math.hypot(c.kvx || 0, c.kvz || 0), dec = 11 * dt;
+    if (c.air > 0) {
+      c.avy -= 22 * dt; c.air += c.avy * dt; c.tilt += c.tiltV * dt;
+      if (c.air <= 0) { // lands: on its wheels, or on its roof if it's a wreck that turned over (only wrecks tumble far)
+        const T = Math.PI * 2, t = ((c.tilt % T) + T) % T, roof = (c.dead || c.burnT > 0) && t > Math.PI / 2 && t < Math.PI * 1.5;
+        c.air = 0; c.avy = 0; c.tiltV = 0; c.tilt = roof ? Math.PI : 0; c.kvx *= 0.6; c.kvz *= 0.6;
+        emit(c.x, 0.2, c.z, 12, '#ffd23e', 5, 0.35, 0.06, -12, 1.5); emit(c.x, 0.3, c.z, 6, '#8a8090', 3, 0.8, 0.5, 1, 1);
+      }
+    }
+    const sp = Math.hypot(c.kvx || 0, c.kvz || 0), dec = c.air > 0 ? 0 : 11 * dt;
     if (sp <= dec) c.kvx = c.kvz = 0; else { const k = 1 - dec / sp; c.kvx *= k; c.kvz *= k; }
     c.kspin = Math.abs(c.kspin || 0) < 0.05 ? 0 : c.kspin * Math.max(0, 1 - dt * 3);
     c.x += c.kvx * dt; c.z += c.kvz * dt; c.yaw += c.kspin * dt;
@@ -126,7 +140,7 @@ export const car = {
     return Math.hypot(Math.max(0, Math.abs(lx) - HW), Math.max(0, Math.abs(lz) - HL));
   },
   onDriverGone(c) { c.mode = 'parked'; },
-  onPlayerEnter(c) { c.v = 0; c.steer = 0; },
+  onPlayerEnter(c) { c.v = 0; c.steer = 0; c.air = c.avy = c.tilt = c.tiltV = 0; },
   onPlayerExit(c) { c.mode = 'parked'; },
   wreck(c) { c.wreckRoll = rnd(-0.15, 0.15); },
   blip() {},
