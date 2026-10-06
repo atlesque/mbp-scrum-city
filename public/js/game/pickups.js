@@ -27,7 +27,7 @@ const Pickup = {
     const p = this, def = p.def;
     if (!p.active) { p.respawnT -= dt; if (p.respawnT <= 0) { p.active = true; p.m.visible = true; } return; }
     p.m.rotation.y += dt * 2.5; p.m.position.y = 0.95 + Math.sin(G.time * 3 + p.x) * 0.12;
-    if (Math.hypot(P.x - p.x, P.z - p.z) < 1.4 && P.alive && P[def.stat] < 100) {
+    if (Math.hypot(P.x - p.x, P.z - p.z) < 1.4 && P.alive && P.y < 2 && P[def.stat] < 100) {
       P[def.stat] = Math.min(100, P[def.stat] + def.amount); Sound.pickup(); feed(def.label, false, def.color);
       p.active = false; p.m.visible = false; p.respawnT = def.respawn;
     }
@@ -71,7 +71,7 @@ const WeaponPickup = {
     const p = this;
     if (!p.active) { p.respawnT -= dt; if (p.respawnT <= 0) { p.active = true; p.m.visible = p.glow.visible = true; } return; }
     p.m.rotation.y += dt * 1.8; p.m.position.y = 1.0 + Math.sin(G.time * 2.4 + p.x) * 0.1;
-    if (!P.alive || P.vehicle || Math.hypot(P.x - p.x, P.z - p.z) > 1.3 || !takeWeapon(inv, p.id)) return;
+    if (!P.alive || P.vehicle || P.y > 2 || Math.hypot(P.x - p.x, P.z - p.z) > 1.3 || !takeWeapon(inv, p.id)) return;
     Sound.pickup(); feed(WBY[p.id].name, false, '#ffd23e');
     if (!toldMelee) { toldMelee = true; toast(`Got a <em>${WBY[p.id].name}</em>. Press <em>Q</em> to switch between your fists and melee weapons.`, 6); }
     p.onTaken && p.onTaken(p.id);
@@ -80,15 +80,35 @@ const WeaponPickup = {
   dispose() { scene.remove(this.m); scene.remove(this.glow); },
 };
 export function makeWeaponPickup(id, x, z, onTaken) { return weaponMesh(id, x, z, WeaponPickup, { onTaken }); }
-function weaponMesh(id, x, z, proto, extra) {
+function weaponMesh(id, x, z, proto, extra, y = 0) {
   const inner = new THREE.Mesh(gunGeo(id).geo, charMat), tilt = gunGeo(id).tilt || 0;
   inner.rotation.x = tilt; // stand it upright again (models tip forward to sit in a hand)
   const hold = new THREE.Group(); hold.add(inner); hold.rotation.z = Math.PI / 2; hold.scale.setScalar(1.5); // lie it on its side
   const box = new THREE.Box3().setFromObject(hold), c = box.getCenter(new THREE.Vector3()); hold.position.sub(c);
-  const m = new THREE.Group(); m.add(hold); m.position.set(x, 1, z); scene.add(m);
-  const glow = new THREE.Mesh(glowGeo, glowMat); glow.position.set(x, 0.05, z); scene.add(glow);
-  return addEntity(Object.assign(Object.create(proto), { id, x, z, m, glow, active: true, respawnT: 0 }, extra));
+  const m = new THREE.Group(); m.add(hold); m.position.set(x, y + 1, z); scene.add(m);
+  const glow = new THREE.Mesh(glowGeo, glowMat); glow.position.set(x, y + 0.05, z); scene.add(glow);
+  return addEntity(Object.assign(Object.create(proto), { id, x, y, z, m, glow, active: true, respawnT: 0 }, extra));
 }
+// A gun waiting up on a roof (world/rooftops.js: a sniper rifle on every roof with a door, the rocket launcher on the
+// Herman Teirlinck), y metres up. Taken like an enemy's drop (pickUpWeapon): a new one is found, so it is lost when you
+// get wasted, and one you have already gives a pack of ammo. It is back a while after it's taken.
+export const ROOF_GUN_RESPAWN = 120;
+const RoofGun = {
+  kind: 'pickup',
+  update(dt) {
+    const p = this;
+    if (!p.active) { p.respawnT -= dt; if (p.respawnT <= 0) { p.active = true; p.m.visible = p.glow.visible = true; } return; }
+    p.m.rotation.y += dt * 1.8; p.m.position.y = p.y + 1.0 + Math.sin(G.time * 2.4 + p.x) * 0.1;
+    if (!P.alive || P.vehicle || Math.abs(P.y - p.y) > 2 || Math.hypot(P.x - p.x, P.z - p.z) > 1.3) return;
+    const had = !!inv.owned[p.id], label = pickUpWeapon(inv, p.id); if (!label) return;
+    Sound.pickup(); feed(label, false, '#ffd23e');
+    const w = WBY[p.id], key = GUNS.indexOf(w) + 1;
+    if (!had) { toast(`Got a <em>${w.name}</em>. Press <em>${key}</em> to use it. Picked-up weapons are lost when you get wasted.`, 6); p.onTaken && p.onTaken(p.id); }
+    p.active = false; p.m.visible = p.glow.visible = false; p.respawnT = ROOF_GUN_RESPAWN;
+  },
+  dispose() { scene.remove(this.m); scene.remove(this.glow); },
+};
+export function makeRoofGun(id, x, y, z, onTaken) { return weaponMesh(id, x, z, RoofGun, { onTaken }, y); }
 // a weapon left by a fallen enemy: like a street pickup, but only the one, and gone after a minute
 let toldFound = false;
 const DroppedWeapon = {
@@ -98,7 +118,7 @@ const DroppedWeapon = {
     const p = this;
     p.m.rotation.y += dt * 1.8; p.m.position.y = 1.0 + Math.sin(G.time * 2.4 + p.x) * 0.1;
     p.life -= dt; if (p.life <= 0) { removeEntity(p); return; }
-    if (!P.alive || P.vehicle || Math.hypot(P.x - p.x, P.z - p.z) > 1.3) return;
+    if (!P.alive || P.vehicle || P.y > 2 || Math.hypot(P.x - p.x, P.z - p.z) > 1.3) return;
     const label = pickUpWeapon(inv, p.id); if (!label) return;
     Sound.pickup(); feed(label, false, '#ffd23e');
     const w = WBY[p.id], key = GUNS.indexOf(w) + 1;

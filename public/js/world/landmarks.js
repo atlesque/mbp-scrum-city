@@ -75,7 +75,7 @@ const ROOFTOPS = {
   // the tower, 59 m up, with its plant room; the rocket launcher waits here instead of a sniper rifle
   teirlinck: { rect: [-16, 0, 0, 16], door: [12.5, -16], dir: [0, -1], hut: [-12, 3], hutDir: [1, 0], gun: 'rpg', gunAt: [-3, 12], blocks: [[-11, -5, 6, 12, 59.4, 61.1]] },
   // the new middle block's roof garden round the red pavilion, with the jetpack
-  belpaire: { rect: [-7, 7, -9, 12], door: [3, -9], dir: [0, -1], hut: [-3, 9], hutDir: [1, 0], gun: 'sniper', gunAt: [-4, -7.6], jetpackAt: [4, -7.6], blocks: [[-5, 5, -6, 6, 101.2, 105.2]] },
+  belpaire: { rect: [-7, 7, -9, 12], door: [3, -9], dir: [0, -1], hut: [-3, 9], hutDir: [1, 0], gun: 'sniper', gunAt: [-4, -7.6], jetpackAt: [3.5, 9], blocks: [[-5, 5, -6, 6, 101.2, 105.2]] },
 };
 const ROOF_COLS = { vac: ['#cfcbc6', '#a9a59f'], teirlinck: ['#dcc08a', '#8f8e88'], belpaire: ['#eef0ee', '#c8322f'] };
 // hand a placed model's tops to world/rooftops.js: colliders are [x0, x1, z0, z1, top] in the model's metres (.glb
