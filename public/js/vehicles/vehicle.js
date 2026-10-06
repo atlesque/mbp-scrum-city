@@ -79,10 +79,10 @@ const Vehicle = {
     this.damage(dmg, true); emit(hit.p.x, hit.p.y, hit.p.z, 3, '#ffe9a8', 5, 0.25, 0.06); return { head: false };
   },
   onRocket() { this.damage(999, true); },
-  // after every blast() has landed: wrecks, and vehicles the blast set burning, get thrown (see knock.js)
-  fling(x, y, z, R) {
+  // after every blast() has landed: wrecks, and vehicles the blast set burning, get thrown (see knock.js); rockets throw harder
+  fling(x, y, z, R, power) {
     if (!(this.dead || this.burnT > 0) || this.driver === P) return;
-    const t = blastThrow(this.x - x, this.z - z, R, this.K.ram.mass); if (!t) return;
+    const t = blastThrow(this.x - x, this.z - z, R, this.K.ram.mass, Math.random, power); if (!t) return;
     if (this.K.slide) { this.kvx = (this.kvx || 0) + t.vx; this.kvz = (this.kvz || 0) + t.vz; this.kspin = (this.kspin || 0) + t.spin; this.avy = Math.max(this.avy || 0, 0) + t.up; this.air = Math.max(this.air || 0, 0.01); this.v = 0; }
     else this.K.knock(this, (this.kvx || 0) + t.vx, (this.kvz || 0) + t.vz, t.up);
   },

@@ -11,17 +11,17 @@ import { alarm } from '../npcs/npc.js';
 import { PGEO, boomFx, emit, muzzleFlash, pmat, tracer } from '../render/effects.js';
 import { scene } from '../render/scene.js';
 import { drawWeaponIcon, toast } from '../ui/hud.js';
-import { wallHit } from '../world/collision.js';
+import { raySphere, wallHit } from '../world/collision.js';
 
 // ================= COMBAT =================
 const _d = new THREE.Vector3();
-// first thing along a ray: a wall, the ground, or any entity with a raycast trait
-export function castShot(o, d, maxT) {
+// first thing along a ray: a wall, the ground, or any entity with a raycast trait (except skip, the shooter)
+export function castShot(o, d, maxT, skip) {
   let best = { t: maxT, kind: 'none' };
   const tw = wallHit(o.x, o.y, o.z, d.x, d.y, d.z, maxT); if (tw < best.t) best = { t: tw, kind: 'wall' };
   if (d.y < -1e-4) { const tg = -o.y / d.y; if (tg < best.t) best = { t: tg, kind: 'ground' }; }
   for (const e of entities) {
-    if (!e.raycast) continue;
+    if (!e.raycast || e === skip) continue;
     const h = e.raycast(o, d, best.t); if (h && h.t < best.t) best = { t: h.t, kind: 'entity', entity: e, head: !!h.head, zone: h.zone, occupant: !!h.occupant };
   }
   best.p = o.clone().addScaledVector(d, best.t);
@@ -60,29 +60,41 @@ export function playerShoot() {
 }
 
 const rockets = [];
-function fireRocket(from, dir, dmg, blastMul) {
+// a rocket from the player (no shooter) or from an armed NPC, who it flies clear of; enemy rockets
+// are slower so they can be dodged, and burst on the player as well as on whatever is in the way.
+// blastMul grows the blast with the launcher's upgrade level.
+export function fireRocket(from, dir, dmg, blastMul = 1, shooter = null) {
   const m = new THREE.Mesh(PGEO, pmat('#5b6a3a')); m.scale.set(0.16, 0.16, 0.7); m.position.copy(from); m.lookAt(from.clone().add(dir)); scene.add(m);
-  rockets.push({ m, p: from.clone(), d: dir.clone(), life: 5, dmg, blastMul });
+  rockets.push({ m, p: from.clone(), d: dir.clone(), life: 5, dmg, blastMul, shooter, speed: shooter ? ENEMY_ROCKET_SPEED : 70 });
 }
+// rockets hit wider and throw bodies and vehicles further than a car going up
+export const ENEMY_ROCKET_SPEED = 34, ROCKET_BLAST_R = 10, ROCKET_POWER = 1.7;
 export function updateRockets(dt) {
   for (let i = rockets.length - 1; i >= 0; i--) {
-    const r = rockets[i], step = 70 * dt; r.life -= dt;
-    const h = castShot(r.p, r.d, step);
+    const r = rockets[i], step = r.speed * dt; r.life -= dt;
+    const h = castShot(r.p, r.d, step, r.shooter);
+    if (r.shooter && P.alive) { const t = hitsPlayer(r.p, r.d, h.t); if (t < h.t) { h.t = t; h.kind = 'player'; h.p = r.p.clone().addScaledVector(r.d, t); } }
     emit(r.p.x, r.p.y, r.p.z, 1, '#c8c0c8', 0.5, 0.8, 0.25, 1.5, 0.3);
     if (h.kind !== 'none' || r.life <= 0) {
-      if (h.kind === 'entity' && h.entity.onRocket) h.entity.onRocket(r.dmg);
-      explosion(h.p.x, Math.max(0.3, h.p.y), h.p.z, 7 * r.blastMul, r.dmg, true);
+      if (h.kind === 'entity' && h.entity.onRocket && !r.shooter) h.entity.onRocket(r.dmg);
+      explosion(h.p.x, Math.max(0.3, h.p.y), h.p.z, ROCKET_BLAST_R * r.blastMul, r.dmg, !r.shooter, ROCKET_POWER);
       scene.remove(r.m); rockets.splice(i, 1); continue;
     }
     r.p.copy(h.p); r.m.position.copy(r.p);
   }
 }
-export function explosion(x, y, z, R, dmg, byPlayer) {
+// distance along a rocket's path to the player's body (or the vehicle they're in), or Infinity
+function hitsPlayer(o, d, maxT) {
+  const v = P.vehicle, r = v ? 1.6 : 0.6, y = v ? 1 : P.y + 1;
+  const t = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, P.x, y, P.z, r);
+  return t < maxT ? Math.max(0, t) : Infinity;
+}
+export function explosion(x, y, z, R, dmg, byPlayer, power = 1) {
   boomFx(x, y, z, R * 0.7);
   const dP = Math.hypot(x - P.x, z - P.z);
   Sound.boom(clamp(1.2 - dP / 140, 0, 1.2), pan3d(x, z)); cam.shake = Math.max(cam.shake, clamp(1 - dP / 40, 0, 1) * 0.9);
   for (const e of all()) if (e.blast && !e.removed) e.blast(x, y, z, R, dmg, byPlayer);
-  for (const e of all()) if (e.fling && !e.removed) e.fling(x, y, z, R); // a second pass, so whoever the blast just killed flies too
+  for (const e of all()) if (e.fling && !e.removed) e.fling(x, y, z, R, power); // a second pass, so whoever the blast just killed flies too
   if (dP < R && P.alive) hurtPlayer((dmg * (1 - dP / R) + 10) * (byPlayer ? 0.35 : 0.6));
   alarm(x, z, 50);
 }

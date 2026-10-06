@@ -1,4 +1,4 @@
-// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone,
+// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, take a juggernaut's rocket, throw a car with a rocket,
 // shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, shunt a parked car, drift, drive up a kerb, walk into the edge wall and change settings. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
@@ -164,6 +164,41 @@ try {
     await game(() => { const { P, all } = __neonbay, d = all('pickup').find(p => p.type === 'ammo' && p.life); if (d) { P.x = d.x; P.z = d.z; } }); // it may already be drifting in
     check(await until(() => __neonbay.inv.ammo.smg > 0), 'ammo drop was not picked up');
     await game(() => { const { inv, G } = __neonbay; delete inv.owned.smg; delete inv.ammo.smg; G.heat = 0; G.wanted = 0; });
+  });
+
+  await step('a juggernaut fires a rocket that hurts the player', async () => {
+    // down an open stretch of road, so nothing stands between them
+    await clearVehicles(5, -50);
+    await game(() => {
+      const { P, all, removeEntity, spawnNpc } = __neonbay;
+      P.x = 5.5; P.z = -60; P.hp = 100; P.armor = 0;
+      for (const n of all('npc')) if (Math.hypot(n.x - 5.5, n.z + 50) < 20) removeEntity(n);
+      const n = window.__rpg = spawnNpc('jugg', 5.5, -40);
+      n.fireT = 0;
+    });
+    const hurt = await until(() => __neonbay.P.hp < 100, undefined, 30000);
+    const r = await game(() => ({ hp: __neonbay.P.hp, alive: __rpg.alive, d: Math.hypot(__rpg.x - __neonbay.P.x, __rpg.z - __neonbay.P.z) }));
+    check(hurt, `no rocket hit the player (hp ${r.hp}, juggernaut ${r.d.toFixed(1)} m away)`);
+    check(r.alive, 'the juggernaut was caught in its own blast');
+    await game(() => { const { P, G, removeEntity } = __neonbay; removeEntity(__rpg); P.hp = 100; G.heat = 0; G.wanted = 0; });
+  });
+
+  await step('a rocket throws a parked car into the air', async () => {
+    // down the same open stretch of road
+    await clearVehicles(5, -50);
+    await game(async () => {
+      const { P, cam, spawnVehicle } = __neonbay, { fireRocket } = await import('/js/combat/combat.js');
+      P.x = 5.5; P.z = -60; cam.yaw = 0;
+      const fx = Math.sin(cam.yaw), fz = Math.cos(cam.yaw);
+      const c = window.__tossed = spawnVehicle('sedan', P.x + fx * 14, P.z + fz * 14, cam.yaw + Math.PI / 2);
+      window.__from = { x: c.x, z: c.z };
+      fireRocket(new THREE.Vector3(P.x + fx * 2, 1, P.z + fz * 2), new THREE.Vector3(fx, -0.02, fz), 420);
+    });
+    const thrown = await until(() => __tossed.air > 0 || Math.hypot(__tossed.x - __from.x, __tossed.z - __from.z) > 1.5);
+    check(thrown, `the car was not thrown (hp ${await game(() => __tossed.hp)}, moved ${await game(() => Math.hypot(__tossed.x - __from.x, __tossed.z - __from.z).toFixed(2))} m)`);
+    check(await until(() => !(__tossed.air > 0)), 'the car never landed');
+    // blowing up a car is a crime: drop the heat so the police don't crowd the steps that follow
+    await game(() => { const { G, all, removeEntity } = __neonbay; removeEntity(__tossed); G.heat = 0; G.wanted = 0; for (const n of all('npc')) if (n.faction === 'law') removeEntity(n); });
   });
 
   await step('shoots a driver through the window and takes the car', async () => {

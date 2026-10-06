@@ -80,10 +80,11 @@ export function shoveImpulse(a, b, c = contact(a, b)) {
 
 // Blasts: an explosion throws wrecks (and vehicles already burning) the way it throws bodies (npcs/fling.js),
 // a heavier body less far. A vehicle sat on the centre is the one going up, so the blast leaves it be.
-// { vx, vz, up, spin } for a vehicle at offset (dx, dz) from a blast of radius R, or null when out of reach.
-export function blastThrow(dx, dz, R, mass, rand = Math.random) {
+// { vx, vz, up, spin } for a vehicle at offset (dx, dz) from a blast of radius R, or null when out of reach;
+// power above 1 (rockets) throws further, as for bodies.
+export function blastThrow(dx, dz, R, mass, rand = Math.random, power = 1) {
   if (Math.hypot(dx, dz) < 0.5) return null;
-  const l = blastLaunch(dx, dz, R, rand); if (!l) return null;
+  const l = blastLaunch(dx, dz, R, rand, power); if (!l) return null;
   const k = 1 / Math.sqrt(mass);
   return { vx: l.vx * k, vz: l.vz * k, up: l.vy * k, spin: (rand() < 0.5 ? -1 : 1) * l.spin * k * 0.5 };
 }

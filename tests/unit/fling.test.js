@@ -18,6 +18,10 @@ describe('bodies thrown by explosions', () => {
     const l = blastLaunch(0, 0, 8, () => 0.25);
     expect(Math.hypot(l.vx, l.vz)).toBeCloseTo(FLING.maxOut);
   });
+  it('a more powerful blast (a rocket) throws further', () => {
+    const flight = power => { const b = { x: 0, z: 0 }; launch(b, blastLaunch(2, 0, 8, Math.random, power)); for (let t = 0; t < 5 && flyStep(b, 1 / 60); t += 1 / 60); return b.x; };
+    expect(flight(1.7)).toBeGreaterThan(flight(1) * 1.8);
+  });
   it('flies, lands, bounces and settles on the ground', () => {
     const b = { x: 0, z: 0 };
     launch(b, blastLaunch(1, 0, 8));
@@ -33,5 +37,14 @@ describe('bodies thrown by explosions', () => {
     const b = { flip: Math.PI * 2 + 0.6 };
     for (let i = 0; i < 120; i++) settleFlip(b, 1 / 60);
     expect(b.flip).toBe(0);
+  });
+});
+
+describe('vehicles thrown by explosions', () => {
+  it('a rocket throws a wreck further than a car going up does', async () => {
+    const { blastThrow } = await import('../../public/js/vehicles/knock.js');
+    const r = () => 0.5, base = blastThrow(3, 0, 10, 4, r), rocket = blastThrow(3, 0, 10, 4, r, 1.7);
+    expect(rocket.vx).toBeCloseTo(base.vx * 1.7);
+    expect(rocket.up).toBeGreaterThan(base.up);
   });
 });
