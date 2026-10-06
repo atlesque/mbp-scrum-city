@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HEAT, WANTED, heatToLevel, mixPick } from '../../public/js/data/wanted.js';
+import { HEAT, RADAR_GLOW, RADAR_PULSE_FROM, WANTED, heatToLevel, mixPick } from '../../public/js/data/wanted.js';
 import { WBY, WEAPONS, wStat } from '../../public/js/data/weapons.js';
 import { NPC_TYPES } from '../../public/js/npcs/types.js';
 
@@ -23,6 +23,13 @@ describe('wanted level', () => {
     expect(mixPick(mix, 0.5)).toBe('swat');
     expect(mixPick(mix, 1)).toBe('swat');
   });
+  it('glows the minimap red, stronger with every star', () => {
+    expect(RADAR_GLOW).toHaveLength(HEAT.length);
+    expect(RADAR_GLOW[0]).toBe(0);
+    for (let i = 1; i < RADAR_GLOW.length; i++) expect(RADAR_GLOW[i]).toBeGreaterThan(RADAR_GLOW[i - 1]);
+    expect(RADAR_GLOW.at(-1)).toBe(1);
+    expect(RADAR_PULSE_FROM).toBeLessThan(HEAT.length);
+  });
 });
 
 describe('weapon upgrades', () => {
@@ -33,8 +40,17 @@ describe('weapon upgrades', () => {
         expect(b.dmg).toBeGreaterThanOrEqual(a.dmg);
         expect(b.mag).toBeGreaterThanOrEqual(a.mag);
         expect(b.rate).toBeLessThanOrEqual(a.rate);
+        expect(b.blastMul).toBeGreaterThanOrEqual(a.blastMul);
       }
     }
+  });
+  it('give the minigun and rocket launcher a big step per level', () => {
+    const mg0 = wStat(WBY.minigun, 0), mg3 = wStat(WBY.minigun, 3);
+    expect(mg3.dmg / mg3.rate).toBeGreaterThanOrEqual(4 * mg0.dmg / mg0.rate);
+    const r0 = wStat(WBY.rpg, 0), r3 = wStat(WBY.rpg, 3);
+    expect(r3.dmg).toBeGreaterThanOrEqual(2 * r0.dmg);
+    expect(r0.blastMul).toBe(1);
+    expect(r3.blastMul).toBeGreaterThan(1.5);
   });
   it('a base pump shotgun drops a police officer when a third of its pellets land', () => {
     const w = WBY.shotgun;

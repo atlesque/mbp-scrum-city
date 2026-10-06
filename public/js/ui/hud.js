@@ -1,5 +1,6 @@
 import { curWeapon } from '../combat/combat.js';
 import { settings } from '../core/settings.js';
+import { RADAR_GLOW, RADAR_PULSE_FROM } from '../data/wanted.js';
 import { G, I, P, inv } from '../core/state.js';
 import { $, clamp } from '../core/util.js';
 
@@ -30,6 +31,7 @@ export function updateHUD() {
     $('arNum').textContent = Math.ceil(P.armor); $('arFill').style.width = clamp(P.armor, 0, 100) + '%';
     $('money').textContent = '$' + String(Math.max(0, inv.money)).padStart(8, '0');
     [...$('stars').children].forEach((s, i) => s.classList.toggle('on', i < G.wanted));
+    const radar = $('radarWrap'); radar.style.setProperty('--heat', RADAR_GLOW[G.wanted] || 0); radar.classList.toggle('pulse', G.wanted >= RADAR_PULSE_FROM);
   }
   const v = P.vehicle, mph = settings.units === 'mph', spd = v ? Math.round(Math.abs(v.v) * (mph ? 2.237 : 3.6)) : -1, sk = spd + settings.units;
   if (sk !== updateHUD.spd) {

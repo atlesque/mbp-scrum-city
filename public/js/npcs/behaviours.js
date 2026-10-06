@@ -1,9 +1,11 @@
 import { fireRocket } from '../combat/combat.js';
+import { rollZone, zoneDamage } from '../combat/hitzones.js';
 import { Sound } from '../core/audio.js';
 import { pan3d, vol3d } from '../core/spatial.js';
 import { G, P } from '../core/state.js';
 import { clamp, rnd } from '../core/util.js';
 import { animateChar, muzzleOf } from '../characters/character.js';
+import { SIGHT_EVERY, newSight, reactTo } from '../combat/sight.js';
 import { removeEntity } from '../entities/registry.js';
 import { hurtPlayer } from '../game/player.js';
 import { muzzleFlash, tracer } from '../render/effects.js';
@@ -48,11 +50,11 @@ export const BEHAVIOURS = {
 
   // close in on the player, strafe at range and shoot in bursts; walk off once the heat is gone
   hunt: {
-    init(e) { Object.assign(e, { los: false, losT: 0, fireT: rnd(0.8, 1.6), burst: 0, burstT: 0, strafe: Math.random() < 0.5 ? 1 : -1, strafeT: rnd(1, 3), stuck: 0, detourT: 0, dx: 0, dz: 0, leaving: false }); },
+    init(e) { Object.assign(e, { los: false, losT: 0, sight: newSight(), fireT: rnd(0.8, 1.6), burst: 0, burstT: 0, strafe: Math.random() < 0.5 ? 1 : -1, strafeT: rnd(1, 3), stuck: 0, detourT: 0, dx: 0, dz: 0, leaving: false }); },
     update(e, dt) {
       const def = e.def, dx = P.x - e.x, dz = P.z - e.z, dist = Math.hypot(dx, dz) || 1;
       e.losT -= dt;
-      if (e.losT <= 0) { e.los = P.alive && dist < 90 && !blocked(e.x, 1.5, e.z, P.x, P.y + 1.3, P.z); e.losT = rnd(0.15, 0.3); }
+      if (e.losT <= 0) { e.los = P.alive && dist < 90 && !blocked(e.x, 1.5, e.z, P.x, P.y + 1.3, P.z); e.losT = SIGHT_EVERY; }
       if (e.leaving) {
         e.aiming = false; moveActor(e, -dx / dist, -dz / dist, def.speed * 0.8, dt, e.r); faceTo(e, Math.atan2(-dx, -dz), dt);
         animateChar(e, dt); e.place();
@@ -75,10 +77,12 @@ export const BEHAVIOURS = {
       e.aiming = e.los && dist < def.range * 1.15 && P.alive;
       if (e.aiming) { faceTo(e, Math.atan2(dx, dz), dt, 12); e.aimPitch = Math.atan2(P.y + 1.2 - 1.4, dist); }
       else if (Math.abs(mx) + Math.abs(mz) > 0.01) faceTo(e, Math.atan2(mx, mz), dt, 8);
-      // firing: at most five people open fire at once
+      // firing: only at a player in view, after a short reaction; at most five people open fire at once
+      const ready = reactTo(e.sight, e.aiming, dt);
+      if (!e.aiming) e.burst = 0;
       e.fireT -= dt;
       if (e.burst > 0) { e.burstT -= dt; if (e.burstT <= 0) { e.burst--; e.burstT = def.gap; shootAtPlayer(e, dist); } }
-      else if (e.fireT <= 0 && e.aiming && dist < def.range && dist > (def.minRange || 0) && G.shootersNow < 5) { G.shootersNow++; e.burst = def.burst; e.burstT = 0; e.fireT = def.rate * rnd(0.8, 1.3); }
+      else if (e.fireT <= 0 && ready && dist < def.range && dist > (def.minRange || 0) && G.shootersNow < 5) { G.shootersNow++; e.burst = def.burst; e.burstT = 0; e.fireT = def.rate * rnd(0.8, 1.3); }
       animateChar(e, dt); e.place();
     },
     onHurt(e) { e.los = true; e.losT = 0.3; },
@@ -101,8 +105,8 @@ function shootAtPlayer(e, dist) {
   if (!hit) target.add(new THREE.Vector3(rnd(-1.6, 1.6), rnd(-0.9, 1.2), rnd(-1.6, 1.6)));
   muzzleFlash(from, !!e.def.bigFlash); Sound.shot(e.def.gun, vol3d(e.x, e.z) * 0.7, pan3d(e.x, e.z));
   // a rocket flies at where they aim, on target or off; the blast does the damage
-  if (e.def.rocket) { fireRocket(from, target.sub(from).normalize(), e.def.dmg, e); return; }
+  if (e.def.rocket) { fireRocket(from, target.sub(from).normalize(), e.def.dmg, 1, e); return; }
   tracer(from, target, true);
-  if (hit) hurtPlayer(e.def.dmg);
+  if (hit) { const zone = rollZone(); hurtPlayer(zoneDamage(e.def.dmg, zone), zone); }
   else if (dist < 12) Sound.ting(0.5, pan3d(target.x, target.z));
 }

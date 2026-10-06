@@ -22,7 +22,7 @@ export function castShot(o, d, maxT, skip) {
   if (d.y < -1e-4) { const tg = -o.y / d.y; if (tg < best.t) best = { t: tg, kind: 'ground' }; }
   for (const e of entities) {
     if (!e.raycast || e === skip) continue;
-    const h = e.raycast(o, d, best.t); if (h && h.t < best.t) best = { t: h.t, kind: 'entity', entity: e, head: !!h.head, occupant: !!h.occupant };
+    const h = e.raycast(o, d, best.t); if (h && h.t < best.t) best = { t: h.t, kind: 'entity', entity: e, head: !!h.head, zone: h.zone, occupant: !!h.occupant };
   }
   best.p = o.clone().addScaledVector(d, best.t);
   return best;
@@ -41,7 +41,7 @@ export function playerShoot() {
   cam.pitch = clamp(cam.pitch + w.recoil * (0.6 + Math.random() * 0.6), -1.1, 1.2); cam.yaw += (Math.random() - 0.5) * w.recoil * 0.6; cam.shake = Math.max(cam.shake, w.recoil * 2.2);
   if (w.rocket) {
     const tgt = castShot(origin, dir, 300).p, rd = tgt.clone().sub(muz).normalize();
-    fireRocket(muz, rd, st.dmg);
+    fireRocket(muz, rd, st.dmg, st.blastMul);
   } else {
     let hitAny = false, headAny = false;
     for (let k = 0; k < w.pellets; k++) {
@@ -61,10 +61,11 @@ export function playerShoot() {
 
 const rockets = [];
 // a rocket from the player (no shooter) or from an armed NPC, who it flies clear of; enemy rockets
-// are slower so they can be dodged, and burst on the player as well as on whatever is in the way
-export function fireRocket(from, dir, dmg, shooter) {
+// are slower so they can be dodged, and burst on the player as well as on whatever is in the way.
+// blastMul grows the blast with the launcher's upgrade level.
+export function fireRocket(from, dir, dmg, blastMul = 1, shooter = null) {
   const m = new THREE.Mesh(PGEO, pmat('#5b6a3a')); m.scale.set(0.16, 0.16, 0.7); m.position.copy(from); m.lookAt(from.clone().add(dir)); scene.add(m);
-  rockets.push({ m, p: from.clone(), d: dir.clone(), life: 5, dmg, shooter, speed: shooter ? ENEMY_ROCKET_SPEED : 70 });
+  rockets.push({ m, p: from.clone(), d: dir.clone(), life: 5, dmg, blastMul, shooter, speed: shooter ? ENEMY_ROCKET_SPEED : 70 });
 }
 // rockets hit wider and throw bodies and vehicles further than a car going up
 export const ENEMY_ROCKET_SPEED = 34, ROCKET_BLAST_R = 10, ROCKET_POWER = 1.7;
@@ -76,7 +77,7 @@ export function updateRockets(dt) {
     emit(r.p.x, r.p.y, r.p.z, 1, '#c8c0c8', 0.5, 0.8, 0.25, 1.5, 0.3);
     if (h.kind !== 'none' || r.life <= 0) {
       if (h.kind === 'entity' && h.entity.onRocket && !r.shooter) h.entity.onRocket(r.dmg);
-      explosion(h.p.x, Math.max(0.3, h.p.y), h.p.z, ROCKET_BLAST_R, r.dmg, !r.shooter, ROCKET_POWER);
+      explosion(h.p.x, Math.max(0.3, h.p.y), h.p.z, ROCKET_BLAST_R * r.blastMul, r.dmg, !r.shooter, ROCKET_POWER);
       scene.remove(r.m); rockets.splice(i, 1); continue;
     }
     r.p.copy(h.p); r.m.position.copy(r.p);

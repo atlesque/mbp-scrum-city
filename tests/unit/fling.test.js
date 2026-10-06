@@ -41,21 +41,10 @@ describe('bodies thrown by explosions', () => {
 });
 
 describe('vehicles thrown by explosions', () => {
-  it('a car goes up, lands back on its wheels and skids to a stop', async () => {
-    const { car } = await import('../../public/js/vehicles/kinds/car.js');
-    const c = { x: 0, z: 0, yaw: 0, v: 0, mode: 'parked', K: car };
-    car.toss(c, 10, 0, 8);
-    let peak = 0, t = 0;
-    while (t < 6 && (c.air > 0 || c.kvx || c.kvz || c.kspin)) { car.slide(c, 1 / 60); peak = Math.max(peak, c.air); t += 1 / 60; }
-    expect(peak).toBeGreaterThan(1);
-    expect(c.x).toBeGreaterThan(5);
-    expect(c.air).toBe(0); expect(c.tilt).toBe(0);
-  });
-  it('a burning wreck can land on its roof', async () => {
-    const { car } = await import('../../public/js/vehicles/kinds/car.js');
-    const c = { x: 0, z: 0, yaw: 0, v: 0, mode: 'parked', burnT: 1, K: car };
-    car.toss(c, 4, 0, 10); c.tiltV = Math.PI / (2 * 10 / 22); // half a turn over the flight
-    for (let t = 0; t < 6 && c.air > 0; t += 1 / 60) car.slide(c, 1 / 60);
-    expect(c.tilt).toBeCloseTo(Math.PI);
+  it('a rocket throws a wreck further than a car going up does', async () => {
+    const { blastThrow } = await import('../../public/js/vehicles/knock.js');
+    const r = () => 0.5, base = blastThrow(3, 0, 10, 4, r), rocket = blastThrow(3, 0, 10, 4, r, 1.7);
+    expect(rocket.vx).toBeCloseTo(base.vx * 1.7);
+    expect(rocket.up).toBeGreaterThan(base.up);
   });
 });

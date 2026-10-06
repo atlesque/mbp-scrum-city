@@ -5,7 +5,7 @@
 //
 // Every entity has `kind` ('npc', 'vehicle', 'heli', 'shop', 'pickup') and x / z. Optional traits:
 //   update(dt)                     per-frame logic
-//   raycast(o, d, maxT)            -> { t, head? } | null   bullets and rockets test against this
+//   raycast(o, d, maxT)            -> { t, head?, zone? } | null   bullets and rockets test against this
 //   onShot(hit, dmg, dir)          a player bullet landed; returns { head } for the hit marker
 //   onRocket(dmg)                  a rocket struck it directly (the blast is handled separately)
 //   blast(x, y, z, R, dmg, byPlayer)  caught in an explosion centred at x, y, z

@@ -8,6 +8,7 @@ import { addEntity, all } from '../entities/registry.js';
 import { bloodPool, emit } from '../render/effects.js';
 import { scene } from '../render/scene.js';
 import { collide, isFree, onRoad, raySphere } from '../world/collision.js';
+import { zoneDamage, zoneOnBody } from '../combat/hitzones.js';
 import { BEHAVIOURS } from './behaviours.js';
 import { airborne, blastLaunch, flyStep, launch, settleFlip } from './fling.js';
 import { NPC_TYPES, makeLook } from './types.js';
@@ -37,9 +38,10 @@ const Npc = {
     let best = null;
     const test = (y, r, head) => { const t = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, this.x, y * s + yo, this.z, r * s); if (t < maxT && (!best || t < best.t)) best = { t, head }; };
     test(1.05, 0.44, false); test(0.5, 0.32, false); test(1.74, 0.2, true);
+    if (best) best.zone = best.head ? 'head' : zoneOnBody(o, d, best.t, this.x, this.z, this.yaw, yo, s);
     return best;
   },
-  onShot(hit, dmg, dir) { this.hurt(dmg * (hit.head ? 2.2 : 1), dir, true); return { head: hit.head }; },
+  onShot(hit, dmg, dir) { const zone = hit.zone || (hit.head ? 'head' : 'torso'); this.hurt(zoneDamage(dmg, zone), dir, true); return { head: zone === 'head', zone }; },
   blast(x, y, z, R, dmg, byPlayer) {
     if (!this.alive) return; const d = Math.hypot(this.x - x, this.z - z); if (d >= R) return;
     this.hurt(dmg * (1 - d / R) + 30, new THREE.Vector3(this.x - x, 0, this.z - z).normalize().negate(), !!byPlayer);

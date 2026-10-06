@@ -91,9 +91,6 @@ export const bike = {
     b.spin = rnd(-1, 1) * Math.hypot(vx, vz) * 0.15; b.roll = (Math.random() < 0.5 ? 1 : -1) * (4 + up);
     b.mode = 'fallen'; b.fallen = true; b.fallSide = -Math.sign(b.roll);
   },
-  // thrown by an explosion: the same flight as being rammed, a little softer
-  tossScale: 0.8,
-  toss(b, vx, vz, up) { bike.knock(b, vx, vz, up); },
   // riderless: fly and slide after being rammed, or roll to a stop, then rest on the stand or on its side
   coast(b, dt) {
     if (b.kvx || b.kvz || b.air > 0) {
