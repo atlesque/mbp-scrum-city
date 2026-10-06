@@ -107,7 +107,7 @@ function slab(poly, w0, w1, { r = 0.06, seg = 2, divs = 4, grid = 0.22, edge = 0
     let e1x = p[0] - a[0], e1y = p[1] - a[1], e2x = b[0] - p[0], e2y = b[1] - p[1];
     const l1 = Math.hypot(e1x, e1y) || 1, l2 = Math.hypot(e2x, e2y) || 1; e1x /= l1; e1y /= l1; e2x /= l2; e2y /= l2;
     let nx = e1y + e2y, ny = -e1x - e2x; const l = Math.hypot(nx, ny) || 1; nx /= l; ny /= l; // outward
-    const k = Math.min(2.5, 1 / Math.max(0.2, nx * e1y - ny * e1x)); return [nx * k, ny * k];
+    const k = Math.min(1.4, 1 / Math.max(0.2, nx * e1y - ny * e1x)); return [nx * k, ny * k];
   });
   const ring = inset => poly.map((p, i) => [p[0] - N[i][0] * inset, p[1] - N[i][1] * inset]);
   const rings = [];

@@ -1,10 +1,10 @@
 import { Car, along, archWell, both, carMeshes, edgeZ, flank, front, makeWarp, rear, rrect, runs, side, sideOutline, sills, strip } from './carkit.js';
 
 // ================= BMW 530e =================
-// The plug-in hybrid 5 Series saloon (G60) in Black Sapphire, M Sport: a long bonnet, the kidney grille with its lit
+// The plug-in hybrid 5 Series saloon (G60) in a champagne grey (Bernina Grey Amber effect), M Sport: a long bonnet, the kidney grille with its lit
 // contour ("Iconic Glow"), slim headlamps, the Hofmeister kink in a chrome window line, slim tail lamps and a black
 // diffuser. Drawn in real metres with the car kit and scaled to the game's car footprint.
-const PAINT = '#23262d', SEAM = '#0f1014', BLACK = '#0c0d10', CHROME = '#c9cdd3';
+const PAINT = '#7e796d', SEAM = '#545045', BLACK = '#0c0d10', CHROME = '#c9cdd3';
 const HW = 0.95, ZF = 1.67, ZR = -1.325, WR = 0.352, S = 0.92;
 
 function build() {
