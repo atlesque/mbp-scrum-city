@@ -1,3 +1,4 @@
+import { fireRocket } from '../combat/combat.js';
 import { Sound } from '../core/audio.js';
 import { pan3d, vol3d } from '../core/spatial.js';
 import { G, P } from '../core/state.js';
@@ -67,7 +68,7 @@ export const BEHAVIOURS = {
       } else {
         e.strafeT -= dt; if (e.strafeT <= 0) { e.strafe *= -1; e.strafeT = rnd(1.2, 3); }
         mx = -dz / dist * e.strafe; mz = dx / dist * e.strafe; spd = 1.6;
-        if (dist < 6) { mx -= dx / dist; mz -= dz / dist; }
+        if (dist < (def.minRange || 6)) { mx -= dx / dist; mz -= dz / dist; }
       }
       if (moveActor(e, mx, mz, spd, dt, e.r)) { e.stuck += dt; if (e.stuck > 0.4 && e.detourT <= 0) { const s = Math.random() < 0.5 ? 1 : -1; e.dx = -dz / dist * s; e.dz = dx / dist * s; e.detourT = rnd(0.8, 1.6); e.stuck = 0; } }
       else e.stuck = 0;
@@ -77,7 +78,7 @@ export const BEHAVIOURS = {
       // firing: at most five people open fire at once
       e.fireT -= dt;
       if (e.burst > 0) { e.burstT -= dt; if (e.burstT <= 0) { e.burst--; e.burstT = def.gap; shootAtPlayer(e, dist); } }
-      else if (e.fireT <= 0 && e.aiming && dist < def.range && G.shootersNow < 5) { G.shootersNow++; e.burst = def.burst; e.burstT = 0; e.fireT = def.rate * rnd(0.8, 1.3); }
+      else if (e.fireT <= 0 && e.aiming && dist < def.range && dist > (def.minRange || 0) && G.shootersNow < 5) { G.shootersNow++; e.burst = def.burst; e.burstT = 0; e.fireT = def.rate * rnd(0.8, 1.3); }
       animateChar(e, dt); e.place();
     },
     onHurt(e) { e.los = true; e.losT = 0.3; },
@@ -98,8 +99,10 @@ function shootAtPlayer(e, dist) {
   const target = new THREE.Vector3(P.x, P.y + 1.2, P.z);
   const hit = Math.random() < chance && !blocked(from.x, from.y, from.z, target.x, target.y, target.z);
   if (!hit) target.add(new THREE.Vector3(rnd(-1.6, 1.6), rnd(-0.9, 1.2), rnd(-1.6, 1.6)));
-  tracer(from, target, true); muzzleFlash(from, !!e.def.bigFlash);
-  Sound.shot(e.def.gun, vol3d(e.x, e.z) * 0.7, pan3d(e.x, e.z));
+  muzzleFlash(from, !!e.def.bigFlash); Sound.shot(e.def.gun, vol3d(e.x, e.z) * 0.7, pan3d(e.x, e.z));
+  // a rocket flies at where they aim, on target or off; the blast does the damage
+  if (e.def.rocket) { fireRocket(from, target.sub(from).normalize(), e.def.dmg, e); return; }
+  tracer(from, target, true);
   if (hit) hurtPlayer(e.def.dmg);
   else if (dist < 12) Sound.ting(0.5, pan3d(target.x, target.z));
 }

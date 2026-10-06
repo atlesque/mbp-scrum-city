@@ -11,7 +11,8 @@ import { HAIR, SKIN, randomLook } from '../characters/character.js';
 //   radar      blip colour, or 'siren' for flashing red and blue; omit to stay off the radar
 //   despawn    distance from the player at which they are cleared away
 // Armed types also set gun, dmg, rate (seconds between bursts), burst, gap (seconds within a burst),
-// acc (hit chance), range and speed.
+// acc (hit chance), range and speed. rocket: true fires slow rockets instead (dmg is the blast's), and
+// minRange keeps them far enough out not to be caught in their own blast.
 export const NPC_TYPES = {
   civilian: { name: 'Civilian', faction: 'civilian', behaviour: 'wander', hp: 40, walkSpeed: 1.4, runSpeed: 6.3, look: randomLook, cash: [30, 120], heat: 3, screams: true, despawn: 115 },
   motorist: { name: 'Driver', faction: 'civilian', behaviour: 'ride', hp: 40, walkSpeed: 1.4, runSpeed: 6.3, look: randomLook, cash: [40, 140], heat: 3, screams: true, despawn: 115 },
@@ -24,7 +25,7 @@ export const NPC_TYPES = {
     look: { shirt: '#17171c', pants: '#17171c', glasses: true, tie: true, longSleeve: true, hairStyle: 'short' } },
   army: { name: 'Soldier', faction: 'law', behaviour: 'hunt', hp: 330, speed: 4.8, gun: 'rifle', dmg: 6, rate: 1.5, burst: 3, gap: 0.11, acc: 0.36, range: 46, cash: 750, drops: { armor: 0.75, ammo: 0.9 }, heat: 8, radar: '#ff3b4e', despawn: 130,
     look: { shirt: '#5d6b3c', pants: '#4c5732', hat: 'helmet', hatColor: '#4a5530', vest: '#3e4728', longSleeve: true, shoes: '#2a2418' } },
-  jugg: { name: 'Juggernaut', faction: 'law', behaviour: 'hunt', hp: 1600, speed: 3.0, gun: 'minigun', dmg: 4, rate: 2.8, burst: 12, gap: 0.06, acc: 0.28, range: 38, cash: 3000, drops: { armor: 1, ammo: 1 }, heat: 12, scale: 1.32, bigFlash: true, radar: '#ff3b4e', despawn: 130,
+  jugg: { name: 'Juggernaut', faction: 'law', behaviour: 'hunt', hp: 1600, speed: 3.0, gun: 'rpg', rocket: true, dmg: 60, rate: 3.4, burst: 1, gap: 0.2, acc: 0.45, range: 48, minRange: 11, cash: 3000, drops: { armor: 1, ammo: 1 }, heat: 12, scale: 1.32, bigFlash: true, radar: '#ff3b4e', despawn: 130,
     look: { shirt: '#2b302b', pants: '#222622', hat: 'helmet', hatColor: '#1a1d1a', vest: '#3a403a', glasses: true, longSleeve: true, gloves: '#111' } },
 };
 

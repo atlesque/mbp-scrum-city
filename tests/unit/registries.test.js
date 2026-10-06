@@ -44,6 +44,12 @@ describe('NPC types', () => {
   it('every law type drops armor and ammo', () => {
     for (const [id, t] of Object.entries(NPC_TYPES)) if (t.faction === 'law') expect(Object.keys(t.drops || {}).sort(), id).toEqual(['ammo', 'armor']);
   });
+  it('rocket carriers hold a launcher and keep clear of their own blast', async () => {
+    const { ROCKET_BLAST_R } = await import('../../public/js/combat/combat.js');
+    const rockets = Object.entries(NPC_TYPES).filter(([, t]) => t.rocket);
+    expect(rockets.map(([id]) => id)).toContain('jugg');
+    for (const [id, t] of rockets) { expect(WBY[t.gun].rocket, id).toBe(true); expect(t.minRange, id).toBeGreaterThan(ROCKET_BLAST_R); expect(t.range, id).toBeGreaterThan(t.minRange); }
+  });
   it('wanted levels only send law NPCs that exist', () => {
     for (const L of WANTED.slice(1)) for (const [type] of L.mix) expect(NPC_TYPES[type] && NPC_TYPES[type].faction, type).toBe('law');
   });

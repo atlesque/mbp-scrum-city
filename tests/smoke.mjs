@@ -1,4 +1,4 @@
-// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone,
+// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, take a juggernaut's rocket,
 // shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, shunt a parked car, walk into the edge wall and change settings. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
@@ -164,6 +164,21 @@ try {
     await game(() => { const { P, all } = __neonbay, d = all('pickup').find(p => p.type === 'ammo' && p.life); if (d) { P.x = d.x; P.z = d.z; } }); // it may already be drifting in
     check(await until(() => __neonbay.inv.ammo.smg > 0), 'ammo drop was not picked up');
     await game(() => { const { inv, G } = __neonbay; delete inv.owned.smg; delete inv.ammo.smg; G.heat = 0; G.wanted = 0; });
+  });
+
+  await step('a juggernaut fires a rocket that hurts the player', async () => {
+    await clearLane();
+    await game(() => {
+      const { P, cam, spawnNpc } = __neonbay;
+      P.hp = 100; P.armor = 0;
+      const n = window.__rpg = spawnNpc('jugg', P.x + Math.sin(cam.yaw) * 20, P.z + Math.cos(cam.yaw) * 20);
+      n.fireT = 0;
+    });
+    const hurt = await until(() => __neonbay.P.hp < 100, undefined, 30000);
+    const r = await game(() => ({ hp: __neonbay.P.hp, alive: __rpg.alive, d: Math.hypot(__rpg.x - __neonbay.P.x, __rpg.z - __neonbay.P.z) }));
+    check(hurt, `no rocket hit the player (hp ${r.hp}, juggernaut ${r.d.toFixed(1)} m away)`);
+    check(r.alive, 'the juggernaut was caught in its own blast');
+    await game(() => { const { P, G, removeEntity } = __neonbay; removeEntity(__rpg); P.hp = 100; G.heat = 0; G.wanted = 0; });
   });
 
   await step('shoots a driver through the window and takes the car', async () => {
