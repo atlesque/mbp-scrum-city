@@ -86,7 +86,7 @@ export function updateRockets(dt) {
 }
 // distance along a rocket's path to the player's body (or the vehicle they're in), or Infinity
 function hitsPlayer(o, d, maxT) {
-  const v = P.vehicle, r = v ? 1.6 : 0.6, y = v ? 1 : P.y + 1;
+  const v = P.vehicle, r = v ? 1.6 : 0.6, y = P.y + 1;
   const t = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, P.x, y, P.z, r);
   return t < maxT ? Math.max(0, t) : Infinity;
 }

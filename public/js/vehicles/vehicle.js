@@ -13,7 +13,7 @@ import { toast } from '../ui/hud.js';
 import { rayBox } from '../world/collision.js';
 import { bike } from './kinds/bike.js';
 import { car } from './kinds/car.js';
-import { blastThrow, knockImpulse, shoveImpulse, touching } from './knock.js';
+import { blastThrow, knockImpulse, rideOver, shoveImpulse, touching } from './knock.js';
 import { burntMat } from './materials.js';
 import { VEHICLE_MODELS } from './models/index.js';
 
@@ -157,6 +157,7 @@ const controls = () => ({
 export function driveByPlayer(v, dt) {
   const K = v.K;
   K.drive(v, dt, controls());
+  if (K.ridesOver) mount(v);
   if (ram(v)) v.shoveT = G.time + 0.3;
   const fx = Math.sin(v.yaw), fz = Math.cos(v.yaw), nx = v.x, nz = v.z;
   // just after a shove the cars are still parting: that already took our speed, so don't stop dead against it too
@@ -185,7 +186,22 @@ export function driveByPlayer(v, dt) {
   if (K.afterDrive) K.afterDrive(v, dt);
   // camera swings in behind when the mouse is idle
   if (G.time - (P.lookT || 0) > 1.2 && Math.abs(v.v) > 3 && !I.mouseR) cam.yaw += angDiff(cam.yaw, v.yaw) * Math.min(1, dt * 2.2);
-  P.x = v.x; P.z = v.z; P.y = 0; P.vy = 0; P.grounded = true; P.yaw = v.yaw; P.moveSpeed = Math.abs(v.v); P.vx = fx * v.v + fz * (v.slip || 0); P.vz = fz * v.v - fx * (v.slip || 0);
+  P.x = v.x; P.z = v.z; P.y = v.lift || 0; P.vy = 0; P.grounded = true; P.yaw = v.yaw; P.moveSpeed = Math.abs(v.v); P.vx = fx * v.v + fz * (v.slip || 0); P.vz = fz * v.v - fx * (v.slip || 0);
+}
+
+// a bike meeting a car at a small speed difference rides up over it (see knock.js); `over` stays set until it is clear
+// of the car again, and keeps the two from pushing each other apart meanwhile. A drop off the far side lands with a thump.
+function mount(v) {
+  if (v.over && !touching(v, v.over, 0.05) && !(v.lift > 0.05)) v.over = null;
+  if (!v.over) for (const b of all('vehicle')) {
+    if (b === v || Math.abs(b.x - v.x) > 6 || Math.abs(b.z - v.z) > 6) continue;
+    const closing = rideOver(v, b); if (closing == null) continue;
+    v.over = b; v.hopV = 1.6 + closing * 0.12; v.v *= 0.92;
+    Sound.thud(clamp(closing / 30, 0.15, 0.45), ...bump(v, b.x - v.x, b.z - v.z)); cam.shake = Math.max(cam.shake, 0.12);
+    break;
+  }
+  if (v.landV > 3) { Sound.thud(clamp(v.landV / 12, 0.2, 0.7), beside(0, 0), HEAR.near); cam.shake = Math.max(cam.shake, clamp(v.landV / 30, 0.08, 0.35)); }
+  v.landV = 0;
 }
 
 // send lighter vehicles we drive into flying and shove cars along (see knock.js); anything we only bump stops
