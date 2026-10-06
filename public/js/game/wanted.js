@@ -8,6 +8,7 @@ import { all, count } from '../entities/registry.js';
 import { findSpot, spawnNpc } from '../npcs/npc.js';
 import { showBig } from '../ui/hud.js';
 import { spawnHeli } from '../vehicles/heli.js';
+import { spawnTank } from '../vehicles/tank.js';
 import { spawnPoliceCar } from '../vehicles/traffic.js';
 
 // ================= WANTED =================
@@ -46,10 +47,12 @@ export function updateWanted(dt) {
       else { const s = findSpot(48, 78, true, true); if (s) spawnNpc(mixPick(L.mix), s.x, s.z); }
     }
     if (L && L.heli && !G.heli) { G.heliT -= dt; if (G.heliT <= 0) spawnHeli(); }
+    if (L && L.tank && !G.tank) { G.tankT -= dt; if (G.tankT <= 0) spawnTank(); }
   } else starsEl.classList.remove('flash');
   G.seenNow = false;
   Sound.loops('siren', sirenSources());
   Sound.loops('rotor', rotorSources());
+  Sound.loops('tank', tankSources());
   Sound.setIntensity(G.wanted);
 }
 
@@ -64,4 +67,9 @@ export const SIREN_VOL = 0.09, ROTOR_VOL = 0.5;
 // the chopper's rotor, from the chopper, up in the air
 export function rotorSources() {
   return G.state === 'play' ? all('heli').map(h => ({ key: h, ...at(h, 1), vol: ROTOR_VOL })) : [];
+}
+// the tank's engine and tracks, louder as it gets going; wrecks are silent
+export const TANK_VOL = 0.45;
+export function tankSources() {
+  return G.state === 'play' ? all('tank').filter(t => !t.dead).map(t => ({ key: t, ...at(t, 1), vol: TANK_VOL, speed: t.v })) : [];
 }

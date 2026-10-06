@@ -268,5 +268,6 @@ export function blockedAhead(v, range, ignoreVehicles) {
   const list = all();
   for (const n of list) if (onFoot(n) && test(n.x, n.z, 1.6)) return 'ped';
   if (!ignoreVehicles) for (const o of list) if (o.kind === 'vehicle' && o !== v && o !== P.vehicle && test(o.x, o.z, o.K.laneHalf)) return 'car';
+  for (const o of list) if (o.kind === 'tank' && test(o.x, o.z, 3.4)) return 'car'; // a tank can't be squeezed past
   return null;
 }

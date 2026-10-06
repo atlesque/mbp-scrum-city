@@ -18,6 +18,7 @@ import { faceTo, onFoot } from '../npcs/npc.js';
 import { camera, canvasEl } from '../render/scene.js';
 import { showBig, toast } from '../ui/hud.js';
 import { removeHeli } from '../vehicles/heli.js';
+import { removeTank } from '../vehicles/tank.js';
 import { driveByPlayer } from '../vehicles/vehicle.js';
 import { SPAWN } from '../world/city.js';
 import { collide, wallHit } from '../world/collision.js';
@@ -192,8 +193,8 @@ export function die() {
 }
 export function respawn() {
   for (const e of all()) if ((e.kind === 'npc' && e.faction === 'law') || (e.kind === 'vehicle' && (e.model.police || e.dead))) removeEntity(e);
-  removeHeli();
-  G.wanted = 0; G.heat = 0; G.lostT = 0; G.heliT = 15;
+  removeHeli(); removeTank(null, true);
+  G.wanted = 0; G.heat = 0; G.lostT = 0; G.heliT = 15; G.tankT = 6;
   P.x = SPAWN.x; P.z = SPAWN.z; P.y = 0; P.roof = null; P.hp = 100; P.alive = true; P.deadT = 0; P.yaw = SPAWN.yaw; cam.yaw = SPAWN.yaw; cam.pitch = -0.08;
   P.c.body.rotation.x = 0; P.c.body.position.y = 0; P.swing = null;
   loadAll(inv); G.reloadT = 0;
