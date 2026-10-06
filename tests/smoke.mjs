@@ -312,6 +312,32 @@ try {
     await game(() => __neonbay.removeEntity(__jack));
   });
 
+  await step('shoves a rider off a stopped bike', async () => {
+    await game(() => {
+      const { G, P, all, removeEntity, spawnVehicle, spawnNpc } = __neonbay; G.heat = 0; G.wanted = 0;
+      for (const v of all('vehicle')) if (Math.hypot(v.x - P.x, v.z - P.z) < 14) removeEntity(v);
+      const b = window.__jack = spawnVehicle('gs', P.x + Math.cos(P.yaw) * 1.6, P.z - Math.sin(P.yaw) * 1.6, P.yaw);
+      b.seatDriver(window.__jacked = spawnNpc('biker', b.x, b.z));
+    });
+    check(await until(() => /shove the rider off/.test((__neonbay.G.near[0] || {}).prompt)), 'no prompt to shove the rider off');
+    await press('KeyF');
+    check(await until(() => __neonbay.P.vehicle === window.__jack), 'F did not take the bike');
+    const r = await game(() => ({ out: !__jacked.vehicle && __jacked.alive, down: __jacked.downT > 0, heat: __neonbay.G.heat, upright: !__jack.fallen }));
+    check(r.out, 'the rider is still on the bike');
+    check(r.down, 'the rider did not go down');
+    check(r.upright, 'the bike is lying on its side under the player');
+    check(r.heat > 0, 'jacking a bike added no heat');
+    await game(() => { __jacked.downT = Math.min(__jacked.downT, 0.3); }); // software WebGL is a few frames a second: cut the lie-down short
+    check(await until(() => !__jacked.downT && __jacked.alive && __jacked.state === 'flee'), 'the rider did not get up and run');
+    await until(() => __neonbay.G.near.some(i => i.priority === 9));
+    await press('KeyF');
+    check(await until(() => !__neonbay.P.vehicle), 'F did not get the player off');
+    await game(() => { // and call off the police the jacking brought
+      const { G, all, removeEntity } = __neonbay; removeEntity(__jack); removeEntity(__jacked); G.heat = 0; G.wanted = 0;
+      for (const e of all()) if ((e.kind === 'npc' && e.def.faction === 'law') || (e.kind === 'vehicle' && e.model.police)) removeEntity(e);
+    });
+  });
+
   await step('buys armor at the gun shop', async () => {
     await game(() => {
       const { P, G, inv, all } = __neonbay, s = all('shop')[0];
@@ -331,7 +357,10 @@ try {
   await step('rams a parked bike out of the way', async () => {
     // on an empty stretch of road, away from the shop's prompt
     await clearVehicles(5, -50);
-    await game(() => { const { P, spawnVehicle } = __neonbay; P.x = 5.5; P.z = -60; window.__ram = spawnVehicle('sedan', 3, -60, 0); });
+    await game(() => {
+      const { P, all, removeEntity, spawnVehicle } = __neonbay; P.x = 5.5; P.z = -60; window.__ram = spawnVehicle('sedan', 3, -60, 0);
+      for (const n of all('npc')) if (Math.hypot(n.x - P.x, n.z - P.z) < 16) removeEntity(n); // a passer-by bumping the player pushes them out of the door's reach
+    });
     check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes(__ram.model.name)), 'no prompt to get in');
     await press('KeyF');
     check(await until(() => __neonbay.P.vehicle === window.__ram), 'F did not put the player behind the wheel');
