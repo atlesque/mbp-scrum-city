@@ -6,6 +6,7 @@ import { SHOP_TYPES } from '../shops/types.js';
 import { ROADS, addCollider } from './collision.js';
 import { buildEdges } from './edges.js';
 import { buildLandmark, landmarkAt } from './landmarks.js';
+import { bindProps, prop } from './props.js';
 import { buildRooftops, flatRoofs, roofSpots } from './rooftops.js';
 
 // ================= WORLD =================
@@ -25,6 +26,7 @@ export const SHOP_SITES = [
 export let SPAWN = { x: -25, z: 7.5, yaw: Math.PI };
 const HOTEL_NAMES = ['The Palms', 'Coral', 'Flamingo', 'Starlite', 'Breakers', 'Sunrise', 'Paradise', 'Tides', 'Seashell', 'Lagoon', 'Boulevard', 'Moonglow', 'Avalon', 'Riviera'];
 const SHOP_NAMES = ['Diner', 'Disco', 'Arcade', 'Video', 'Liquor', 'Pawn', 'Cafe', 'Club 86', 'Motel', 'Bar', 'Records', 'Tattoo', 'Pizza', 'Roller'];
+const UMBRELLA = new THREE.ConeGeometry(1.6, 0.6, 8).toNonIndexed();
 export let winMat, plainMat, neonMat, waterMesh, waterBase, lightWindows;
 
 function blockKind(i, j) {
@@ -35,8 +37,13 @@ function blockKind(i, j) {
   if ([[4, 6], [2, 0], [5, 2], [0, 7]].some(([a, b]) => a === i && b === j)) return 'lot';
   return 'city';
 }
+// palms, lamps and the beach props are breakable (world/props.js)
 function palm(gb, x, z, h) {
-  h = h || srange(7, 11); const lean = srange(0.4, 1.4), la = srange(0, Math.PI * 2), segs = 6;
+  h = h || srange(7, 11);
+  prop('palm', x, z, [gb], () => palmGeo(gb, x, z, h), { h });
+}
+function palmGeo(gb, x, z, h) {
+  const lean = srange(0.4, 1.4), la = srange(0, Math.PI * 2), segs = 6;
   let px = x, pz = z;
   for (let s = 0; s < segs; s++) {
     const t = s / segs, y = t * h + h / segs / 2, off = Math.pow(t, 2) * lean;
@@ -49,14 +56,17 @@ function palm(gb, x, z, h) {
     addGeo(gb, UNIT, tx + Math.sin(ry) * Math.cos(rx) * L / 2, top - Math.sin(rx) * L / 2, tz + Math.cos(ry) * Math.cos(rx) * L / 2, 0.85, 0.06, L, rx, ry, 0, k % 2 ? '#3f9a4e' : '#2f7f45', 'YXZ');
   }
   box(gb, 0.5, 0.5, 0.5, tx, top - 0.2, tz, '#5a3d24');
-  addCollider(x - 0.3, x + 0.3, z - 0.3, z + 0.3, h, false);
+  return addCollider(x - 0.3, x + 0.3, z - 0.3, z + 0.3, h, false);
 }
 function lamp(gb, ng, x, z, ry) {
-  box(gb, 0.16, 6, 0.16, x, 3, z, '#3b3446');
-  const ax = Math.sin(ry), az = Math.cos(ry);
-  box(gb, 0.12, 0.12, 1.6, x + ax * 0.7, 6, z + az * 0.7, '#3b3446', ry);
-  box(ng, 0.4, 0.14, 0.7, x + ax * 1.4, 5.92, z + az * 1.4, '#ffe6a8', ry);
-  lamps.push({ x: x + ax * 1.4, y: 5.8, z: z + az * 1.4 });
+  const ax = Math.sin(ry), az = Math.cos(ry), L = { x: x + ax * 1.4, y: 5.8, z: z + az * 1.4 };
+  lamps.push(L);
+  prop('lamp', x, z, [gb, ng], () => {
+    box(gb, 0.16, 6, 0.16, x, 3, z, '#3b3446');
+    box(gb, 0.12, 0.12, 1.6, x + ax * 0.7, 6, z + az * 0.7, '#3b3446', ry);
+    box(ng, 0.4, 0.14, 0.7, x + ax * 1.4, 5.92, z + az * 1.4, '#ffe6a8', ry);
+    return addCollider(x - 0.1, x + 0.1, z - 0.1, z + 0.1, 6, false);
+  }, { h: 6, lamp: L });
 }
 function addSign(text, x, y, z, ry, w, color, font) { signs.push({ text, x, y, z, ry, w, color, font }); }
 function building(walls, plain, neon, x0, x1, z0, z1, h, style, face, signText) {
@@ -201,13 +211,16 @@ export function buildWorld() {
   for (let z = -198; z <= 198; z += 11) { palm(trees, 210 + srange(-0.6, 0.6), z + srange(-2, 2), srange(8, 12)); }
   for (let z = -170; z <= 170; z += 85) {
     const c = spick(['#ff6fae', '#3fd6c8', '#ffb347', '#a77bff']);
-    for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) box(plain, 0.2, 2.2, 0.2, 234 + a * 1.1, 1.1, z + b * 1.1, '#f4ece6');
-    box(plain, 3, 2, 3, 234, 3.2, z, c); box(plain, 3.6, 0.3, 3.6, 234, 4.35, z, '#ffffff'); addCollider(232.6, 235.4, z - 1.6, z + 1.6, 4.5, false); flatRoofs.push({ x0: 232.2, x1: 235.8, z0: z - 1.8, z1: z + 1.8, floor: 4.5 + 0.06 });
-    box(plain, 0.3, 0.1, 3, 231.5, 1.2, z, '#f4ece6');
+    prop('hut', 234, z, [plain], cut => {
+      for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { box(plain, 0.2, 2.2, 0.2, 234 + a * 1.1, 1.1, z + b * 1.1, '#f4ece6'); cut(); }
+      box(plain, 3, 2, 3, 234, 3.2, z, c); cut(); box(plain, 3.6, 0.3, 3.6, 234, 4.35, z, '#ffffff'); cut();
+      box(plain, 0.3, 0.1, 3, 231.5, 1.2, z, '#f4ece6');
+      return addCollider(232.6, 235.4, z - 1.6, z + 1.6, 4.5, false);
+    }, { h: 4.5 });
   }
   for (let k = 0; k < 26; k++) {
     const ux = srange(218, 246), uz = srange(-200, 200), c = spick(['#ff6fae', '#3fd6c8', '#ffe066', '#a77bff', '#ffffff']);
-    box(plain, 0.08, 2.4, 0.08, ux, 1.2, uz, '#f4ece6'); addGeo(plain, new THREE.ConeGeometry(1.6, 0.6, 8).toNonIndexed(), ux, 2.5, uz, 1, 1, 1, 0, 0, 0, c);
+    prop('umbrella', ux, uz, [plain], cut => { box(plain, 0.08, 2.4, 0.08, ux, 1.2, uz, '#f4ece6'); cut(); addGeo(plain, UMBRELLA, ux, 2.5, uz, 1, 1, 1, 0, 0, 0, c); }, { h: 2.8 });
     box(plain, 0.9, 0.06, 1.9, ux + 1.3, 0.14, uz, spick(['#ff9ecb', '#7fe7ff', '#fff1a6']));
   }
   // backdrop beyond the play area
@@ -222,7 +235,9 @@ export function buildWorld() {
   winMat = new THREE.MeshLambertMaterial({ map: wt, vertexColors: true, emissiveMap: we, emissive: 0xffffff });
   plainMat = new THREE.MeshLambertMaterial({ vertexColors: true });
   neonMat = new THREE.MeshBasicMaterial({ vertexColors: true });
-  scene.add(new THREE.Mesh(walls.geometry(), winMat), new THREE.Mesh(plain.geometry(), plainMat), new THREE.Mesh(neon.geometry(), neonMat), new THREE.Mesh(trees.geometry(), plainMat));
+  const meshes = [[walls, new THREE.Mesh(walls.geometry(), winMat)], [plain, new THREE.Mesh(plain.geometry(), plainMat)], [neon, new THREE.Mesh(neon.geometry(), neonMat)], [trees, new THREE.Mesh(trees.geometry(), plainMat)]];
+  scene.add(...meshes.map(m => m[1]));
+  bindProps(meshes);
 
   // water: faceted low-poly swell
   const wg = new THREE.PlaneGeometry(500, 900, 36, 64).toNonIndexed(); wg.rotateX(-Math.PI / 2); wg.translate(250 + 250, 0.1, 0);

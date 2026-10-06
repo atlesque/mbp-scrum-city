@@ -11,6 +11,7 @@ import { emit } from '../render/effects.js';
 import { scene } from '../render/scene.js';
 import { toast } from '../ui/hud.js';
 import { rayBox } from '../world/collision.js';
+import { smashProps } from '../world/props.js';
 import { bike } from './kinds/bike.js';
 import { car } from './kinds/car.js';
 import { blastThrow, knockImpulse, rideOver, shoveImpulse, touching } from './knock.js';
@@ -162,6 +163,7 @@ export function driveByPlayer(v, dt) {
   if (K.ridesOver) mount(v);
   if (ram(v)) v.shoveT = G.time + 0.3;
   const fx = Math.sin(v.yaw), fz = Math.cos(v.yaw), nx = v.x, nz = v.z;
+  smash(v, fx * v.v + fz * (v.slip || 0), fz * v.v - fx * (v.slip || 0));
   // just after a shove the cars are still parting: that already took our speed, so don't stop dead against it too
   if (K.collideSelf(v) && !(v.shoveT > G.time)) {
     // how squarely we hit: the push-out direction against our direction of travel
@@ -189,6 +191,17 @@ export function driveByPlayer(v, dt) {
   // camera swings in behind when the mouse is idle
   if (G.time - (P.lookT || 0) > 1.2 && Math.abs(v.v) > 3 && !I.mouseR) cam.yaw += angDiff(cam.yaw, v.yaw) * Math.min(1, dt * 2.2);
   P.x = v.x; P.z = v.z; P.y = v.lift || 0; P.vy = 0; P.grounded = true; P.yaw = v.yaw; P.moveSpeed = Math.abs(v.v); P.vx = fx * v.v + fz * (v.slip || 0); P.vz = fz * v.v - fx * (v.slip || 0);
+}
+
+// drive through palms, lamps and beach props hard enough and they go over (world/props.js), taking some speed with them
+export function smash(v, vx, vz) {
+  const H = v.K.hull; if (!H) return;
+  for (const { p, closing } of smashProps(v.x, v.z, Math.sin(v.yaw), Math.cos(v.yaw), vx, vz, H.half, H.r)) {
+    const T = p.T; v.v *= T.slow; if (v.slip) v.slip *= T.slow; if (v.kvx) { v.kvx *= T.slow; v.kvz *= T.slow; }
+    if (T.dent) v.damage(closing * T.dent, false);
+    Sound.thud(clamp(closing / 30, 0.2, 0.8), ...bump(v, p.x - v.x, p.z - v.z));
+    if (P.vehicle === v) cam.shake = Math.max(cam.shake, clamp(closing / 60 * (T.dent ? 1 : 0.3), 0.05, 0.4));
+  }
 }
 
 // a bike meeting a car at a small speed difference rides up over it (see knock.js); `over` stays set until it is clear

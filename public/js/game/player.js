@@ -1,5 +1,5 @@
 import { animateChar, deathAnim } from '../characters/character.js';
-import { curWeapon, finishReload, playerShoot } from '../combat/combat.js';
+import { curWeapon, finishReload, playerShoot, selectWeapon } from '../combat/combat.js';
 import { scopeFov, updateScope } from '../combat/scope.js';
 import { landPlayerSwing, playerSwing } from '../combat/melee.js';
 import { tickSwing } from '../characters/swing.js';
@@ -11,7 +11,7 @@ import { G, I, P, cam, inv, keys } from '../core/state.js';
 import { $, angDiff, clamp, lerp, rnd } from '../core/util.js';
 import { HEAR, beside } from '../core/spatial.js';
 import { reloadOf } from '../data/reloads.js';
-import { loadAll, wStat } from '../data/weapons.js';
+import { WBY, loadAll, loseFound, wStat } from '../data/weapons.js';
 import { all, removeEntity } from '../entities/registry.js';
 import { emit as emitFx } from '../render/effects.js';
 import { faceTo, onFoot } from '../npcs/npc.js';
@@ -226,8 +226,11 @@ export function die() {
   P.alive = false; P.deadT = 0; P.aiming = false; P.hp = 0; G.state = 'dead'; G.deadT = 0; I.mouseL = false; I.mouseR = false;
   if (P.vehicle) exitVehicle(true);
   const fee = Math.min(inv.money, Math.round(inv.money * 0.1));
+  // picked-up weapons go with the paramedics; only what was bought at the gun shop is still there
+  const lost = loseFound(inv).map(id => WBY[id].name);
+  if (!inv.owned[inv.cur]) selectWeapon('pistol');
   inv.money -= fee; save();
-  $('wastedInfo').textContent = fee > 0 ? `Hospital bill: $${fee.toLocaleString()}` : 'Patched up for free. Lucky you.';
+  $('wastedInfo').textContent = (fee > 0 ? `Hospital bill: $${fee.toLocaleString()}` : 'Patched up for free. Lucky you.') + (lost.length ? ` Lost: ${lost.join(', ')}.` : '');
   $('wasted').hidden = false; canvasEl.style.filter = 'grayscale(0.85) contrast(1.1)';
   $('prompt').hidden = true;
   Sound.hush();

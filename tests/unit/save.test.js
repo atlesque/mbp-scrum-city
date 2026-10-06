@@ -8,11 +8,11 @@ describe('saves', () => {
     expect(d.v).toBe(SAVE_VERSION);
     const inv = { money: 0, owned: {}, lvl: {}, ammo: {} }, stats = { kills: 0, cops: 0 };
     apply(d, inv, stats);
-    expect(inv).toEqual({ money: 1234, owned: { pistol: true, smg: true }, lvl: { smg: 2 }, ammo: { smg: 90 } });
+    expect(inv).toEqual({ money: 1234, owned: { pistol: true, smg: true }, lvl: { smg: 2 }, ammo: { smg: 90 }, found: {} });
     expect(stats).toEqual({ kills: 7, cops: 0 });
   });
   it('round-trips the current format', () => {
-    const inv = { money: 50, owned: { pistol: true }, lvl: { pistol: 1 }, ammo: {} }, stats = { kills: 1 };
+    const inv = { money: 50, owned: { pistol: true, minigun: true }, lvl: { pistol: 1 }, ammo: { minigun: 500 }, found: { minigun: true } }, stats = { kills: 1 };
     const d = migrate(JSON.parse(JSON.stringify(serialize(inv, stats))));
     const inv2 = { money: 0, owned: {}, lvl: {}, ammo: {} }, stats2 = {};
     apply(d, inv2, stats2);

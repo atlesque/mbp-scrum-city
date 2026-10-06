@@ -29,6 +29,9 @@ export function gunGeo(id) {
   if (id === 'minigun') { box(g, 0.22, 0.5, 0.22, 0, -0.12, 0.1, '#5b5d66'); for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; box(g, 0.04, 0.55, 0.04, Math.cos(a) * 0.06, -0.62, 0.1 + Math.sin(a) * 0.06, dark); } box(g, 0.06, 0.1, 0.18, 0, 0.05, 0.25, dark); muzzle = -0.9; }
   if (id === 'rpg') { box(g, 0.15, 0.95, 0.15, 0, -0.15, 0.13, '#5b6a3a'); box(g, 0.2, 0.12, 0.2, 0, -0.64, 0.13, '#3f4a28'); box(g, 0.05, 0.1, 0.16, 0, 0.0, 0.0, dark); muzzle = -0.7; }
   if (id === 'sniper') muzzle = sniperGeo(g, dark);
+  // thrown weapons sit in the hand: a ribbed olive grenade with its lever and ring, a bottle with a burning rag
+  if (id === 'grenade') { box(g, 0.09, 0.12, 0.09, 0, -0.08, 0.06, '#4f5a32'); for (const y of [-0.12, -0.08, -0.04]) box(g, 0.1, 0.012, 0.1, 0, y, 0.06, '#3c4526'); box(g, 0.04, 0.04, 0.04, 0, -0.16, 0.06, '#8a8d94'); box(g, 0.012, 0.1, 0.02, 0, -0.1, 0.11, '#8a8d94'); muzzle = -0.16; }
+  if (id === 'molotov') { box(g, 0.08, 0.16, 0.08, 0, -0.06, 0.06, '#3f7a3a'); box(g, 0.035, 0.08, 0.035, 0, -0.18, 0.06, '#3f7a3a'); box(g, 0.03, 0.07, 0.03, 0, -0.25, 0.06, '#e8dcc0'); box(g, 0.05, 0.05, 0.05, 0, -0.3, 0.06, '#ff8a2a'); muzzle = -0.3; }
   return (GUN_DEF[id] = { geo: g.geometry(), muzzle: new THREE.Vector3(0, muzzle, 0.08) });
 }
 // a long-range bolt-action in the style of the classic arctic-warfare sniper: olive thumbhole stock, long
