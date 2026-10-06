@@ -47,7 +47,8 @@ export function collide(o, r, self) {
   let hit = false;
   for (const c of nearColliders(o.x, o.z)) if (pushOut(o, r, c.x0, c.x1, c.z0, c.z1)) hit = true;
   for (const e of entities) {
-    if (!e.pushOut || e === self || Math.abs(e.x - o.x) > 6 || Math.abs(e.z - o.z) > 6) continue;
+    // nor the car a bike is riding over (vehicles/knock.js), which is under it rather than in its way
+    if (!e.pushOut || e === self || Math.abs(e.x - o.x) > 6 || Math.abs(e.z - o.z) > 6 || (self && (self.over === e || e.over === self))) continue;
     if (e.pushOut(o, r)) hit = true;
   }
   const ox = o.x, oz = o.z; o.x = clamp(o.x, W.minX, W.maxX); o.z = clamp(o.z, W.minZ, W.maxZ);

@@ -7,6 +7,8 @@ import { blastLaunch } from '../npcs/fling.js';
 //                                                           along the heading, and the closing speeds that knock
 //   knock(v, vx, vz, up)                                    a kind that can be sent flying (bikes)
 //   slide(v, dt)                                            a kind that can be shoved along (cars; see below)
+//   ridesOver                                               a kind that rides up over others at a small speed difference (bikes)
+//   topAt(v, x, z)                                          a kind that can be ridden over: the height of its top there (cars)
 
 // the closing speed of `a` on `b` along the line between them: positive when they are coming together
 export function closingSpeed(a, b) {
@@ -39,6 +41,17 @@ export function knockImpulse(a, b) {
     vx: nx * push + Math.sin(a.yaw) * fwd, vz: nz * push + Math.cos(a.yaw) * fwd,
     up: clamp(closing * 0.35 * share, 1.5, 9), closing, keep: 1 - (1 - share) * 0.6,
   };
+}
+
+// Riding over: a bike that meets a car at a small speed difference (catching up with one, or nosing into a parked
+// one) rides up onto its bonnet, over the roof and off the far side, the car's top being ground to it (car.topAt).
+// Any faster and it crashes into the car as usual. Wrecks can be ridden over too, but not a car up in the air.
+// The closing speed when `a` should ride up over `b`, or null when it can't (and so bumps or crashes into it)
+export function rideOver(a, b) {
+  const max = a.K.ridesOver;
+  if (!max || !b.K.topAt || a.fallen || a.v < 3 || b.air > 0 || !touching(a, b, 0.2)) return null;
+  const { closing } = closingSpeed(a, b);
+  return closing <= max ? Math.max(0, closing) : null;
 }
 
 // Shoving: bodies of a similar weight (a car into a car) trade momentum instead of one sending the other flying.
