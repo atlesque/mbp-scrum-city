@@ -46,7 +46,7 @@ export function openShop(shop) {
   $('shopName').textContent = shop.def.name; $('shopFoot').textContent = shop.def.footer || '';
   $('shop').hidden = false; $('hud').hidden = true; renderShop();
   try { document.exitPointerLock(); } catch (e) {}
-  Sound.setSiren(0); Sound.setEngine(0, 1000);
+  Sound.setSiren(0); Sound.setEngine(0, 1000); Sound.setSkid(0);
   setTimeout(() => { const b = $('shopGrid').querySelector('button:not([disabled])') || $('shopClose'); b && b.focus(); }, 30);
 }
 export function closeShop(fromClick) {

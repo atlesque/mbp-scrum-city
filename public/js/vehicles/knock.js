@@ -11,7 +11,7 @@ import { blastLaunch } from '../npcs/fling.js';
 // the closing speed of `a` on `b` along the line between them: positive when they are coming together
 export function closingSpeed(a, b) {
   const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz) || 1, nx = dx / d, nz = dz / d;
-  const avx = Math.sin(a.yaw) * a.v, avz = Math.cos(a.yaw) * a.v;
+  const s = a.slip || 0, avx = Math.sin(a.yaw) * a.v + Math.cos(a.yaw) * s, avz = Math.cos(a.yaw) * a.v - Math.sin(a.yaw) * s; // slip: a car sliding sideways
   const sl = b.kvx || b.kvz, bvx = sl ? b.kvx : Math.sin(b.yaw) * b.v, bvz = sl ? b.kvz : Math.cos(b.yaw) * b.v;
   return { closing: (avx - bvx) * nx + (avz - bvz) * nz, nx, nz };
 }
