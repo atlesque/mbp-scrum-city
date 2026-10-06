@@ -30,3 +30,37 @@ describe('passing bike engines', async () => {
     for (const e of [a, b, mine]) removeEntity(e);
   });
 });
+
+describe('electric cars', async () => {
+  const { evMix, evSources, HUM_TOP, HUM_FADE } = await import('../../public/js/vehicles/engine.js');
+  const { VEHICLE_MODELS } = await import('../../public/js/vehicles/models/index.js');
+  const ms = kmh => kmh / 3.6;
+  it('hum below 30 km/h and fall silent at it', () => {
+    expect(evMix(0).hum).toBeGreaterThan(0);
+    expect(evMix(ms(15)).hum).toBe(1);
+    expect(evMix(ms((HUM_FADE + HUM_TOP) / 2)).hum).toBeCloseTo(0.5);
+    expect(evMix(ms(HUM_TOP)).hum).toBe(0);
+    expect(evMix(ms(90)).hum).toBe(0);
+  });
+  it('have road noise that grows with speed', () => {
+    expect(evMix(0).road).toBe(0);
+    expect(evMix(ms(60)).road).toBeGreaterThan(evMix(ms(30)).road);
+    expect(evMix(ms(120)).road).toBeGreaterThan(evMix(ms(60)).road);
+    expect(evMix(-ms(60)).road).toBe(evMix(ms(60)).road);
+  });
+  it('is only the EQA for now', () => {
+    expect(Object.values(VEHICLE_MODELS).filter(m => m.electric).map(m => m.id)).toEqual(['eqa']);
+  });
+  it('play from electric cars in traffic, not from combustion ones', async () => {
+    const { G, P } = await import('../../public/js/core/state.js');
+    const { addEntity, removeEntity } = await import('../../public/js/entities/registry.js');
+    G.state = 'play';
+    const car = (model, x) => addEntity({ kind: 'vehicle', K: {}, model, driver: {}, x, z: 0, v: ms(20), dead: false });
+    const eqa = car(VEHICLE_MODELS.eqa, 4), bmw = car(VEHICLE_MODELS.bmw5, -4);
+    const s = evSources();
+    expect(s.map(e => e.key)).toEqual([eqa]);
+    expect(s[0].hum).toBe(1);
+    G.state = 'loading';
+    for (const e of [eqa, bmw]) removeEntity(e);
+  });
+});

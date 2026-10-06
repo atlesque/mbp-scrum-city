@@ -23,13 +23,13 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 | --- | --- |
 | WASD | Move |
 | Mouse | Look and aim (click to capture the mouse) |
-| Left click / right click | Shoot (or punch and swing a melee weapon; every third punch is a kick) / zoom aim |
+| Left click / right click | Shoot (or punch and swing a melee weapon; every third punch is a kick) / zoom aim (with the sniper rifle, right click steps the scope through 2.25x, 9x and back out) |
 | Shift / Space | Sprint / jump |
 | E | Enter a gun shop, take the stairs to a roof and back down |
 | F | Get on or off a motorcycle, get in or out of a car, pull a driver out of their car |
 | On a bike: W / S, A / D, Shift, Space | Throttle / brake, lean, boost, rear brake. You can still shoot. |
 | In a car: W / S, A / D, Shift, Space | Gas / brake, steer, boost, handbrake. Steer with the handbrake to drift; hold the gas to keep the slide going, countersteer to straighten out. |
-| 1–6, mouse wheel | Switch weapons |
+| 1–7, mouse wheel | Switch weapons |
 | Q | Put the guns away: fists, then each melee weapon you own |
 | R | Reload |
 | M | Toggle the radio (Neon FM builds up with your wanted level: synths only at zero stars, drums from one star, more layers up to five) |
@@ -58,7 +58,7 @@ Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share 
 
 ## Extending the game
 
-**A new vehicle.** Add a file to `public/js/vehicles/models/` whose default export describes it (`id`, `kind`, `name`, `short`, `hp`, `engine`, optional `traffic: { weight, speed }`, and the mesh or geometry its kind expects), then list it in `models/index.js`. `kind: 'bike'` or `'car'` gives it physics, seating, camera and crash rules; a model can override `handling`. A traffic weight above 0 puts it on the roads. A new kind of vehicle (a boat, a truck) is a new file in `vehicles/kinds/` implementing the hooks documented at the top of `kinds/bike.js`.
+**A new vehicle.** Add a file to `public/js/vehicles/models/` whose default export describes it (`id`, `kind`, `name`, `short`, `hp`, `engine`, optional `traffic: { weight, speed }`, `electric: true` for an EV (a hum below 30 km/h, then only road noise, instead of an engine note), and the mesh or geometry its kind expects), then list it in `models/index.js`. `kind: 'bike'` or `'car'` gives it physics, seating, camera and crash rules; a model can override `handling`. A traffic weight above 0 puts it on the roads. A new kind of vehicle (a boat, a truck) is a new file in `vehicles/kinds/` implementing the hooks documented at the top of `kinds/bike.js`.
 
 **A detailed car.** The blue Tesla Model Y, the Mercedes EQA 250 and the BMW 530e are drawn with the car kit in `models/carkit.js`: in real metres, as side outlines (body, glass, roof) pushed across the car's width with rounded edges, plus trims and lamps laid onto the panels, all bent by one warp (narrower nose and tail, sides leaning in towards the roof). Lamps use an unlit material, so they glow at night. Each model builds its geometry once and every car of that model shares it. `models/bmw5.js` is a worked example. Preview a car at `/dev/cars.html?car=<id>` (drag to orbit; `&night`, `&neutral` for plain white light) and render the previews with `node tests/car-shots.mjs`. Keep a car to about 15–18k triangles.
 

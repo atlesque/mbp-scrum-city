@@ -1,4 +1,4 @@
-// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, throw a car with a rocket,
+// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, snipe through the scope, throw a car with a rocket,
 // shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, ride a bike over a car, shunt a parked car, drift, drive up a kerb, walk into the edge wall, take the stairs to a roof and change settings. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
@@ -208,6 +208,32 @@ try {
     check(hurt, `no rocket hit the player (hp ${r.hp}, juggernaut ${r.d.toFixed(1)} m away)`);
     check(r.alive, 'the juggernaut was caught in its own blast');
     await game(() => { const { P, G, removeEntity } = __neonbay; removeEntity(__rpg); P.hp = 100; G.heat = 0; G.wanted = 0; });
+  });
+
+  await step('scopes in with the sniper rifle and drops someone down the road', async () => {
+    // down the same open stretch of road, 30 m off, through the 9x scope
+    await clearVehicles(5, -45);
+    const r0 = await game(async () => {
+      const { P, G, cam, inv, all, removeEntity, spawnNpc } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js'), { toggleScope } = await import('/js/combat/scope.js');
+      P.x = 5.5; P.z = -60; P.yaw = cam.yaw = 0; cam.pitch = -0.012; P.hp = 100;
+      for (const n of all('npc')) if (Math.hypot(n.x - 5.5, n.z + 45) < 22) removeEntity(n);
+      inv.owned.sniper = true; inv.lvl.sniper = 0; inv.mag.sniper = 10; inv.ammo.sniper = 20; selectWeapon('sniper');
+      const n = window.__mark = spawnNpc('civilian', P.x - 0.55, P.z + 30); n.update = function () { this.place && this.place(); };
+      toggleScope(); toggleScope();
+      return { scope: G.scope };
+    });
+    check(r0.scope === 2, 'right click did not step to the second zoom');
+    check(await until(() => !document.getElementById('scope').hidden && __neonbay.P.c.root.visible === false), 'the scope overlay did not show');
+    if (shots) await page.screenshot({ path: `${shots}/sniper-scope.png` });
+    await game(() => { __neonbay.I.clickQ = 0.3; });
+    check(await until(() => !__mark.alive, undefined, 8000), `the target was not taken down (hp ${await game(() => __mark.hp)})`);
+    check(await game(() => __neonbay.G.scope === 0 && __neonbay.G.rescope === 2), 'the scope did not drop out for the bolt');
+    check(await until(() => __neonbay.G.scope === 2, undefined, 40000), 'the scope did not come back after the bolt: ' + JSON.stringify(await game(() => { const { G, P, inv } = __neonbay; return { st: G.state, sc: G.scope, re: G.rescope, cd: G.fireCd, rl: G.reloadT, cur: inv.cur, alive: P.alive, veh: !!P.vehicle }; })));
+    await game(async () => {
+      const { G, inv, removeEntity } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js');
+      selectWeapon('pistol'); removeEntity(__mark); delete inv.owned.sniper; delete inv.ammo.sniper; G.heat = 0; G.wanted = 0;
+    });
+    check(await until(() => document.getElementById('scope').hidden && __neonbay.P.c.root.visible), 'switching guns did not leave the scope');
   });
 
   await step('a rocket throws a parked car into the air', async () => {
@@ -553,6 +579,16 @@ try {
     check(await until(() => __neonbay.Sound.voices().siren === 2), 'expected two sirens: ' + JSON.stringify(await game(() => __neonbay.Sound.voices())));
     await game(() => { const { G, removeEntity } = __neonbay; for (const c of __cops) removeEntity(c); G.heat = 0; G.wanted = 0; });
     check(await until(() => __neonbay.Sound.voices().siren === 0), 'the sirens kept going after the cars left');
+  });
+
+  await step('an electric car in traffic hums instead of revving', async () => {
+    await game(() => {
+      const { P, spawnVehicle, spawnNpc } = __neonbay;
+      const c = window.__ev = spawnVehicle('eqa', P.x + 6, P.z, 0, 'traffic'); c.seatDriver(spawnNpc('motorist', c.x, c.z));
+    });
+    check(await until(() => __neonbay.Sound.voices().ev === 1), 'the EQA makes no sound: ' + JSON.stringify(await game(() => __neonbay.Sound.voices())));
+    await game(() => { const c = __ev; if (c.driver) __neonbay.removeEntity(c.driver); __neonbay.removeEntity(c); });
+    check(await until(() => __neonbay.Sound.voices().ev === 0), 'the EQA hum kept going after it left');
   });
 
   await step('survives a five-star chase', async () => {

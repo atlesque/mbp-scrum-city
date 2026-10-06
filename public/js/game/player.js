@@ -1,5 +1,6 @@
 import { animateChar, deathAnim } from '../characters/character.js';
 import { curWeapon, finishReload, playerShoot } from '../combat/combat.js';
+import { scopeFov, updateScope } from '../combat/scope.js';
 import { landPlayerSwing, playerSwing } from '../combat/melee.js';
 import { tickSwing } from '../characters/swing.js';
 import { Sound } from '../core/audio.js';
@@ -27,10 +28,11 @@ export const camTarget = new THREE.Vector3();
 export function updatePlayer(dt) {
   if (!P.alive) { deathAnim(P, dt); P.c.root.position.set(P.x, floorY(), P.z); P.c.root.rotation.y = P.yaw; return; }
   // look
-  const sens = (I.mouseR ? 0.0013 : 0.0022) * settings.sensitivity, sensY = settings.invertY ? -sens : sens;
+  // through the scope the mouse slows with the zoom, so the crosshair moves as far on screen as it does unzoomed
+  const sens = (G.scope ? 0.0022 * scopeFov(1, G.scope) : I.mouseR ? 0.0013 : 0.0022) * settings.sensitivity, sensY = settings.invertY ? -sens : sens;
   if (I.mouseDX || I.mouseDY) P.lookT = G.time;
   cam.yaw -= I.mouseDX * sens; cam.pitch = clamp(cam.pitch - I.mouseDY * sensY, -1.0, 1.15); I.mouseDX = I.mouseDY = 0;
-  const aimingNow = I.mouseR || I.mouseL || I.clickQ > 0 || G.time - P.lastShot < 0.7;
+  const aimingNow = I.mouseR || G.scope > 0 || I.mouseL || I.clickQ > 0 || G.time - P.lastShot < 0.7;
   P.aiming = aimingNow;
   P.aimPitch = cam.pitch;
   const v = P.vehicle;
@@ -61,6 +63,7 @@ export function updatePlayer(dt) {
   }
   updateInteraction();
 }
+const JUMP_V = 7.6, GRAVITY = 18; // m/s, m/s²
 // what the player stands on: the street, or the roof they took the stairs up to (P.y is measured from the street)
 const floorY = () => P.roof ? P.roof.floor : 0;
 function walk(dt, aimingNow) {
@@ -78,10 +81,10 @@ function walk(dt, aimingNow) {
   const ox = P.x, oz = P.z; P.x += P.vx * dt; P.z += P.vz * dt;
   if (P.roof) collideRoof(P, 0.38, P.roof); else collide(P, 0.38);
   P.moveSpeed = Math.hypot(P.x - ox, P.z - oz) / Math.max(dt, 1e-4);
-  // jump
+  // jump: v²/2g puts the top at about 1.6 m (walls, railings and cars push out on the ground plan, so height clears nothing)
   const floor = floorY();
-  if (keys.Space && P.grounded && !G.stairs) { P.vy = 6.2; P.grounded = false; }
-  if (!P.grounded) { P.vy -= 18 * dt; P.y += P.vy * dt; if (P.y <= floor) { P.y = floor; P.vy = 0; P.grounded = true; } }
+  if (keys.Space && P.grounded && !G.stairs) { P.vy = JUMP_V; P.grounded = false; }
+  if (!P.grounded) { P.vy -= GRAVITY * dt; P.y += P.vy * dt; if (P.y <= floor) { P.y = floor; P.vy = 0; P.grounded = true; } }
   P.jumpY = P.y - floor;
   // facing and aim
   if (aimingNow) faceTo(P, cam.yaw, dt, 20);
@@ -122,6 +125,7 @@ export function hurtPlayer(d, zone) {
 
 const arm = { arm: 0, lift: 0, pitch: 0, look: 30, side: 1 };
 export function updateCamera(dt) {
+  updateScope();
   const v = P.vehicle, C = v && v.K.camera, aim = I.mouseR && P.alive, sp = v ? Math.abs(v.v) : 0;
   cam.dist = lerp(cam.dist, aim ? (C ? C.aimDist : 2.4) : (C ? C.dist : 4.6), Math.min(1, dt * 10));
   cam.fov = lerp(cam.fov, aim ? settings.fov - 18 : settings.fov + Math.min(14, sp * (C ? C.fovPerSpeed : 0)), Math.min(1, dt * 10));
@@ -135,6 +139,9 @@ export function updateCamera(dt) {
   const ap = Math.cos(arm.pitch);
   camera.position.set(camTarget.x - Math.sin(cam.yaw) * ap * arm.arm, camTarget.y - Math.sin(arm.pitch) * arm.arm, camTarget.z - Math.cos(cam.yaw) * ap * arm.arm);
   if (camera.position.y < 0.3) camera.position.y = 0.3;
+  // through a scope the camera sits on the shot line (camTarget) and the player's own model is hidden
+  const scoped = G.scope > 0; P.c.root.visible = !scoped || !P.alive;
+  if (scoped) { camera.position.copy(camTarget); cam.fov = scopeFov(settings.fov, G.scope); if (camera.fov !== cam.fov) { camera.fov = cam.fov; camera.updateProjectionMatrix(); } }
   if (cam.shake > 0) { const k = settings.shake ? cam.shake * 0.3 : 0; camera.position.x += rnd(-1, 1) * k; camera.position.y += rnd(-1, 1) * k; cam.shake = Math.max(0, cam.shake - dt * 2.5); }
   camera.lookAt(camTarget.x + d.x * arm.look, camTarget.y + d.y * arm.look, camTarget.z + d.z * arm.look);
 }
