@@ -1,6 +1,7 @@
 import { box, wallBox } from '../render/geometry.js';
 import { addCollider } from './collision.js';
-import { glowMaterials, loadModel, placeModel } from './models.js';
+import { FACE_YAW, glowMaterials, loadModel, placeModel, turnBox } from './models.js';
+import { STAND, landmarkRoofs } from './rooftops.js';
 import { LANDMARK_MODELS, landmarkMats, landmarkParts } from './landmark-models/index.js';
 
 // ================= LANDMARKS =================
@@ -65,6 +66,39 @@ const SIGNS = {
   belpaire: ['Belpaire', 11.5, 4.5, -6.9, 8], // on WTC I's plinth
 };
 
+// The roofs that can be reached by the stairs, in the model's own metres (front at -z): which solid volume's top
+// (`rect`, as in the model's k.solid), where the street door sits in the wall and which way it faces, where the stair
+// hut stands on the roof and which way its door faces, what waits up there, and anything else on the roof to walk
+// round ([x0, x1, z0, z1, y0, y1]). Every other solid top of a landmark can be stood on too, without railings.
+const ROOFTOPS = {
+  vac: { rect: [-9, 4, -15, 11], door: [-6, -15], dir: [0, -1], hut: [-2.5, 5], hutDir: [0, -1], gun: 'sniper', gunAt: [0, -10] },
+  // the tower, 59 m up, with its plant room; the rocket launcher waits here instead of a sniper rifle
+  teirlinck: { rect: [-16, 0, 0, 16], door: [12.5, -16], dir: [0, -1], hut: [-12, 3], hutDir: [1, 0], gun: 'rpg', gunAt: [-3, 12], blocks: [[-11, -5, 6, 12, 59.4, 61.1]] },
+  // the new middle block's roof garden round the red pavilion, with the jetpack
+  belpaire: { rect: [-7, 7, -9, 12], door: [3, -9], dir: [0, -1], hut: [-3, 9], hutDir: [1, 0], gun: 'sniper', gunAt: [-4, -7.6], jetpackAt: [4, -7.6], blocks: [[-5, 5, -6, 6, 101.2, 105.2]] },
+};
+const ROOF_COLS = { vac: ['#cfcbc6', '#a9a59f'], teirlinck: ['#dcc08a', '#8f8e88'], belpaire: ['#eef0ee', '#c8322f'] };
+// hand a placed model's tops to world/rooftops.js: colliders are [x0, x1, z0, z1, top] in the model's metres (.glb
+// convention, front at +z); spec (front at -z) picks the one with the door
+function addRoofs(colliders, cx, cz, face, type, spec) {
+  const a = FACE_YAW[face], c = Math.round(Math.cos(a)), s = Math.round(Math.sin(a));
+  const dir = ([x, z]) => [-x * c - z * s, x * s - z * c]; // half turn to the .glb front, then the site's turn
+  const at = p => { const [x, z] = dir(p); return { x: cx + x, z: cz + z }; };
+  const area = ([x0, x1, z0, z1]) => { const [a0, a1, b0, b1] = turnBox([x0, x1, z0, z1], cx, cz, face); return { x0: a0, x1: a1, z0: b0, z1: b1 }; };
+  const flip = ([x0, x1, z0, z1]) => [-x1, -x0, -z1, -z0]; // the spec's front-at--z metres to the colliders' .glb ones
+  for (const C of colliders) {
+    const floor = C[4] + STAND, r = { area: area(C), floor };
+    if (spec && flip(spec.rect).every((v, i) => Math.abs(v - C[i]) < 1e-6)) {
+      Object.assign(r, {
+        door: at(spec.door), fn: dir(spec.dir), hut: at(spec.hut), hfn: dir(spec.hutDir), col: ROOF_COLS[type][0], trim: ROOF_COLS[type][1],
+        gun: spec.gun, gunAt: at(spec.gunAt), jetpackAt: spec.jetpackAt && at(spec.jetpackAt),
+        blocks: (spec.blocks || []).map(([x0, x1, z0, z1, y0, y1]) => ({ ...area(flip([x0, x1, z0, z1])), y0, y1 })),
+      });
+    }
+    landmarkRoofs.push(r);
+  }
+}
+
 // stands in for a model that did not load and has no builder: a plain glazed block
 function placeholder(g, S) { S.mass(-12, 12, -12, 12, 0, 16, '#d9d2c8', true); }
 
@@ -79,10 +113,11 @@ export async function loadLandmarkModels(sites = LANDMARK_SITES) {
 // g: { walls, plain, neon } geometry builders and sign(spec) to queue a neon sign
 export function buildLandmark(g, s, cx, cz) {
   const m = models.get(s);
-  if (m) return placeModel(m, cx, cz, s.face);
+  if (m) { addRoofs(m.colliders, cx, cz, s.face); return placeModel(m, cx, cz, s.face); }
   const S = site(g, cx, cz, s.face);
   if (LANDMARK_MODELS[s.type]) {
-    const o = placeModel(detailedModel(s.type), cx, cz, s.face);
+    const d = detailedModel(s.type), o = placeModel(d, cx, cz, s.face);
+    addRoofs(d.colliders, cx, cz, s.face, s.type, ROOFTOPS[s.type]);
     if (SIGNS[s.type]) S.sign(...SIGNS[s.type]);
     return o;
   }

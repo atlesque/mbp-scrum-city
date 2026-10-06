@@ -42,11 +42,12 @@ export function pushOutOBB(o, r, x, z, yaw, hw, hl) {
   o.x = x + _lo.x * fz + _lo.z * fx; o.z = z - _lo.x * fx + _lo.z * fz;
   return true;
 }
-// push a moving circle out of buildings, props and anything in the world with a pushOut trait
-export function collide(o, r, self) {
+// push a moving circle out of buildings, props and anything in the world with a pushOut trait.
+// y: how high its feet are (the player jumping, or up on the roofs); it passes over what doesn't reach that high.
+export function collide(o, r, self, y = 0) {
   let hit = false;
-  for (const c of nearColliders(o.x, o.z)) if (pushOut(o, r, c.x0, c.x1, c.z0, c.z1)) hit = true;
-  for (const e of entities) {
+  for (const c of nearColliders(o.x, o.z)) if (y < c.h + 0.05 && pushOut(o, r, c.x0, c.x1, c.z0, c.z1)) hit = true;
+  if (y < 1.4) for (const e of entities) {
     // nor the car a bike is riding over (vehicles/knock.js), which is under it rather than in its way
     if (!e.pushOut || e === self || Math.abs(e.x - o.x) > 6 || Math.abs(e.z - o.z) > 6 || (self && (self.over === e || e.over === self))) continue;
     if (e.pushOut(o, r)) hit = true;

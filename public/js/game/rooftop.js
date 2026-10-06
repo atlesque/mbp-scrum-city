@@ -27,8 +27,8 @@ export function spawnRoofDoor(roof) { return addEntity(Object.assign(Object.crea
 export function placeOnRoof(roof, up) {
   const at = up ? roof.hutOut : roof.street;
   P.roof = up ? roof : null;
-  P.x = at.x; P.z = at.z; P.y = up ? roof.floor : 0; P.vy = 0; P.grounded = true; P.vx = P.vz = 0; P.moveSpeed = 0;
-  P.yaw = cam.yaw = roof.yaw;
+  P.x = at.x; P.z = at.z; P.y = P.floor = up ? roof.floor : 0; P.vy = 0; P.grounded = true; P.vx = P.vz = 0; P.moveSpeed = 0;
+  P.yaw = cam.yaw = up ? roof.hutYaw ?? roof.yaw : roof.yaw;
   P.c.root.position.set(P.x, P.y, P.z); P.c.root.rotation.y = P.yaw;
   emit(up ? 'roof:up' : 'roof:down', { roof });
 }

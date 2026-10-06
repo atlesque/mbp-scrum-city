@@ -6,7 +6,7 @@ import { SHOP_TYPES } from '../shops/types.js';
 import { ROADS, addCollider } from './collision.js';
 import { buildEdges } from './edges.js';
 import { buildLandmark, landmarkAt } from './landmarks.js';
-import { buildRooftops, roofSpots } from './rooftops.js';
+import { buildRooftops, flatRoofs, roofSpots } from './rooftops.js';
 
 // ================= WORLD =================
 const PASTEL = ['#f7a8c4', '#8fe3d6', '#ffd0a1', '#c9b3f2', '#a7e8a1', '#fff1c9', '#ffb3a7', '#9fd4ff', '#f4ece6', '#ffc6e7', '#b8f0e6', '#ffe0b3'];
@@ -70,10 +70,12 @@ function building(walls, plain, neon, x0, x1, z0, z1, h, style, face, signText) 
   const along = (o) => [fx + (fn[0] ? 0 : o), fz + (fn[0] ? o : 0)];
   // awning over the ground floor
   if (srnd() < 0.7) { const [ax, az] = along(0); const aw = fw * 0.75; box(plain, fn[0] ? 1.6 : aw, 0.14, fn[0] ? aw : 1.6, ax + fn[0] * 0.8, 2.9, az + fn[1] * 0.8, spick(['#ff6fae', '#3fd6c8', '#ffb347', '#a77bff', '#ffffff'])); }
+  let parapet = null; // something to walk round on the roof
   if (style === 'deco') {
     // vertical fins and a central parapet: the Ocean Drive look
     for (const o of [-fw * 0.32, 0, fw * 0.32]) { const [a, b] = along(o); box(plain, fn[0] ? 0.5 : 0.7, h - 3.4, fn[0] ? 0.7 : 0.5, a + fn[0] * 0.2, 3.6 + (h - 3.4) / 2, b + fn[1] * 0.2, trim); }
-    const [pa, pb] = along(0); box(plain, fn[0] ? 0.8 : fw * 0.35, 2.4, fn[0] ? fw * 0.35 : 0.8, pa, h + 1.5, pb, trim);
+    const [pa, pb] = along(0), px = fn[0] ? 0.8 : fw * 0.35, pz = fn[0] ? fw * 0.35 : 0.8; box(plain, px, 2.4, pz, pa, h + 1.5, pb, trim);
+    parapet = { x0: pa - px / 2, x1: pa + px / 2, z0: pb - pz / 2, z1: pb + pz / 2, y0: h + 0.3, y1: h + 2.7 };
     box(neon, fn[0] ? 0.12 : fw * 0.36, 0.14, fn[0] ? fw * 0.36 : 0.12, pa + fn[0] * 0.45, h + 2.6, pb + fn[1] * 0.45, neonC);
     for (const o of [-fw / 2 + 0.1, fw / 2 - 0.1]) { const [a, b] = along(o); box(neon, 0.14, h - 3.6, 0.14, a + fn[0] * 0.15, 3.6 + (h - 3.6) / 2, b + fn[1] * 0.15, neonC); }
   }
@@ -81,7 +83,9 @@ function building(walls, plain, neon, x0, x1, z0, z1, h, style, face, signText) 
   if (tiered) {
     const w2 = w * 0.68, d2 = d * 0.68, h2 = h * srange(0.18, 0.4);
     wallBox(walls, plain, cx, h + h2 / 2, cz, w2, h2, d2, col); box(plain, w2 + 0.4, 0.5, d2 + 0.4, cx, h + h2 + 0.25, cz, trim);
-    if (srnd() < 0.6) { const w3 = w2 * 0.55, h3 = h2 * 0.6; wallBox(walls, plain, cx, h + h2 + h3 / 2, cz, w3, h3, w3, trim); box(neon, 0.25, 6, 0.25, cx, h + h2 + h3 + 3, cz, neonC); }
+    const tiers = [{ x0: cx - w2 / 2, x1: cx + w2 / 2, z0: cz - d2 / 2, z1: cz + d2 / 2, y0: h, y1: h + h2 + 0.5 }];
+    if (srnd() < 0.6) { const w3 = w2 * 0.55, h3 = h2 * 0.6; wallBox(walls, plain, cx, h + h2 + h3 / 2, cz, w3, h3, w3, trim); box(neon, 0.25, 6, 0.25, cx, h + h2 + h3 + 3, cz, neonC); tiers.push({ x0: cx - w3 / 2, x1: cx + w3 / 2, z0: cz - w3 / 2, z1: cz + w3 / 2, y0: h + h2, y1: h + h2 + h3 }); }
+    flatRoofs.push({ x0: x0 - 0.25, x1: x1 + 0.25, z0: z0 - 0.25, z1: z1 + 0.25, floor: h + 0.6, blocks: tiers }); // the setbacks stand on the lower roof
   }
   if (style === 'deco' || srnd() < (style === 'tower' ? 0.25 : 0.4)) {
     const y = h + 0.66;
@@ -93,7 +97,7 @@ function building(walls, plain, neon, x0, x1, z0, z1, h, style, face, signText) 
     addSign(signText, fx + fn[0] * 0.35, style === 'deco' ? Math.min(h - 2.5, 8.5) : 5.2, fz + fn[1] * 0.35, ry, sw, spick(NEON), srnd() < 0.6 ? '"Yellowtail", cursive' : '"Bowlby One", Impact, sans-serif');
   }
   addCollider(x0, x1, z0, z1, h, true);
-  if (!tiered) roofSpots.push({ x0, x1, z0, z1, h, face, col, trim });
+  if (!tiered) roofSpots.push({ x0, x1, z0, z1, h, face, col, trim, parapet });
 }
 export function buildWorld() {
   const walls = new GB(), plain = new GB(), neon = new GB(), trees = new GB();
@@ -120,7 +124,7 @@ export function buildWorld() {
       box(plain, 32, 0.08, 32, cx, 0.17, cz, '#6fb35e');
       box(plain, 32, 0.09, 2.4, cx, 0.18, cz, '#e8d3a5'); box(plain, 2.4, 0.09, 32, cx, 0.18, cz, '#e8d3a5');
       box(plain, 4, 0.8, 4, cx, 0.5, cz, '#f3ece6'); box(neon, 2.8, 0.1, 2.8, cx, 0.92, cz, '#5fe6ff');
-      addCollider(cx - 2, cx + 2, cz - 2, cz + 2, 0.9, false);
+      addCollider(cx - 2, cx + 2, cz - 2, cz + 2, 0.9, false); flatRoofs.push({ x0: cx - 2, x1: cx + 2, z0: cz - 2, z1: cz + 2, floor: 0.96 });
       for (let k = 0; k < 9; k++) { const px = cx + srange(-14, 14), pz = cz + srange(-14, 14); if (Math.abs(px - cx) < 3 || Math.abs(pz - cz) < 3) continue; palm(trees, px, pz); }
       parkRects.push([cx - 16, cz - 16, 32, 32]);
       healthSpots.push([cx + 5, cz + 1.2]);
@@ -144,7 +148,7 @@ export function buildWorld() {
       box(plain, 10, 0.25, 3, cx, 3.1, z0 - 1.4, '#ffffff'); box(neon, 10, 0.1, 0.1, cx, 3.0, z0 - 2.9, '#ff4455');
       signs.push({ cross: true, x: cx, y: 9.5, z: z0 - 0.3, ry: Math.PI, w: 4 });
       signs.push({ text: 'City General', x: cx, y: 5.3, z: z0 - 0.3, ry: Math.PI, w: 10, color: '#5ff3ff', font: '"Bowlby One", Impact, sans-serif' });
-      addCollider(x0, x1, z0, z1, h, true);
+      addCollider(x0, x1, z0, z1, h, true); flatRoofs.push({ x0: cx - 14.3, x1: cx + 14.3, z0: (z0 + z1) / 2 - 13.8, z1: (z0 + z1) / 2 + 13.8, floor: h + 0.6 });
       SPAWN = { x: cx + 4, z: cz - 17.6, yaw: Math.PI / 2 };
       healthSpots.push([cx + 8, cz - 17.2]);
       continue;
@@ -174,7 +178,7 @@ export function buildWorld() {
         box(neon, fn[0] ? 0.15 : w + 0.6, 0.15, fn[0] ? d + 0.6 : 0.15, fx + fn[0] * 0.35, h + 0.75, fz + fn[1] * 0.35, sf.neon);
         box(plain, fn[0] ? 2 : w * 0.8, 0.16, fn[0] ? d * 0.8 : 2, fx + fn[0], 3.0, fz + fn[1], sf.awning);
         signs.push({ text: sf.sign.text, x: fx + fn[0] * 0.4, y: 4.6, z: fz + fn[1] * 0.4, ry: Math.atan2(fn[0], fn[1]), w: 10, color: sf.sign.color, font: sf.sign.font });
-        addCollider(L.x0, L.x1, L.z0, L.z1, h, true);
+        addCollider(L.x0, L.x1, L.z0, L.z1, h, true); flatRoofs.push({ x0: L.x0 - 0.3, x1: L.x1 + 0.3, z0: L.z0 - 0.3, z1: L.z1 + 0.3, floor: h + 0.7 });
         shopSpots.push({ type: L.shop, x: fx + fn[0] * 2.2, z: fz + fn[1] * 2.2 });
         continue;
       }
@@ -198,7 +202,7 @@ export function buildWorld() {
   for (let z = -170; z <= 170; z += 85) {
     const c = spick(['#ff6fae', '#3fd6c8', '#ffb347', '#a77bff']);
     for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) box(plain, 0.2, 2.2, 0.2, 234 + a * 1.1, 1.1, z + b * 1.1, '#f4ece6');
-    box(plain, 3, 2, 3, 234, 3.2, z, c); box(plain, 3.6, 0.3, 3.6, 234, 4.35, z, '#ffffff'); addCollider(232.6, 235.4, z - 1.6, z + 1.6, 4.5, false);
+    box(plain, 3, 2, 3, 234, 3.2, z, c); box(plain, 3.6, 0.3, 3.6, 234, 4.35, z, '#ffffff'); addCollider(232.6, 235.4, z - 1.6, z + 1.6, 4.5, false); flatRoofs.push({ x0: 232.2, x1: 235.8, z0: z - 1.8, z1: z + 1.8, floor: 4.5 + 0.06 });
     box(plain, 0.3, 0.1, 3, 231.5, 1.2, z, '#f4ece6');
   }
   for (let k = 0; k < 26; k++) {
