@@ -4,8 +4,9 @@ import { HEAR, airCutoff, distToEar, doppler, falloff, listenerPose } from './sp
 
 // ================= AUDIO =================
 export const Sound = (() => {
-  let ctx = null, master, sfx, mus, noise, reverbIn, skidGain, skidF, engO1, engO2, engF, engG, musicOn = true, seq = null, step = 0, nextT = 0, intensity = 0, wantIntensity = 0, layers = musicLayers(0);
+  let ctx = null, master, dimmer, dimmed = false, sfx, mus, noise, reverbIn, skidGain, skidF, engO1, engO2, engF, engG, musicOn = true, seq = null, step = 0, nextT = 0, intensity = 0, wantIntensity = 0, layers = musicLayers(0);
   const mix = { on: true, sfx: 1, music: 1 }; // from the Settings screen
+  const MENU_DIM = 0.5, DIM_FADE = 0.3; // everything plays at half volume, faded over 0.3 s, while the pause menu is open
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
   function makeNoise() { const b = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate); const d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; }
   function impulse(sec, decay) { const len = ctx.sampleRate * sec, b = ctx.createBuffer(2, len, ctx.sampleRate); for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay); } return b; }
@@ -13,7 +14,7 @@ export const Sound = (() => {
     if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     ctx = new AC();
-    master = ctx.createGain(); master.gain.value = mix.on ? 0.85 : 0; master.connect(ctx.destination);
+    master = ctx.createGain(); master.gain.value = mix.on ? 0.85 : 0; dimmer = ctx.createGain(); dimmer.gain.value = dimmed ? MENU_DIM : 1; master.connect(dimmer); dimmer.connect(ctx.destination);
     const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 5; comp.connect(master);
     sfx = ctx.createGain(); sfx.gain.value = 0.75 * mix.sfx; sfx.connect(comp);
     mus = ctx.createGain(); mus.gain.value = musicLevel(); mus.connect(comp);
@@ -194,6 +195,13 @@ export const Sound = (() => {
     setIntensity(level) { wantIntensity = level; },
     get intensity() { return intensity; },
     toggleMusic() { musicOn = !musicOn; if (ctx) mus.gain.setTargetAtTime(musicLevel(), ctx.currentTime, 0.2); return musicOn; },
+    // fade all sound down while a menu is open, and back up when it closes (on top of the Settings volumes)
+    dim(on) {
+      dimmed = !!on; if (!ctx) return;
+      const g = dimmer.gain, t = ctx.currentTime;
+      g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(dimmed ? MENU_DIM : 1, t + DIM_FADE);
+    },
+    get dimmed() { return dimmed; },
     // sound on / off and the effects and music volumes (0 to 1)
     setMix({ on, sfx: s, music }) {
       Object.assign(mix, { on, sfx: s, music }); if (!ctx) return;

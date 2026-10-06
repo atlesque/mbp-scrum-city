@@ -449,6 +449,7 @@ try {
   await step('changes settings from the pause menu', async () => {
     await press('KeyP');
     check(await until(() => __neonbay.G.state === 'paused'), 'P did not pause');
+    check(await game(() => __neonbay.Sound.dimmed), 'the sound did not dim in the pause menu');
     await page.click('#pauseSettingsBtn');
     check(await page.isVisible('#settings') && !(await page.isVisible('#pause')), 'the Settings screen did not open');
     await page.click('#setBody .tgl[data-set="sound"]');
@@ -465,6 +466,7 @@ try {
     check(await game(() => localStorage.getItem('neonbay86.settings').includes('"sound":true')), 'reset did not restore the defaults');
     await page.click('#resumeBtn');
     check(await until(() => __neonbay.G.state === 'play'), 'did not resume');
+    check(!(await game(() => __neonbay.Sound.dimmed)), 'the sound stayed dimmed after resuming');
   });
 
   await step('plays a siren from each police car', async () => {
