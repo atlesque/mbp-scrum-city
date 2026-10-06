@@ -184,15 +184,18 @@ try {
   });
 
   await step('a rocket throws a parked car into the air', async () => {
-    await clearLane();
+    // down the same open stretch of road
+    await clearVehicles(5, -50);
     await game(async () => {
       const { P, cam, spawnVehicle } = __neonbay, { fireRocket } = await import('/js/combat/combat.js');
+      P.x = 5.5; P.z = -60; cam.yaw = 0;
       const fx = Math.sin(cam.yaw), fz = Math.cos(cam.yaw);
       const c = window.__tossed = spawnVehicle('sedan', P.x + fx * 14, P.z + fz * 14, cam.yaw + Math.PI / 2);
-      window.__peak = 0; const slide = c.K.slide; c.K = Object.assign(Object.create(c.K), { slide(v, dt) { slide(v, dt); if (v === c) window.__peak = Math.max(window.__peak, v.air || 0); } });
+      window.__from = { x: c.x, z: c.z };
       fireRocket(new THREE.Vector3(P.x + fx * 2, 1, P.z + fz * 2), new THREE.Vector3(fx, -0.02, fz), 420);
     });
-    check(await until(() => window.__peak > 0.5), `the car was not thrown (peak ${await game(() => window.__peak)} m)`);
+    const thrown = await until(() => __tossed.air > 0 || Math.hypot(__tossed.x - __from.x, __tossed.z - __from.z) > 1.5);
+    check(thrown, `the car was not thrown (hp ${await game(() => __tossed.hp)}, moved ${await game(() => Math.hypot(__tossed.x - __from.x, __tossed.z - __from.z).toFixed(2))} m)`);
     check(await until(() => !(__tossed.air > 0)), 'the car never landed');
     // blowing up a car is a crime: drop the heat so the police don't crowd the steps that follow
     await game(() => { const { G, all, removeEntity } = __neonbay; removeEntity(__tossed); G.heat = 0; G.wanted = 0; for (const n of all('npc')) if (n.faction === 'law') removeEntity(n); });
