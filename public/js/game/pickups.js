@@ -1,6 +1,6 @@
 import { Sound } from '../core/audio.js';
 import { G, P, inv, stats } from '../core/state.js';
-import { WBY, WEAPONS } from '../data/weapons.js';
+import { GUNS, WBY, WEAPONS, wStat } from '../data/weapons.js';
 import { charMat, gunGeo } from '../characters/character.js';
 import { toast } from '../ui/hud.js';
 import { $, lerp } from '../core/util.js';
@@ -43,11 +43,24 @@ export function makePickup(type, x, z) {
 
 // Melee weapons lying in the street, Vice City style: a slowly turning bat or blade over a soft glow. Walk over one
 // you don't have yet to pick it up; it comes back a while after it's taken. takeWeapon(inv, id) hands it over and
-// says whether it was new.
+// says whether it was new. Every weapon handed over this way counts as found, so getting wasted takes it back
+// (loseFound in data/weapons.js); only what the player buys at the gun shop stays.
 export const WEAPON_PICKUP_RESPAWN = 90;
 export function takeWeapon(inv, id) {
   if (inv.owned[id]) return false;
-  inv.owned[id] = true; inv.lvl[id] = inv.lvl[id] || 0; inv.mag[id] = 0; return true;
+  inv.owned[id] = true; inv.lvl[id] = inv.lvl[id] || 0; inv.mag[id] = 0; (inv.found ||= {})[id] = true; return true;
+}
+// A weapon dropped by a fallen enemy (`weaponDrops` in npcs/types.js). A new one is found (see takeWeapon) and comes
+// loaded with a pack of ammo; a gun the player already has gives the pack, thrown weapons stack. A melee weapon the
+// player already has is no use and stays put (null). Otherwise returns the feed label.
+export function pickUpWeapon(inv, id) {
+  const w = WBY[id], had = !!inv.owned[id];
+  if (had && w.melee) return null;
+  if (!had) takeWeapon(inv, id);
+  if (w.melee) return w.name;
+  if (!had && !w.thrown) inv.mag[id] = wStat(w, 0).mag;
+  inv.ammo[id] = (inv.ammo[id] || 0) + w.ammoPack;
+  return w.thrown ? `${w.name} ×${w.ammoPack}` : had ? `+${w.ammoPack} ${w.name} ammo` : w.name;
 }
 const glowGeo = new THREE.CircleGeometry(0.75, 20); glowGeo.rotateX(-Math.PI / 2);
 const glowMat = new THREE.MeshBasicMaterial({ color: '#ffd23e', transparent: true, opacity: 0.32, depthWrite: false });
@@ -66,15 +79,36 @@ const WeaponPickup = {
   },
   dispose() { scene.remove(this.m); scene.remove(this.glow); },
 };
-export function makeWeaponPickup(id, x, z, onTaken) {
+export function makeWeaponPickup(id, x, z, onTaken) { return weaponMesh(id, x, z, WeaponPickup, { onTaken }); }
+function weaponMesh(id, x, z, proto, extra) {
   const inner = new THREE.Mesh(gunGeo(id).geo, charMat), tilt = gunGeo(id).tilt || 0;
   inner.rotation.x = tilt; // stand it upright again (models tip forward to sit in a hand)
   const hold = new THREE.Group(); hold.add(inner); hold.rotation.z = Math.PI / 2; hold.scale.setScalar(1.5); // lie it on its side
   const box = new THREE.Box3().setFromObject(hold), c = box.getCenter(new THREE.Vector3()); hold.position.sub(c);
   const m = new THREE.Group(); m.add(hold); m.position.set(x, 1, z); scene.add(m);
   const glow = new THREE.Mesh(glowGeo, glowMat); glow.position.set(x, 0.05, z); scene.add(glow);
-  return addEntity(Object.assign(Object.create(WeaponPickup), { id, x, z, m, glow, active: true, respawnT: 0, onTaken }));
+  return addEntity(Object.assign(Object.create(proto), { id, x, z, m, glow, active: true, respawnT: 0 }, extra));
 }
+// a weapon left by a fallen enemy: like a street pickup, but only the one, and gone after a minute
+let toldFound = false;
+const DroppedWeapon = {
+  kind: 'pickup',
+  blipLayer: 0,
+  update(dt) {
+    const p = this;
+    p.m.rotation.y += dt * 1.8; p.m.position.y = 1.0 + Math.sin(G.time * 2.4 + p.x) * 0.1;
+    p.life -= dt; if (p.life <= 0) { removeEntity(p); return; }
+    if (!P.alive || P.vehicle || Math.hypot(P.x - p.x, P.z - p.z) > 1.3) return;
+    const label = pickUpWeapon(inv, p.id); if (!label) return;
+    Sound.pickup(); feed(label, false, '#ffd23e');
+    const w = WBY[p.id], key = GUNS.indexOf(w) + 1;
+    if (!toldFound) { toldFound = true; toast(`Got ${w.thrown ? '' : 'a '}<em>${w.name}</em>${key ? `. Press <em>${key}</em> to ${w.thrown ? 'pull one out' : 'use it'}` : ''}. Picked-up weapons are lost when you get wasted; only bought ones stay.`, 6); }
+    removeEntity(p);
+  },
+  blip(radar) { radar.dot(this.x, this.z, '#ffd23e', 4, false, 'sq'); },
+  dispose() { scene.remove(this.m); scene.remove(this.glow); },
+};
+export function dropWeapon(id, x, z) { return weaponMesh(id, x, z, DroppedWeapon, { life: 60 }); }
 
 // dropped cash: drifts to the player when close, vanishes after 40 s
 const Cash = {
@@ -96,7 +130,7 @@ export function dropCash(x, z, val) {
 // What fallen enemies leave behind (see `drops` in npcs/types.js). useful(player, inv) says whether the
 // player can use it right now (if not, it stays put); take(player, inv) applies it and returns the feed label.
 const ammoMat = new THREE.MeshBasicMaterial({ color: '#ffd23e' }), ammoGeo = new THREE.BoxGeometry(0.5, 0.3, 0.3);
-const ammoGuns = inv => WEAPONS.filter(w => inv.owned[w.id] && !w.infinite);
+const ammoGuns = inv => WEAPONS.filter(w => inv.owned[w.id] && !w.infinite && !w.thrown); // grenades and molotovs only come as weapon drops
 export const DROP_TYPES = {
   armor: { color: '#5ec8ff',
     useful: player => player.armor < 100,

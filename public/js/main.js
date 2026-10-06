@@ -5,6 +5,7 @@ import './game/rewards.js';
 import './ui/settings.js';
 import { makeCharacter, setGun } from './characters/character.js';
 import { selectWeapon, updateRockets } from './combat/combat.js';
+import { updateThrown } from './combat/throwables.js';
 import { Sound } from './core/audio.js';
 import { load, save, serialize } from './core/save.js';
 import { settings } from './core/settings.js';
@@ -50,7 +51,7 @@ function frame(now) {
     // every person, vehicle, pickup and shop in the world
     for (const e of all()) if (e.update && !e.removed) e.update(dt);
     updateEngineSound();
-    updateRockets(dt); updateProps(dt); updateParts(dt); updateFx(dt); updateLighting(dt);
+    updateRockets(dt); updateThrown(dt); updateProps(dt); updateParts(dt); updateFx(dt); updateLighting(dt);
     if (G.state !== 'title') updateWanted(dt);
     managePopulation(dt);
     // water swell

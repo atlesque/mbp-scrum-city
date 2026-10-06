@@ -9,6 +9,7 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 - Taking people down drops cash and raises your wanted level (1–5 stars).
 - Each star brings tougher enemies: police, police cars, SWAT, federal agents with a helicopter, then soldiers and minigun heavies.
 - Downed police, SWAT, feds, soldiers and heavies can also drop armor (blue) and ammo (yellow) for every gun you own that uses it. Tougher enemies drop more often; a heavy always drops both.
+- Some drop a weapon too: police now and then a nightstick, feds molotovs, soldiers grenades, and the Juggernaut always his minigun. Grenades (`8`) bounce and go off after a couple of seconds; molotovs (`9`) burst into a pool of fire that burns people and cooks parked cars. Weapons you pick up (street melee weapons included) are lost when you get wasted; only what you bought at the gun shop stays. Buy a picked-up weapon there to keep it.
 - Break line of sight with the law and the stars flash and fade one at a time.
 - Two gun shops (pink `$` on the radar) sell an SMG, shotgun, assault rifle, minigun and rocket launcher, plus upgrades, ammo, health and armor. They close at 4+ stars.
 - Adventure bikes cruise the streets (white dots on the radar): the black BMW R 1300 GS 'Triple Black' and the Yamaha Ténéré 700 Rally in blue rally livery. Shoot or ram the rider off, walk up and press `F` to take the bike. Riderless bikes show as cyan squares. Ride into a car gently (nosing into a parked one, or catching up with one going your way) and the bike climbs up over its bonnet and roof and drops off the far side; hit one hard and you crash into it.
@@ -30,7 +31,7 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 | F | Get on or off a motorcycle, get in or out of a car, pull a driver out of their car |
 | On a bike: W / S, A / D, Shift, Space | Throttle / brake, lean, boost, rear brake. You can still shoot. |
 | In a car: W / S, A / D, Shift, Space | Gas / brake, steer, boost, handbrake. Steer with the handbrake to drift; hold the gas to keep the slide going, countersteer to straighten out. |
-| 1–7, mouse wheel | Switch weapons |
+| 1–9, mouse wheel | Switch weapons (8 grenades, 9 molotovs, once you've picked some up) |
 | Q | Put the guns away: fists, then each melee weapon you own |
 | R | Reload |
 | M | Toggle the radio (Neon FM builds up with your wanted level: synths only at zero stars, drums from one star, more layers up to five) |
@@ -63,7 +64,7 @@ Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share 
 
 **A detailed car.** The blue Tesla Model Y, the Mercedes EQA 250 and the BMW 530e are drawn with the car kit in `models/carkit.js`: in real metres, as side outlines (body, glass, roof) pushed across the car's width with rounded edges, plus trims and lamps laid onto the panels, all bent by one warp (narrower nose and tail, sides leaning in towards the roof). Lamps use an unlit material, so they glow at night. Each model builds its geometry once and every car of that model shares it. `models/bmw5.js` is a worked example. Preview a car at `/dev/cars.html?car=<id>` (drag to orbit; `&night`, `&neutral` for plain white light) and render the previews with `node tests/car-shots.mjs`. Keep a car to about 15–18k triangles.
 
-**A new NPC.** Add an entry to `NPC_TYPES` in `npcs/types.js` (faction, behaviour, hp, look, cash, heat, `drops`, and weapon stats if armed). Spawn it with `spawnNpc(id, x, z)`, through a wanted level's `mix` in `data/wanted.js`, or with a row in `POPULATION` in `game/population.js`. New behaviours go in `npcs/behaviours.js`.
+**A new NPC.** Add an entry to `NPC_TYPES` in `npcs/types.js` (faction, behaviour, hp, look, cash, heat, `drops`, `weaponDrops`, and weapon stats if armed). Spawn it with `spawnNpc(id, x, z)`, through a wanted level's `mix` in `data/wanted.js`, or with a row in `POPULATION` in `game/population.js`. New behaviours go in `npcs/behaviours.js`.
 
 **A new melee weapon.** Add a `melee({ ... })` entry to `WEAPONS` in `data/weapons.js` with its damage, `rate` (seconds between swings), `reach`, `arc`, `knock`, `hits` and `anim` (`punch`, `swing`, `chop`, `stab` or `saw`, the moves in `characters/swing.js`); `blade` cuts, `auto` keeps cutting while the button is held. Give it a model in `characters/melee-models.js` (grip at the origin, running down -Y, tipped forward by `tilt`) and an icon in `drawWeaponIcon` (`ui/hud.js`). It shows up in the gun shop on its own; list it in `STREET_MELEE` in `main.js` to lie around the city too. Blows land in `combat/melee.js` and use the same hit zones as bullets; people reel or go down (`meleeHit` in `npcs/npc.js`), and civilians with `fightBack` may punch back (the `brawl` behaviour).
 
