@@ -164,6 +164,7 @@ export function driveByPlayer(v, dt) {
     // how squarely we hit: the push-out direction against our direction of travel
     const px = v.x - nx, pz = v.z - nz, pl = Math.hypot(px, pz) || 1, head = Math.max(0, -(px * fx + pz * fz) / pl * Math.sign(v.v)), impact = Math.abs(v.v) * head;
     v.v = impact > 7 ? -Math.sign(v.v) * impact * 0.12 : v.v * (1 - head * 0.9);
+    if (v.slip) v.slip *= 0.3; // a slide into a wall ends against it
     if (impact > 7) {
       Sound.thud(clamp(impact / 25, 0.3, 1), panFor(-px, -pz, cam.yaw, 0)); cam.shake = Math.max(cam.shake, clamp(impact / 40, 0.1, 0.7));
       v.damage(impact * 1.6, false); if (impact > 15 && P.vehicle === v) hurtPlayer((impact - 13) * K.crash.hurt);
@@ -184,7 +185,7 @@ export function driveByPlayer(v, dt) {
   if (K.afterDrive) K.afterDrive(v, dt);
   // camera swings in behind when the mouse is idle
   if (G.time - (P.lookT || 0) > 1.2 && Math.abs(v.v) > 3 && !I.mouseR) cam.yaw += angDiff(cam.yaw, v.yaw) * Math.min(1, dt * 2.2);
-  P.x = v.x; P.z = v.z; P.y = 0; P.vy = 0; P.grounded = true; P.yaw = v.yaw; P.moveSpeed = Math.abs(v.v); P.vx = fx * v.v; P.vz = fz * v.v;
+  P.x = v.x; P.z = v.z; P.y = 0; P.vy = 0; P.grounded = true; P.yaw = v.yaw; P.moveSpeed = Math.abs(v.v); P.vx = fx * v.v + fz * (v.slip || 0); P.vz = fz * v.v - fx * (v.slip || 0);
 }
 
 // send lighter vehicles we drive into flying and shove cars along (see knock.js); anything we only bump stops
@@ -198,7 +199,7 @@ function ram(v) {
       const k = shoveImpulse(v, b); if (!k) continue;
       shove(v, b, k, true); shoved = true;
       // what's left of our speed, along the way we're pointing
-      v.v = k.avx * Math.sin(v.yaw) + k.avz * Math.cos(v.yaw);
+      v.v = k.avx * Math.sin(v.yaw) + k.avz * Math.cos(v.yaw); if (v.slip != null) v.slip = k.avx * Math.cos(v.yaw) - k.avz * Math.sin(v.yaw);
       const hit = k.closing - 6; if (hit > 0) v.damage(hit * 1.4, false);
       if (k.closing > 16 && P.vehicle === v) hurtPlayer((k.closing - 14) * v.K.crash.hurt);
       Sound.thud(clamp(k.closing / 25, 0.3, 1), panFor(b.x - v.x, b.z - v.z, cam.yaw, 0)); cam.shake = Math.max(cam.shake, clamp(k.closing / 40, 0.1, 0.7));
