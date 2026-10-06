@@ -57,12 +57,12 @@ function pauseGame() {
   if (G.state !== 'play') return;
   G.state = 'paused'; I.mouseL = false; I.mouseR = false; for (const k in keys) keys[k] = false;
   $('pause').hidden = false; $('pauseStats').textContent = `${stats.kills} takedowns · ${stats.cops} law enforcement · best heat ${'★'.repeat(stats.best) || 'none'} · $${stats.earned.toLocaleString()} earned`;
-  Sound.setSiren(0); Sound.setHeli(0); Sound.setEngine(0, 1000); Sound.setSkid(0); save();
+  Sound.hush(); Sound.dim(true); save();
   // free the mouse (P keeps it captured) so the menu can be clicked
   if (document.pointerLockElement) document.exitPointerLock();
   setTimeout(() => $('resumeBtn').focus(), 20);
 }
-function resumeGame(fromClick) { if (G.state !== 'paused') return; $('pause').hidden = true; G.state = 'play'; requestLock(fromClick === true); }
+function resumeGame(fromClick) { if (G.state !== 'paused') return; $('pause').hidden = true; G.state = 'play'; Sound.dim(false); requestLock(fromClick === true); }
 $('resumeBtn').addEventListener('click', () => resumeGame(true));
 $('playBtn').addEventListener('click', () => {
   Sound.init(); $('title').hidden = true; $('hud').hidden = false; G.state = 'play';

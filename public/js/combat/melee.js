@@ -69,7 +69,7 @@ export function landPlayerSwing(sw) {
   }
   if (landed) {
     G.hitT = 0.12; $('crosshair').className = head ? 'head' : 'hit';
-    Sound.smack(w.blade ? 'blade' : w.id === 'fist' || w.id === 'knuckles' ? 'fist' : 'blunt', 1, 0);
+    Sound.smack(w.blade ? 'blade' : w.id === 'fist' || w.id === 'knuckles' ? 'fist' : 'blunt');
     cam.shake = Math.max(cam.shake, w.anim === 'saw' ? 0.05 : b.knock >= 6 ? 0.22 : 0.1);
     alarm(P.x, P.z, 14);
     return;
@@ -82,7 +82,7 @@ export function landPlayerSwing(sw) {
     const h = v.raycast(_o, _d, b.reach + 0.3); if (!h || h.occupant) continue;
     v.damage(b.dmg * 0.4, true);
     const p = _o.clone().addScaledVector(_d, h.t); emit(p.x, p.y, p.z, 5, '#ffe9a8', 4, 0.25, 0.06);
-    Sound.smack('metal', 1, 0); cam.shake = Math.max(cam.shake, 0.12);
+    Sound.smack('metal'); cam.shake = Math.max(cam.shake, 0.12);
     return;
   }
 }

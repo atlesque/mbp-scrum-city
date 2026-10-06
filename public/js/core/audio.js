@@ -1,10 +1,12 @@
 import { LEAD, musicLayers } from '../data/music.js';
 import { clamp } from './util.js';
+import { HEAR, airCutoff, distToEar, doppler, falloff, listenerPose } from './spatial.js';
 
 // ================= AUDIO =================
 export const Sound = (() => {
-  let ctx = null, master, sfx, sirenPan, heliPan, engPan, mus, noise, reverbIn, sirenGain, heliGain, skidGain, skidF, engO1, engO2, engF, engG, musicOn = true, seq = null, step = 0, nextT = 0, intensity = 0, wantIntensity = 0, layers = musicLayers(0);
+  let ctx = null, master, dimmer, dimmed = false, sfx, mus, noise, reverbIn, skidGain, skidF, engO1, engO2, engF, engG, musicOn = true, seq = null, step = 0, nextT = 0, intensity = 0, wantIntensity = 0, layers = musicLayers(0);
   const mix = { on: true, sfx: 1, music: 1 }; // from the Settings screen
+  const MENU_DIM = 0.5, DIM_FADE = 0.3; // everything plays at half volume, faded over 0.3 s, while the pause menu is open
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
   function makeNoise() { const b = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate); const d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; }
   function impulse(sec, decay) { const len = ctx.sampleRate * sec, b = ctx.createBuffer(2, len, ctx.sampleRate); for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay); } return b; }
@@ -12,29 +14,18 @@ export const Sound = (() => {
     if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     ctx = new AC();
-    master = ctx.createGain(); master.gain.value = mix.on ? 0.85 : 0; master.connect(ctx.destination);
+    master = ctx.createGain(); master.gain.value = mix.on ? 0.85 : 0; dimmer = ctx.createGain(); dimmer.gain.value = dimmed ? MENU_DIM : 1; master.connect(dimmer); dimmer.connect(ctx.destination);
     const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 5; comp.connect(master);
     sfx = ctx.createGain(); sfx.gain.value = 0.75 * mix.sfx; sfx.connect(comp);
     mus = ctx.createGain(); mus.gain.value = musicLevel(); mus.connect(comp);
     noise = makeNoise();
     const conv = ctx.createConvolver(); conv.buffer = impulse(1.8, 2.6); const rv = ctx.createGain(); rv.gain.value = 0.4; conv.connect(rv); rv.connect(mus); reverbIn = conv;
-    // siren: wailing saw
-    const so = ctx.createOscillator(); so.type = 'sawtooth'; so.frequency.value = 900;
-    const lfo = ctx.createOscillator(); lfo.frequency.value = 0.35; const lg = ctx.createGain(); lg.gain.value = 320; lfo.connect(lg); lg.connect(so.frequency);
-    const sf = ctx.createBiquadFilter(); sf.type = 'lowpass'; sf.frequency.value = 1700;
-    sirenGain = ctx.createGain(); sirenGain.gain.value = 0; so.connect(sf); sf.connect(sirenGain); sirenGain.connect(sirenPan = panner()); so.start(); lfo.start();
-    // helicopter rotor: chopped noise
-    const hn = ctx.createBufferSource(); hn.buffer = noise; hn.loop = true;
-    const hf = ctx.createBiquadFilter(); hf.type = 'lowpass'; hf.frequency.value = 380;
-    const chop = ctx.createGain(); chop.gain.value = 0.5; const clfo = ctx.createOscillator(); clfo.type = 'square'; clfo.frequency.value = 13; const cg = ctx.createGain(); cg.gain.value = 0.5; clfo.connect(cg); cg.connect(chop.gain);
-    heliGain = ctx.createGain(); heliGain.gain.value = 0; hn.connect(hf); hf.connect(chop); chop.connect(heliGain); heliGain.connect(heliPan = panner()); hn.start(); clfo.start();
-    // boxer twin: low saw at the firing rate plus a soft triangle octave, through a gentle tracking lowpass
-    // and a fixed one that keeps the buzzy highs out
+    // the player's own ride: not placed, since the listener sits on it
     engO1 = ctx.createOscillator(); engO1.type = 'sawtooth'; engO1.frequency.value = 18;
     engO2 = ctx.createOscillator(); engO2.type = 'triangle'; engO2.frequency.value = 36; const e2g = ctx.createGain(); e2g.gain.value = 0.45;
     engF = ctx.createBiquadFilter(); engF.type = 'lowpass'; engF.frequency.value = 220; engF.Q.value = 0.9;
     const engCap = ctx.createBiquadFilter(); engCap.type = 'lowpass'; engCap.frequency.value = 650; engCap.Q.value = 0.5;
-    engG = ctx.createGain(); engG.gain.value = 0; engO1.connect(engF); engO2.connect(e2g); e2g.connect(engF); engF.connect(engCap); engCap.connect(engG); engG.connect(engPan = panner()); engO1.start(); engO2.start();
+    engG = ctx.createGain(); engG.gain.value = 0; engO1.connect(engF); engO2.connect(e2g); e2g.connect(engF); engF.connect(engCap); engCap.connect(engG); engG.connect(sfx); engO1.start(); engO2.start();
     // tyre squeal: narrow band of noise, wavering a little
     const kn = ctx.createBufferSource(); kn.buffer = noise; kn.loop = true; kn.playbackRate.value = 0.8;
     skidF = ctx.createBiquadFilter(); skidF.type = 'bandpass'; skidF.frequency.value = 1500; skidF.Q.value = 9;
@@ -44,14 +35,108 @@ export const Sound = (() => {
   }
   function musicLevel() { return musicOn ? 0.32 * mix.music : 0; }
   function env(g, t, a, peak, dur) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); }
-  // a stereo panner into the effects bus (or the bus itself where the browser has none); the looping voices keep
-  // one each and steer it as their source moves
-  function panner(pan) {
-    if (!ctx.createStereoPanner) return sfx;
-    const p = ctx.createStereoPanner(); p.pan.value = clamp(pan || 0, -1, 1); p.connect(sfx); return p;
+  // ---- placing sounds in the world ----
+  // The listener (where the player's head is, facing the camera) is moved every frame by listen(). A sound with
+  // a source goes gain (its volume at this distance) -> lowpass (air dulling far sounds) -> HRTF panner (direction,
+  // in front, behind, above) -> the effects bus. Distance is handled by our own curves (core/spatial.js), so the
+  // panners themselves don't roll off.
+  let L = null; const recent = [];
+  function setPos(n, prefix, x, y, z, t, snap) {
+    const px = n[prefix + 'X'];
+    if (px) for (const [k, v] of [['X', x], ['Y', y], ['Z', z]]) { const a = n[prefix + k]; if (snap) a.setValueAtTime(v, t); else a.setTargetAtTime(v, t, 0.04); }
+    else return false;
+    return true;
   }
-  function steer(p, pan) { if (p.pan) p.pan.setTargetAtTime(clamp(pan || 0, -1, 1), ctx.currentTime, 0.08); }
-  function out(vol, pan) { const g = ctx.createGain(); g.gain.value = vol; g.connect(panner(pan)); return g; }
+  function listen() {
+    if (!ctx) return;
+    L = listenerPose(); const l = ctx.listener, t = ctx.currentTime;
+    if (!setPos(l, 'position', L.x, L.y, L.z, t)) { l.setPosition(L.x, L.y, L.z); l.setOrientation(L.fx, L.fy, L.fz, L.ux, L.uy, L.uz); return; }
+    setPos(l, 'forward', L.fx, L.fy, L.fz, t); setPos(l, 'up', L.ux, L.uy, L.uz, t);
+  }
+  // HRTF for everything, except when a burst of one-shots (a minigun) would stack up a dozen at once: those
+  // extra ones get the cheaper equal-power panner
+  function panner(p, hrtf) {
+    const n = ctx.createPanner(); n.panningModel = hrtf ? 'HRTF' : 'equalpower'; n.distanceModel = 'inverse'; n.refDistance = 1; n.rolloffFactor = 0;
+    const t = ctx.currentTime; if (!setPos(n, 'position', p.x, p.y ?? 1, p.z, t, true)) n.setPosition(p.x, p.y ?? 1, p.z);
+    n.connect(sfx); return n;
+  }
+  // the node a sound plays into: at `at` (a world point) heard by the `prof` rules, or straight into the
+  // effects bus when it has no place (the player's own gun, the UI); null when it is too far off to hear
+  function out(vol, at, prof) {
+    let g = ctx.createGain(), dest = sfx;
+    if (at) {
+      L = L || listenerPose();
+      const d = distToEar(at, L), p = prof || HEAR.shot; vol *= falloff(d, p);
+      if (vol >= 0.004 && ctx.createPanner) {
+        const t = ctx.currentTime; while (recent.length && recent[0] < t - 0.5) recent.shift(); recent.push(t);
+        dest = ctx.createBiquadFilter(); dest.type = 'lowpass'; dest.frequency.value = airCutoff(d, p); dest.connect(panner(at, recent.length <= 12));
+      }
+    }
+    if (vol < 0.004) return null;
+    g.gain.value = vol; g.connect(dest); return g;
+  }
+
+  // ---- looping sources: one voice per siren, rotor and passing engine ----
+  // loops(kind, sources) is called every frame with every candidate source of that kind ({ key, x, y, z, vol,
+  // ...}); the loudest few as heard from here get a voice, which follows its source, and the rest stay silent.
+  // A voice whose source drops out fades and is freed. Each voice estimates how fast its source closes on the
+  // listener for a touch of Doppler.
+  const LOOPS = {
+    siren: { max: 3, prof: HEAR.siren, make: makeSiren },
+    rotor: { max: 2, prof: HEAR.rotor, make: makeRotor },
+    engine: { max: 3, prof: null, make: makeEngine },
+  };
+  const live = { siren: new Map(), rotor: new Map(), engine: new Map() };
+  function loops(kind, list, prof) {
+    if (!ctx) return;
+    const def = LOOPS[kind], p = prof || def.prof, map = live[kind], t = ctx.currentTime; L = L || listenerPose();
+    const heardNow = [];
+    for (const s of list) { const d = distToEar(s, L), g = (s.vol ?? 1) * falloff(d, p); if (g > 0.001) heardNow.push({ s, d, g }); }
+    heardNow.sort((a, b) => b.g - a.g); heardNow.length = Math.min(heardNow.length, def.max);
+    const keep = new Set();
+    for (const { s, d, g } of heardNow) {
+      let v = map.get(s.key);
+      if (!v) {
+        v = def.make(); v.gain = ctx.createGain(); v.gain.gain.value = 0; v.air = ctx.createBiquadFilter(); v.air.type = 'lowpass'; v.air.frequency.value = airCutoff(d, p);
+        v.pan = panner(s, true); v.out.connect(v.gain); v.gain.connect(v.air); v.air.connect(v.pan);
+        v.lastD = d; v.lastT = t; v.closing = 0; map.set(s.key, v);
+      }
+      keep.add(s.key);
+      const dt = t - v.lastT; if (dt > 0.01) { v.closing += (clamp((v.lastD - d) / dt, -60, 60) - v.closing) * Math.min(1, dt * 6); v.lastD = d; v.lastT = t; }
+      v.gain.gain.setTargetAtTime(g, t, 0.12); v.air.frequency.setTargetAtTime(airCutoff(d, p), t, 0.1);
+      setPos(v.pan, 'position', s.x, s.y ?? 1, s.z, t) || v.pan.setPosition(s.x, s.y ?? 1, s.z);
+      v.set(s, doppler(v.closing), t);
+    }
+    for (const [key, v] of map) if (!keep.has(key)) drop(map, key, v, t);
+  }
+  function drop(map, key, v, t) { map.delete(key); v.gain.gain.setTargetAtTime(0, t, 0.15); setTimeout(() => { v.stop(); v.pan.disconnect(); }, 1500); }
+  // a wailing saw; each car's is a little off from the others so two sirens don't merge into one
+  function makeSiren() {
+    const base = 860 + Math.random() * 80;
+    const so = ctx.createOscillator(); so.type = 'sawtooth'; so.frequency.value = base;
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 0.32 + Math.random() * 0.06; const lg = ctx.createGain(); lg.gain.value = 320; lfo.connect(lg); lg.connect(so.frequency);
+    const sf = ctx.createBiquadFilter(); sf.type = 'lowpass'; sf.frequency.value = 1700; so.connect(sf);
+    const t = ctx.currentTime; so.start(t); lfo.start(t + Math.random() * 2);
+    return { out: sf, set(s, k, t) { so.frequency.setTargetAtTime(base * k, t, 0.1); }, stop() { so.stop(); lfo.stop(); } };
+  }
+  // helicopter rotor: chopped noise
+  function makeRotor() {
+    const hn = ctx.createBufferSource(); hn.buffer = noise; hn.loop = true;
+    const hf = ctx.createBiquadFilter(); hf.type = 'lowpass'; hf.frequency.value = 380;
+    const chop = ctx.createGain(); chop.gain.value = 0.5; const clfo = ctx.createOscillator(); clfo.type = 'square'; clfo.frequency.value = 13; const cg = ctx.createGain(); cg.gain.value = 0.5; clfo.connect(cg); cg.connect(chop.gain);
+    hn.connect(hf); hf.connect(chop); hn.start(0, Math.random() * 1.5); clfo.start();
+    return { out: chop, set(s, k, t) { clfo.frequency.setTargetAtTime(13 * k, t, 0.1); hf.frequency.setTargetAtTime(380 * k, t, 0.1); }, stop() { hn.stop(); clfo.stop(); } };
+  }
+  // boxer twin: low saw at the firing rate plus a soft triangle octave, through a gentle tracking lowpass and a
+  // fixed one that keeps the buzzy highs out (the same voice as the player's own, below)
+  function makeEngine() {
+    const o1 = ctx.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = 18;
+    const o2 = ctx.createOscillator(); o2.type = 'triangle'; o2.frequency.value = 36; const g2 = ctx.createGain(); g2.gain.value = 0.45;
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 220; f.Q.value = 0.9;
+    const cap = ctx.createBiquadFilter(); cap.type = 'lowpass'; cap.frequency.value = 650; cap.Q.value = 0.5;
+    o1.connect(f); o2.connect(g2); g2.connect(f); f.connect(cap); o1.start(); o2.start();
+    return { out: cap, set(s, k, t) { const hz = (s.rpm || 1050) / 60 * k; o1.frequency.setTargetAtTime(hz, t, 0.06); o2.frequency.setTargetAtTime(hz * 2.02, t, 0.06); f.frequency.setTargetAtTime(Math.min(140 + hz * 3.5, 600), t, 0.08); }, stop() { o1.stop(); o2.stop(); } };
+  }
   function nz(dest, t, dur, type, freq, q, peak, rate) {
     const s = ctx.createBufferSource(); s.buffer = noise; s.playbackRate.value = rate || 1;
     const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q || 0.7;
@@ -64,8 +149,9 @@ export const Sound = (() => {
   }
   const PROG = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]];
   const GUN = { pistol: [3600, .22, 150, .9], smg: [5200, .1, 210, .6], shotgun: [2300, .55, 80, 1.35], rifle: [5600, .17, 130, .85], minigun: [6200, .07, 240, .5], rpg: [1400, .7, 60, .9] };
-  function shot(kind, vol = 1, pan = 0) {
-    if (!ctx || vol < 0.02) return; const p = GUN[kind] || GUN.pistol, t = ctx.currentTime, o = out(vol, pan);
+  // `at` is where it was fired (a world point), or nothing for the player's own gun
+  function shot(kind, vol = 1, at = null) {
+    if (!ctx) return; const o = out(vol, at, HEAR.shot); if (!o) return; const p = GUN[kind] || GUN.pistol, t = ctx.currentTime;
     nz(o, t, p[1], 'lowpass', p[0], 0.8, p[3], 0.85 + Math.random() * 0.3);
     tone(o, t, 'sine', p[2] * 2, p[2] * 0.5, p[1] * 0.8, p[3] * 0.8);
     nz(o, t, 0.03, 'highpass', 6000, 0.5, p[3] * 0.4);
@@ -74,41 +160,60 @@ export const Sound = (() => {
   return {
     init, get ready() { return !!ctx; },
     shot,
-    boom(vol = 1, pan = 0) { if (!ctx || vol < 0.02) return; const t = ctx.currentTime, o = out(vol, pan); nz(o, t, 1.6, 'lowpass', 900, 0.6, 1.4, 0.6); tone(o, t, 'sine', 90, 30, 0.9, 1.2); nz(o, t, 0.3, 'bandpass', 2400, 1, 0.5); },
-    hit() { if (!ctx) return; tone(out(0.35, 0), ctx.currentTime, 'square', 1700, 1200, 0.05, 0.4); },
-    head() { if (!ctx) return; const t = ctx.currentTime, o = out(0.4, 0); tone(o, t, 'square', 2100, 1500, 0.05, 0.4); tone(o, t + 0.05, 'square', 2600, 1900, 0.06, 0.35); },
-    ting(vol, pan) { if (!ctx || vol < .02) return; tone(out(vol * 0.25, pan), ctx.currentTime, 'triangle', 3200 + Math.random() * 800, 2400, 0.12, 0.5); },
-    hurt() { if (!ctx) return; const t = ctx.currentTime, o = out(0.6, 0); tone(o, t, 'sawtooth', 210, 120, 0.18, 0.4); nz(o, t, 0.1, 'lowpass', 500, 1, 0.6); },
-    scream(vol, pan) { if (!ctx || vol < 0.03) return; const t = ctx.currentTime, o = out(vol * 0.5, pan); const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1100 + Math.random() * 500; f.Q.value = 2.5; f.connect(o); const b = 380 + Math.random() * 300; const os = tone(f, t, 'sawtooth', b * 1.6, b * 0.7, 0.55, 0.9, 0.02); const v = ctx.createOscillator(); v.frequency.value = 7; const vg = ctx.createGain(); vg.gain.value = 30; v.connect(vg); vg.connect(os.frequency); v.start(t); v.stop(t + 0.6); },
-    cash() { if (!ctx) return; const t = ctx.currentTime, o = out(0.3, 0); tone(o, t, 'square', 1046, 0, 0.07, 0.35); tone(o, t + 0.07, 'square', 1568, 0, 0.12, 0.35); },
-    pickup() { if (!ctx) return; const t = ctx.currentTime, o = out(0.35, 0); [523, 659, 784, 1046].forEach((f, i) => tone(o, t + i * 0.05, 'triangle', f, 0, 0.1, 0.5)); },
-    reload() { if (!ctx) return; const t = ctx.currentTime, o = out(0.5, 0); nz(o, t, 0.04, 'bandpass', 2800, 3, 0.8); nz(o, t + 0.22, 0.05, 'bandpass', 1900, 3, 0.9); },
-    empty() { if (!ctx) return; nz(out(0.4, 0), ctx.currentTime, 0.03, 'highpass', 4000, 2, 0.7); },
-    horn(vol, pan) { if (!ctx || vol < .03) return; const t = ctx.currentTime, o = out(vol * 0.25, pan); tone(o, t, 'square', 392, 0, 0.45, 0.5, 0.01); tone(o, t, 'square', 494, 0, 0.45, 0.4, 0.01); },
-    star() { if (!ctx) return; const t = ctx.currentTime, o = out(0.4, 0); tone(o, t, 'triangle', 880, 0, 0.15, 0.6); tone(o, t + 0.12, 'triangle', 660, 0, 0.3, 0.6); },
-    buy() { if (!ctx) return; const t = ctx.currentTime, o = out(0.35, 0); [784, 988, 1175, 1568].forEach((f, i) => tone(o, t + i * 0.06, 'square', f, 0, 0.09, 0.3)); nz(o, t + 0.25, 0.08, 'bandpass', 3000, 3, 0.6); },
-    deny() { if (!ctx) return; const t = ctx.currentTime, o = out(0.35, 0); tone(o, t, 'square', 220, 0, 0.12, 0.4); tone(o, t + 0.13, 'square', 165, 0, 0.2, 0.4); },
-    // melee: a whoosh through the air, the blow landing (fist, blunt, blade or on a car's metal), a chainsaw's bite
-    swing(vol = 1, pan = 0) { if (!ctx || vol < 0.02) return; const t = ctx.currentTime, f = nz(out(vol * 0.5, pan), t, 0.2, 'bandpass', 500, 2.2, 0.8, 1.2); f.frequency.exponentialRampToValueAtTime(1900, t + 0.14); },
-    smack(kind = 'fist', vol = 1, pan = 0) {
-      if (!ctx || vol < 0.02) return; const t = ctx.currentTime, o = out(vol * 0.7, pan);
+    boom(vol = 1, at = null) { if (!ctx) return; const t = ctx.currentTime, o = out(vol, at, HEAR.boom); if (!o) return; nz(o, t, 1.6, 'lowpass', 900, 0.6, 1.4, 0.6); tone(o, t, 'sine', 90, 30, 0.9, 1.2); nz(o, t, 0.3, 'bandpass', 2400, 1, 0.5); },
+    hit() { if (!ctx) return; tone(out(0.35), ctx.currentTime, 'square', 1700, 1200, 0.05, 0.4); },
+    head() { if (!ctx) return; const t = ctx.currentTime, o = out(0.4); tone(o, t, 'square', 2100, 1500, 0.05, 0.4); tone(o, t + 0.05, 'square', 2600, 1900, 0.06, 0.35); },
+    ting(vol, at) { if (!ctx) return; const o = out(vol * 0.25, at, HEAR.ting); if (o) tone(o, ctx.currentTime, 'triangle', 3200 + Math.random() * 800, 2400, 0.12, 0.5); },
+    hurt() { if (!ctx) return; const t = ctx.currentTime, o = out(0.6); tone(o, t, 'sawtooth', 210, 120, 0.18, 0.4); nz(o, t, 0.1, 'lowpass', 500, 1, 0.6); },
+    scream(vol, at) { if (!ctx) return; const t = ctx.currentTime, o = out(vol * 0.5, at, HEAR.voice); if (!o) return; const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1100 + Math.random() * 500; f.Q.value = 2.5; f.connect(o); const b = 380 + Math.random() * 300; const os = tone(f, t, 'sawtooth', b * 1.6, b * 0.7, 0.55, 0.9, 0.02); const v = ctx.createOscillator(); v.frequency.value = 7; const vg = ctx.createGain(); vg.gain.value = 30; v.connect(vg); vg.connect(os.frequency); v.start(t); v.stop(t + 0.6); },
+    cash() { if (!ctx) return; const t = ctx.currentTime, o = out(0.3); tone(o, t, 'square', 1046, 0, 0.07, 0.35); tone(o, t + 0.07, 'square', 1568, 0, 0.12, 0.35); },
+    pickup() { if (!ctx) return; const t = ctx.currentTime, o = out(0.35); [523, 659, 784, 1046].forEach((f, i) => tone(o, t + i * 0.05, 'triangle', f, 0, 0.1, 0.5)); },
+    reload() { if (!ctx) return; const t = ctx.currentTime, o = out(0.5); nz(o, t, 0.04, 'bandpass', 2800, 3, 0.8); nz(o, t + 0.22, 0.05, 'bandpass', 1900, 3, 0.9); },
+    empty() { if (!ctx) return; nz(out(0.4), ctx.currentTime, 0.03, 'highpass', 4000, 2, 0.7); },
+    horn(vol, at) { if (!ctx) return; const t = ctx.currentTime, o = out(vol * 0.25, at, HEAR.horn); if (!o) return; tone(o, t, 'square', 392, 0, 0.45, 0.5, 0.01); tone(o, t, 'square', 494, 0, 0.45, 0.4, 0.01); },
+    star() { if (!ctx) return; const t = ctx.currentTime, o = out(0.4); tone(o, t, 'triangle', 880, 0, 0.15, 0.6); tone(o, t + 0.12, 'triangle', 660, 0, 0.3, 0.6); },
+    buy() { if (!ctx) return; const t = ctx.currentTime, o = out(0.35); [784, 988, 1175, 1568].forEach((f, i) => tone(o, t + i * 0.06, 'square', f, 0, 0.09, 0.3)); nz(o, t + 0.25, 0.08, 'bandpass', 3000, 3, 0.6); },
+    deny() { if (!ctx) return; const t = ctx.currentTime, o = out(0.35); tone(o, t, 'square', 220, 0, 0.12, 0.4); tone(o, t + 0.13, 'square', 165, 0, 0.2, 0.4); },
+    // melee: a whoosh through the air, the blow landing (fist, blunt, blade or on a car's metal), a chainsaw's bite;
+    // at places them in the world (an NPC's swing), none plays them as the player's own
+    swing(vol = 1, at = null) { if (!ctx) return; const t = ctx.currentTime, o = out(vol * 0.5, at, HEAR.thud); if (!o) return; const f = nz(o, t, 0.2, 'bandpass', 500, 2.2, 0.8, 1.2); f.frequency.exponentialRampToValueAtTime(1900, t + 0.14); },
+    smack(kind = 'fist', vol = 1, at = null) {
+      if (!ctx) return; const t = ctx.currentTime, o = out(vol * 0.7, at, HEAR.thud); if (!o) return;
       if (kind === 'blade') { nz(o, t, 0.12, 'highpass', 2600, 1, 0.8, 1.4); tone(o, t, 'sine', 900, 300, 0.08, 0.35); nz(o, t + 0.02, 0.1, 'lowpass', 700, 1, 0.5); return; }
       if (kind === 'metal') { tone(o, t, 'triangle', 520, 380, 0.25, 0.5); tone(o, t, 'square', 1180, 900, 0.12, 0.18); nz(o, t, 0.08, 'bandpass', 1800, 2, 0.6); return; }
       const deep = kind === 'blunt';
       nz(o, t, deep ? 0.16 : 0.1, 'lowpass', deep ? 900 : 650, 1, 1.1, 0.8); tone(o, t, 'sine', deep ? 170 : 130, 55, deep ? 0.16 : 0.12, 0.9);
       if (deep) nz(o, t, 0.04, 'bandpass', 2400, 3, 0.5);
     },
-    saw(vol = 1, pan = 0) { if (!ctx || vol < 0.02) return; const t = ctx.currentTime, o = out(vol * 0.22, pan); tone(o, t, 'sawtooth', 118 + Math.random() * 12, 0, 0.11, 0.7, 0.003); nz(o, t, 0.1, 'bandpass', 2200, 1.5, 0.35); },
-    thud(vol, pan) { if (!ctx || vol < 0.02) return; const t = ctx.currentTime, o = out(vol, pan); nz(o, t, 0.22, 'lowpass', 420, 1, 1.1, 0.7); tone(o, t, 'sine', 140, 45, 0.2, 0.9); },
-    setEngine(vol, rpm, pan = 0) { if (!ctx) return; steer(engPan, pan); const t = ctx.currentTime, f = rpm / 60; engO1.frequency.setTargetAtTime(f, t, 0.06); engO2.frequency.setTargetAtTime(f * 2.02, t, 0.06); engF.frequency.setTargetAtTime(Math.min(140 + f * 3.5, 600), t, 0.08); engG.gain.setTargetAtTime(vol, t, 0.12); },
+    saw(vol = 1, at = null) { if (!ctx) return; const t = ctx.currentTime, o = out(vol * 0.22, at, HEAR.shot); if (!o) return; tone(o, t, 'sawtooth', 118 + Math.random() * 12, 0, 0.11, 0.7, 0.003); nz(o, t, 0.1, 'bandpass', 2200, 1.5, 0.35); },
+    thud(vol, at, prof = HEAR.thud) { if (!ctx) return; const t = ctx.currentTime, o = out(vol, at, prof); if (!o) return; nz(o, t, 0.22, 'lowpass', 420, 1, 1.1, 0.7); tone(o, t, 'sine', 140, 45, 0.2, 0.9); },
+    // the player's own ride (the engine under you isn't placed)
+    setEngine(vol, rpm) { if (!ctx) return; const t = ctx.currentTime, f = rpm / 60; engO1.frequency.setTargetAtTime(f, t, 0.06); engO2.frequency.setTargetAtTime(f * 2.02, t, 0.06); engF.frequency.setTargetAtTime(Math.min(140 + f * 3.5, 600), t, 0.08); engG.gain.setTargetAtTime(vol, t, 0.12); },
     // tyres sliding: 0 (gripping) to 1 (a full drift)
     setSkid(v) { if (!ctx) return; const t = ctx.currentTime; skidGain.gain.setTargetAtTime(v * 0.22, t, 0.06); skidF.frequency.setTargetAtTime(1300 + v * 500, t, 0.1); },
-    setSiren(v, pan = 0) { if (ctx) { sirenGain.gain.setTargetAtTime(v, ctx.currentTime, 0.3); steer(sirenPan, pan); } },
-    setHeli(v, pan = 0) { if (ctx) { heliGain.gain.setTargetAtTime(v, ctx.currentTime, 0.3); steer(heliPan, pan); } },
+    // move the listener to the player's head and the camera's view; once a frame, before the sounds of the frame
+    listen,
+    // the sirens, rotors and passing engines out in the world this frame (see loops above)
+    loops,
+    // silence every looping sound at once: pausing, a shop menu, death
+    hush() {
+      if (!ctx) return; const t = ctx.currentTime;
+      for (const map of Object.values(live)) for (const [key, v] of map) drop(map, key, v, t);
+      engG.gain.setTargetAtTime(0, t, 0.12); skidGain.gain.setTargetAtTime(0, t, 0.06);
+    },
+    // how many voices of each looping kind are playing (for tests)
+    voices() { return Object.fromEntries(Object.entries(live).map(([k, m]) => [k, m.size])); },
     // the wanted level; new layers join (or drop out) on the next beat
     setIntensity(level) { wantIntensity = level; },
     get intensity() { return intensity; },
     toggleMusic() { musicOn = !musicOn; if (ctx) mus.gain.setTargetAtTime(musicLevel(), ctx.currentTime, 0.2); return musicOn; },
+    // fade all sound down while a menu is open, and back up when it closes (on top of the Settings volumes)
+    dim(on) {
+      dimmed = !!on; if (!ctx) return;
+      const g = dimmer.gain, t = ctx.currentTime;
+      g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(dimmed ? MENU_DIM : 1, t + DIM_FADE);
+    },
+    get dimmed() { return dimmed; },
     // sound on / off and the effects and music volumes (0 to 1)
     setMix({ on, sfx: s, music }) {
       Object.assign(mix, { on, sfx: s, music }); if (!ctx) return;
