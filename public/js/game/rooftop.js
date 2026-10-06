@@ -13,7 +13,7 @@ const RoofDoor = {
   onRoof: true, // offers its interaction while the player is up on a roof
   interaction(p) {
     if (G.stairs) return null;
-    const up = !p.roof;
+    const up = p.y < 2;
     if (!up && p.roof !== this.roof) return null;
     const at = up ? this.roof.street : this.roof.hutOut, dist = Math.hypot(at.x - p.x, at.z - p.z);
     if (dist >= REACH) return null;
