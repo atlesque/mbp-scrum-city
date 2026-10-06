@@ -1,5 +1,5 @@
 // Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, take a juggernaut's rocket, throw a car with a rocket,
-// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, shunt a parked car, drift, drive up a kerb, walk into the edge wall and change settings. Fails on any page error or broken step.
+// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, ride a bike over a car, shunt a parked car, drift, drive up a kerb, walk into the edge wall and change settings. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -292,6 +292,33 @@ try {
     await press('KeyF');
     check(await until(() => !__neonbay.P.vehicle), 'F did not get the player out');
     await game(() => { __neonbay.removeEntity(__ram); __neonbay.removeEntity(__bike); });
+  });
+
+  await step('rides a bike up and over a parked car, and crashes into one going fast', async () => {
+    await clearVehicles(5, -50);
+    await game(() => { const { P, spawnVehicle } = __neonbay; P.x = 4.5; P.z = -60; window.__ram = spawnVehicle('gs', 3, -60, 0); });
+    check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes(__ram.model.name)), 'no prompt to get on');
+    await press('KeyF');
+    check(await until(() => __neonbay.P.vehicle === window.__ram), 'F did not put the player on the bike');
+    // gently into the back of a car parked in the lane: up the boot, over the roof and down the bonnet
+    await game(() => { __ram.x = 3; __ram.z = -60; __ram.yaw = 0; __ram.v = 9; __ram.peak = 0; window.__hit = __neonbay.spawnVehicle('sedan', 3, -50, 0); });
+    const watch = () => { __ram.peak = Math.max(__ram.peak, __ram.lift || 0); return __ram.z > -45; };
+    // a few seconds of game time, which a slow software GPU stretches out a long way
+    const over = await until(watch, null, 60000);
+    const r = await game(() => ({ z: __ram.z, peak: __ram.peak, on: __neonbay.P.vehicle === __ram, car: __hit.z }));
+    check(over, `the bike did not get past the car (at ${r.z.toFixed(1)})`);
+    check(r.peak > 1, `the bike went through the car instead of over it (rose ${r.peak.toFixed(2)} m)`);
+    check(r.on, 'the rider came off');
+    check(Math.abs(r.car + 50) < 0.5, `the car was pushed out of the way (to ${r.car.toFixed(1)})`);
+    check(await until(() => !__ram.over && !__ram.lift, null, 30000), 'the bike did not come back down onto the road');
+    // and much faster into it from the far side: the usual crash, stopped against it
+    await game(() => { __ram.x = 3; __ram.z = -38; __ram.yaw = Math.PI; __ram.v = 24; __ram.peak = 0; });
+    await until(() => { __ram.peak = Math.max(__ram.peak, __ram.lift || 0); return __ram.v < 5; }, null, 30000);
+    const c = await game(() => ({ z: __ram.z, peak: __ram.peak, over: !!__ram.over }));
+    check(!c.over && c.peak < 0.3 && c.z > -48.2, `the bike rode over the car at speed (at ${c.z.toFixed(1)}, rose ${c.peak.toFixed(2)} m)`);
+    await press('KeyF');
+    check(await until(() => !__neonbay.P.vehicle), 'F did not get the player off');
+    await game(() => { __neonbay.removeEntity(__ram); __neonbay.removeEntity(__hit); });
   });
 
   await step('a car explosion throws the dead, and whoever it kills, through the air', async () => {
