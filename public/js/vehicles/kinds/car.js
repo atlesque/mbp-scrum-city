@@ -44,7 +44,7 @@ export const car = {
   build(v) { return v.model.mesh(v); },
   pose(c, dt) {
     const m = c.mesh;
-    m.grp.position.set(c.x, 0, c.z); m.grp.rotation.set(0, c.yaw, c.wreckRoll || 0);
+    m.grp.position.set(c.x, c.air || 0, c.z); m.grp.rotation.set(0, c.yaw, c.wreckRoll || 0);
     if (c.dead || c.burnT > 0) return;
     if (m.lr) { const on = (G.time * 6 | 0) % 2 === 0; m.lr.visible = on; m.lb.visible = !on; }
     if (c.hp < 50 && dt && Math.random() < dt * 6) emit(c.x + Math.sin(c.yaw) * 1.8, 1.1, c.z + Math.cos(c.yaw) * 1.8, 1, '#8a8090', 1, 1.4, 0.4, 2, 1);
@@ -76,7 +76,9 @@ export const car = {
   },
   // shoved by another car (see vehicles/knock.js): skid sideways and spin until the tyres bite
   slide(c, dt) {
-    const sp = Math.hypot(c.kvx || 0, c.kvz || 0), dec = 11 * dt;
+    // thrown by a blast: up in the air there's no road to skid on, so it keeps its speed until it lands with a bump
+    if (c.air > 0) { c.avy -= 22 * dt; c.air += c.avy * dt; if (c.air <= 0) { c.air = 0; c.avy = 0; c.kvx *= 0.7; c.kvz *= 0.7; emit(c.x, 0.2, c.z, 10, '#ffd23e', 4, 0.3, 0.06, -12, 1.5); } }
+    const sp = Math.hypot(c.kvx || 0, c.kvz || 0), dec = c.air > 0 ? 0 : 11 * dt;
     if (sp <= dec) c.kvx = c.kvz = 0; else { const k = 1 - dec / sp; c.kvx *= k; c.kvz *= k; }
     c.kspin = Math.abs(c.kspin || 0) < 0.05 ? 0 : c.kspin * Math.max(0, 1 - dt * 3);
     c.x += c.kvx * dt; c.z += c.kvz * dt; c.yaw += c.kspin * dt;

@@ -1,4 +1,5 @@
 import { clamp } from '../core/util.js';
+import { blastLaunch } from '../npcs/fling.js';
 
 // Ramming: a heavier vehicle (a car into a bike) or one closing fast enough (a bike into a bike)
 // sends the other flying instead of stopping dead against it. A kind takes part with
@@ -27,7 +28,7 @@ export function touching(a, b, pad = 0.15) {
 // speed `a` keeps) or null when it is only a bump and the usual push-out should stop `a`
 export function knockImpulse(a, b) {
   const A = a.K.ram, B = b.K.ram;
-  if (!A || !B || !b.K.knock || b.dead || A.mass < B.mass) return null;
+  if (!A || !B || !b.K.knock || A.mass < B.mass) return null; // wrecks too: a burnt-out bike still gets knocked aside
   const { closing, nx, nz } = closingSpeed(a, b);
   // a riderless bike lying in the road gets shoved along like a lighter one, not ridden into like a wall
   if (closing < (A.mass > B.mass || (b.fallen && !b.driver) ? A.heavierAt : A.sameAt)) return null;
@@ -75,4 +76,14 @@ export function shoveImpulse(a, b, c = contact(a, b)) {
   const j = 1.3 * closing * A.mass * B.mass / (A.mass + B.mass), jx = c.nx * j, jz = c.nz * j;
   const rx = c.px - b.x, rz = c.pz - b.z, spin = clamp((rz * jx - rx * jz) / (B.mass * 6), -2.5, 2.5);
   return { vx: vb.x + jx / B.mass, vz: vb.z + jz / B.mass, spin: (b.kspin || 0) + spin, avx: va.x - jx / A.mass, avz: va.z - jz / A.mass, closing };
+}
+
+// Blasts: an explosion throws wrecks (and vehicles already burning) the way it throws bodies (npcs/fling.js),
+// a heavier body less far. A vehicle sat on the centre is the one going up, so the blast leaves it be.
+// { vx, vz, up, spin } for a vehicle at offset (dx, dz) from a blast of radius R, or null when out of reach.
+export function blastThrow(dx, dz, R, mass, rand = Math.random) {
+  if (Math.hypot(dx, dz) < 0.5) return null;
+  const l = blastLaunch(dx, dz, R, rand); if (!l) return null;
+  const k = 1 / Math.sqrt(mass);
+  return { vx: l.vx * k, vz: l.vz * k, up: l.vy * k, spin: (rand() < 0.5 ? -1 : 1) * l.spin * k * 0.5 };
 }
