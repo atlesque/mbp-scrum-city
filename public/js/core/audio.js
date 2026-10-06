@@ -63,18 +63,22 @@ export const Sound = (() => {
     const g = ctx.createGain(); env(g, t, a || 0.004, peak, dur); o.connect(g); g.connect(dest); o.start(t); o.stop(t + dur + 0.05); return o;
   }
   const PROG = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]];
-  const GUN = { pistol: [3600, .22, 150, .9], smg: [5200, .1, 210, .6], shotgun: [2300, .55, 80, 1.35], rifle: [5600, .17, 130, .85], minigun: [6200, .07, 240, .5], rpg: [1400, .7, 60, .9] };
+  const GUN = { pistol: [3600, .22, 150, .9], smg: [5200, .1, 210, .6], shotgun: [2300, .55, 80, 1.35], rifle: [5600, .17, 130, .85], minigun: [6200, .07, 240, .5], rpg: [1400, .7, 60, .9], sniper: [3800, .5, 70, 1.45] };
   function shot(kind, vol = 1, pan = 0) {
     if (!ctx || vol < 0.02) return; const p = GUN[kind] || GUN.pistol, t = ctx.currentTime, o = out(vol, pan);
     nz(o, t, p[1], 'lowpass', p[0], 0.8, p[3], 0.85 + Math.random() * 0.3);
     tone(o, t, 'sine', p[2] * 2, p[2] * 0.5, p[1] * 0.8, p[3] * 0.8);
     nz(o, t, 0.03, 'highpass', 6000, 0.5, p[3] * 0.4);
+    // the sniper's bolt racks back and forward once the crack has rung out
+    if (kind === 'sniper') { tone(o, t + 0.55, 'square', 900, 500, 0.04, 0.25); tone(o, t + 0.8, 'square', 1300, 700, 0.05, 0.3); }
     if (kind === 'rpg') { const f = nz(o, t, 0.9, 'bandpass', 600, 2, 0.5); f.frequency.exponentialRampToValueAtTime(2500, t + 0.9); }
   }
   return {
     init, get ready() { return !!ctx; },
     shot,
     boom(vol = 1, pan = 0) { if (!ctx || vol < 0.02) return; const t = ctx.currentTime, o = out(vol, pan); nz(o, t, 1.6, 'lowpass', 900, 0.6, 1.4, 0.6); tone(o, t, 'sine', 90, 30, 0.9, 1.2); nz(o, t, 0.3, 'bandpass', 2400, 1, 0.5); },
+    // the scope's zoom click; deeper on the way back out
+    zoom(level) { if (!ctx) return; tone(out(0.3, 0), ctx.currentTime, 'square', level ? 2400 + level * 400 : 1500, 1100, 0.035, 0.35); },
     hit() { if (!ctx) return; tone(out(0.35, 0), ctx.currentTime, 'square', 1700, 1200, 0.05, 0.4); },
     head() { if (!ctx) return; const t = ctx.currentTime, o = out(0.4, 0); tone(o, t, 'square', 2100, 1500, 0.05, 0.4); tone(o, t + 0.05, 'square', 2600, 1900, 0.06, 0.35); },
     ting(vol, pan) { if (!ctx || vol < .02) return; tone(out(vol * 0.25, pan), ctx.currentTime, 'triangle', 3200 + Math.random() * 800, 2400, 0.12, 0.5); },

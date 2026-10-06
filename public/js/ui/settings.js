@@ -9,7 +9,7 @@ import { renderer, scene } from '../render/scene.js';
 // the Controls tab is a read-only list (the keys are fixed).
 const TABS = [['sound', 'Sound'], ['graphics', 'Graphics'], ['gameplay', 'Gameplay'], ['controls', 'Controls']];
 export const CONTROLS = [
-  ['On foot', [['W A S D', 'Move'], ['Mouse', 'Look and aim'], ['Left click', 'Shoot'], ['Right click', 'Zoom aim'], ['Shift', 'Sprint'], ['Space', 'Jump'], ['E', 'Enter a gun shop'], ['F', 'Ride, drive, pull a driver out']]],
+  ['On foot', [['W A S D', 'Move'], ['Mouse', 'Look and aim'], ['Left click', 'Shoot'], ['Right click', 'Zoom aim, or the sniper scope'], ['Shift', 'Sprint'], ['Space', 'Jump'], ['E', 'Enter a gun shop'], ['F', 'Ride, drive, pull a driver out']]],
   ['On a bike', [['W / S', 'Throttle / brake'], ['A / D', 'Lean'], ['Shift', 'Boost'], ['Space', 'Rear brake'], ['F', 'Get off']]],
   ['In a car', [['W / S', 'Gas / brake'], ['A / D', 'Steer'], ['Shift', 'Boost'], ['Space', 'Handbrake'], ['F', 'Get out']]],
   ['Anywhere', [['1 – 6', 'Pick a weapon'], ['Mouse wheel', 'Cycle weapons'], ['R', 'Reload'], ['M', 'Radio on / off'], ['Esc / P', 'Pause']]],

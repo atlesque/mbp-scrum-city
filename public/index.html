@@ -102,6 +102,11 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 #crosshair b{position:absolute;width:3px;height:3px;left:-1.5px;top:-1.5px;background:var(--pink);border-radius:50%}
 #crosshair.hit i{background:var(--pink)}
 #crosshair.head i{background:var(--sun)}
+/* sniper scope: black all round a round sight picture, with thin full-width crosshairs */
+#scope{position:absolute;inset:0;pointer-events:none;--r:min(46vh,46vw);background:radial-gradient(circle at center,transparent 0,transparent calc(var(--r) - 2px),rgba(0,0,0,.6) calc(var(--r) - 1px),#000 var(--r))}
+#scope i{position:absolute;background:#000}
+#scope i:nth-child(1){left:0;right:0;top:50%;height:2px;margin-top:-1px}
+#scope i:nth-child(2){top:0;bottom:0;left:50%;width:2px;margin-left:-1px}
 .hud-tr{position:absolute;right:28px;top:22px;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
 .weapon-row{display:flex;align-items:center;gap:12px}
 #wicon{width:120px;height:56px;border:2px solid rgba(255,255,255,.85);border-radius:6px;background:linear-gradient(160deg,rgba(255,79,163,.35),rgba(62,240,255,.18));box-shadow:0 0 0 2px #000}
@@ -251,6 +256,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
   <div id="stage"></div>
   <div id="vignette"></div>
   <div id="hud" hidden>
+    <div id="scope" hidden><i></i><i></i></div>
     <div id="crosshair"><i></i><i></i><i></i><i></i><b></b></div>
     <div class="hud-tr">
       <div class="weapon-row">
@@ -274,7 +280,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
     <div id="prompt" hidden></div>
     <div id="bigText" class="outline"></div>
     <div id="speedo" hidden><b id="kmh" class="outline">000</b><span class="u" id="spdUnit">km/h</span><div class="bar bk"><b id="vehHp"></b></div><span class="u"><span id="vehName">R 1300 GS</span> · <kbd>F</kbd> off</span></div>
-    <div id="hint"><kbd>F</kbd> ride / drive · <kbd>1</kbd>–<kbd>6</kbd> / wheel switch · <kbd>R</kbd> reload · <kbd>M</kbd> radio · <kbd>Esc</kbd> pause</div>
+    <div id="hint"><kbd>F</kbd> ride / drive · <kbd>1</kbd>–<kbd>7</kbd> / wheel switch · <kbd>R</kbd> reload · <kbd>M</kbd> radio · <kbd>Esc</kbd> pause</div>
   </div>
 
   <section id="title" class="overlay">
@@ -285,12 +291,12 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
         <div><kbd>WASD</kbd><span>Move</span></div>
         <div><kbd>Mouse</kbd><span>Look &amp; aim</span></div>
         <div><kbd>L-Click</kbd><span>Shoot</span></div>
-        <div><kbd>R-Click</kbd><span>Zoom aim</span></div>
+        <div><kbd>R-Click</kbd><span>Zoom aim / scope</span></div>
         <div><kbd>Shift</kbd><span>Sprint</span></div>
         <div><kbd>Space</kbd><span>Jump</span></div>
         <div><kbd>E</kbd><span>Enter gun shop</span></div>
         <div><kbd>F</kbd><span>Ride, drive, get off</span></div>
-        <div><kbd>1–6</kbd><span>Weapons</span></div>
+        <div><kbd>1–7</kbd><span>Weapons</span></div>
       </div>
       <p class="small">More heat, tougher squads: police, SWAT, federal agents, the army, and a chopper overhead. Lose a star by breaking line of sight.</p>
       <p class="mobile-note">Built for desktop with a mouse and keyboard.</p>

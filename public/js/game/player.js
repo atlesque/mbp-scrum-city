@@ -1,5 +1,6 @@
 import { animateChar, deathAnim } from '../characters/character.js';
 import { curWeapon, finishReload, playerShoot } from '../combat/combat.js';
+import { scopeFov, updateScope } from '../combat/scope.js';
 import { Sound } from '../core/audio.js';
 import { emit } from '../core/events.js';
 import { save } from '../core/save.js';
@@ -23,10 +24,11 @@ export const camTarget = new THREE.Vector3();
 export function updatePlayer(dt) {
   if (!P.alive) { deathAnim(P, dt); P.c.root.position.set(P.x, 0, P.z); P.c.root.rotation.y = P.yaw; return; }
   // look
-  const sens = (I.mouseR ? 0.0013 : 0.0022) * settings.sensitivity, sensY = settings.invertY ? -sens : sens;
+  // through the scope the mouse slows with the zoom, so the crosshair moves as far on screen as it does unzoomed
+  const sens = (G.scope ? 0.0022 * scopeFov(1, G.scope) : I.mouseR ? 0.0013 : 0.0022) * settings.sensitivity, sensY = settings.invertY ? -sens : sens;
   if (I.mouseDX || I.mouseDY) P.lookT = G.time;
   cam.yaw -= I.mouseDX * sens; cam.pitch = clamp(cam.pitch - I.mouseDY * sensY, -1.0, 1.15); I.mouseDX = I.mouseDY = 0;
-  const aimingNow = I.mouseR || I.mouseL || I.clickQ > 0 || G.time - P.lastShot < 0.7;
+  const aimingNow = I.mouseR || G.scope > 0 || I.mouseL || I.clickQ > 0 || G.time - P.lastShot < 0.7;
   P.aiming = aimingNow;
   P.aimPitch = cam.pitch;
   const v = P.vehicle;
@@ -106,6 +108,7 @@ export function hurtPlayer(d, zone) {
 }
 
 export function updateCamera(dt) {
+  updateScope();
   const v = P.vehicle, C = v && v.K.camera, aim = I.mouseR && P.alive, sp = v ? Math.abs(v.v) : 0;
   cam.dist = lerp(cam.dist, aim ? (C ? C.aimDist : 2.4) : (C ? C.dist : 4.6), Math.min(1, dt * 10));
   cam.fov = lerp(cam.fov, aim ? settings.fov - 18 : settings.fov + Math.min(14, sp * (C ? C.fovPerSpeed : 0)), Math.min(1, dt * 10));
@@ -118,6 +121,9 @@ export function updateCamera(dt) {
   if (tw < dist + 0.3) dist = Math.max(0.6, tw - 0.3);
   camera.position.copy(camTarget).addScaledVector(d, -dist);
   if (camera.position.y < 0.3) camera.position.y = 0.3;
+  // through a scope the camera sits on the shot line (camTarget) and the player's own model is hidden
+  const scoped = G.scope > 0; P.c.root.visible = !scoped || !P.alive;
+  if (scoped) { camera.position.copy(camTarget); cam.fov = scopeFov(settings.fov, G.scope); if (camera.fov !== cam.fov) { camera.fov = cam.fov; camera.updateProjectionMatrix(); } }
   if (cam.shake > 0) { const k = settings.shake ? cam.shake * 0.3 : 0; camera.position.x += rnd(-1, 1) * k; camera.position.y += rnd(-1, 1) * k; cam.shake = Math.max(0, cam.shake - dt * 2.5); }
   camera.lookAt(camTarget.x + d.x * 30, camTarget.y + d.y * 30, camTarget.z + d.z * 30);
 }

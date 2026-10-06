@@ -1,4 +1,5 @@
-import { cycleWeapon, selectWeapon, startReload } from '../combat/combat.js';
+import { curWeapon, cycleWeapon, selectWeapon, startReload } from '../combat/combat.js';
+import { toggleScope } from '../combat/scope.js';
 import { Sound } from './audio.js';
 import { save } from './save.js';
 import { G, I, P, cam, keys, stats } from './state.js';
@@ -30,7 +31,8 @@ canvasEl.addEventListener('mousedown', e => {
   if (G.state !== 'play') return;
   if (!I.locked) { requestLock(true); if (!I.noLock) return; }
   if (e.button === 0) { I.mouseL = { fresh: true }; I.clickQ = 0.3; }
-  if (e.button === 2) I.mouseR = true;
+  // a scoped gun zooms on right click instead of the over-the-shoulder aim
+  if (e.button === 2) { if (curWeapon().scope && !P.vehicle) toggleScope(); else I.mouseR = true; }
 });
 document.addEventListener('mouseup', e => { if (e.button === 0) I.mouseL = false; if (e.button === 2) I.mouseR = false; });
 canvasEl.addEventListener('contextmenu', e => e.preventDefault());
@@ -46,7 +48,7 @@ document.addEventListener('keydown', e => {
   if ((e.code === 'KeyF' || e.code === 'KeyE') && P.alive) interact(e.code);
   if (e.code === 'KeyM') { const on = Sound.toggleMusic(); showRadio(on ? 'Neon FM 86.0' : 'Radio off'); }
   if (e.code === 'KeyP' || (e.code === 'Escape' && I.noLock)) pauseGame();
-  const n = parseInt(e.key, 10); if (n >= 1 && n <= 6) selectWeapon(WEAPONS[n - 1].id);
+  const n = parseInt(e.key, 10); if (n >= 1 && n <= Math.min(9, WEAPONS.length)) selectWeapon(WEAPONS[n - 1].id);
 });
 document.addEventListener('keyup', e => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; I.mouseL = false; I.mouseR = false; });
