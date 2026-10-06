@@ -2,7 +2,7 @@ import { charMat } from '../characters/character.js';
 import { explosion } from '../combat/combat.js';
 import { SIGHT_EVERY, newSight, reactTo } from '../combat/sight.js';
 import { Sound } from '../core/audio.js';
-import { pan3d, vol3d } from '../core/spatial.js';
+import { at } from '../core/spatial.js';
 import { G, P } from '../core/state.js';
 import { angDiff, lerp, rnd } from '../core/util.js';
 import { addEntity, removeEntity } from '../entities/registry.js';
@@ -73,7 +73,7 @@ const Heli = {
         const from = new THREE.Vector3(h.x, h.y - 1, h.z), to = new THREE.Vector3(P.x, P.y + 1, P.z);
         const hit = Math.random() < 0.2 && !blocked(from.x, from.y, from.z, to.x, to.y, to.z);
         if (!hit) to.add(new THREE.Vector3(rnd(-2, 2), rnd(-1, 0.5), rnd(-2, 2)));
-        tracer(from, to, true); muzzleFlash(from); Sound.shot('minigun', vol3d(h.x, h.z) * 0.6, pan3d(h.x, h.z)); if (hit) hurtPlayer(5);
+        tracer(from, to, true); muzzleFlash(from); Sound.shot('minigun', 0.6, at(h, -0.5)); if (hit) hurtPlayer(5);
         emit(to.x, 0.1, to.z, 2, '#d8c8b0', 3, 0.3, 0.1);
       }
     } else if (h.fireT <= 0 && ready) { h.burst = 10; h.fireT = rnd(2.5, 3.5); }

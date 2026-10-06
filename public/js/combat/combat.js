@@ -1,6 +1,6 @@
 import { setGun, muzzleOf } from '../characters/character.js';
 import { Sound } from '../core/audio.js';
-import { pan3d } from '../core/spatial.js';
+import { HEAR } from '../core/spatial.js';
 import { blastShake, stackShake } from './shake.js';
 import { G, I, P, cam, inv } from '../core/state.js';
 import { $, clamp, rnd } from '../core/util.js';
@@ -93,7 +93,7 @@ function hitsPlayer(o, d, maxT) {
 export function explosion(x, y, z, R, dmg, byPlayer, power = 1) {
   boomFx(x, y, z, R * 0.7);
   const dP = Math.hypot(x - P.x, z - P.z);
-  Sound.boom(clamp(1.2 - dP / 140, 0, 1.2), pan3d(x, z));
+  Sound.boom(1.2, { x, y, z }, HEAR.boom);
   cam.shake = stackShake(cam.shake, blastShake(R, Math.hypot(dP, y - P.y)));
   for (const e of all()) if (e.blast && !e.removed) e.blast(x, y, z, R, dmg, byPlayer);
   for (const e of all()) if (e.fling && !e.removed) e.fling(x, y, z, R, power); // a second pass, so whoever the blast just killed flies too
