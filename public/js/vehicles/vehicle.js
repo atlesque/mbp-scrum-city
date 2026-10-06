@@ -87,7 +87,8 @@ const Vehicle = {
     else this.K.knock(this, (this.kvx || 0) + t.vx, (this.kvz || 0) + t.vz, t.up);
   },
   blast(x, y, z, R, dmg, byPlayer) { const d = Math.hypot(this.x - x, this.z - z); if (d < R && !this.dead) this.damage(dmg * (1 - d / R) + 40, byPlayer ? 'boom' : false); },
-  pushOut(o, r) { return !(this.ghostT > G.time) && this.K.pushOut(this, o, r); }, // a vehicle just rammed flies through whatever hit it
+  // a vehicle just rammed flies through whatever hit it, and one just bailed out of rolls on past the player
+  pushOut(o, r) { return !(this.ghostT > G.time) && !(o === P && P.bailFrom === this && P.bailT > G.time) && this.K.pushOut(this, o, r); },
   blip(radar) { if (this.driver !== P && !this.dead) this.K.blip(this, radar); },
   interaction(p) {
     if (p.vehicle || this.driver === P || this.dead || this.burnT > 0) return null;

@@ -130,7 +130,8 @@ export const car = {
   seat(c, ch) {
     c.mesh.seat.add(ch.root); ch.root.position.set(0, 0, 0); ch.root.rotation.set(0, 0, 0);
     ch.shadow.visible = false; ch.legL.geometry = ch.legR.geometry = seatedLegs(ch);
-    ch.body.position.y = 0; ch.body.rotation.set(0, 0, 0); ch.legL.rotation.set(-1, 0, 0); ch.legR.rotation.set(-1, 0, 0); // knees up, feet on the floor
+    const knees = c.mesh.seat.userData.knees ?? -1; // knees up, feet on the floor; a low car lifts them higher
+    ch.body.position.y = 0; ch.body.rotation.set(0, 0, 0); ch.legL.rotation.set(knees, 0, 0); ch.legR.rotation.set(knees, 0, 0);
     ch.armL.rotation.set(-1.1, 0, 0.1); ch.armR.rotation.set(-1.1, 0, -0.1, 'XYZ');
   },
   unseat(c, ch) {
@@ -140,10 +141,10 @@ export const car = {
   aim() {},
   // a shot through the glass at the person behind the wheel: { t, head } or null
   occupantHit(c, o, d, maxT) {
-    const s = c.mesh.seat.position, cy = Math.cos(c.yaw), sy = Math.sin(c.yaw);
+    const s = c.mesh.seat.position, k = c.mesh.seat.scale.y, cy = Math.cos(c.yaw), sy = Math.sin(c.yaw);
     const x = c.x + s.x * cy + s.z * sy, z = c.z - s.x * sy + s.z * cy;
     let best = null;
-    for (const [y, r, head] of [[s.y + 1.74, 0.2, true], [s.y + 1.2, 0.34, false]]) {
+    for (const [y, r, head] of [[s.y + 1.74 * k, 0.2 * k, true], [s.y + 1.2 * k, 0.34 * k, false]]) {
       const t = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, x, y, z, r);
       if (t < maxT && o.y + d.y * t > SILL && (!best || t < best.t)) best = { t, head };
     }

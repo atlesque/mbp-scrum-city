@@ -250,12 +250,14 @@ function tyreGeo(r, w, rim) {
   pr.push(new THREE.Vector2(rim + 0.01, w * 0.42)); pr.unshift(new THREE.Vector2(rim + 0.01, -w * 0.42));
   return (GEOS[k] = new THREE.LatheGeometry(pr.reverse(), 22).toNonIndexed());
 }
-// a car's meshes from its shared geometry, in the shape the car kind expects
-export function carMeshes(geo, seat) {
+// a car's meshes from its shared geometry, in the shape the car kind expects. These cars are drawn true to size, lower
+// than the game's people are tall: `fit` shrinks whoever sits in the seat to keep their head under the roof, and
+// `knees` (the thigh angle, see kinds/car.js seat) raises their feet clear of the floor
+export function carMeshes(geo, seat, { fit = 1, knees } = {}) {
   const grp = new THREE.Group(), m = new THREE.Mesh(geo.body, charMat), win = new THREE.Mesh(geo.glass, tintMat), lamps = new THREE.Mesh(geo.lamp, lampMat);
   const wheels = (geo.axles || []).map(a => wheelAt(geo[a.key], charMat, a.x, a.y, a.z, a.r));
   grp.add(m, win, lamps, ...wheels);
-  const s = new THREE.Group(); s.position.set(...seat); grp.add(s);
+  const s = new THREE.Group(); s.position.set(...seat); s.scale.setScalar(fit); s.userData.knees = knees; grp.add(s);
   return { grp, m, win, lamps, wheels, seat: s, solid: [m, ...wheels], lit: [win, lamps] };
 }
 export const triangles = geo => Object.values(geo).filter(g => g.isBufferGeometry).reduce((s, g) => s + g.attributes.position.count / 3, 0);

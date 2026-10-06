@@ -1,8 +1,12 @@
 import '../three.js';
+import '../vehicles/vehicle.js'; // first, as in the game: the car kind and the game modules import each other
+import { car } from '../vehicles/kinds/car.js';
 import { VEHICLE_MODELS } from '../vehicles/models/index.js';
+import { makeCharacter, randomLook } from '../characters/character.js';
 
 // Preview page for the car models: /dev/cars.html?car=bmw5&view=1&night&shot
 // car picks the model, view a preset camera (or az,el,dist), night dims the lights, shot hides the UI. Drag to orbit.
+// driver seats the player at the wheel (driver=afro: a passer-by with the tallest hair).
 const q = new URLSearchParams(location.search);
 const cars = Object.values(VEHICLE_MODELS).filter(m => m.kind === 'car');
 const M = VEHICLE_MODELS[q.get('car')] || cars[cars.length - 1], night = q.has('night'), neutral = q.has('neutral');
@@ -24,6 +28,8 @@ const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshL
 ground.rotation.x = -Math.PI / 2; scene.add(ground);
 
 const mesh = M.mesh(); scene.add(mesh.grp);
+const PLAYER = { skin: '#eab48f', shirt: '#2fb8c9', pa: '#ff6fae', pb: '#f6f1e7', pants: '#f4f0e6', hair: '#3a2416', hairStyle: 'mullet', glasses: true, shoes: '#f6f1e7' }; // as in main.js
+if (q.has('driver')) car.seat({ mesh }, makeCharacter(q.get('driver') === 'afro' ? { ...randomLook(), hairStyle: 'afro' } : PLAYER));
 const parts = [mesh.m, mesh.win, mesh.lamps, ...(mesh.wheels || [])].filter(Boolean).map(m => m.geometry.attributes.position.count / 3), tris = parts.reduce((s, n) => s + n, 0);
 document.getElementById('info').textContent = `${M.name} (${M.id}) · ${tris.toLocaleString()} triangles (${parts.join(" + ")}) · drag to orbit, scroll to zoom`;
 
@@ -46,7 +52,7 @@ addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); ca
 const ui = document.getElementById('ui');
 for (const c of cars) {
   const b = document.createElement('button'); b.textContent = c.id; if (c === M) b.className = 'on';
-  b.onclick = () => { location.search = `?car=${c.id}${night ? '&night' : ''}${neutral ? '&neutral' : ''}`; }; ui.appendChild(b);
+  b.onclick = () => { location.search = `?car=${c.id}${night ? '&night' : ''}${neutral ? '&neutral' : ''}${q.has('driver') ? '&driver=' + q.get('driver') : ''}`; }; ui.appendChild(b);
 }
 let frames = 0;
 renderer.setAnimationLoop(() => { place(); renderer.render(scene, camera); if (++frames === 2) window.__ready = true; });

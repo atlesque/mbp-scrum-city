@@ -1,5 +1,5 @@
 // Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, snipe through the scope, throw a car with a rocket,
-// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, ride a bike over a car, shunt a parked car, drift, drive up a kerb, walk into the edge wall, take the stairs to a roof and change settings. Fails on any page error or broken step.
+// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, ride a bike over a car, shunt a parked car, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof and change settings. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -350,6 +350,7 @@ try {
   });
 
   await step('rides a bike up and over a parked car, and crashes into one going fast', async () => {
+    await until(() => !__neonbay.P.tumble); // still rolling from bailing out of the last car
     await clearVehicles(5, -50);
     await game(() => { const { P, spawnVehicle } = __neonbay; P.x = 4.5; P.z = -60; window.__ram = spawnVehicle('gs', 3, -60, 0); });
     check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes(__ram.model.name)), 'no prompt to get on');
@@ -439,6 +440,33 @@ try {
     await page.keyboard.up('KeyS');
     await press('KeyF');
     check(await until(() => !__neonbay.P.vehicle), 'F did not get the player out');
+    await game(() => __neonbay.removeEntity(__ram));
+  });
+
+  for (const model of ['sedan', 't7']) await step(`bails out of a ${model} at speed, sideways and clear of it`, async () => {
+    // on the open beach, heading up it at top speed
+    await clearVehicles(228, -60);
+    await game(m => { const { P, spawnVehicle } = __neonbay; P.x = 230.5; P.z = -60; window.__ram = spawnVehicle(m, 228, -60, 0); }, model);
+    check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes(__ram.model.name)), 'no prompt to get on');
+    await press('KeyF');
+    check(await until(() => __neonbay.P.vehicle === window.__ram), 'F did not put the player on board');
+    await until(() => __neonbay.G.near.some(i => i.priority === 9));
+    await game(() => {
+      const { P } = __neonbay; P.hp = 100; P.armor = 0; __ram.x = 228; __ram.z = -60; __ram.yaw = 0; __ram.v = 32; P.vx = 0; P.vz = 32;
+      // how close the body comes to the player while they roll away
+      window.__gap = Infinity; const up = __ram.update;
+      __ram.update = function (dt) { up.call(this, dt); if (P.tumble) __gap = Math.min(__gap, this.K.reach ? Math.max(0, Math.hypot(this.x - P.x, this.z - P.z) - 1) : 9); };
+    });
+    await press('KeyF');
+    check(await until(() => !__neonbay.P.vehicle), 'F did not get the player off');
+    const mid = await game(() => ({ tumbling: !!__neonbay.P.tumble, hp: __neonbay.P.hp }));
+    check(mid.tumbling, 'the player was not thrown out');
+    check(await until(() => !__neonbay.P.tumble), 'the player never got back up');
+    const r = await game(() => { const { P } = __neonbay; return { hp: P.hp, alive: P.alive, x: P.x, z: P.z, cz: __ram.z, gap: __gap, reach: __ram.K.reach(__ram, P) }; });
+    check(r.alive && r.hp < 100 && r.hp >= 88, `bailing at speed should only sting (hp ${r.hp.toFixed(1)})`);
+    check(r.x > 229.5, `not thrown out sideways (x ${r.x.toFixed(2)})`);
+    check(r.gap > 0.2, `the ${model} ran into the player on the way out (gap ${r.gap.toFixed(2)})`);
+    check(r.cz > r.z, `the ${model} did not roll on past the player`);
     await game(() => __neonbay.removeEntity(__ram));
   });
 
@@ -632,6 +660,30 @@ try {
     await game(() => __neonbay.lighting.set(1));
     check(await until(() => __neonbay.lighting.lit.lamps > 0 && __neonbay.lighting.lit.beams > 0), 'no street lamps or headlights came on');
     await game(() => __neonbay.lighting.set(null));
+  });
+
+  await step('every gun reloads with its own move and sound', async () => {
+    const guns = await game(() => import('/js/data/weapons.js').then(m => m.GUNS.map(w => w.id))); // on keys 1, 2, 3, ...
+    await game(() => { const { G, P } = __neonbay; G.heat = 0; G.wanted = 0; P.hp = 100; });
+    if (await game(() => __neonbay.Sound.ready)) check(await until(() => import('/js/data/reloads.js').then(m => __neonbay.Sound.samplesLoaded.length === Object.keys(m.RELOADS).length)), 'the reload sounds did not load');
+    for (const [i, id] of guns.entries()) {
+      await game(id => { const { inv } = __neonbay; inv.owned[id] = true; if (id !== 'pistol') inv.ammo[id] = 50; inv.mag[id] = 0; }, id);
+      await press(`Digit${i + 1}`);
+      check(await until(id => __neonbay.inv.cur === id, id, 3000), `could not switch to the ${id}`);
+      // frames are slow under software WebGL, so watch every frame from inside the page
+      await game(() => { const { P } = __neonbay, w = window.__rl = { anims: new Set(), move: 0, x0: P.c.armL.rotation.x }; w.timer = setInterval(() => { if (P.reload) { w.anims.add(P.reload.anim); w.move = Math.max(w.move, Math.abs(P.c.armL.rotation.x - w.x0)); } }, 10); });
+      await press('KeyR');
+      // the game runs slowly here, so once the move is under way skip to the end of the reload
+      const moved = await until(() => __rl.move > 0.3, undefined, 20000);
+      await game(() => { if (__neonbay.G.reloadT > 0.01) __neonbay.G.reloadT = 0.01; });
+      const done = await until(id => !__neonbay.G.reloadT && __neonbay.inv.mag[id] > 0, id, 5000);
+      const seen = await game(() => { clearInterval(__rl.timer); return { anims: [...__rl.anims], move: __rl.move, t: __neonbay.G.reloadT, mag: __neonbay.inv.mag[__neonbay.inv.cur] }; });
+      check(moved && seen.anims.length === 1, `the ${id} reload move did not play ${JSON.stringify(seen)}`);
+      check(done, `the ${id} did not finish reloading ${JSON.stringify(seen)}`);
+    }
+    await press('Digit1');
+    check(await until(() => __neonbay.inv.cur === 'pistol', undefined, 3000), 'could not switch back to the pistol');
+    await game(guns => { const { inv } = __neonbay; for (const id of guns) if (id !== 'pistol') { delete inv.owned[id]; delete inv.ammo[id]; delete inv.mag[id]; } }, guns);
   });
 } finally {
   await browser.close(); server.close();
