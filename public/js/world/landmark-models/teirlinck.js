@@ -65,6 +65,8 @@ export function buildTeirlinck() {
   // shop windows on the ground floor away from the entrance
   frame(front, ['front', 'left', 'right'], 0.3, 1, [], { skip: (s, t) => s === 'front' && t > E[0] + 16 - 1 && t < E[1] + 16 + 1 });
   frame(side, ['right', 'back'], 0.3, 1, []);
+  for (const R of wings) k.solid(R, TOP + 1);
+  k.solid(tower, towerTop + 0.9); k.solid([-16, 6, -6, 0], TOP + 1.6); k.solid([0, 6, 0, 8], TOP); // the winter gardens
   return k;
 }
 

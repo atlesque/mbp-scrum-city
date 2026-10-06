@@ -56,6 +56,7 @@ export function buildVac() {
   }
   for (let z = L[2] + 1; z < L[3]; z += 6) k.box('trim', L[0] + 0.5, L[0] + 1.3, 0, ly0, z - 0.4, z + 0.4, WHITE);
   k.box('trim', L[0], L[1] - 0.3, ly1, ly1 + 1.1, L[2], L[2] + 0.2, '#b9c4c6'); // glass balustrade of the city courtyard
+  k.solid(A, topA + 1.4); k.solid(B, topB + 1.4); k.solid(L, ly1 + 1.1);
   return k;
 }
 

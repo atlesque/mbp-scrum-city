@@ -69,5 +69,6 @@ export function buildBelpaire() {
     for (let y = 1.2; y < gh; y += 1.5) k.strip('trim', F, F.len / 2, F.len, y - 0.06, y + 0.06, 0.15, GREEN);
     for (const t of [0.6, F.len / 2, F.len - 0.6]) k.stroke('trim', F, t, 0.75, 1.3, 0.25, 1.1, 0.1, GREEN, 0.25); // slanted legs
   }
+  k.solid(W1, WTC + 1.5); k.solid(W2, WTC + 1.5); k.solid(M, TOP + 0.6); k.solid(G, gh);
   return k;
 }
