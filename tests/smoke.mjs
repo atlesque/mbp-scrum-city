@@ -1,4 +1,4 @@
-// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, snipe through the scope, throw a car with a rocket,
+// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, get shelled by the army's tank and blow it up, snipe through the scope, throw a car with a rocket,
 // shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, ride a bike over a car, shunt a parked car, drift, drive up a kerb, walk into the edge wall, take the stairs to a roof and change settings. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
@@ -604,6 +604,36 @@ try {
     } finally {
       await game(() => { __neonbay.removeEntity(__ccar); __neonbay.removeEntity(__cnpc); });
     }
+  });
+
+  await step('a tank rolls in with the army and shells the player', async () => {
+    await game(() => { const { G, P } = __neonbay; G.heat = 100; G.wanted = 5; G.tankT = 0; P.hp = 100; });
+    check(await until(() => !!__neonbay.G.tank, undefined, 20000), 'no tank at five stars');
+    check(await until(() => __neonbay.Sound.voices().tank === 1), 'the tank makes no sound');
+    // down an open stretch of road: the tank 30 m up it, rolling towards the player
+    await clearVehicles(0, -75);
+    await game(() => {
+      const { G, P, all, removeEntity } = __neonbay, t = window.__tank = G.tank;
+      P.x = 0; P.z = -60; P.y = 0; P.hp = 100; P.armor = 0;
+      for (const n of all('npc')) if (Math.hypot(n.x, n.z + 75) < 25) removeEntity(n);
+      Object.assign(t, { x: 0, z: -90, yaw: 0, dirX: 0, dirZ: 1, toX: 0, toZ: -50, v: 0, turretYaw: 0, aimYaw: 0, reloadT: 0 });
+    });
+    const hurt = await until(() => __neonbay.P.hp < 100, undefined, 30000);
+    const r = await game(() => ({ hp: __neonbay.P.hp, tankHp: __tank.hp, d: Math.hypot(__tank.x - __neonbay.P.x, __tank.z - __neonbay.P.z) }));
+    check(hurt, `no tank shell hit the player (hp ${r.hp}, tank ${r.d.toFixed(1)} m away)`);
+    check(r.tankHp > 0, 'the tank was caught in its own blast');
+    await game(() => { __neonbay.P.hp = 100; });
+  });
+
+  await step('a tank goes down to rockets and leaves its wreck in the road', async () => {
+    const r = await game(() => {
+      const { G, all } = __neonbay, t = __tank;
+      for (let i = 0; i < 8 && !t.dead; i++) t.onRocket(420);
+      return { dead: t.dead, gone: !G.tank, wreck: all('tank').includes(t), solid: t.pushOut({ x: t.x, z: t.z }, 0.5) };
+    });
+    check(r.dead && r.gone, 'the tank survived eight rockets');
+    check(r.wreck && r.solid, 'no wreck left in the road');
+    await game(() => { __neonbay.removeEntity(__tank); __neonbay.P.hp = 100; });
   });
 
   await step('glows the minimap red while wanted', async () => {

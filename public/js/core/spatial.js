@@ -39,6 +39,7 @@ export const HEAR = {
   ting: { ref: 2, max: 20 }, // a near miss whizzing past
   siren: { ref: 10, max: 160 },
   rotor: { ref: 18, max: 200 },
+  tank: { ref: 12, max: 170 },
 };
 export function falloff(d, p) {
   if (p.curve) return d >= p.max ? 0 : clamp(p.curve(d), 0, 1);

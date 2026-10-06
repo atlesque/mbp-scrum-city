@@ -84,9 +84,10 @@ export const Sound = (() => {
   const LOOPS = {
     siren: { max: 3, prof: HEAR.siren, make: makeSiren },
     rotor: { max: 2, prof: HEAR.rotor, make: makeRotor },
+    tank: { max: 1, prof: HEAR.tank, make: makeTank },
     engine: { max: 3, prof: null, make: makeEngine },
   };
-  const live = { siren: new Map(), rotor: new Map(), engine: new Map() };
+  const live = { siren: new Map(), rotor: new Map(), engine: new Map(), tank: new Map() };
   function loops(kind, list, prof) {
     if (!ctx) return;
     const def = LOOPS[kind], p = prof || def.prof, map = live[kind], t = ctx.currentTime; L = L || listenerPose();
@@ -127,6 +128,23 @@ export const Sound = (() => {
     hn.connect(hf); hf.connect(chop); hn.start(0, Math.random() * 1.5); clfo.start();
     return { out: chop, set(s, k, t) { clfo.frequency.setTargetAtTime(13 * k, t, 0.1); hf.frequency.setTargetAtTime(380 * k, t, 0.1); }, stop() { hn.stop(); clfo.stop(); } };
   }
+  // tank: a deep diesel drone, and the squeak and clatter of the tracks, faster and louder the quicker it rolls
+  function makeTank() {
+    const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 32;
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 160; o.connect(f);
+    const tn = ctx.createBufferSource(); tn.buffer = noise; tn.loop = true;
+    const tf = ctx.createBiquadFilter(); tf.type = 'bandpass'; tf.frequency.value = 1400; tf.Q.value = 3;
+    const clack = ctx.createGain(); clack.gain.value = 0; const clfo = ctx.createOscillator(); clfo.type = 'square'; clfo.frequency.value = 6;
+    const cg = ctx.createGain(); cg.gain.value = 0; clfo.connect(cg); cg.connect(clack.gain);
+    tn.connect(tf); tf.connect(clack);
+    const mix = ctx.createGain(); f.connect(mix); clack.connect(mix);
+    o.start(); tn.start(0, Math.random() * 1.5); clfo.start();
+    return { out: mix, set(s, k, t) {
+      const sp = Math.min(1, (s.speed || 0) / 7);
+      o.frequency.setTargetAtTime((30 + sp * 16) * k, t, 0.2); f.frequency.setTargetAtTime(140 + sp * 120, t, 0.2);
+      clfo.frequency.setTargetAtTime((3 + sp * 9) * k, t, 0.1); cg.gain.setTargetAtTime(sp * 0.18, t, 0.1); clack.gain.setTargetAtTime(sp * 0.18, t, 0.1);
+    }, stop() { o.stop(); tn.stop(); clfo.stop(); } };
+  }
   // boxer twin: low saw at the firing rate plus a soft triangle octave, through a gentle tracking lowpass and a
   // fixed one that keeps the buzzy highs out (the same voice as the player's own, below)
   function makeEngine() {
@@ -148,7 +166,7 @@ export const Sound = (() => {
     const g = ctx.createGain(); env(g, t, a || 0.004, peak, dur); o.connect(g); g.connect(dest); o.start(t); o.stop(t + dur + 0.05); return o;
   }
   const PROG = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]];
-  const GUN = { pistol: [3600, .22, 150, .9], smg: [5200, .1, 210, .6], shotgun: [2300, .55, 80, 1.35], rifle: [5600, .17, 130, .85], minigun: [6200, .07, 240, .5], rpg: [1400, .7, 60, .9], sniper: [3800, .5, 70, 1.45] };
+  const GUN = { pistol: [3600, .22, 150, .9], smg: [5200, .1, 210, .6], shotgun: [2300, .55, 80, 1.35], rifle: [5600, .17, 130, .85], minigun: [6200, .07, 240, .5], rpg: [1400, .7, 60, .9], sniper: [3800, .5, 70, 1.45], cannon: [700, 1.1, 40, 1.8] };
   // `at` is where it was fired (a world point), or nothing for the player's own gun
   function shot(kind, vol = 1, at = null) {
     if (!ctx) return; const o = out(vol, at, HEAR.shot); if (!o) return; const p = GUN[kind] || GUN.pistol, t = ctx.currentTime;

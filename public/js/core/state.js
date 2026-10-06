@@ -16,6 +16,8 @@ export const G = {
   copCarT: 0,
   heliT: 0,
   heli: null,
+  tankT: 6, // seconds until the army's tank rolls in at five stars (vehicles/tank.js)
+  tank: null,
   shootersNow: 0,
   reloadT: 0,
   fireCd: 0,
