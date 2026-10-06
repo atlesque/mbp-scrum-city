@@ -76,6 +76,19 @@ export function wallHit(ox, oy, oz, dx, dy, dz, maxT) {
   for (const b of tallBoxes) { const t = rayBox(ox, oy, oz, dx, dy, dz, b.x0, 0, b.z0, b.x1, b.h, b.z1); if (t < best) best = t; }
   return best;
 }
+// like wallHit, but also says which face of the building the ray struck: n gets its outward normal
+// (straight up when nothing is in the way and the ray runs its full length)
+export function wallHitFace(ox, oy, oz, dx, dy, dz, maxT, n) {
+  let best = maxT, hit = null;
+  for (const b of tallBoxes) { const t = rayBox(ox, oy, oz, dx, dy, dz, b.x0, 0, b.z0, b.x1, b.h, b.z1); if (t < best) { best = t; hit = b; } }
+  n.set(0, 1, 0);
+  if (hit) {
+    const x = ox + dx * best, y = oy + dy * best, z = oz + dz * best;
+    let d = Math.abs(y - hit.h);
+    for (const [e, nx, nz] of [[Math.abs(x - hit.x0), -1, 0], [Math.abs(x - hit.x1), 1, 0], [Math.abs(z - hit.z0), 0, -1], [Math.abs(z - hit.z1), 0, 1]]) if (e < d) { d = e; n.set(nx, 0, nz); }
+  }
+  return best;
+}
 export function blocked(ax, ay, az, bx, by, bz) {
   const dx = bx - ax, dy = by - ay, dz = bz - az, L = Math.hypot(dx, dy, dz); if (L < 0.01) return false;
   return wallHit(ax, ay, az, dx / L, dy / L, dz / L, L) < L - 0.05;
