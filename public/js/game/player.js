@@ -1,5 +1,7 @@
 import { animateChar, deathAnim } from '../characters/character.js';
 import { curWeapon, finishReload, playerShoot } from '../combat/combat.js';
+import { landPlayerSwing, playerSwing } from '../combat/melee.js';
+import { tickSwing } from '../characters/swing.js';
 import { Sound } from '../core/audio.js';
 import { emit } from '../core/events.js';
 import { save } from '../core/save.js';
@@ -40,7 +42,12 @@ export function updatePlayer(dt) {
   G.fireCd -= dt;
   if (w.spin) G.spin = (I.mouseL || I.clickQ > 0) ? Math.min(1, G.spin + dt * 2.5) : Math.max(0, G.spin - dt * 2);
   I.clickQ = Math.max(0, I.clickQ - dt);
-  if ((I.mouseL || I.clickQ > 0) && G.fireCd <= 0 && G.state === 'play') {
+  if (w.melee) {
+    // hold or click to keep swinging; nothing to swing at from the saddle
+    if (P.vehicle) P.swing = null;
+    else if ((I.mouseL || I.clickQ > 0) && G.fireCd <= 0 && G.state === 'play') { playerSwing(w, st); I.clickQ = 0; }
+    if (P.swing) tickSwing(P, dt, landPlayerSwing);
+  } else if ((I.mouseL || I.clickQ > 0) && G.fireCd <= 0 && G.state === 'play') {
     if (w.auto ? (I.mouseL || I.clickQ > 0) : I.clickQ > 0) { if (!w.spin || G.spin >= 1) { playerShoot(); I.clickQ = 0; } else G.fireCd = 0.05; }
   }
   if (P.c.gun && w.spin && G.spin > 0) P.c.gun.rotation.y += dt * G.spin * 40;
@@ -59,7 +66,7 @@ function walk(dt, aimingNow) {
   const fx = Math.sin(cam.yaw), fz = Math.cos(cam.yaw), rx = -Math.cos(cam.yaw), rz = Math.sin(cam.yaw);
   let mx = fx * iz + rx * ix, mz = fz * iz + rz * ix; const ml = Math.hypot(mx, mz);
   const sprint = (keys.ShiftLeft || keys.ShiftRight) && !I.mouseR && iz >= 0;
-  const speed = sprint ? 8.2 : 5.0;
+  const speed = (sprint ? 8.2 : 5.0) * (P.swing ? 0.6 : 1); // a swing slows you down
   if (ml > 0) { mx /= ml; mz /= ml; }
   P.vx = lerp(P.vx || 0, mx * speed, Math.min(1, dt * 12)); P.vz = lerp(P.vz || 0, mz * speed, Math.min(1, dt * 12));
   const ox = P.x, oz = P.z; P.x += P.vx * dt; P.z += P.vz * dt; collide(P, 0.38);
@@ -137,7 +144,7 @@ export function respawn() {
   removeHeli();
   G.wanted = 0; G.heat = 0; G.lostT = 0; G.heliT = 15;
   P.x = SPAWN.x; P.z = SPAWN.z; P.y = 0; P.hp = 100; P.alive = true; P.deadT = 0; P.yaw = SPAWN.yaw; cam.yaw = SPAWN.yaw; cam.pitch = -0.08;
-  P.c.body.rotation.x = 0; P.c.body.position.y = 0;
+  P.c.body.rotation.x = 0; P.c.body.position.y = 0; P.swing = null;
   loadAll(inv); G.reloadT = 0;
   $('wasted').hidden = true; canvasEl.style.filter = '';
   G.state = 'play'; showBig('City General discharged you');

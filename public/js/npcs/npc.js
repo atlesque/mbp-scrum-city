@@ -29,7 +29,41 @@ const Npc = {
       }
       deathAnim(this, dt); this.place(); return;
     }
+    if (this.stagT > 0 || this.downT > 0) { this.reel(dt); return; }
     BEHAVIOURS[this.behaviour].update(this, dt);
+  },
+  // a melee blow from the player (combat/melee.js): { dmg, zone, dir (from the player), knock, down, blade }.
+  // Whoever survives reels back, or goes down and gets up again; a hard blow throws the dead.
+  meleeHit(h) {
+    if (!this.alive) return;
+    const heavy = this.def.scale ? 3 : 1, knock = h.knock / heavy;
+    this.hurt(h.dmg, h.dir, true, h.blade ? 1 : 0.5);
+    if (!this.alive) {
+      if (knock >= 3) launch(this, { vx: h.dir.x * knock * 0.9, vz: h.dir.z * knock * 0.9, vy: knock * 0.55, spin: knock * 0.9 });
+      else { this.svx = h.dir.x * knock; this.svz = h.dir.z * knock; }
+      return;
+    }
+    this.svx = h.dir.x * knock; this.svz = h.dir.z * knock; this.stagT = 0.35;
+    this.yaw = Math.atan2(-h.dir.x, -h.dir.z); this.swing = null;
+    if (h.down && heavy === 1) { this.downT = 1.8; this.panic = false; }
+    // some people hit back
+    if (this.behaviour === 'wander' && !h.down && Math.random() < (this.def.fightBack || 0)) this.become('brawl');
+  },
+  // knocked back or knocked down: slide, fall, lie there a moment and get up
+  reel(dt) {
+    const c = this.c, k = Math.max(0, 1 - dt * 6);
+    this.x += (this.svx || 0) * dt; this.z += (this.svz || 0) * dt; this.svx *= k; this.svz *= k; collide(this, this.r);
+    this.moveSpeed = 0;
+    if (this.downT > 0) {
+      this.downT -= dt; this.stagT = 0;
+      const f = this.downT > 0.5 ? Math.min(1, (1.8 - this.downT) / 0.22) : Math.max(0, this.downT / 0.5);
+      c.body.rotation.x = -Math.PI / 2 * f * f; c.body.position.y = 0.12 * f;
+      c.armR.rotation.x = lerp(c.armR.rotation.x, -2.6 * f, 0.3); c.armL.rotation.x = lerp(c.armL.rotation.x, -2.9 * f, 0.3);
+    } else {
+      this.stagT -= dt; c.body.rotation.x = 0.3 * Math.max(0, this.stagT / 0.35);
+    }
+    if (this.stagT <= 0 && this.downT <= 0) { this.stagT = this.downT = 0; c.body.rotation.x = 0; c.body.position.y = 0; }
+    this.place();
   },
   place() { this.c.root.position.set(this.x, this.y || 0, this.z); this.c.root.rotation.set(this.flip || 0, this.yaw, 0, 'YXZ'); },
   raycast(o, d, maxT) {
@@ -51,16 +85,16 @@ const Npc = {
     if (this.alive || this.vehicle) return;
     const l = blastLaunch(this.x - x, this.z - z, R, Math.random, power); if (l) launch(this, l);
   },
-  hurt(dmg, dir, byPlayer) {
+  hurt(dmg, dir, byPlayer, blood = 1) {
     if (!this.alive) return;
     this.hp -= dmg;
-    emit(this.x, 1.2, this.z, 6, '#c0142c', 3.5, 0.5, 0.09);
+    emit(this.x, 1.2, this.z, Math.round(6 * blood), '#c0142c', 3.5, 0.5, 0.09);
     const b = BEHAVIOURS[this.behaviour]; if (b.onHurt) b.onHurt(this, byPlayer);
     if (this.hp <= 0) this.kill(dir, byPlayer);
   },
   kill(dir, byPlayer) {
     const vehicle = this.vehicle; if (vehicle) vehicle.ejectDriver(false);
-    this.alive = false; this.deadT = 0; this.aiming = false; this.panic = false; this.moveSpeed = 0;
+    this.alive = false; this.deadT = 0; this.aiming = false; this.panic = false; this.moveSpeed = 0; this.swing = null; this.melee = null; this.stagT = this.downT = 0;
     if (dir) this.yaw = Math.atan2(-dir.x, -dir.z);
     bloodPool(this.x, this.z); emit(this.x, 1, this.z, 10, '#a30f24', 4, 0.7, 0.1);
     if (this.c.gun) setGun(this.c, null);

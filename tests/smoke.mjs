@@ -1,4 +1,4 @@
-// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, take a juggernaut's rocket, throw a car with a rocket,
+// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, throw a car with a rocket,
 // shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, shunt a parked car, drift, drive up a kerb, walk into the edge wall and change settings. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
@@ -136,6 +136,32 @@ try {
     check(r.kills === before + 1, `target was not taken down (hp ${r.hp})`);
     check(r.cash > 0, 'no cash dropped');
     check(r.wanted > 0, 'no heat was added');
+  });
+
+  await step('punches a civilian, then takes them down with a bat', async () => {
+    await clearLane();
+    const before = await game(async () => {
+      const { P, cam, inv, spawnNpc } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js');
+      selectWeapon('fist'); cam.pitch = -0.05; P.yaw = cam.yaw;
+      const n = window.__target = spawnNpc('civilian', P.x + Math.sin(P.yaw) * 1.1, P.z + Math.cos(P.yaw) * 1.1);
+      n.update = function () { this.place(); }; // stand still
+      n.def = { ...n.def, fightBack: 0 }; n.hp = 1000;
+      return { kills: __neonbay.stats.kills, heat: __neonbay.G.heat, wanted: __neonbay.G.wanted, owned: inv.owned.fist };
+    });
+    check(before.owned, 'the player has no fists');
+    const punch = async () => { await game(() => { __neonbay.P.yaw = __neonbay.cam.yaw; __neonbay.I.clickQ = 0.3; }); await until(() => !__neonbay.P.swing && __neonbay.I.clickQ === 0, undefined, 4000); };
+    await punch();
+    const hit = await game(() => ({ hp: window.__target.hp, heat: __neonbay.G.heat, cur: __neonbay.inv.cur }));
+    check(hit.cur === 'fist', 'fists are not in hand');
+    check(hit.hp < 1000, 'the punch did not land');
+    check(hit.heat > before.heat, 'hitting someone added no heat');
+    await game(async () => { const { inv } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js'); inv.owned.bat = true; selectWeapon('bat'); window.__target.hp = 20; });
+    for (let i = 0; i < 6 && await game(() => window.__target.alive); i++) await punch();
+    const r = await game(() => ({ alive: window.__target.alive, kills: __neonbay.stats.kills, gun: !!__neonbay.P.c.gun }));
+    check(r.gun, 'the bat is not in the player\'s hand');
+    check(!r.alive && r.kills === before.kills + 1, 'the bat did not take the civilian down');
+    // back to the pistol, at the heat the step started with, so the next steps meet the same squad
+    await game(async ({ heat, wanted }) => { const { G } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js'); selectWeapon('pistol'); G.heat = heat; G.wanted = wanted; }, before);
   });
 
   await step('a downed juggernaut drops armor and ammo the player can pick up', async () => {
