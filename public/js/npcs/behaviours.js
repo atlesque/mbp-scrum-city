@@ -1,3 +1,4 @@
+import { rollZone, zoneDamage } from '../combat/hitzones.js';
 import { Sound } from '../core/audio.js';
 import { pan3d, vol3d } from '../core/spatial.js';
 import { G, P } from '../core/state.js';
@@ -103,6 +104,6 @@ function shootAtPlayer(e, dist) {
   if (!hit) target.add(new THREE.Vector3(rnd(-1.6, 1.6), rnd(-0.9, 1.2), rnd(-1.6, 1.6)));
   tracer(from, target, true); muzzleFlash(from, !!e.def.bigFlash);
   Sound.shot(e.def.gun, vol3d(e.x, e.z) * 0.7, pan3d(e.x, e.z));
-  if (hit) hurtPlayer(e.def.dmg);
+  if (hit) { const zone = rollZone(); hurtPlayer(zoneDamage(e.def.dmg, zone), zone); }
   else if (dist < 12) Sound.ting(0.5, pan3d(target.x, target.z));
 }

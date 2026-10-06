@@ -71,7 +71,7 @@ const Vehicle = {
     if (!(t < maxT)) return null;
     // through the windows of a closed vehicle, the shot can find the driver instead of the bodywork
     const a = this.driver;
-    if (a && a.alive && this.K.occupantHit) { const h = this.K.occupantHit(this, o, d, maxT); if (h) return { t: h.t, head: h.head, occupant: true }; }
+    if (a && a.alive && this.K.occupantHit) { const h = this.K.occupantHit(this, o, d, maxT); if (h) return { t: h.t, head: h.head, zone: h.head ? 'head' : 'torso', occupant: true }; }
     return { t };
   },
   onShot(hit, dmg, dir) {
