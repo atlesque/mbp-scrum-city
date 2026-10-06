@@ -62,6 +62,7 @@ export function updatePlayer(dt) {
   }
   updateInteraction();
 }
+const JUMP_V = 7.6, GRAVITY = 18; // m/s, m/s²
 // what the player stands on: the street, or the roof they took the stairs up to (P.y is measured from the street)
 const floorY = () => P.roof ? P.roof.floor : 0;
 function walk(dt, aimingNow) {
@@ -79,10 +80,10 @@ function walk(dt, aimingNow) {
   const ox = P.x, oz = P.z; P.x += P.vx * dt; P.z += P.vz * dt;
   if (P.roof) collideRoof(P, 0.38, P.roof); else collide(P, 0.38);
   P.moveSpeed = Math.hypot(P.x - ox, P.z - oz) / Math.max(dt, 1e-4);
-  // jump
+  // jump: v²/2g puts the top at about 1.6 m (walls, railings and cars push out on the ground plan, so height clears nothing)
   const floor = floorY();
-  if (keys.Space && P.grounded && !G.stairs) { P.vy = 6.2; P.grounded = false; }
-  if (!P.grounded) { P.vy -= 18 * dt; P.y += P.vy * dt; if (P.y <= floor) { P.y = floor; P.vy = 0; P.grounded = true; } }
+  if (keys.Space && P.grounded && !G.stairs) { P.vy = JUMP_V; P.grounded = false; }
+  if (!P.grounded) { P.vy -= GRAVITY * dt; P.y += P.vy * dt; if (P.y <= floor) { P.y = floor; P.vy = 0; P.grounded = true; } }
   P.jumpY = P.y - floor;
   // facing and aim
   if (aimingNow) faceTo(P, cam.yaw, dt, 20);
