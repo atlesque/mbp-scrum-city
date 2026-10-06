@@ -155,8 +155,9 @@ export const bike = {
   pushOut(b, o, r) { return Math.abs(b.x - o.x) <= 3 && Math.abs(b.z - o.z) <= 3 && pushOutSeg(o, r + 0.3, b.x, b.z, b.yaw, -0.8, 0.85); },
   reach: (b, p) => Math.hypot(b.x - p.x, b.z - p.z),
   onDriverGone(b) { b.mode = 'fallen'; b.fallen = true; b.fallSide = Math.random() < 0.5 ? 1 : -1; },
-  onPlayerExit(b, crash, speed) {
-    if (crash || speed > bike.crash.exitSpeed) { b.mode = 'fallen'; b.fallen = true; b.fallSide = -1; }
+  // side: which side the player got off (1 the exitAt side); a bike dropped at speed falls away from them
+  onPlayerExit(b, crash, speed, side = 1) {
+    if (crash || speed > bike.crash.exitSpeed) { b.mode = 'fallen'; b.fallen = true; b.fallSide = -side; }
     else { b.mode = 'parked'; b.v = 0; }
   },
   onPlayerEnter(b) { b.fallen = false; b.v = 0; b.steer = 0; b.kvx = b.kvz = 0; b.air = 0; },
