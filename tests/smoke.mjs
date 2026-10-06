@@ -271,9 +271,13 @@ try {
       return !bystander.alive;
     });
     check(ok, 'the blast did not kill the bystander');
-    check(await until(() => __body.peak > 1 && __bystander.peak > 1), 'the bodies were not thrown into the air');
-    check(await until(() => !__body.y && !__bystander.y), 'the bodies did not come back down');
-    await game(() => { __neonbay.removeEntity(__boom); __neonbay.removeEntity(__body); __neonbay.removeEntity(__bystander); });
+    try {
+      // the flight takes about two seconds of game time, which a slow software GPU stretches to most of a minute
+      check(await until(() => __body.peak > 1 && __bystander.peak > 1, null, 60000), 'the bodies were not thrown into the air');
+      check(await until(() => !__body.y && !__bystander.y, null, 60000), 'the bodies did not come back down');
+    } finally {
+      await game(() => { __neonbay.removeEntity(__boom); __neonbay.removeEntity(__body); __neonbay.removeEntity(__bystander); });
+    }
   });
 
   await step('shunts a parked car down the road', async () => {
