@@ -1,5 +1,5 @@
 // Player, camera, inventory and the other values many modules read and write.
-export const P = { x: 0, z: 0, y: 0, vy: 0, yaw: 0, hp: 100, armor: 0, alive: true, c: null, moveSpeed: 0, aiming: false, aimPitch: 0, twoHand: false, lastShot: -9, grounded: true, vehicle: null };
+export const P = { x: 0, z: 0, y: 0, vy: 0, yaw: 0, hp: 100, armor: 0, alive: true, c: null, moveSpeed: 0, aiming: false, aimPitch: 0, twoHand: false, lastShot: -9, grounded: true, vehicle: null, roof: null };
 export const cam = { yaw: Math.PI, pitch: -0.08, dist: 4.6, shake: 0, fov: 70 };
 export const inv = { money: 500, owned: { pistol: true }, lvl: { pistol: 0 }, mag: { pistol: 12 }, ammo: {}, cur: 'pistol' };
 export const stats = { kills: 0, cops: 0, best: 0, earned: 0 };
@@ -28,6 +28,7 @@ export const G = {
   firstPlay: true,
   hudCache: '',
   shop: null, // the shop entity whose menu is open
+  stairs: false, // taking the stairs to or from a roof (the screen is faded out)
   near: [], // interactions the player can trigger right now, best first
 };
 // mouse and pointer-lock input

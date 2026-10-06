@@ -12,7 +12,7 @@ export function updateInteraction() {
   const near = [];
   if (P.alive && G.state === 'play') {
     if (P.vehicle) near.push(leave);
-    else for (const e of entities) { if (!e.interaction) continue; const it = e.interaction(P); if (it) near.push(it); }
+    else for (const e of entities) { if (!e.interaction || (P.roof && !e.onRoof)) continue; const it = e.interaction(P); if (it) near.push(it); }
   }
   near.sort(better); G.near = near;
   const best = near[0], pr = $('prompt');

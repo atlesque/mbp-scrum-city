@@ -1,5 +1,5 @@
 // Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, take a juggernaut's rocket, throw a car with a rocket,
-// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, shunt a parked car, drift, drive up a kerb, walk into the edge wall and change settings. Fails on any page error or broken step.
+// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, shunt a parked car, drift, drive up a kerb, walk into the edge wall, take the stairs to a roof and change settings. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -444,6 +444,27 @@ try {
     check(x > -207.6, `player went through the wall (x ${x})`);
     const off = await game(() => __neonbay.all('vehicle').filter(v => v.mode === 'traffic' && (Math.abs(v.x) > 204 || Math.abs(v.z) > 204)).length);
     check(off === 0, `${off} traffic vehicle(s) drove off the grid`);
+  });
+
+  await step('takes the stairs up to a roof, stays inside the railings and comes back down', async () => {
+    const n = await game(() => __neonbay.ROOFS.length);
+    check(n >= 6, `only ${n} rooftop door(s) in the city`);
+    await game(() => { const { P, cam, ROOFS } = __neonbay, r = ROOFS[0]; P.x = r.street.x; P.z = r.street.z; cam.yaw = r.yaw + Math.PI; });
+    await clearLane();
+    check(await until(() => /roof/.test(document.getElementById('prompt').textContent)), 'no prompt at the street door');
+    await press('KeyE');
+    check(await until(() => { const { P, ROOFS } = __neonbay; return P.roof === ROOFS[0] && Math.abs(P.y - ROOFS[0].floor) < 0.01; }), 'did not get up onto the roof');
+    // run straight at the railing: the player stops at it instead of walking off
+    await game(() => { const { cam, ROOFS } = __neonbay; cam.yaw = ROOFS[0].yaw; });
+    await page.keyboard.down('KeyW'); await page.waitForTimeout(2500); await page.keyboard.up('KeyW');
+    const on = await game(() => { const { P, ROOFS } = __neonbay, w = ROOFS[0].walk; return P.roof === ROOFS[0] && P.x > w.x0 && P.x < w.x1 && P.z > w.z0 && P.z < w.z1 && P.y >= ROOFS[0].floor - 0.01; });
+    check(on, 'walked off the roof');
+    await game(() => { const { P, cam, ROOFS } = __neonbay, r = ROOFS[0]; P.x = r.hutOut.x; P.z = r.hutOut.z; cam.yaw = r.yaw + Math.PI; });
+    check(await until(() => /down/.test(document.getElementById('prompt').textContent)), 'no prompt at the roof door');
+    await press('KeyE');
+    const down = await until(() => !__neonbay.P.roof);
+    const at = await game(() => { const { P, G, ROOFS } = __neonbay; return { y: P.y, d: Math.hypot(P.x - ROOFS[0].street.x, P.z - ROOFS[0].street.z), near: G.near.map(i => i.prompt), roof: !!P.roof }; });
+    check(down && at.y === 0 && at.d < 1.5, 'did not come back down to the street: ' + JSON.stringify(at));
   });
 
   await step('changes settings from the pause menu', async () => {

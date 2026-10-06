@@ -9,6 +9,8 @@
 //   wanted:lost       {}
 //   shop:purchase     { shop, item, action, price }
 //   player:died       { fee }
+//   roof:up           { roof }                          took the stairs from a street door to its roof (world/rooftops.js)
+//   roof:down         { roof }
 //   settings:changed  { id, value }                    the player changed something on the Settings screen
 const handlers = new Map();
 

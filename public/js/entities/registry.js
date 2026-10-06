@@ -3,7 +3,7 @@
 // walk this one set and use whichever traits an entity has, so a new kind of thing plugs in
 // without editing those systems.
 //
-// Every entity has `kind` ('npc', 'vehicle', 'heli', 'shop', 'pickup') and x / z. Optional traits:
+// Every entity has `kind` ('npc', 'vehicle', 'heli', 'shop', 'pickup', 'roofdoor') and x / z. Optional traits:
 //   update(dt)                     per-frame logic
 //   raycast(o, d, maxT)            -> { t, head?, zone? } | null   bullets and rockets test against this
 //   onShot(hit, dmg, dir)          a player bullet landed; returns { head } for the hit marker
@@ -13,6 +13,7 @@
 //   pushOut(o, r, self)            push a moving circle {x, z} of radius r out of it; true on contact
 //   blip(radar), blipLayer         draw on the radar; higher layers draw on top
 //   interaction(player)            -> { keys, prompt, priority, dist, run } when the player can use it
+//   onRoof                         true if it still offers its interaction while the player is up on a roof
 //   shouldDespawn(player)          true to remove it
 //   dispose()                      free meshes; called once on removal
 export const entities = new Set();
