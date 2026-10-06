@@ -31,7 +31,7 @@ export const CRASH_BLAST = { y: 1, r: 12, dmg: 300, power: 1.4 };
 // up to SHADOW_BOXES buildings near the beam cast shadows in it (see lightMaterial)
 const SHADOW_BOXES = 16;
 const shade = {
-  origin: { value: new THREE.Vector3() }, tip: { value: new THREE.Vector3() }, nBox: { value: 0 },
+  origin: { value: new THREE.Vector3() }, tip: { value: new THREE.Vector3() }, radius: { value: 1 }, nBox: { value: 0 },
   bMin: { value: Array.from({ length: SHADOW_BOXES }, () => new THREE.Vector3()) },
   bMax: { value: Array.from({ length: SHADOW_BOXES }, () => new THREE.Vector3()) },
 };
@@ -139,12 +139,13 @@ function shadeFrom(o, e, r) {
   if (_near.length > SHADOW_BOXES) _near.sort((a, b) => d2(a) - d2(b));
   const n = Math.min(_near.length, SHADOW_BOXES);
   for (let i = 0; i < n; i++) { const b = _near[i]; shade.bMin.value[i].set(b.x0, -1, b.z0); shade.bMax.value[i].set(b.x1, b.h, b.z1); }
-  shade.nBox.value = n; shade.origin.value.copy(o); shade.tip.value.copy(e);
+  shade.nBox.value = n; shade.origin.value.copy(o); shade.tip.value.copy(e); shade.radius.value = r;
 }
 export const searchlightShade = shade;
 // Additive light that is dropped wherever a building stands between the lamp and the fragment.
-// The beam (BEAM) also fades towards its edges, its far end and the camera, so the cone reads as a soft
-// shaft of lit air instead of hard-edged panels that seem to cut across the walls of a narrow street.
+// The beam (BEAM) glows by how close the line of sight passes to the middle of the cone, so it reads as a
+// soft shaft of lit air from any side, even looking up it from the street, instead of hard-edged panels
+// that seem to cut across the walls of a narrow street.
 function lightMaterial(opacity, extra, defines = {}) {
   return new THREE.ShaderMaterial({
     uniforms: { ...shade, color: { value: new THREE.Color('#fff4c8') }, opacity: { value: opacity } },
@@ -160,17 +161,18 @@ function lightMaterial(opacity, extra, defines = {}) {
         gl_Position = projectionMatrix * v;
       }`,
     fragmentShader: `#define N ${SHADOW_BOXES}
-      uniform vec3 color; uniform float opacity; uniform vec3 origin; uniform vec3 tip; uniform int nBox; uniform vec3 bMin[N]; uniform vec3 bMax[N];
+      uniform vec3 color; uniform float opacity; uniform vec3 origin; uniform vec3 tip; uniform float radius; uniform int nBox; uniform vec3 bMin[N]; uniform vec3 bMax[N];
       varying vec3 vW; varying vec3 vV; varying vec3 vC;
       void main() {
         float f = 1.0;
         #ifdef BEAM
-          // the cone is thin, so its surface faces straight out from the line down its middle
-          vec3 axis = normalize(tip - origin), rad = vW - origin;
-          float along = dot(rad, axis) / distance(tip, origin);
-          rad -= axis * dot(rad, axis);
-          float facing = abs(dot(normalize(mat3(viewMatrix) * rad), normalize(-vV)));
-          f = facing * sqrt(facing) * (1.0 - smoothstep(0.75, 1.0, along)) * smoothstep(1.5, 8.0, length(vV));
+          // in view space: the eye is at 0 and looks along u; find where that line passes the cone's middle line
+          vec3 o = (viewMatrix * vec4(origin, 1.0)).xyz, a = (viewMatrix * vec4(tip, 1.0)).xyz - o, u = normalize(vV);
+          float len = length(a); a /= len;
+          float b = dot(u, a), du = dot(u, -o), da = dot(a, -o), den = max(1.0 - b * b, 1e-4);
+          float s = (b * da - du) / den, t = (da - b * du) / den;
+          float along = clamp(t / len, 0.0, 1.0), miss = length(-o + u * s - a * t) / max(radius * along, 0.05);
+          f = (1.0 - smoothstep(0.35, 1.0, miss)) * (1.0 - smoothstep(0.8, 1.0, along)) * smoothstep(2.0, 10.0, length(vV));
         #endif
         vec3 d = vW - origin;
         d = mix(d, vec3(1e-4), vec3(lessThan(abs(d), vec3(1e-4))));
