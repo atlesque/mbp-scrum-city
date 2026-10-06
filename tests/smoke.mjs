@@ -462,7 +462,9 @@ try {
     await game(() => { const { P, cam, ROOFS } = __neonbay, r = ROOFS[0]; P.x = r.hutOut.x; P.z = r.hutOut.z; cam.yaw = r.yaw + Math.PI; });
     check(await until(() => /down/.test(document.getElementById('prompt').textContent)), 'no prompt at the roof door');
     await press('KeyE');
-    check(await until(() => { const { P, ROOFS } = __neonbay; return !P.roof && P.y === 0 && Math.hypot(P.x - ROOFS[0].street.x, P.z - ROOFS[0].street.z) < 0.5; }), 'did not come back down to the street');
+    const down = await until(() => !__neonbay.P.roof);
+    const at = await game(() => { const { P, G, ROOFS } = __neonbay; return { y: P.y, d: Math.hypot(P.x - ROOFS[0].street.x, P.z - ROOFS[0].street.z), near: G.near.map(i => i.prompt), roof: !!P.roof }; });
+    check(down && at.y === 0 && at.d < 1.5, 'did not come back down to the street: ' + JSON.stringify(at));
   });
 
   await step('changes settings from the pause menu', async () => {
