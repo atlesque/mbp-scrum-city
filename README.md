@@ -47,7 +47,7 @@ public/js/
   vehicles/          the shared vehicle layer: vehicle.js, kinds/ (bike, car), models/, traffic, helicopter
   npcs/              NPC_TYPES, behaviours (wander, hunt, ride) and the Npc entity
   shops/             SHOP_TYPES, item types and the shop entity and menu
-  game/              player, interaction prompts, rewards, wanted level, population, pickups
+  game/              player, follow camera, interaction prompts, rewards, wanted level, population, pickups
   world/             city layout, collision, radar, landmarks and .glb models
   render/ ui/ characters/ combat/ data/
 ```
@@ -95,7 +95,7 @@ npm test             # unit tests (Vitest): rules, shop items, save migration, r
 npm run test:smoke   # plays the game in headless Chromium: walk, drive, ride, shoot, carjack, shop, go up to a roof, a 5-star chase
 ```
 
-The registry tests catch a typo in a new vehicle, NPC or shop (an unknown kind, behaviour, weapon or item type). Opening the game with `?debug` exposes its state as `window.__neonbay`. CI runs the unit tests on every pull request. The smoke test is too slow and timing-sensitive for shared CI runners, so it runs locally instead: `npm run test:smoke` must pass on your machine before a pull request is merged (run `npx playwright install chromium` once first).
+The registry tests catch a typo in a new vehicle, NPC or shop (an unknown kind, behaviour, weapon or item type). Opening the game with `?debug` exposes its state as `window.__neonbay`. `node tests/camera-shots.mjs` screenshots the follow camera in a narrow alley, on foot and in a car, and prints how far it stays from the walls. CI runs the unit tests on every pull request. The smoke test is too slow and timing-sensitive for shared CI runners, so it runs locally instead: `npm run test:smoke` must pass on your machine before a pull request is merged (run `npx playwright install chromium` once first).
 
 ## Develop and deploy
 
