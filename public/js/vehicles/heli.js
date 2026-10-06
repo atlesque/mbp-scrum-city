@@ -1,5 +1,6 @@
 import { charMat } from '../characters/character.js';
 import { explosion } from '../combat/combat.js';
+import { SIGHT_EVERY, newSight, reactTo } from '../combat/sight.js';
 import { Sound } from '../core/audio.js';
 import { pan3d, vol3d } from '../core/spatial.js';
 import { G, P } from '../core/state.js';
@@ -59,6 +60,11 @@ const Heli = {
     h.lr.visible = (G.time * 2 | 0) % 2 === 0;
     aimLight(h);
     const dist = Math.hypot(P.x - h.x, P.z - h.z, h.y);
+    h.losT -= dt;
+    if (h.losT <= 0) { h.los = P.alive && dist < 80 && !blocked(h.x, h.y - 1, h.z, P.x, P.y + 1, P.z); h.losT = SIGHT_EVERY; }
+    // the minigun only opens up on a player in view, after a short reaction, and stops when they duck out of sight
+    const ready = reactTo(h.sight, h.los && dist < 70, dt);
+    if (!h.los) h.burst = 0;
     h.fireT -= dt;
     if (h.burst > 0) {
       h.burstT -= dt;
@@ -70,8 +76,8 @@ const Heli = {
         tracer(from, to, true); muzzleFlash(from); Sound.shot('minigun', vol3d(h.x, h.z) * 0.6, pan3d(h.x, h.z)); if (hit) hurtPlayer(5);
         emit(to.x, 0.1, to.z, 2, '#d8c8b0', 3, 0.3, 0.1);
       }
-    } else if (h.fireT <= 0 && P.alive && dist < 70) { h.burst = 10; h.fireT = rnd(2.5, 3.5); }
-    if (!blocked(h.x, h.y, h.z, P.x, P.y + 1, P.z) && dist < 80) G.seenNow = true;
+    } else if (h.fireT <= 0 && ready) { h.burst = 10; h.fireT = rnd(2.5, 3.5); }
+    if (h.los) G.seenNow = true;
   },
   raycast(o, d, maxT) {
     const h = this; if (h.falling) return null;
@@ -130,7 +136,7 @@ export function spawnHeli() {
   const spot = new THREE.Mesh(spotGeometry(), new THREE.MeshBasicMaterial({ color: '#fff4c8', vertexColors: true, transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -4 }));
   scene.add(beam, spot);
   const a = rnd(0, 6.28);
-  const h = Object.assign(Object.create(Heli), { grp, rotor, rotor2, lr, beam, spot, x: P.x + Math.cos(a) * 120, z: P.z + Math.sin(a) * 120, y: 34, hp: HELI_HP, alive: true, ang: a, fireT: 3, burst: 0, burstT: 0, vy: 0, falling: false, yaw: 0 });
+  const h = Object.assign(Object.create(Heli), { grp, rotor, rotor2, lr, beam, spot, x: P.x + Math.cos(a) * 120, z: P.z + Math.sin(a) * 120, y: 34, hp: HELI_HP, alive: true, ang: a, fireT: 3, burst: 0, burstT: 0, los: false, losT: 0, sight: newSight(), vy: 0, falling: false, yaw: 0 });
   grp.position.set(h.x, h.y, h.z); scene.add(grp);
   G.heli = addEntity(h);
   showBig('Chopper inbound');

@@ -8,7 +8,7 @@ vi.mock('../../public/js/game/pickups.js', () => ({ reward() {} }));
 
 function chopper() {
   removeHeli(); P.x = 0; P.z = 0; spawnHeli();
-  const h = G.heli; h.x = 0; h.y = 28; h.z = 26; h.yaw = 0;
+  const h = G.heli; h.x = 0; h.y = 28; h.z = 26; h.yaw = 0; h.ang = Math.PI / 2; // circling from +z
   return h;
 }
 // a ray from where the player stands towards a point
@@ -45,6 +45,20 @@ describe('police helicopter', () => {
     for (let i = 0; i < 200 && G.heli; i++) h.update(0.05);
     expect(G.heli).toBeNull();
     expect(h.removed).toBe(true);
+  });
+  it('holds fire until it has seen the player for a moment', () => {
+    const h = chopper(); G.wanted = 5; P.alive = true; h.fireT = 0;
+    h.update(0.01);
+    expect(h.burst).toBe(0);
+    for (let i = 0; i < 30 && h.burst === 0; i++) h.update(0.01);
+    expect(h.burst).toBeGreaterThan(0);
+  });
+  it('never opens up through a building', () => {
+    const h = chopper(); G.wanted = 5; P.alive = true; h.fireT = 0;
+    const wall = { x0: -20, x1: 20, z0: 4, z1: 6, h: 200 }; tallBoxes.push(wall);
+    try {
+      for (let i = 0; i < 100; i++) { h.update(0.02); expect(h.burst).toBe(0); }
+    } finally { tallBoxes.splice(tallBoxes.indexOf(wall), 1); G.wanted = 0; }
   });
   it('shines its searchlight down to the street when nothing is in the way', () => {
     const h = chopper(); h.grp.position.set(h.x, h.y, h.z);
