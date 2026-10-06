@@ -15,7 +15,8 @@ import { showBig, toast } from '../ui/hud.js';
 import { removeHeli } from '../vehicles/heli.js';
 import { driveByPlayer } from '../vehicles/vehicle.js';
 import { SPAWN } from '../world/city.js';
-import { collide, wallHit } from '../world/collision.js';
+import { collide } from '../world/collision.js';
+import { stepArm, stepShoulder } from './camera.js';
 import { updateInteraction } from './interact.js';
 
 // ================= PLAYER =================
@@ -105,6 +106,7 @@ export function hurtPlayer(d, zone) {
   if (P.hp <= 0) die();
 }
 
+const arm = { arm: 0, lift: 0, pitch: 0, look: 30, side: 1 };
 export function updateCamera(dt) {
   const v = P.vehicle, C = v && v.K.camera, aim = I.mouseR && P.alive, sp = v ? Math.abs(v.v) : 0;
   cam.dist = lerp(cam.dist, aim ? (C ? C.aimDist : 2.4) : (C ? C.dist : 4.6), Math.min(1, dt * 10));
@@ -112,14 +114,14 @@ export function updateCamera(dt) {
   if (Math.abs(camera.fov - cam.fov) > 0.01) { camera.fov = cam.fov; camera.updateProjectionMatrix(); }
   const cp = Math.cos(cam.pitch), d = new THREE.Vector3(Math.sin(cam.yaw) * cp, Math.sin(cam.pitch), Math.cos(cam.yaw) * cp);
   const right = new THREE.Vector3(-Math.cos(cam.yaw), 0, Math.sin(cam.yaw));
-  camTarget.set(P.x, (P.alive ? P.y : 0) + (C ? C.height : 1.62), P.z).addScaledVector(right, aim ? 0.7 : 0.55);
-  let dist = cam.dist;
-  const back = d.clone().negate(), tw = wallHit(camTarget.x, camTarget.y, camTarget.z, back.x, back.y, back.z, dist + 0.3);
-  if (tw < dist + 0.3) dist = Math.max(0.6, tw - 0.3);
-  camera.position.copy(camTarget).addScaledVector(d, -dist);
+  camTarget.set(P.x, (P.alive ? P.y : 0) + (C ? C.height : 1.62), P.z);
+  camTarget.addScaledVector(right, stepShoulder(arm, camTarget.x, camTarget.y, camTarget.z, cam.yaw, cam.pitch, aim ? 0.7 : 0.55, cam.dist, dt));
+  stepArm(arm, camTarget.x, camTarget.y, camTarget.z, cam.yaw, cam.pitch, cam.dist, C ? C.minArm : 1.4, dt);
+  const ap = Math.cos(arm.pitch);
+  camera.position.set(camTarget.x - Math.sin(cam.yaw) * ap * arm.arm, camTarget.y - Math.sin(arm.pitch) * arm.arm, camTarget.z - Math.cos(cam.yaw) * ap * arm.arm);
   if (camera.position.y < 0.3) camera.position.y = 0.3;
   if (cam.shake > 0) { const k = settings.shake ? cam.shake * 0.3 : 0; camera.position.x += rnd(-1, 1) * k; camera.position.y += rnd(-1, 1) * k; cam.shake = Math.max(0, cam.shake - dt * 2.5); }
-  camera.lookAt(camTarget.x + d.x * 30, camTarget.y + d.y * 30, camTarget.z + d.z * 30);
+  camera.lookAt(camTarget.x + d.x * arm.look, camTarget.y + d.y * arm.look, camTarget.z + d.z * arm.look);
 }
 export function die() {
   P.alive = false; P.deadT = 0; P.aiming = false; P.hp = 0; G.state = 'dead'; G.deadT = 0; I.mouseL = false; I.mouseR = false;

@@ -76,6 +76,18 @@ export function wallHit(ox, oy, oz, dx, dy, dz, maxT) {
   for (const b of tallBoxes) { const t = rayBox(ox, oy, oz, dx, dy, dz, b.x0, 0, b.z0, b.x1, b.h, b.z1); if (t < best) best = t; }
   return best;
 }
+// like wallHit, for a ball of radius r rolled along the ray (the follow camera): each building counts as r bigger on every side,
+// and its walls reach below the ground, so a ray dipping under the street still stops at them.
+// A building the ball already starts inside is ignored, so it can still back out.
+export function sweepHit(ox, oy, oz, dx, dy, dz, maxT, r) {
+  let best = maxT;
+  for (const b of tallBoxes) {
+    const x0 = b.x0 - r, x1 = b.x1 + r, z0 = b.z0 - r, z1 = b.z1 + r, y1 = b.h + r;
+    if (ox > x0 && ox < x1 && oz > z0 && oz < z1 && oy < y1) continue;
+    const t = rayBox(ox, oy, oz, dx, dy, dz, x0, -50, z0, x1, y1, z1); if (t < best) best = t;
+  }
+  return best;
+}
 // like wallHit, but also says which face of the building the ray struck: n gets its outward normal
 // (straight up when nothing is in the way and the ray runs its full length)
 export function wallHitFace(ox, oy, oz, dx, dy, dz, maxT, n) {
