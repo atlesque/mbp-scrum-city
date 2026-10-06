@@ -1,6 +1,6 @@
 // Ramming rules: cars send bikes flying, bikes only knock each other over at speed, cars shove cars.
 import { describe, expect, it } from 'vitest';
-import { closingSpeed, knockImpulse, shoveImpulse, touching, velocity } from '../../public/js/vehicles/knock.js';
+import { blastThrow, closingSpeed, knockImpulse, shoveImpulse, touching, velocity } from '../../public/js/vehicles/knock.js';
 import { KINDS } from '../../public/js/vehicles/vehicle.js';
 
 const at = (kind, x, z, yaw, v) => ({ K: KINDS[kind], x, z, yaw, v, dead: false });
@@ -31,6 +31,14 @@ describe('ramming', () => {
   });
   it('a bike catching up with a bike going the same way barely closes on it', () => {
     expect(knockImpulse(at('bike', 0, 0, 0, 20), at('bike', 0, 1.5, 0, 16))).toBeNull();
+  });
+  it('a car still knocks a burnt-out bike aside', () => {
+    const wreck = Object.assign(at('bike', 0, 2.4, Math.PI / 2, 0), { dead: true, fallen: true });
+    expect(knockImpulse(at('car', 0, 0, 0, 20), wreck)).not.toBeNull();
+  });
+  it('a car still shoves a burnt-out car along', () => {
+    const wreck = Object.assign(at('car', 0, 4.4, 0, 0), { dead: true });
+    expect(shoveImpulse(at('car', 0, 0, 0, 15), wreck).vz).toBeGreaterThan(5);
   });
   it('nothing knocks a car around', () => {
     expect(knockImpulse(at('bike', 0, 0, 0, 40), at('car', 0, 3, 0, 0))).toBeNull();
@@ -68,5 +76,22 @@ describe('shoving', () => {
   });
   it('reads a skidding car by its sliding velocity', () => {
     expect(velocity(Object.assign(at('car', 0, 0, 0, 10), { kvx: 3, kvz: -1 }))).toEqual({ x: 3, z: -1 });
+  });
+});
+
+describe('wrecks thrown by blasts', () => {
+  it('throws a wreck away from the blast and up, harder the closer it is', () => {
+    const near = blastThrow(2, 0, 7, 1), far = blastThrow(6, 0, 7, 1);
+    expect(near.vx).toBeGreaterThan(far.vx);
+    expect(far.vx).toBeGreaterThan(0);
+    expect(near.vz).toBeCloseTo(0);
+    expect(near.up).toBeGreaterThan(far.up);
+  });
+  it('throws a car less far than a bike', () => {
+    expect(blastThrow(3, 0, 7, KINDS.car.ram.mass).vx).toBeLessThan(blastThrow(3, 0, 7, KINDS.bike.ram.mass).vx);
+  });
+  it('leaves alone what is out of reach, and the vehicle going up at the centre', () => {
+    expect(blastThrow(8, 0, 7, 1)).toBeNull();
+    expect(blastThrow(0, 0, 7, 1)).toBeNull();
   });
 });
