@@ -5,6 +5,7 @@ import { scene } from '../../render/scene.js';
 import { groundAt } from '../../world/city.js';
 import { collide, pushOutSeg } from '../../world/collision.js';
 import { arcadeDrive, followLane, keepOnGrid } from '../drive.js';
+import { rolling, spinWheels, wheelAt } from '../wheels.js';
 
 const bikeMat = new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 60, specular: 0x2e2e36 });
 const bikeMatteMat = new THREE.MeshLambertMaterial({ vertexColors: true });
@@ -47,7 +48,7 @@ export const bike = {
   crash: { exitSpeed: 9, hurt: 1.4 },
   ram: { mass: 1, hull: [0.62, 0.42], heavierAt: 3, sameAt: 10 },
   ridesOver: 12, // m/s: meet a car slower than this and ride up over it, faster and crash into it
-  camera: { dist: 6.2, aimDist: 3.4, height: 1.95, fovPerSpeed: 0.35 },
+  camera: { dist: 6.2, aimDist: 3.4, height: 1.95, fovPerSpeed: 0.35, minArm: 2.2 }, // minArm: see game/camera.js
   laneHalf: 1.4, trafficDespawn: 170, reachMax: 2.8, ambientEngine: true,
   tip: M => M.name + '. <em>W</em>/<em>S</em> throttle and brake, <em>A</em>/<em>D</em> lean, <em>Shift</em> boost, <em>Space</em> rear brake, <em>F</em> to get off. Guns still work.',
 
@@ -73,7 +74,7 @@ export const bike = {
     m.grp.position.set(b.x, y, b.z); m.grp.rotation.set(-Math.atan2(b.hF - b.hR, S.wb), b.yaw, 0, 'YXZ');
     m.lean.rotation.z = b.lean; m.lean.position.y = clamp(Math.abs(b.lean) - 0.75, 0, 0.6) * 0.75; // rest on the cylinder head when down
     m.steer.rotation.y = b.steer;
-    m.fw.rotation.x += b.v / S.rF * dt; m.rw.rotation.x += b.v / S.rR * dt;
+    spinWheels(m.wheels, rolling(b) * dt);
     m.stand.visible = b.mode === 'parked' && !b.fallen && !b.dead;
   },
   drive(v, dt, c) { arcadeDrive(v, dt, c, v.model.spec.wb); },
@@ -155,8 +156,9 @@ export const bike = {
   pushOut(b, o, r) { return Math.abs(b.x - o.x) <= 3 && Math.abs(b.z - o.z) <= 3 && pushOutSeg(o, r + 0.3, b.x, b.z, b.yaw, -0.8, 0.85); },
   reach: (b, p) => Math.hypot(b.x - p.x, b.z - p.z),
   onDriverGone(b) { b.mode = 'fallen'; b.fallen = true; b.fallSide = Math.random() < 0.5 ? 1 : -1; },
-  onPlayerExit(b, crash, speed) {
-    if (crash || speed > bike.crash.exitSpeed) { b.mode = 'fallen'; b.fallen = true; b.fallSide = -1; }
+  // side: which side the player got off (1 the exitAt side); a bike dropped at speed falls away from them
+  onPlayerExit(b, crash, speed, side = 1) {
+    if (crash || speed > bike.crash.exitSpeed) { b.mode = 'fallen'; b.fallen = true; b.fallSide = -side; }
     else { b.mode = 'parked'; b.v = 0; }
   },
   onPlayerEnter(b) { b.fallen = false; b.v = 0; b.steer = 0; b.kvx = b.kvz = 0; b.air = 0; },
@@ -168,14 +170,13 @@ function makeBikeMesh(M) {
   const S = M.spec, G = M.geos(), grp = new THREE.Group(), lean = new THREE.Group(); grp.add(lean);
   const sh = new THREE.Mesh(shadowGeo, shadowMat); sh.scale.set(0.95, 1, 2.6); sh.position.y = 0.03; grp.add(sh);
   const body = new THREE.Mesh(G.body, bikeMat), matte = new THREE.Mesh(G.matte, bikeMatteMat), glow = new THREE.Mesh(G.glow, bikeGlowMat), glass = new THREE.Mesh(G.glass, bikeGlassMat), stand = new THREE.Mesh(G.stand, bikeMat);
-  const rw = new THREE.Mesh(M.wheel(false), bikeMat); rw.position.set(0, S.rR, S.zR);
+  const rw = wheelAt(M.wheel(false), bikeMat, 0, S.rR, S.zR, S.rR);
   lean.add(body, matte, glow, glass, stand, rw);
   // steering rig: tilt onto the rake axis, turn, tilt back so the parts keep their modelled pose
   const outer = new THREE.Group(), steer = new THREE.Group(), inner = new THREE.Group();
   outer.position.copy(S.H); outer.rotation.x = -S.rake; inner.rotation.x = S.rake; outer.add(steer); steer.add(inner); lean.add(outer);
-  const stB = new THREE.Mesh(G.st, bikeMat), stG = new THREE.Mesh(G.stGlow, bikeGlowMat), fw = new THREE.Mesh(M.wheel(true), bikeMat);
-  fw.position.set(0, S.rF - S.H.y, S.zF - S.H.z); inner.add(stB, stG, fw);
+  const stB = new THREE.Mesh(G.st, bikeMat), stG = new THREE.Mesh(G.stGlow, bikeGlowMat), fw = wheelAt(M.wheel(true), bikeMat, 0, S.rF - S.H.y, S.zF - S.H.z, S.rF); inner.add(stB, stG, fw);
   const decals = [-1, 1].map(s => { const m = new THREE.Mesh(G.decal, M.decal()); m.position.set(s * M.decalAt[0], M.decalAt[1], M.decalAt[2]); m.rotation.y = s * Math.PI / 2; lean.add(m); return m; });
   const seat = new THREE.Group(); seat.position.set(0, S.seatY, S.seat); lean.add(seat);
-  return { grp, lean, steer, fw, rw, seat, stand, solid: [body, matte, stand, rw, stB, fw], lit: [glow, stG, glass, ...decals] };
+  return { grp, lean, steer, fw, rw, wheels: [fw, rw], seat, stand, solid: [body, matte, stand, rw, stB, fw], lit: [glow, stG, glass, ...decals] };
 }

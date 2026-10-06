@@ -1,6 +1,7 @@
 import { charMat } from '../../characters/character.js';
-import { GB, addGeo, box, boxAB, cylG, loft } from '../../render/geometry.js';
+import { GB, box, boxAB, loft } from '../../render/geometry.js';
 import { carGlassMat } from '../materials.js';
+import { hubWheelGeo, wheelAt } from '../wheels.js';
 
 // ================= TESLA MODEL Y (white) =================
 // Car space like the sedan: +z forward, ground at y 0, inside the car kind's 2.0 x 4.3 footprint.
@@ -24,11 +25,6 @@ function modelYMesh() {
     box(g, 0.22, 0.12, 0.1, sx * 1.04, 1.06, 0.78, WHITE); box(g, 0.08, 0.1, 0.1, sx * 0.94, 1.02, 0.78, TRIM); // mirrors
   }
   box(g, 2.02, 0.14, 3.0, 0, 0.36, -0.2, TRIM); // rocker cladding
-  // wheels: black tyres with grey aero covers
-  for (const sx of [-1, 1]) for (const sz of [-1.42, 1.42]) {
-    addGeo(g, cylG(14), sx * 0.88, 0.37, sz, 0.74, 0.26, 0.74, 0, 0, Math.PI / 2, '#141218');
-    addGeo(g, cylG(14), sx * 0.88, 0.37, sz, 0.5, 0.28, 0.5, 0, 0, Math.PI / 2, '#9a9da4');
-  }
   // lights: slim headlight bars, a light bar across the tailgate, a dark lower intake
   for (const sx of [-1, 1]) boxAB(g, [sx * 0.4, 0.79, 2.14], [sx * 0.86, 0.84, 1.98], 0.09, 0.06, '#eaf6ff');
   box(g, 1.0, 0.1, 0.06, 0, 0.47, 2.15, TRIM);
@@ -39,8 +35,12 @@ function modelYMesh() {
   box(g, 0.36, 0.24, 0.03, 0, 1.18, 0.6, '#0b0d12');
   for (const sx of [-1, 1]) box(g, 0.5, 0.66, 0.16, sx * 0.45, 0.96, -0.82, '#e8e4dc');
   const grp = new THREE.Group(), m = new THREE.Mesh(g.geometry(), charMat), win = new THREE.Mesh(glass.geometry(), carGlassMat); grp.add(m, win);
+  // wheels: black tyres with grey aero covers
+  const wheels = [];
+  for (const sx of [-1, 1]) for (const sz of [-1.42, 1.42]) wheels.push(wheelAt(hubWheelGeo(sx, { r: 0.37, width: 0.26, cap: 0.25 }), charMat, sx * 0.88, 0.37, sz, 0.37));
+  grp.add(...wheels);
   const seat = new THREE.Group(); seat.position.set(0.45, -0.42, -0.4); grp.add(seat);
-  return { grp, m, win, seat, solid: [m], lit: [win] };
+  return { grp, m, win, seat, wheels, solid: [m, ...wheels], lit: [win] };
 }
 
 export default {

@@ -10,6 +10,7 @@ import { all } from '../../entities/registry.js';
 import { driftDrive, followLane, keepLane, keepOnGrid } from '../drive.js';
 import { blockedAhead } from '../vehicle.js';
 import { skidMark } from '../skids.js';
+import { rolling, spinWheels } from '../wheels.js';
 
 const HW = 1.0, HL = 2.15; // half width and half length of the body
 const SILL = 0.95; // bottom of the windows: shots above it reach whoever is inside
@@ -45,7 +46,7 @@ export const car = {
   bumper: { back: -2.2, front: 2.6, half: 1.15, slow: 0.9 },
   crash: { exitSpeed: 9, hurt: 0.5 },
   ram: { mass: 4, hull: [1.15, HW], heavierAt: 3, sameAt: Infinity }, // see vehicles/knock.js
-  camera: { dist: 7.4, aimDist: 4.2, height: 2.2, fovPerSpeed: 0.3 },
+  camera: { dist: 7.4, aimDist: 4.2, height: 2.2, fovPerSpeed: 0.3, minArm: 3.4 }, // minArm: see game/camera.js
   laneHalf: 1.7, trafficDespawn: Infinity, reachMax: 1.6, stopsWhileBurning: true, enclosed: true,
   wheelbase: WZ * 2,
   tip: M => `The ${M.name}. <em>W</em>/<em>S</em> gas and brake, <em>A</em>/<em>D</em> steer, <em>Shift</em> boost, <em>Space</em> handbrake (steer with it to drift), <em>F</em> to get out.`,
@@ -62,6 +63,7 @@ export const car = {
     const lean = c.driver === P ? clamp((c.v || 0) * (c.yawRate || 0) * 0.005 - (c.slip || 0) * 0.004, -0.07, 0.07) : 0;
     c.lean = dt ? lerp(c.lean || 0, lean, Math.min(1, dt * 6)) : lean;
     m.grp.position.set(c.x, c.gy + (c.air || 0), c.z); m.grp.rotation.set(-c.gp, c.yaw, c.gr + c.lean + (c.wreckRoll || 0), 'YXZ');
+    spinWheels(m.wheels, rolling(c) * dt);
     if (c.dead || c.burnT > 0) return;
     if (m.lr) { const on = (G.time * 6 | 0) % 2 === 0; m.lr.visible = on; m.lb.visible = !on; }
     if (c.hp < 50 && dt && Math.random() < dt * 6) emit(c.x + Math.sin(c.yaw) * 1.8, 1.1, c.z + Math.cos(c.yaw) * 1.8, 1, '#8a8090', 1, 1.4, 0.4, 2, 1);
@@ -128,7 +130,8 @@ export const car = {
   seat(c, ch) {
     c.mesh.seat.add(ch.root); ch.root.position.set(0, 0, 0); ch.root.rotation.set(0, 0, 0);
     ch.shadow.visible = false; ch.legL.geometry = ch.legR.geometry = seatedLegs(ch);
-    ch.body.position.y = 0; ch.body.rotation.set(0, 0, 0); ch.legL.rotation.set(-1, 0, 0); ch.legR.rotation.set(-1, 0, 0); // knees up, feet on the floor
+    const knees = c.mesh.seat.userData.knees ?? -1; // knees up, feet on the floor; a low car lifts them higher
+    ch.body.position.y = 0; ch.body.rotation.set(0, 0, 0); ch.legL.rotation.set(knees, 0, 0); ch.legR.rotation.set(knees, 0, 0);
     ch.armL.rotation.set(-1.1, 0, 0.1); ch.armR.rotation.set(-1.1, 0, -0.1, 'XYZ');
   },
   unseat(c, ch) {
@@ -138,10 +141,10 @@ export const car = {
   aim() {},
   // a shot through the glass at the person behind the wheel: { t, head } or null
   occupantHit(c, o, d, maxT) {
-    const s = c.mesh.seat.position, cy = Math.cos(c.yaw), sy = Math.sin(c.yaw);
+    const s = c.mesh.seat.position, k = c.mesh.seat.scale.y, cy = Math.cos(c.yaw), sy = Math.sin(c.yaw);
     const x = c.x + s.x * cy + s.z * sy, z = c.z - s.x * sy + s.z * cy;
     let best = null;
-    for (const [y, r, head] of [[s.y + 1.74, 0.2, true], [s.y + 1.2, 0.34, false]]) {
+    for (const [y, r, head] of [[s.y + 1.74 * k, 0.2 * k, true], [s.y + 1.2 * k, 0.34 * k, false]]) {
       const t = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, x, y, z, r);
       if (t < maxT && o.y + d.y * t > SILL && (!best || t < best.t)) best = { t, head };
     }

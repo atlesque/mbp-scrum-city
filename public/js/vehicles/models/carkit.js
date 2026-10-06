@@ -1,5 +1,6 @@
 import { GB, UNIT, addGeo, cylG } from '../../render/geometry.js';
 import { charMat } from '../../characters/character.js';
+import { wheelAt } from '../wheels.js';
 
 // ================= CAR KIT =================
 // A small kit for the detailed cars (models/modely-blue.js, eqa.js, bmw5.js); preview them at /dev/cars.html. A car is drawn in real metres in car space
@@ -205,7 +206,7 @@ function normals(P, crease) {
 }
 
 export class Car {
-  constructor(warp) { this.warp = warp; this.gb = { body: new GB(), glass: new GB(), lamp: new GB() }; }
+  constructor(warp) { this.warp = warp; this.gb = { body: new GB(), glass: new GB(), lamp: new GB() }; this.axles = []; }
   // add triangles in car space (bent by the warp unless warp: false); to: 'body', 'glass' or 'lamp'
   add(tris, color, { to = 'body', warp = true, crease = 38 } = {}) {
     const P = new Float32Array(tris.length * 3); 
@@ -216,21 +217,26 @@ export class Car {
   }
   // a plain box (no warp), for the cabin and other parts that don't sit on the panels
   box(w, h, d, x, y, z, color, rx = 0, ry = 0, rz = 0, to = 'body') { addGeo(this.gb[to], UNIT, x, y, z, w, h, d, rx, ry, rz, color); return this; }
-  // a wheel on the axle at (x, y, z): tyre, rim and spokes; spokes(gb, side) draws the face of the rim
+  // a wheel on the axle at (x, y, z): tyre, rim and spokes; spokes(gb, side) draws the face of the rim. Each side's wheel
+  // is drawn once, around its own axle, and every car spins its own copies of it (see vehicles/wheels.js)
   wheel(x, y, z, { r = 0.35, width = 0.25, rim = 0.24, tyre = '#17161a', rimCol = '#a4a8ae', dish = '#2a2c31', spokes }) {
-    const s = Math.sign(x) || 1, g = this.gb.body;
-    addGeo(g, tyreGeo(r, width, rim), x, y, z, 1, 1, 1, 0, 0, -Math.PI / 2, tyre);
-    addGeo(g, cylG(16), x - s * 0.01, y, z, rim * 2, width * 0.9, rim * 2, 0, 0, Math.PI / 2, dish);
-    addGeo(g, cylG(10), x + s * (width * 0.36), y, z, rim * 0.42, 0.04, rim * 0.42, 0, 0, Math.PI / 2, rimCol);
-    addGeo(g, torusG(rim), x + s * (width * 0.4), y, z, 1, 1, 1, 0, Math.PI / 2, 0, rimCol);
+    const s = Math.sign(x) || 1, key = s < 0 ? 'wheelR' : 'wheelL';
+    this.axles.push({ key, x, y, z, r });
+    if (this.gb[key]) return this;
+    const g = this.gb[key] = new GB();
+    addGeo(g, tyreGeo(r, width, rim), 0, 0, 0, 1, 1, 1, 0, 0, -Math.PI / 2, tyre);
+    addGeo(g, cylG(16), -s * 0.01, 0, 0, rim * 2, width * 0.9, rim * 2, 0, 0, Math.PI / 2, dish);
+    addGeo(g, cylG(10), s * (width * 0.36), 0, 0, rim * 0.42, 0.04, rim * 0.42, 0, 0, Math.PI / 2, rimCol);
+    addGeo(g, torusG(rim), s * (width * 0.4), 0, 0, 1, 1, 1, 0, Math.PI / 2, 0, rimCol);
     if (spokes) spokes((a, r0, r1, w, col = rimCol, t = 0.035, out = 0.4) => {
-      const rm = (r0 + r1) / 2; addGeo(g, UNIT, x + s * width * out, y + Math.cos(a) * rm, z + Math.sin(a) * rm, t, r1 - r0, w, a, 0, 0, col);
+      const rm = (r0 + r1) / 2; addGeo(g, UNIT, s * width * out, Math.cos(a) * rm, Math.sin(a) * rm, t, r1 - r0, w, a, 0, 0, col);
     }, rim);
     return this;
   }
   build(scale) {
     const out = {};
     for (const [k, gb] of Object.entries(this.gb)) { const g = gb.geometry(); g.scale(scale, scale, scale); g.computeBoundingSphere(); g.userData.shared = true; out[k] = g; }
+    out.axles = this.axles.map(a => ({ key: a.key, x: a.x * scale, y: a.y * scale, z: a.z * scale, r: a.r * scale }));
     return out;
   }
 }
@@ -244,11 +250,14 @@ function tyreGeo(r, w, rim) {
   pr.push(new THREE.Vector2(rim + 0.01, w * 0.42)); pr.unshift(new THREE.Vector2(rim + 0.01, -w * 0.42));
   return (GEOS[k] = new THREE.LatheGeometry(pr.reverse(), 22).toNonIndexed());
 }
-// a car's meshes from its shared geometry, in the shape the car kind expects
-export function carMeshes(geo, seat) {
+// a car's meshes from its shared geometry, in the shape the car kind expects. These cars are drawn true to size, lower
+// than the game's people are tall: `fit` shrinks whoever sits in the seat to keep their head under the roof, and
+// `knees` (the thigh angle, see kinds/car.js seat) raises their feet clear of the floor
+export function carMeshes(geo, seat, { fit = 1, knees } = {}) {
   const grp = new THREE.Group(), m = new THREE.Mesh(geo.body, charMat), win = new THREE.Mesh(geo.glass, tintMat), lamps = new THREE.Mesh(geo.lamp, lampMat);
-  grp.add(m, win, lamps);
-  const s = new THREE.Group(); s.position.set(...seat); grp.add(s);
-  return { grp, m, win, lamps, seat: s, solid: [m], lit: [win, lamps] };
+  const wheels = (geo.axles || []).map(a => wheelAt(geo[a.key], charMat, a.x, a.y, a.z, a.r));
+  grp.add(m, win, lamps, ...wheels);
+  const s = new THREE.Group(); s.position.set(...seat); s.scale.setScalar(fit); s.userData.knees = knees; grp.add(s);
+  return { grp, m, win, lamps, wheels, seat: s, solid: [m, ...wheels], lit: [win, lamps] };
 }
-export const triangles = geo => Object.values(geo).reduce((s, g) => s + g.attributes.position.count / 3, 0);
+export const triangles = geo => Object.values(geo).filter(g => g.isBufferGeometry).reduce((s, g) => s + g.attributes.position.count / 3, 0);

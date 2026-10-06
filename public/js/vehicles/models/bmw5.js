@@ -87,7 +87,7 @@ let geo = null;
 export default {
   id: 'bmw5', kind: 'car', name: 'BMW 530e', short: '530e', tag: 'BMW',
   hp: 155,
-  mesh: () => carMeshes(geo || (geo = build()), [0.42 * S, -0.52, -0.42 * S]),
+  mesh: () => carMeshes(geo || (geo = build()), [0.42 * S, -0.46, -0.42 * S - 0.1], { fit: 0.85, knees: -1.4 }),
   build,
   // a plug-in hybrid: quick, with a proper gearbox under the electric shove
   handling: { accel: 10, boostAccel: 13, top: 33, boostTop: 44 },

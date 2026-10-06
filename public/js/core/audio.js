@@ -1,10 +1,11 @@
 import { LEAD, musicLayers } from '../data/music.js';
+import { RELOADS, SFX_DIR, reloadOf } from '../data/reloads.js';
 import { clamp } from './util.js';
 import { HEAR, airCutoff, distToEar, doppler, falloff, listenerPose } from './spatial.js';
 
 // ================= AUDIO =================
 export const Sound = (() => {
-  let ctx = null, master, dimmer, dimmed = false, sfx, mus, noise, reverbIn, skidGain, skidF, engO1, engO2, engF, engG, musicOn = true, seq = null, step = 0, nextT = 0, intensity = 0, wantIntensity = 0, layers = musicLayers(0);
+  let ctx = null, master, dimmer, dimmed = false, sfx, mus, noise, reverbIn, skidGain, skidF, engO1, engO2, engF, engG, evOwn, evG, musicOn = true, seq = null, step = 0, nextT = 0, intensity = 0, wantIntensity = 0, layers = musicLayers(0);
   const mix = { on: true, sfx: 1, music: 1 }; // from the Settings screen
   const MENU_DIM = 0.5, DIM_FADE = 0.3; // everything plays at half volume, faded over 0.3 s, while the pause menu is open
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
@@ -26,12 +27,14 @@ export const Sound = (() => {
     engF = ctx.createBiquadFilter(); engF.type = 'lowpass'; engF.frequency.value = 220; engF.Q.value = 0.9;
     const engCap = ctx.createBiquadFilter(); engCap.type = 'lowpass'; engCap.frequency.value = 650; engCap.Q.value = 0.5;
     engG = ctx.createGain(); engG.gain.value = 0; engO1.connect(engF); engO2.connect(e2g); e2g.connect(engF); engF.connect(engCap); engCap.connect(engG); engG.connect(sfx); engO1.start(); engO2.start();
+    // the player's own electric car: the hum and the road under it, also unplaced
+    evOwn = makeEv(); evG = ctx.createGain(); evG.gain.value = 0; evOwn.out.connect(evG); evG.connect(sfx);
     // tyre squeal: narrow band of noise, wavering a little
     const kn = ctx.createBufferSource(); kn.buffer = noise; kn.loop = true; kn.playbackRate.value = 0.8;
     skidF = ctx.createBiquadFilter(); skidF.type = 'bandpass'; skidF.frequency.value = 1500; skidF.Q.value = 9;
     const klfo = ctx.createOscillator(); klfo.frequency.value = 7; const klg = ctx.createGain(); klg.gain.value = 90; klfo.connect(klg); klg.connect(skidF.frequency);
     skidGain = ctx.createGain(); skidGain.gain.value = 0; kn.connect(skidF); skidF.connect(skidGain); skidGain.connect(sfx); kn.start(); klfo.start();
-    startMusic();
+    startMusic(); loadSamples();
   }
   function musicLevel() { return musicOn ? 0.32 * mix.music : 0; }
   function env(g, t, a, peak, dur) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); }
@@ -86,8 +89,9 @@ export const Sound = (() => {
     rotor: { max: 2, prof: HEAR.rotor, make: makeRotor },
     tank: { max: 1, prof: HEAR.tank, make: makeTank },
     engine: { max: 3, prof: null, make: makeEngine },
+    ev: { max: 3, prof: null, make: makeEv },
   };
-  const live = { siren: new Map(), rotor: new Map(), engine: new Map(), tank: new Map() };
+  const live = { siren: new Map(), rotor: new Map(), engine: new Map(), ev: new Map(), tank: new Map() };
   function loops(kind, list, prof) {
     if (!ctx) return;
     const def = LOOPS[kind], p = prof || def.prof, map = live[kind], t = ctx.currentTime; L = L || listenerPose();
@@ -155,6 +159,36 @@ export const Sound = (() => {
     o1.connect(f); o2.connect(g2); g2.connect(f); f.connect(cap); o1.start(); o2.start();
     return { out: cap, set(s, k, t) { const hz = (s.rpm || 1050) / 60 * k; o1.frequency.setTargetAtTime(hz, t, 0.06); o2.frequency.setTargetAtTime(hz * 2.02, t, 0.06); f.frequency.setTargetAtTime(Math.min(140 + hz * 3.5, 600), t, 0.08); }, stop() { o1.stop(); o2.stop(); } };
   }
+  // electric car: no engine. Below 30 km/h a soft two-tone hum (sines a fifth apart, with a slow wobble) that rises
+  // a little with speed; then road noise, low tyre rumble plus a breathier band of wind, both opening up with speed.
+  // s.hum and s.road (0 to 1) set how much of each, s.speed (km/h) the pitch and brightness (see vehicles/engine.js).
+  function makeEv() {
+    const mix = ctx.createGain();
+    const h1 = ctx.createOscillator(); h1.type = 'sine'; h1.frequency.value = 330;
+    const h2 = ctx.createOscillator(); h2.type = 'triangle'; h2.frequency.value = 495; const h2g = ctx.createGain(); h2g.gain.value = 0.35;
+    const hum = ctx.createGain(); hum.gain.value = 0;
+    const wob = ctx.createOscillator(); wob.frequency.value = 3.2; const wg = ctx.createGain(); wg.gain.value = 0.18; wob.connect(wg);
+    const hf = ctx.createBiquadFilter(); hf.type = 'lowpass'; hf.frequency.value = 1400; hf.Q.value = 0.6;
+    const trem = ctx.createGain(); trem.gain.value = 1; wg.connect(trem.gain);
+    h1.connect(hf); h2.connect(h2g); h2g.connect(hf); hf.connect(trem); trem.connect(hum); hum.connect(mix);
+    const rn = ctx.createBufferSource(); rn.buffer = noise; rn.loop = true; rn.playbackRate.value = 0.6;
+    const tyre = ctx.createBiquadFilter(); tyre.type = 'lowpass'; tyre.frequency.value = 250; tyre.Q.value = 0.7;
+    const wind = ctx.createBiquadFilter(); wind.type = 'bandpass'; wind.frequency.value = 900; wind.Q.value = 0.5; const windG = ctx.createGain(); windG.gain.value = 0;
+    const road = ctx.createGain(); road.gain.value = 0;
+    rn.connect(tyre); tyre.connect(road); rn.connect(wind); wind.connect(windG); windG.connect(road); road.connect(mix);
+    const t0 = ctx.currentTime; h1.start(t0); h2.start(t0); wob.start(t0); rn.start(t0, Math.random() * 1.5);
+    return {
+      out: mix,
+      set(s, k, t) {
+        const sp = s.speed || 0, f = (330 + sp * 4) * k;
+        h1.frequency.setTargetAtTime(f, t, 0.08); h2.frequency.setTargetAtTime(f * 1.5, t, 0.08);
+        hum.gain.setTargetAtTime((s.hum || 0) * 0.5, t, 0.15);
+        road.gain.setTargetAtTime((s.road || 0) * 1.6, t, 0.15);
+        tyre.frequency.setTargetAtTime(220 + sp * 4, t, 0.15); windG.gain.setTargetAtTime(Math.min(sp / 140, 1) * 0.6, t, 0.2); wind.frequency.setTargetAtTime(700 + sp * 6, t, 0.2);
+      },
+      stop() { h1.stop(); h2.stop(); wob.stop(); rn.stop(); },
+    };
+  }
   function nz(dest, t, dur, type, freq, q, peak, rate) {
     const s = ctx.createBufferSource(); s.buffer = noise; s.playbackRate.value = rate || 1;
     const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q || 0.7;
@@ -165,6 +199,23 @@ export const Sound = (() => {
     const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
     const g = ctx.createGain(); env(g, t, a || 0.004, peak, dur); o.connect(g); g.connect(dest); o.start(t); o.stop(t + dur + 0.05); return o;
   }
+  // recorded sounds (public/sfx/), decoded once; until one has loaded (or if it fails) its synthesized stand-in plays
+  const buffers = {};
+  let reloadSrc = null;
+  function loadSamples() {
+    for (const { sound } of Object.values(RELOADS)) {
+      if (!sound || sound in buffers) continue;
+      buffers[sound] = null;
+      fetch(`${SFX_DIR}${sound}.mp3`).then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status)).then(b => ctx.decodeAudioData(b)).then(buf => { buffers[sound] = buf; }).catch(() => {});
+    }
+  }
+  // a loaded sound played once: its source node, null when it is too far off to hear, false when not loaded
+  function sample(name, vol, at, prof = HEAR.reload) {
+    const buf = buffers[name]; if (!buf) return false;
+    const o = out(vol, at, prof); if (!o) return null;
+    const s = ctx.createBufferSource(); s.buffer = buf; s.connect(o); s.start(); return s;
+  }
+  function stopReload() { if (reloadSrc) { try { reloadSrc.stop(); } catch (e) { /* already ended */ } reloadSrc = null; } }
   const PROG = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]];
   const GUN = { pistol: [3600, .22, 150, .9], smg: [5200, .1, 210, .6], shotgun: [2300, .55, 80, 1.35], rifle: [5600, .17, 130, .85], minigun: [6200, .07, 240, .5], rpg: [1400, .7, 60, .9], sniper: [3800, .5, 70, 1.45], cannon: [700, 1.1, 40, 1.8] };
   // `at` is where it was fired (a world point), or nothing for the player's own gun
@@ -190,7 +241,18 @@ export const Sound = (() => {
     scream(vol, at) { if (!ctx) return; const t = ctx.currentTime, o = out(vol * 0.5, at, HEAR.voice); if (!o) return; const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1100 + Math.random() * 500; f.Q.value = 2.5; f.connect(o); const b = 380 + Math.random() * 300; const os = tone(f, t, 'sawtooth', b * 1.6, b * 0.7, 0.55, 0.9, 0.02); const v = ctx.createOscillator(); v.frequency.value = 7; const vg = ctx.createGain(); vg.gain.value = 30; v.connect(vg); vg.connect(os.frequency); v.start(t); v.stop(t + 0.6); },
     cash() { if (!ctx) return; const t = ctx.currentTime, o = out(0.3); tone(o, t, 'square', 1046, 0, 0.07, 0.35); tone(o, t + 0.07, 'square', 1568, 0, 0.12, 0.35); },
     pickup() { if (!ctx) return; const t = ctx.currentTime, o = out(0.35); [523, 659, 784, 1046].forEach((f, i) => tone(o, t + i * 0.05, 'triangle', f, 0, 0.1, 0.5)); },
-    reload() { if (!ctx) return; const t = ctx.currentTime, o = out(0.5); nz(o, t, 0.04, 'bandpass', 2800, 3, 0.8); nz(o, t + 0.22, 0.05, 'bandpass', 1900, 3, 0.9); },
+    // a gun's own reload sound (data/reloads.js), from the player's hands or `at` a world point; a new reload,
+    // or switching guns, cuts the player's last one off
+    reload(id, vol = 1, at = null) {
+      if (!ctx) return; if (!at) stopReload();
+      const name = reloadOf(id).sound, src = name && sample(name, 0.6 * vol, at);
+      if (src === null) return; // too far off to hear
+      if (src) { if (!at) reloadSrc = src; return; }
+      const t = ctx.currentTime, o = out(0.5 * vol, at, HEAR.reload); if (!o) return;
+      nz(o, t, 0.04, 'bandpass', 2800, 3, 0.8); nz(o, t + 0.22, 0.05, 'bandpass', 1900, 3, 0.9);
+    },
+    stopReload() { if (ctx) stopReload(); },
+    get samplesLoaded() { return Object.keys(buffers).filter(k => buffers[k]); },
     empty() { if (!ctx) return; nz(out(0.4), ctx.currentTime, 0.03, 'highpass', 4000, 2, 0.7); },
     horn(vol, at) { if (!ctx) return; const t = ctx.currentTime, o = out(vol * 0.25, at, HEAR.horn); if (!o) return; tone(o, t, 'square', 392, 0, 0.45, 0.5, 0.01); tone(o, t, 'square', 494, 0, 0.45, 0.4, 0.01); },
     star() { if (!ctx) return; const t = ctx.currentTime, o = out(0.4); tone(o, t, 'triangle', 880, 0, 0.15, 0.6); tone(o, t + 0.12, 'triangle', 660, 0, 0.3, 0.6); },
@@ -211,17 +273,19 @@ export const Sound = (() => {
     thud(vol, at, prof = HEAR.thud) { if (!ctx) return; const t = ctx.currentTime, o = out(vol, at, prof); if (!o) return; nz(o, t, 0.22, 'lowpass', 420, 1, 1.1, 0.7); tone(o, t, 'sine', 140, 45, 0.2, 0.9); },
     // the player's own ride (the engine under you isn't placed)
     setEngine(vol, rpm) { if (!ctx) return; const t = ctx.currentTime, f = rpm / 60; engO1.frequency.setTargetAtTime(f, t, 0.06); engO2.frequency.setTargetAtTime(f * 2.02, t, 0.06); engF.frequency.setTargetAtTime(Math.min(140 + f * 3.5, 600), t, 0.08); engG.gain.setTargetAtTime(vol, t, 0.12); },
+    // the player's own electric car: vol overall, mix { hum, road, speed } from evMix in vehicles/engine.js
+    setElectric(vol, mix) { if (!ctx) return; const t = ctx.currentTime; evOwn.set(mix, 1, t); evG.gain.setTargetAtTime(vol, t, 0.12); },
     // tyres sliding: 0 (gripping) to 1 (a full drift)
     setSkid(v) { if (!ctx) return; const t = ctx.currentTime; skidGain.gain.setTargetAtTime(v * 0.22, t, 0.06); skidF.frequency.setTargetAtTime(1300 + v * 500, t, 0.1); },
     // move the listener to the player's head and the camera's view; once a frame, before the sounds of the frame
     listen,
-    // the sirens, rotors and passing engines out in the world this frame (see loops above)
+    // the sirens, rotors, passing engines and electric cars out in the world this frame (see loops above)
     loops,
     // silence every looping sound at once: pausing, a shop menu, death
     hush() {
       if (!ctx) return; const t = ctx.currentTime;
       for (const map of Object.values(live)) for (const [key, v] of map) drop(map, key, v, t);
-      engG.gain.setTargetAtTime(0, t, 0.12); skidGain.gain.setTargetAtTime(0, t, 0.06);
+      engG.gain.setTargetAtTime(0, t, 0.12); evG.gain.setTargetAtTime(0, t, 0.12); skidGain.gain.setTargetAtTime(0, t, 0.06);
     },
     // how many voices of each looping kind are playing (for tests)
     voices() { return Object.fromEntries(Object.entries(live).map(([k, m]) => [k, m.size])); },
