@@ -1,4 +1,7 @@
 import gs from './gs.js';
+import bmw5 from './bmw5.js';
+import eqa from './eqa.js';
+import modelyblue from './modely-blue.js';
 import modely from './modely.js';
 import police from './police.js';
 import sedan from './sedan.js';
@@ -13,7 +16,7 @@ import t7 from './t7.js';
 //   traffic    { weight, speed: [min, max] }; weight 0 keeps it out of random traffic
 //   police     true for cop cars: flashing lights, and they leave with the heat
 // Bikes also give spec / geos / wheel / decal / decalAt (see models/gs.js); cars give mesh().
-export const VEHICLE_MODELS = Object.fromEntries([gs, t7, sedan, modely, police].map(m => [m.id, m]));
+export const VEHICLE_MODELS = Object.fromEntries([gs, t7, sedan, modely, police, modelyblue, eqa, bmw5].map(m => [m.id, m]));
 
 // pick a model of a kind for traffic, weighted by traffic.weight
 export function pickTrafficModel(kind) {
