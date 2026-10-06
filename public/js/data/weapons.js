@@ -9,3 +9,13 @@ export const WEAPONS = [
 ];
 export const WBY = Object.fromEntries(WEAPONS.map(w => [w.id, w]));
 export const wStat = (w, lvl) => ({ dmg: w.dmg * (1 + 0.3 * lvl), mag: w.rocket ? 1 + lvl : Math.round(w.mag * (1 + 0.25 * lvl)), rate: w.rate * (1 - 0.08 * lvl) });
+// top up every owned gun's magazine from its spare ammo (the pistol never runs out)
+export function loadAll(inv) {
+  for (const w of WEAPONS) {
+    if (!inv.owned[w.id]) continue;
+    const need = Math.max(0, wStat(w, inv.lvl[w.id] || 0).mag - (inv.mag[w.id] || 0));
+    const take = w.infinite ? need : Math.min(need, inv.ammo[w.id] || 0);
+    inv.mag[w.id] = (inv.mag[w.id] || 0) + take;
+    if (!w.infinite) inv.ammo[w.id] = (inv.ammo[w.id] || 0) - take;
+  }
+}

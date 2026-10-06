@@ -1,6 +1,6 @@
 import { Sound } from '../core/audio.js';
 import { emit } from '../core/events.js';
-import { vol3d } from '../core/spatial.js';
+import { pan3d, vol3d } from '../core/spatial.js';
 import { G, P, stats } from '../core/state.js';
 import { $, clamp } from '../core/util.js';
 import { HEAT, WANTED, heatToLevel, mixPick } from '../data/wanted.js';
@@ -48,14 +48,15 @@ export function updateWanted(dt) {
     if (L && L.heli && !G.heli) { G.heliT -= dt; if (G.heliT <= 0) spawnHeli(); }
   } else starsEl.classList.remove('flash');
   G.seenNow = false;
-  Sound.setSiren(G.state === 'play' ? sirenVolume() : 0);
+  const siren = sirenMix();
+  Sound.setSiren(G.state === 'play' ? siren.v : 0, siren.pan);
   Sound.setIntensity(G.wanted);
-  Sound.setHeli(G.heli && G.state === 'play' ? clamp(1 - Math.hypot(G.heli.x - P.x, G.heli.z - P.z) / 120, 0, 1) * 0.5 : 0);
+  Sound.setHeli(G.heli && G.state === 'play' ? clamp(1 - Math.hypot(G.heli.x - P.x, G.heli.z - P.z) / 120, 0, 1) * 0.5 : 0, G.heli ? pan3d(G.heli.x, G.heli.z) : 0);
 }
 
-// siren: only once police cars are out, as loud as the nearest one; silent while only cops on foot hunt you
-export function sirenVolume() {
-  let sv = 0;
-  if (G.wanted > 0) for (const c of all('vehicle')) if (isPolice(c) && !c.dead) sv = Math.max(sv, vol3d(c.x, c.z) * 0.09);
-  return sv;
+// siren: only once police cars are out, as loud as the nearest one and panned towards it; silent while only cops on foot hunt you
+export function sirenMix() {
+  let v = 0, pan = 0;
+  if (G.wanted > 0) for (const c of all('vehicle')) if (isPolice(c) && !c.dead) { const cv = vol3d(c.x, c.z) * 0.09; if (cv > v) { v = cv; pan = pan3d(c.x, c.z); } }
+  return { v, pan };
 }
