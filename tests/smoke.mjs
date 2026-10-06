@@ -510,6 +510,22 @@ try {
     await page.waitForTimeout(8000);
   });
 
+  await step('a chopper crash wrecks the car and drops the bystander it comes down on', async () => {
+    check(await until(() => !!__neonbay.G.heli, undefined, 20000), 'no helicopter to shoot down');
+    await clearVehicles(5, -85);
+    await game(() => {
+      const { G, P, spawnVehicle, spawnNpc } = __neonbay; P.x = 5.5; P.z = -60; P.hp = 100;
+      window.__ccar = spawnVehicle('sedan', 3, -80, 0); window.__cnpc = spawnNpc('civilian', 1, -88);
+      const h = G.heli; h.x = 4; h.z = -85; h.y = 20; h.damage(1e6);
+    });
+    try {
+      check(await until(() => !__neonbay.G.heli || !__neonbay.G.heli.falling, null, 60000), 'the chopper never hit the ground');
+      check(await game(() => (__ccar.burnT > 0 || __ccar.dead) && !__cnpc.alive), 'the crash left the car or the bystander unharmed');
+    } finally {
+      await game(() => { __neonbay.removeEntity(__ccar); __neonbay.removeEntity(__cnpc); });
+    }
+  });
+
   await step('glows the minimap red while wanted', async () => {
     const glow = () => game(() => { const w = document.getElementById('radarWrap'); return { heat: +w.style.getPropertyValue('--heat'), pulse: w.classList.contains('pulse') }; });
     check(await until(() => __neonbay.G.wanted >= 4), 'lost the wanted level too soon');
