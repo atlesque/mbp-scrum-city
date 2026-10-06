@@ -6,6 +6,7 @@ import { SHOP_TYPES } from '../shops/types.js';
 import { ROADS, addCollider } from './collision.js';
 import { buildEdges } from './edges.js';
 import { buildLandmark, landmarkAt } from './landmarks.js';
+import { buildRooftops, roofSpots } from './rooftops.js';
 
 // ================= WORLD =================
 const PASTEL = ['#f7a8c4', '#8fe3d6', '#ffd0a1', '#c9b3f2', '#a7e8a1', '#fff1c9', '#ffb3a7', '#9fd4ff', '#f4ece6', '#ffc6e7', '#b8f0e6', '#ffe0b3'];
@@ -76,7 +77,8 @@ function building(walls, plain, neon, x0, x1, z0, z1, h, style, face, signText) 
     box(neon, fn[0] ? 0.12 : fw * 0.36, 0.14, fn[0] ? fw * 0.36 : 0.12, pa + fn[0] * 0.45, h + 2.6, pb + fn[1] * 0.45, neonC);
     for (const o of [-fw / 2 + 0.1, fw / 2 - 0.1]) { const [a, b] = along(o); box(neon, 0.14, h - 3.6, 0.14, a + fn[0] * 0.15, 3.6 + (h - 3.6) / 2, b + fn[1] * 0.15, neonC); }
   }
-  if (style === 'tower' && h > 24) {
+  const tiered = style === 'tower' && h > 24;
+  if (tiered) {
     const w2 = w * 0.68, d2 = d * 0.68, h2 = h * srange(0.18, 0.4);
     wallBox(walls, plain, cx, h + h2 / 2, cz, w2, h2, d2, col); box(plain, w2 + 0.4, 0.5, d2 + 0.4, cx, h + h2 + 0.25, cz, trim);
     if (srnd() < 0.6) { const w3 = w2 * 0.55, h3 = h2 * 0.6; wallBox(walls, plain, cx, h + h2 + h3 / 2, cz, w3, h3, w3, trim); box(neon, 0.25, 6, 0.25, cx, h + h2 + h3 + 3, cz, neonC); }
@@ -91,6 +93,7 @@ function building(walls, plain, neon, x0, x1, z0, z1, h, style, face, signText) 
     addSign(signText, fx + fn[0] * 0.35, style === 'deco' ? Math.min(h - 2.5, 8.5) : 5.2, fz + fn[1] * 0.35, ry, sw, spick(NEON), srnd() < 0.6 ? '"Yellowtail", cursive' : '"Bowlby One", Impact, sans-serif');
   }
   addCollider(x0, x1, z0, z1, h, true);
+  if (!tiered) roofSpots.push({ x0, x1, z0, z1, h, face, col, trim });
 }
 export function buildWorld() {
   const walls = new GB(), plain = new GB(), neon = new GB(), trees = new GB();
@@ -208,6 +211,7 @@ export function buildWorld() {
   for (let x = -330; x <= 200; x += 34) { ring(x, -238); ring(x, 238); ring(x, -280); ring(x, 280); }
   for (let z = -200; z <= 200; z += 34) { ring(-238, z); ring(-280, z); }
   healthSpots.push([210, -40], [212, 90]); armorSpots.push([214, 20]);
+  buildRooftops({ plain, neon, sign: s => signs.push(s) }, SPAWN);
   buildEdges(plain);
 
   const [wt, we, lw] = windowTextures(); lightWindows = lw;

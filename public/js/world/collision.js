@@ -19,7 +19,7 @@ function nearColliders(x, z) {
 // the play area: the inner faces of the walls round the city (world/edges.js) and the waterline
 export const W = { minX: -207.5, maxX: 252, minZ: -207.5, maxZ: 207.5 };
 export const ROADS = [-200, -150, -100, -50, 0, 50, 100, 150, 200];
-function pushOut(o, r, x0, x1, z0, z1) {
+export function pushOut(o, r, x0, x1, z0, z1) {
   const cx = clamp(o.x, x0, x1), cz = clamp(o.z, z0, z1), dx = o.x - cx, dz = o.z - cz, d2 = dx * dx + dz * dz;
   if (d2 >= r * r) return false;
   if (d2 > 1e-8) { const d = Math.sqrt(d2); o.x += dx / d * (r - d); o.z += dz / d * (r - d); }
