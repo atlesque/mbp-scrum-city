@@ -10,7 +10,7 @@ import { WEAPONS } from '../data/weapons.js';
 export const SHOP_TYPES = {
   gunshop: {
     name: 'Bullet Bros. Guns', tagline: 'Est. 1979', calm: 'No questions asked',
-    footer: 'Upgrades raise damage, magazine size and fire rate. Progress saves in this browser.',
+    footer: 'Upgrades raise damage, magazine size and fire rate, plus blast radius for rockets. Progress saves in this browser.',
     closedAtWanted: 4,
     marker: { glyph: '$', color: '#ff4fa3' },
     storefront: { wall: '#ffd0e5', roof: '#2b1b3d', neon: '#ff2fa8', awning: '#ff4fa3', sign: { text: 'Bullet Bros. Guns', color: '#ff3fae', font: '"Yellowtail", cursive' } },

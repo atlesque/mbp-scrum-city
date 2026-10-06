@@ -20,7 +20,7 @@ export const ITEM_TYPES = {
       <div class="stat">Damage ${bar(Math.log(st.dmg * w.pellets + 1), Math.log(maxD))}</div>
       <div class="stat">Fire rate ${bar(1 / st.rate, 24)}</div>
       <div class="stat">Mag ${bar(Math.sqrt(st.mag), Math.sqrt(300))}</div>
-      <div class="small">${Math.round(st.dmg)}${w.pellets > 1 ? '×' + w.pellets : ''} dmg · ${st.mag} rounds · ${Math.round(dps)} dmg/s${own && !w.infinite ? ` · ${inv.ammo[w.id] || 0} spare` : ''}</div>
+      <div class="small">${Math.round(st.dmg)}${w.pellets > 1 ? '×' + w.pellets : ''} dmg · ${st.mag} rounds · ${Math.round(dps)} dmg/s${st.blastMul > 1 ? ` · +${Math.round((st.blastMul - 1) * 100)}% blast radius` : ''}${own && !w.infinite ? ` · ${inv.ammo[w.id] || 0} spare` : ''}</div>
       <div class="acts">`;
       if (!own) html += btn(i, 'buy', 'Buy', w.price, inv.money >= w.price);
       else {
