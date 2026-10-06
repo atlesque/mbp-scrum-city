@@ -10,9 +10,9 @@ import { load, save, serialize } from './core/save.js';
 import { settings } from './core/settings.js';
 import { G, I, P, cam, inv, stats } from './core/state.js';
 import { $ } from './core/util.js';
-import { WEAPONS, wStat } from './data/weapons.js';
+import { WBY, WEAPONS, wStat } from './data/weapons.js';
 import { all, count, entities, removeEntity } from './entities/registry.js';
-import { makePickup } from './game/pickups.js';
+import { makePickup, makeWeaponPickup } from './game/pickups.js';
 import { respawn, updateCamera, updatePlayer } from './game/player.js';
 import { managePopulation } from './game/population.js';
 import { spawnRoofDoor } from './game/rooftop.js';
@@ -27,7 +27,8 @@ import { updateEngineSound } from './vehicles/engine.js';
 import { spawnTrafficBike, spawnTrafficCar } from './vehicles/traffic.js';
 import { spawnVehicle } from './vehicles/vehicle.js';
 import { loadLandmarkModels } from './world/landmarks.js';
-import { armorSpots, buildWorld, healthSpots, lotSpots, shopSpots, waterBase, waterMesh } from './world/city.js';
+import { SPAWN, armorSpots, buildWorld, healthSpots, lotSpots, shopSpots, waterBase, waterMesh } from './world/city.js';
+import { isFree } from './world/collision.js';
 import { updateEdges } from './world/edges.js';
 import { ROOFS } from './world/rooftops.js';
 import { buildMap, drawRadar } from './world/radar.js';
@@ -76,6 +77,21 @@ function frame(now) {
   renderer.render(scene, camera);
 }
 
+// melee weapons in the street: near the health and armor pickups, the everyday ones closest to the hospital
+// you start at and the katana and chainsaw further out. One that turns up while you hold a melee weapon goes in your hand.
+const STREET_MELEE = ['bat', 'knuckles', 'nightstick', 'golf', 'knife', 'machete', 'katana', 'chainsaw'];
+function placeMeleePickups() {
+  const spots = [...healthSpots.map(s => [s[0] - 10, s[1] + 6]), ...armorSpots.map(s => [s[0] + 6, s[1]])]
+    .map(s => [[0, 0], [2, 0], [-2, 0], [0, 2], [0, -2]].map(o => [s[0] + o[0], s[1] + o[1]]).find(p => isFree(p[0], p[1], 0.8)))
+    .filter(Boolean).sort((a, b) => Math.hypot(a[0] - SPAWN.x, a[1] - SPAWN.z) - Math.hypot(b[0] - SPAWN.x, b[1] - SPAWN.z));
+  // one of each, then a second of the everyday ones further out (twelve in all), spread over the city
+  const ids = [...STREET_MELEE, ...STREET_MELEE.slice(0, 4)].slice(0, spots.length);
+  ids.forEach((id, i) => {
+    const s = spots[Math.floor(i * spots.length / ids.length)];
+    makeWeaponPickup(id, s[0], s[1], got => { if (WBY[inv.cur].melee) selectWeapon(got); save(); });
+  });
+}
+
 // ================= BOOT =================
 // move the loading bar, then give the browser a moment to paint it before the next blocking chunk of work
 // (rAF stalls in background tabs, so a timeout backs it up)
@@ -95,6 +111,7 @@ async function start(data) {
   await loadStep(0.8, 'Parking the cars');
   for (const s of healthSpots) makePickup('health', s[0], s[1]);
   for (const s of armorSpots) makePickup('armor', s[0], s[1]);
+  placeMeleePickups();
   for (const s of shopSpots) spawnShop(s.type, s.x, s.z);
   for (const r of ROOFS) spawnRoofDoor(r);
   lotSpots.forEach((s, i) => { spawnVehicle(i % 3 ? 'sedan' : 'modely', s.x, s.z, s.yaw).home = true; });

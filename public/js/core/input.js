@@ -1,10 +1,10 @@
-import { curWeapon, cycleWeapon, selectWeapon, startReload } from '../combat/combat.js';
+import { curWeapon, cycleMelee, cycleWeapon, selectWeapon, startReload } from '../combat/combat.js';
 import { toggleScope } from '../combat/scope.js';
 import { Sound } from './audio.js';
 import { save } from './save.js';
 import { G, I, P, cam, keys, stats } from './state.js';
 import { $, clamp } from './util.js';
-import { WEAPONS } from '../data/weapons.js';
+import { GUNS } from '../data/weapons.js';
 import { all, removeEntity } from '../entities/registry.js';
 import { interact } from '../game/interact.js';
 import { camera, canvasEl, renderer } from '../render/scene.js';
@@ -48,7 +48,8 @@ document.addEventListener('keydown', e => {
   if ((e.code === 'KeyF' || e.code === 'KeyE') && P.alive) interact(e.code);
   if (e.code === 'KeyM') { const on = Sound.toggleMusic(); showRadio(on ? 'Neon FM 86.0' : 'Radio off'); }
   if (e.code === 'KeyP' || (e.code === 'Escape' && I.noLock)) pauseGame();
-  const n = parseInt(e.key, 10); if (n >= 1 && n <= Math.min(9, WEAPONS.length)) selectWeapon(WEAPONS[n - 1].id);
+  if (e.code === 'KeyQ') cycleMelee();
+  const n = parseInt(e.key, 10); if (n >= 1 && n <= GUNS.length) selectWeapon(GUNS[n - 1].id);
 });
 document.addEventListener('keyup', e => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; I.mouseL = false; I.mouseR = false; });
@@ -73,7 +74,7 @@ $('playBtn').addEventListener('click', () => {
   setTimeout(() => showRadio('Neon FM 86.0'), 600);
   if (G.firstPlay) {
     G.firstPlay = false;
-    const tips = ['Welcome to <em>Scrum City</em>. Click to grab the mouse, then <em>WASD</em> and aim.', 'Taking people down drops cash, and raises your <em>wanted level</em>.', 'Break line of sight with the law to make the stars flash and fade.', '<em>BMW R 1300 GS</em> and <em>Yamaha Ténéré 700 Rally</em> riders cruise the city (white dots on the radar). Knock one off and press <em>F</em> to ride it.', 'Parked and passing cars are yours too. Walk up to one and press <em>F</em> to drive.', 'Spend your cash at <em>Bullet Bros. Guns</em>. Follow the pink <em>$</em> on the radar.'];
+    const tips = ['Welcome to <em>Scrum City</em>. Click to grab the mouse, then <em>WASD</em> and aim.', 'Taking people down drops cash, and raises your <em>wanted level</em>.', 'Break line of sight with the law to make the stars flash and fade.', '<em>BMW R 1300 GS</em> and <em>Yamaha Ténéré 700 Rally</em> riders cruise the city (white dots on the radar). Knock one off and press <em>F</em> to ride it.', 'Parked and passing cars are yours too. Walk up to one and press <em>F</em> to drive.', 'Spend your cash at <em>Bullet Bros. Guns</em>. Follow the pink <em>$</em> on the radar.', '<em>Q</em> puts the guns away: punch, kick, or swing whatever bat or blade you picked up.'];
     tips.forEach((t, i) => setTimeout(() => G.state === 'play' && toast(t, 5), 400 + i * 6000));
   }
 });

@@ -3,8 +3,9 @@ import { rollZone, zoneDamage } from '../combat/hitzones.js';
 import { Sound } from '../core/audio.js';
 import { at } from '../core/spatial.js';
 import { G, P } from '../core/state.js';
-import { clamp, rnd } from '../core/util.js';
+import { clamp, lerp, rnd } from '../core/util.js';
 import { animateChar, muzzleOf } from '../characters/character.js';
+import { startSwing, tickSwing } from '../characters/swing.js';
 import { SIGHT_EVERY, newSight, reactTo } from '../combat/sight.js';
 import { removeEntity } from '../entities/registry.js';
 import { hurtPlayer } from '../game/player.js';
@@ -18,6 +19,27 @@ import { faceTo, moveActor } from './npc.js';
 //   onHurt(n, byPlayer)  react to being hit
 //   onAlarm(n, x, z)     react to gunfire or a crash nearby
 export const BEHAVIOURS = {
+  // someone the player punched who punches back: squares up, closes in and throws jabs until they've had
+  // enough, then runs
+  brawl: {
+    init(n) { n.timer = rnd(8, 13); n.swingCd = rnd(0.25, 0.6); n.panic = false; n.aiming = true; n.aimPitch = 0; n.melee = 'punch'; n.swing = null; n.stuck = 0; },
+    update(n, dt) {
+      const dx = P.x - n.x, dz = P.z - n.z, d = Math.hypot(dx, dz) || 1;
+      n.timer -= dt;
+      if (n.timer <= 0 || !P.alive || P.vehicle || d > 25 || n.hp < n.def.hp * 0.3) { n.aiming = false; n.melee = null; n.swing = null; n.become('wander'); BEHAVIOURS.wander.onHurt(n); return; }
+      if (d > 1.0) moveActor(n, dx / d, dz / d, n.def.runSpeed * 0.7, dt); else n.moveSpeed = lerp(n.moveSpeed, 0, 0.3);
+      faceTo(n, Math.atan2(dx, dz), dt, 12);
+      n.swingCd -= dt;
+      if (!n.swing && n.swingCd <= 0 && d < 1.4) { n.swingCd = rnd(0.7, 1.2); n.combo = ((n.combo || 0) + 1) % 2; startSwing(n, 'punch', 0.42, n.combo); Sound.swing(0.4, at(n, 1.3)); }
+      if (n.swing) tickSwing(n, dt, () => {
+        if (!P.alive || P.vehicle || Math.hypot(P.x - n.x, P.z - n.z) > 1.5) return;
+        hurtPlayer(n.def.punch || 5, 'torso'); Sound.smack('fist', 0.8, at(n, 1.3));
+      });
+      animateChar(n, dt); n.place();
+    },
+    onHurt(n) { n.timer = Math.max(n.timer, 4); },
+  },
+
   // stroll between random spots on the pavement; run from danger
   wander: {
     init(n) { n.state = 'walk'; n.tx = n.x; n.tz = n.z; n.timer = 0; n.stuck = 0; },

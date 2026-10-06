@@ -2,6 +2,8 @@ import { lerp, pick } from '../core/util.js';
 import { GB, UNIT, box, boxAB, tube } from '../render/geometry.js';
 import { scene } from '../render/scene.js';
 import { shirtMat } from '../render/textures.js';
+import { meleeModel } from './melee-models.js';
+import { READY, swingPose, swingWeight } from './swing.js';
 
 // ================= CHARACTERS =================
 export const charMat = new THREE.MeshLambertMaterial({ vertexColors: true });
@@ -12,8 +14,11 @@ const SHIRTS = ['#ff7eb6', '#57d9c7', '#ffb347', '#9b7bff', '#f6f1e7', '#ff6b6b'
 export const shadowGeo = new THREE.CircleGeometry(0.5, 10); shadowGeo.rotateX(-Math.PI / 2);
 export const shadowMat = new THREE.MeshBasicMaterial({ color: 0x1a0a20, transparent: true, opacity: 0.35, depthWrite: false });
 const GUN_DEF = {};
+// the mesh for a weapon in the hand (a gun or a melee weapon), or null for bare fists
 export function gunGeo(id) {
   if (GUN_DEF[id]) return GUN_DEF[id];
+  const melee = meleeModel(id); if (melee) return (GUN_DEF[id] = melee);
+  if (id === 'fist') return null;
   const g = new GB(), dark = '#22212a', mid = '#4a4a55';
   let muzzle = -0.3;
   if (id === 'pistol') { box(g, 0.06, 0.26, 0.09, 0, -0.11, 0.07, dark); box(g, 0.05, 0.08, 0.15, 0, 0.0, 0.0, '#3a2a22'); muzzle = -0.24; }
@@ -108,8 +113,8 @@ export function makeCharacter(L) {
 export function setGun(c, id) {
   if (c.gunId === id) return;
   if (c.gun) { c.gunHolder.remove(c.gun); c.gun = null; }
-  c.gunId = id; if (!id) return;
-  c.gun = new THREE.Mesh(gunGeo(id).geo, charMat); c.gunHolder.add(c.gun);
+  c.gunId = id; const g = id && gunGeo(id); if (!g) return;
+  c.gun = new THREE.Mesh(g.geo, charMat); c.gunHolder.add(c.gun);
 }
 export function randomLook() {
   const shirt = pick(SHIRTS), hawaii = Math.random() < 0.5;
@@ -123,7 +128,11 @@ export function animateChar(a, dt) {
   const amp = Math.min(1, sp / 5) * 0.8, s = Math.sin(a.phase);
   c.legL.rotation.x = s * amp; c.legR.rotation.x = -s * amp;
   c.body.position.y = (a.jumpY || 0) + Math.abs(Math.cos(a.phase)) * 0.06 * amp;
-  if (a.aiming) {
+  if (a.aiming && a.melee) {
+    // squared up with a melee weapon (or fists): its ready pose instead of pointing a gun
+    const p = READY[a.melee]; c.armR.rotation.set(...p.r);
+    if (p.l) c.armL.rotation.set(...p.l); else c.armL.rotation.set(s * amp * 0.7, 0, 0);
+  } else if (a.aiming) {
     const p = a.aimPitch || 0;
     c.armR.rotation.set(-Math.PI / 2 - p, 0, 0);
     if (a.twoHand) c.armL.rotation.set(-Math.PI / 2 * 0.95 - p, 0, -0.62); else c.armL.rotation.set(s * amp * 0.7, 0, 0);
@@ -132,6 +141,18 @@ export function animateChar(a, dt) {
   } else {
     c.armR.rotation.set(-s * amp * 0.8, 0, 0); c.armL.rotation.set(s * amp * 0.8, 0, 0);
   }
+  c.body.rotation.y = 0; if (c.gun) c.gun.rotation.x = 0;
+  if (a.swing) poseSwing(c, a.swing);
+}
+// lay a melee swing (characters/swing.js) over the walking pose
+const _r = new THREE.Euler();
+function poseSwing(c, sw) {
+  const p = swingPose(sw.anim, sw.t / sw.dur, sw.step), w = sw.anim === 'saw' ? 1 : swingWeight(sw);
+  const blend = (arm, to) => { if (!to) return; _r.set(...to); arm.rotation.set(lerp(arm.rotation.x, _r.x, w), lerp(arm.rotation.y, _r.y, w), lerp(arm.rotation.z, _r.z, w)); };
+  blend(c.armR, p.r); blend(c.armL, p.l);
+  if (p.leg != null) c.legR.rotation.x = lerp(c.legR.rotation.x, p.leg, w);
+  c.body.rotation.y = p.tw * w; if (c.gun) c.gun.rotation.x = p.wr * w;
+  if (sw.anim === 'saw') { c.armR.rotation.x += Math.sin(sw.t * 90) * 0.03; c.armL.rotation.x += Math.cos(sw.t * 80) * 0.03; }
 }
 export function deathAnim(a, dt) {
   a.deadT += dt; const k = Math.min(1, a.deadT / 0.45);
@@ -142,7 +163,7 @@ export function deathAnim(a, dt) {
 }
 const _mz = new THREE.Vector3();
 // world position of the gun muzzle (shared vector: clone it to keep it)
-export function muzzleOf(c) { return c.gunHolder.localToWorld(_mz.copy(gunGeo(c.gunId || 'pistol').muzzle)); }
+export function muzzleOf(c) { return c.gunHolder.localToWorld(_mz.copy(((c.gunId && gunGeo(c.gunId)) || gunGeo('pistol')).muzzle)); }
 // legs bent forward for sitting on a bike or in a car, built once per character
 export function seatedLegs(c) {
   if (c.sitGeo) return c.sitGeo;

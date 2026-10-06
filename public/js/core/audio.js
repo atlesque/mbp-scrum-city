@@ -178,6 +178,18 @@ export const Sound = (() => {
     star() { if (!ctx) return; const t = ctx.currentTime, o = out(0.4); tone(o, t, 'triangle', 880, 0, 0.15, 0.6); tone(o, t + 0.12, 'triangle', 660, 0, 0.3, 0.6); },
     buy() { if (!ctx) return; const t = ctx.currentTime, o = out(0.35); [784, 988, 1175, 1568].forEach((f, i) => tone(o, t + i * 0.06, 'square', f, 0, 0.09, 0.3)); nz(o, t + 0.25, 0.08, 'bandpass', 3000, 3, 0.6); },
     deny() { if (!ctx) return; const t = ctx.currentTime, o = out(0.35); tone(o, t, 'square', 220, 0, 0.12, 0.4); tone(o, t + 0.13, 'square', 165, 0, 0.2, 0.4); },
+    // melee: a whoosh through the air, the blow landing (fist, blunt, blade or on a car's metal), a chainsaw's bite;
+    // at places them in the world (an NPC's swing), none plays them as the player's own
+    swing(vol = 1, at = null) { if (!ctx) return; const t = ctx.currentTime, o = out(vol * 0.5, at, HEAR.thud); if (!o) return; const f = nz(o, t, 0.2, 'bandpass', 500, 2.2, 0.8, 1.2); f.frequency.exponentialRampToValueAtTime(1900, t + 0.14); },
+    smack(kind = 'fist', vol = 1, at = null) {
+      if (!ctx) return; const t = ctx.currentTime, o = out(vol * 0.7, at, HEAR.thud); if (!o) return;
+      if (kind === 'blade') { nz(o, t, 0.12, 'highpass', 2600, 1, 0.8, 1.4); tone(o, t, 'sine', 900, 300, 0.08, 0.35); nz(o, t + 0.02, 0.1, 'lowpass', 700, 1, 0.5); return; }
+      if (kind === 'metal') { tone(o, t, 'triangle', 520, 380, 0.25, 0.5); tone(o, t, 'square', 1180, 900, 0.12, 0.18); nz(o, t, 0.08, 'bandpass', 1800, 2, 0.6); return; }
+      const deep = kind === 'blunt';
+      nz(o, t, deep ? 0.16 : 0.1, 'lowpass', deep ? 900 : 650, 1, 1.1, 0.8); tone(o, t, 'sine', deep ? 170 : 130, 55, deep ? 0.16 : 0.12, 0.9);
+      if (deep) nz(o, t, 0.04, 'bandpass', 2400, 3, 0.5);
+    },
+    saw(vol = 1, at = null) { if (!ctx) return; const t = ctx.currentTime, o = out(vol * 0.22, at, HEAR.shot); if (!o) return; tone(o, t, 'sawtooth', 118 + Math.random() * 12, 0, 0.11, 0.7, 0.003); nz(o, t, 0.1, 'bandpass', 2200, 1.5, 0.35); },
     thud(vol, at, prof = HEAR.thud) { if (!ctx) return; const t = ctx.currentTime, o = out(vol, at, prof); if (!o) return; nz(o, t, 0.22, 'lowpass', 420, 1, 1.1, 0.7); tone(o, t, 'sine', 140, 45, 0.2, 0.9); },
     // the player's own ride (the engine under you isn't placed)
     setEngine(vol, rpm) { if (!ctx) return; const t = ctx.currentTime, f = rpm / 60; engO1.frequency.setTargetAtTime(f, t, 0.06); engO2.frequency.setTargetAtTime(f * 2.02, t, 0.06); engF.frequency.setTargetAtTime(Math.min(140 + f * 3.5, 600), t, 0.08); engG.gain.setTargetAtTime(vol, t, 0.12); },
