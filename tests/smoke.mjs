@@ -495,11 +495,23 @@ try {
     check(!(await game(() => __neonbay.Sound.dimmed)), 'the sound stayed dimmed after resuming');
   });
 
+  await step('plays a siren from each police car', async () => {
+    check(await game(() => __neonbay.Sound.ready), 'audio did not start');
+    await game(() => {
+      const { G, P, spawnVehicle } = __neonbay; G.heat = 30; G.wanted = 2; G.spawnT = 99;
+      window.__cops = [spawnVehicle('police', P.x + 18, P.z, 0), spawnVehicle('police', P.x - 18, P.z + 6, 0)];
+    });
+    check(await until(() => __neonbay.Sound.voices().siren === 2), 'expected two sirens: ' + JSON.stringify(await game(() => __neonbay.Sound.voices())));
+    await game(() => { const { G, removeEntity } = __neonbay; for (const c of __cops) removeEntity(c); G.heat = 0; G.wanted = 0; });
+    check(await until(() => __neonbay.Sound.voices().siren === 0), 'the sirens kept going after the cars left');
+  });
+
   await step('survives a five-star chase', async () => {
     await game(() => { const { G, P } = __neonbay; G.heat = 100; G.wanted = 5; G.spawnT = 0; G.heliT = 0; P.hp = 100; });
     check(await until(() => __neonbay.all('npc').some(n => n.faction === 'law' && n.alive) && __neonbay.all('vehicle').some(v => v.model.police), undefined, 40000), 'the law never showed up');
     check(await until(() => !!__neonbay.G.heli, undefined, 20000), 'no helicopter at five stars');
     check(await until(() => !__neonbay.Sound.ready || __neonbay.Sound.intensity === 5), 'the music never reached five-star intensity');
+    check(await until(() => __neonbay.Sound.voices().rotor === 1), 'the chopper makes no sound');
     await page.waitForTimeout(8000);
   });
 

@@ -1,7 +1,7 @@
 import { fireRocket } from '../combat/combat.js';
 import { rollZone, zoneDamage } from '../combat/hitzones.js';
 import { Sound } from '../core/audio.js';
-import { pan3d, vol3d } from '../core/spatial.js';
+import { at } from '../core/spatial.js';
 import { G, P } from '../core/state.js';
 import { clamp, rnd } from '../core/util.js';
 import { animateChar, muzzleOf } from '../characters/character.js';
@@ -44,7 +44,7 @@ export const BEHAVIOURS = {
     onAlarm(a, x, z) {
       if (a.state === 'flee') return;
       a.state = 'flee'; a.timer = rnd(6, 10); a.fx = x; a.fz = z; a.panic = Math.random() < 0.7;
-      if (Math.random() < 0.25) Sound.scream(vol3d(a.x, a.z) * 0.6, pan3d(a.x, a.z));
+      if (Math.random() < 0.25) Sound.scream(0.6, at(a, 1.5));
     },
   },
 
@@ -103,10 +103,10 @@ function shootAtPlayer(e, dist) {
   const target = new THREE.Vector3(P.x, P.y + 1.2, P.z);
   const hit = Math.random() < chance && !blocked(from.x, from.y, from.z, target.x, target.y, target.z);
   if (!hit) target.add(new THREE.Vector3(rnd(-1.6, 1.6), rnd(-0.9, 1.2), rnd(-1.6, 1.6)));
-  muzzleFlash(from, !!e.def.bigFlash); Sound.shot(e.def.gun, vol3d(e.x, e.z) * 0.7, pan3d(e.x, e.z));
+  muzzleFlash(from, !!e.def.bigFlash); Sound.shot(e.def.gun, 0.7, at(e, 1.3));
   // a rocket flies at where they aim, on target or off; the blast does the damage
   if (e.def.rocket) { fireRocket(from, target.sub(from).normalize(), e.def.dmg, 1, e); return; }
   tracer(from, target, true);
   if (hit) { const zone = rollZone(); hurtPlayer(zoneDamage(e.def.dmg, zone), zone); }
-  else if (dist < 12) Sound.ting(0.5, pan3d(target.x, target.z));
+  else if (dist < 12) Sound.ting(0.5, at(target, 1.3));
 }

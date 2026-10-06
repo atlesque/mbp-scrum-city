@@ -2,7 +2,7 @@ import { charMat } from '../characters/character.js';
 import { explosion } from '../combat/combat.js';
 import { SIGHT_EVERY, newSight, reactTo } from '../combat/sight.js';
 import { Sound } from '../core/audio.js';
-import { pan3d, vol3d } from '../core/spatial.js';
+import { at } from '../core/spatial.js';
 import { G, P } from '../core/state.js';
 import { angDiff, lerp, rnd } from '../core/util.js';
 import { addEntity, removeEntity } from '../entities/registry.js';
@@ -13,7 +13,8 @@ import { PGEO, emit, muzzleFlash, pmat, tracer } from '../render/effects.js';
 import { GB, box } from '../render/geometry.js';
 import { scene } from '../render/scene.js';
 import { showBig } from '../ui/hud.js';
-import { blocked, raySphere, wallHitFace } from '../world/collision.js';
+import { groundAt } from '../world/city.js';
+import { blocked, raySphere, tallBoxes, wallHitFace } from '../world/collision.js';
 import { lightRed } from './materials.js';
 
 // ================= HELICOPTER =================
@@ -24,6 +25,14 @@ export const HELI_HP = 700;
 const BODY_R = 3, TAIL_BACK = 4.4, TAIL_R = 1.6, ROTOR_Y = 1, ROTOR_R = 4.5;
 // the searchlight hangs under the cabin and its cone widens by BEAM_SPREAD per metre
 const BEAM_Y = -0.8, BEAM_SPREAD = 0.06;
+// up to SHADOW_BOXES buildings near the beam cast shadows in it (see lightMaterial)
+const SHADOW_BOXES = 16;
+const shade = {
+  origin: { value: new THREE.Vector3() }, tip: { value: new THREE.Vector3() }, nBox: { value: 0 },
+  bMin: { value: Array.from({ length: SHADOW_BOXES }, () => new THREE.Vector3()) },
+  bMax: { value: Array.from({ length: SHADOW_BOXES }, () => new THREE.Vector3()) },
+};
+const _near = [];
 const _o = new THREE.Vector3(), _d = new THREE.Vector3(), _e = new THREE.Vector3(), _n = new THREE.Vector3(), _z = new THREE.Vector3(0, 0, 1);
 const Heli = {
   kind: 'heli',
@@ -73,7 +82,7 @@ const Heli = {
         const from = new THREE.Vector3(h.x, h.y - 1, h.z), to = new THREE.Vector3(P.x, P.y + 1, P.z);
         const hit = Math.random() < 0.2 && !blocked(from.x, from.y, from.z, to.x, to.y, to.z);
         if (!hit) to.add(new THREE.Vector3(rnd(-2, 2), rnd(-1, 0.5), rnd(-2, 2)));
-        tracer(from, to, true); muzzleFlash(from); Sound.shot('minigun', vol3d(h.x, h.z) * 0.6, pan3d(h.x, h.z)); if (hit) hurtPlayer(5);
+        tracer(from, to, true); muzzleFlash(from); Sound.shot('minigun', 0.6, at(h, -0.5)); if (hit) hurtPlayer(5);
         emit(to.x, 0.1, to.z, 2, '#d8c8b0', 3, 0.3, 0.1);
       }
     } else if (h.fireT <= 0 && ready) { h.burst = 10; h.fireT = rnd(2.5, 3.5); }
@@ -106,14 +115,73 @@ const Heli = {
 // the beam ends there and the spot of light lands on that wall or roof instead of the street.
 export function aimLight(h) {
   const p = h.grp.position;
-  _o.set(p.x, p.y + BEAM_Y, p.z); _d.set(P.x, 0, P.z).sub(_o);
+  _o.set(p.x, p.y + BEAM_Y, p.z); _d.set(P.x, groundAt(P.x, P.z), P.z).sub(_o);
   const L = _d.length(); if (L < 0.01) return;
   _d.divideScalar(L);
   const t = wallHitFace(_o.x, _o.y, _o.z, _d.x, _d.y, _d.z, L, _n), r = Math.max(0.8, t * BEAM_SPREAD);
   _e.copy(_d).multiplyScalar(t).add(_o);
   h.beam.position.copy(_o).lerp(_e, 0.5); h.beam.scale.set(r, t, r); h.beam.lookAt(_e); h.beam.rotateX(-Math.PI / 2);
   h.spot.position.copy(_n).multiplyScalar(0.05).add(_e); h.spot.quaternion.setFromUnitVectors(_z, _n); h.spot.scale.setScalar(r * 2);
+  shadeFrom(_o, _e, r);
   return t;
+}
+// The cone is wider than the line down its middle, so in an alley its sides would still cut through the walls.
+// Hand the shader the buildings near the beam, nearest the chopper first; it drops any bit of the cone or
+// the spot that the light could not reach in a straight line.
+function shadeFrom(o, e, r) {
+  const pad = r + 1, x0 = Math.min(o.x, e.x) - pad, x1 = Math.max(o.x, e.x) + pad, z0 = Math.min(o.z, e.z) - pad, z1 = Math.max(o.z, e.z) + pad;
+  _near.length = 0;
+  for (const b of tallBoxes) if (b.x1 > x0 && b.x0 < x1 && b.z1 > z0 && b.z0 < z1) _near.push(b);
+  const d2 = b => (Math.max(b.x0 - o.x, 0, o.x - b.x1) ** 2) + (Math.max(b.z0 - o.z, 0, o.z - b.z1) ** 2);
+  if (_near.length > SHADOW_BOXES) _near.sort((a, b) => d2(a) - d2(b));
+  const n = Math.min(_near.length, SHADOW_BOXES);
+  for (let i = 0; i < n; i++) { const b = _near[i]; shade.bMin.value[i].set(b.x0, -1, b.z0); shade.bMax.value[i].set(b.x1, b.h, b.z1); }
+  shade.nBox.value = n; shade.origin.value.copy(o); shade.tip.value.copy(e);
+}
+export const searchlightShade = shade;
+// Additive light that is dropped wherever a building stands between the lamp and the fragment.
+// The beam (BEAM) also fades towards its edges, its far end and the camera, so the cone reads as a soft
+// shaft of lit air instead of hard-edged panels that seem to cut across the walls of a narrow street.
+function lightMaterial(opacity, extra, defines = {}) {
+  return new THREE.ShaderMaterial({
+    uniforms: { ...shade, color: { value: new THREE.Color('#fff4c8') }, opacity: { value: opacity } },
+    defines,
+    vertexShader: `varying vec3 vW; varying vec3 vV; varying vec3 vC;
+      void main() {
+        vec4 w = modelMatrix * vec4(position, 1.0), v = viewMatrix * w; vW = w.xyz; vV = v.xyz;
+        #ifdef USE_COLOR
+          vC = color;
+        #else
+          vC = vec3(1.0);
+        #endif
+        gl_Position = projectionMatrix * v;
+      }`,
+    fragmentShader: `#define N ${SHADOW_BOXES}
+      uniform vec3 color; uniform float opacity; uniform vec3 origin; uniform vec3 tip; uniform int nBox; uniform vec3 bMin[N]; uniform vec3 bMax[N];
+      varying vec3 vW; varying vec3 vV; varying vec3 vC;
+      void main() {
+        float f = 1.0;
+        #ifdef BEAM
+          // the cone is thin, so its surface faces straight out from the line down its middle
+          vec3 axis = normalize(tip - origin), rad = vW - origin;
+          float along = dot(rad, axis) / distance(tip, origin);
+          rad -= axis * dot(rad, axis);
+          float facing = abs(dot(normalize(mat3(viewMatrix) * rad), normalize(-vV)));
+          f = facing * sqrt(facing) * (1.0 - smoothstep(0.75, 1.0, along)) * smoothstep(1.5, 8.0, length(vV));
+        #endif
+        vec3 d = vW - origin;
+        d = mix(d, vec3(1e-4), vec3(lessThan(abs(d), vec3(1e-4))));
+        vec3 inv = 1.0 / d;
+        for (int i = 0; i < N; i++) {
+          if (i >= nBox) break;
+          vec3 a = (bMin[i] - origin) * inv, b = (bMax[i] - origin) * inv, lo = min(a, b), hi = max(a, b);
+          float tIn = max(max(lo.x, lo.y), lo.z), tOut = min(min(hi.x, hi.y), hi.z);
+          if (tIn < tOut && tOut > 0.0 && tIn < 0.999) discard;
+        }
+        gl_FragColor = vec4(color * vC, opacity * f);
+      }`,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, ...extra,
+  });
 }
 // a soft disc of light, bright in the middle and fading to nothing at the rim (black adds nothing)
 function spotGeometry() {
@@ -132,8 +200,8 @@ export function spawnHeli() {
   const rotor = new THREE.Mesh(PGEO, pmat('#141418')); rotor.scale.set(9, 0.06, 0.35); rotor.position.y = 1.0; grp.add(rotor);
   const rotor2 = new THREE.Mesh(PGEO, pmat('#141418')); rotor2.scale.set(0.35, 0.06, 9); rotor2.position.y = 1.0; grp.add(rotor2);
   const lr = new THREE.Mesh(PGEO, lightRed); lr.scale.setScalar(0.25); lr.position.set(0, -0.85, 1); grp.add(lr);
-  const beam = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 16, 1, true), new THREE.MeshBasicMaterial({ color: '#fff4c8', transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
-  const spot = new THREE.Mesh(spotGeometry(), new THREE.MeshBasicMaterial({ color: '#fff4c8', vertexColors: true, transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -4 }));
+  const beam = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 16, 1, true), lightMaterial(0.2, { side: THREE.DoubleSide }, { BEAM: '' }));
+  const spot = new THREE.Mesh(spotGeometry(), lightMaterial(0.45, { vertexColors: true, polygonOffset: true, polygonOffsetFactor: -4 }));
   scene.add(beam, spot);
   const a = rnd(0, 6.28);
   const h = Object.assign(Object.create(Heli), { grp, rotor, rotor2, lr, beam, spot, x: P.x + Math.cos(a) * 120, z: P.z + Math.sin(a) * 120, y: 34, hp: HELI_HP, alive: true, ang: a, fireT: 3, burst: 0, burstT: 0, los: false, losT: 0, sight: newSight(), vy: 0, falling: false, yaw: 0 });

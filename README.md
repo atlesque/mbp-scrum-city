@@ -78,6 +78,8 @@ Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share 
 
 **A new setting.** Add a row to `SETTINGS` in `core/settings.js` (a toggle, range or choice, on the Sound, Graphics or Gameplay tab), then read `settings.<id>` where it matters or apply it in `apply()` in `ui/settings.js`. The Settings screen, saving and validation pick it up on their own.
 
+**A sound from something in the world.** Pass where it comes from: `Sound.shot(kind, vol, at(entity, height))` and the other one-shots take a world point (`at`, `beside` in `core/spatial.js`), and looping sources go through `Sound.loops(kind, sources)` once a frame. Each plays through its own HRTF panner relative to a listener at the player's head facing the camera, with inverse-distance falloff and distance dulling by the profile in `HEAR`. Sounds with no source (UI, the player's own gun) take no point.
+
 **Saves.** When the save shape changes, bump `SAVE_VERSION` in `core/save.js` and add a migration from the previous version.
 
 ## Tests

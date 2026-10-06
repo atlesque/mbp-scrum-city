@@ -135,7 +135,7 @@ export function die() {
   $('wastedInfo').textContent = fee > 0 ? `Hospital bill: $${fee.toLocaleString()}` : 'Patched up for free. Lucky you.';
   $('wasted').hidden = false; canvasEl.style.filter = 'grayscale(0.85) contrast(1.1)';
   $('prompt').hidden = true;
-  Sound.setSiren(0); Sound.setHeli(0);
+  Sound.hush();
   emit('player:died', { fee });
 }
 export function respawn() {
