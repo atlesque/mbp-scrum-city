@@ -1,12 +1,14 @@
 import { seeded } from '../../core/util.js';
 import { GB, UNIT, addGeo, hexa } from '../../render/geometry.js';
+import { lionTexture } from './vlaanderen-lion.js';
 
 // ================= LANDMARK MODEL KIT =================
 // Builds a landmark as a THREE.Group to the same spec as an imported .glb model:
 // 1 unit = 1 m, Y up, origin at the centre of the footprint at ground level, the street front facing -z.
 // Every part goes into one mesh per material, so a whole building is a handful of draw calls.
 // 'lit' holds the windows that glow after dark (its material is emissive); 'glass' is the rest of the glazing.
-export const MATERIALS = ['wall', 'trim', 'glass', 'lit', 'dark', 'green'];
+// 'logo' is textured with the Vlaanderen lion (see decal()).
+export const MATERIALS = ['wall', 'trim', 'glass', 'lit', 'dark', 'green', 'logo'];
 
 // the four faces of a footprint rect, in local metres: start corner, unit direction along the face, outward normal
 const FACES = {
@@ -39,6 +41,14 @@ export class Kit {
     const [ax, az] = P(t0), [bx, bz] = P(t1);
     // wind the two triangles so they face outwards
     for (const [x, y, z] of [[ax, y0, az], [bx, y1, bz], [bx, y0, bz], [ax, y0, az], [ax, y1, az], [bx, y1, bz]]) g.v(x, y, z, nx, 0, nz, c, 0.001, 0.001);
+  }
+  // a textured panel on a face (the whole texture stretched over it), right way round when seen from outside
+  decal(mat, F, t0, t1, y0, y1, out) {
+    const g = this.gb[mat], c = new THREE.Color('#ffffff'), [ox, oz] = F.o, [dx, dz] = F.d, [nx, nz] = F.n;
+    const P = t => [ox + dx * t + nx * out, oz + dz * t + nz * out];
+    const [ax, az] = P(t0), [bx, bz] = P(t1);
+    // t runs right to left as seen from outside, so t0 is the texture's right edge
+    for (const [x, y, z, u, v] of [[ax, y0, az, 1, 0], [bx, y1, bz, 0, 1], [bx, y0, bz, 0, 0], [ax, y0, az, 1, 0], [ax, y1, az, 1, 1], [bx, y1, bz, 0, 1]]) g.v(x, y, z, nx, 0, nz, c, u, v);
   }
   // a strip of boxes on a face (piers, fins, mullions, bands): `t` along, y range, width, depth proud of the wall
   strip(mat, F, t, w, y0, y1, depth, col, off = 0) {
@@ -92,6 +102,7 @@ export function landmarkMaterials() {
     wall: lambert(), trim: lambert(), dark: lambert(), green: lambert(),
     glass: new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 60, specular: 0x667788 }),
     lit: lambert({ emissive: 0xffd9a0, emissiveIntensity: 0 }),
+    logo: lambert({ map: lionTexture(), transparent: true, alphaTest: 0.5, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }),
   };
   for (const [k, v] of Object.entries(m)) v.name = k;
   return m;

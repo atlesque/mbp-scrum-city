@@ -1,4 +1,5 @@
 import { Kit, hiddenBy } from './kit.js';
+import { LION_ASPECT } from './vlaanderen-lion.js';
 
 // Virginie Lovelinggebouw, VAC Gent (POLO architects, 2014), Koningin Maria Hendrikaplein beside Gent-Sint-Pieters.
 // Checked against photos (see /mnt/project-files/realistic-landmarks/references.md): a 90 m tower of pale grey
@@ -7,7 +8,7 @@ import { Kit, hiddenBy } from './kit.js';
 // lion. The long sides carry tight rows of wide windows, with only a few bronze-framed bay windows (one window
 // wide, two floors tall) pushed out of the brick. A white-panelled link wing on columns carries the raised city
 // courtyard. Footprint fits one 32 x 32 m city block; the station square is at -z.
-const BRICK = '#cfcbc6', BRICK_DARK = '#a9a59f', BRONZE = '#3b342f', SLIT = '#2f3946', WHITE = '#ecebe6', GLASS = '#5d7286', LION = '#1d1d1f';
+const BRICK = '#cfcbc6', BRICK_DARK = '#a9a59f', BRONZE = '#3b342f', SLIT = '#2f3946', WHITE = '#ecebe6', GLASS = '#5d7286';
 const FH = 3.4, BASE = 7.2;
 
 export function buildVac() {
@@ -38,7 +39,7 @@ export function buildVac() {
   k.pane('glass', FB, 0.4, FB.len - 0.4, BASE + 0.2, BASE + FH, 0.04, GLASS); // the glazed band at the foot of the slits
   // A's end: blank brick with the lion, and a narrow strip of windows where it meets B
   const FA = k.face(A, 'front');
-  lion(k, FA, FA.len / 2 + 0.5, topA - 15, 6);
+  lion(k, FA, FA.len / 2 + 1, topA - 16, 7.5);
   for (let f = 0; f < 19; f++) k.pane(k.rand() < 0.3 ? 'lit' : 'glass', FA, 0.4, 1.6, BASE + f * FH + 0.8, BASE + f * FH + 2.6, 0.03, GLASS);
   // the long sides and backs: tight rows of wide windows with a few bronze bays
   rows(k, A, ['right', 'back'], topA, 19, vols);
@@ -77,13 +78,8 @@ function rows(k, R, faces, top, floors, vols) {
   }
 }
 
-// the Flemish lion of the Vlaamse overheid logo, drawn with short dark strokes: three long sweeps of mane curling
-// down to the left and the head looking right (`t` runs to the left as seen from outside the front face)
-function lion(k, F, t, y, s) {
-  const S = (x, yy, len, ang, th = 0.13) => k.stroke('dark', F, t - x * s, y + yy * s, len * s, th * s, -ang, 0.02, LION);
-  for (const [x0, top] of [[-0.42, 0.55], [-0.2, 0.62], [0.02, 0.55]]) { // each sweep: steep at the top, curling out at the foot
-    S(x0 + 0.05, top - 0.22, 0.48, 1.35); S(x0 - 0.01, top - 0.62, 0.42, 1.65); S(x0 - 0.1, top - 0.92, 0.3, 2.3);
-  }
-  S(0.3, 0.42, 0.34, -0.5, 0.11); S(0.42, 0.22, 0.24, -1.35, 0.11); S(0.34, 0.02, 0.26, 0.55, 0.11); // the head's brow, snout and jaw
-  S(0.26, -0.22, 0.32, 1.2, 0.11); S(0.32, 0.3, 0.06, 0, 0.07); // the neck and the eye
+// the lion from the Vlaanderen logo, as a texture on the blank brick
+function lion(k, F, t, y, h) {
+  const w = h * LION_ASPECT;
+  k.decal('logo', F, t - w / 2, t + w / 2, y - h / 2, y + h / 2, 0.03);
 }
