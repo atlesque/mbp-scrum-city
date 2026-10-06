@@ -75,7 +75,7 @@ npm test             # unit tests (Vitest): rules, shop items, save migration, r
 npm run test:smoke   # plays the game in headless Chromium: walk, drive, ride, shoot, carjack, shop, a 5-star chase
 ```
 
-The registry tests catch a typo in a new vehicle, NPC or shop (an unknown kind, behaviour, weapon or item type). Opening the game with `?debug` exposes its state as `window.__neonbay`. CI runs both suites on every pull request.
+The registry tests catch a typo in a new vehicle, NPC or shop (an unknown kind, behaviour, weapon or item type). Opening the game with `?debug` exposes its state as `window.__neonbay`. CI runs the unit tests on every pull request. The smoke test is too slow and timing-sensitive for shared CI runners, so it runs locally instead: `npm run test:smoke` must pass on your machine before a pull request is merged (run `npx playwright install chromium` once first).
 
 ## Develop and deploy
 
