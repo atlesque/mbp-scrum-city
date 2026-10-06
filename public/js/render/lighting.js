@@ -2,6 +2,7 @@ import { G, P } from '../core/state.js';
 import { clamp, lerp } from '../core/util.js';
 import { all } from '../entities/registry.js';
 import { lamps, lightWindows, winMat } from '../world/city.js';
+import { setModelNight } from '../world/models.js';
 import { makeCanvas } from './textures.js';
 import { HORIZON, ambientLight, camera, hemiLight, scene, sky, sunLight } from './scene.js';
 
@@ -90,6 +91,7 @@ export function updateLighting(dt) {
   sunLight.color.copy(DAY.sun).lerp(NIGHT.sun, n); sunLight.intensity = lerp(0.9, 0.22, n) * Math.PI;
   winMat.emissiveIntensity = 1 + n * 0.5;
   lightWindows(0.22 + n * 0.4);
+  setModelNight(n);
 
   // lamps switch on at dusk; the real lights go to the lamps nearest a point just ahead of the camera
   const on = clamp((n - 0.15) / 0.3, 0, 1);

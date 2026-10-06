@@ -25,6 +25,7 @@ import { updateHUD } from './ui/hud.js';
 import { updateEngineSound } from './vehicles/engine.js';
 import { spawnTrafficBike, spawnTrafficCar } from './vehicles/traffic.js';
 import { spawnVehicle } from './vehicles/vehicle.js';
+import { loadLandmarkModels } from './world/landmarks.js';
 import { armorSpots, buildWorld, healthSpots, lotSpots, shopSpots, waterBase, waterMesh } from './world/city.js';
 import { updateEdges } from './world/edges.js';
 import { buildMap, drawRadar } from './world/radar.js';
@@ -79,6 +80,7 @@ const loadStep = (p, label) => { window.loadingScreen?.step(p, label); return ne
 async function start(data) {
   await loadStep(0.35, 'Tuning Neon FM');
   try { await Promise.race([Promise.all([document.fonts.load('80px "Yellowtail"'), document.fonts.load('80px "Bowlby One"')]), new Promise(r => setTimeout(r, 2500))]); } catch (e) {}
+  await loadLandmarkModels();
   await loadStep(0.5, 'Pouring Ocean Drive');
   buildWorld(); buildLighting();
   await loadStep(0.7, 'Planting the palm trees');
