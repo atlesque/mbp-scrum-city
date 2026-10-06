@@ -82,7 +82,7 @@ Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share 
 
 `public/models/test-building.glb` is a worked example, written by `node tests/make-test-model.mjs`.
 
-**A reload for a new gun.** Add a line to `RELOADS` in `data/reloads.js`: the move (`pistol`, `mag`, `pump`, `box` or `tube`, keyframed in `characters/reload.js`) and a sound file in `public/sfx/` (mono MP3, CC0 or your own, credited in `public/sfx/CREDITS.md`). A unit test fails until every gun with a magazine has one. A new move is a new list of keyframes in `RELOAD_ANIMS`.
+**A reload for a new gun.** Add a line to `RELOADS` in `data/reloads.js`: the move (`pistol`, `mag`, `pump`, `bolt`, `box` or `tube`, keyframed in `characters/reload.js`) and a sound file in `public/sfx/` (mono MP3, CC0 or your own, credited in `public/sfx/CREDITS.md`). A unit test fails until every gun with a magazine has one. A new move is a new list of keyframes in `RELOAD_ANIMS`.
 
 **A new setting.** Add a row to `SETTINGS` in `core/settings.js` (a toggle, range or choice, on the Sound, Graphics or Gameplay tab), then read `settings.<id>` where it matters or apply it in `apply()` in `ui/settings.js`. The Settings screen, saving and validation pick it up on their own.
 

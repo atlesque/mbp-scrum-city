@@ -26,6 +26,12 @@ export const RELOAD_ANIMS = {
     [0.6, -1.3, 0.15, AIM_L, AIM_LZ, -0.3], [0.7, -1.45, 0.05, AIM_L, AIM_LZ, 0], [0.75, -1.45, 0.05, -1.15, -0.5, 0],
     [0.84, -1.45, 0.05, AIM_L, AIM_LZ, 0], [1, AIM, 0, AIM_L, AIM_LZ, 0],
   ],
+  // bolt action: the bolt lifted and pulled back, the magazine swapped from the belt, the bolt pushed home and locked
+  bolt: [
+    [0, AIM, 0, AIM_L, AIM_LZ, 0], [0.07, -1.35, 0.15, -1.2, -0.25, 0], [0.15, -1.35, 0.15, -1.38, -0.08, 0], [0.22, -1.15, 0.3, -1.0, -0.5, 0.4],
+    [0.4, -1.15, 0.3, 0.25, 0.1, 0.4], [0.58, -1.15, 0.3, -1.0, -0.5, 0.4], [0.64, -1.15, 0.3, -0.95, -0.5, 0.35],
+    [0.72, -1.35, 0.15, -1.38, -0.08, 0], [0.8, -1.35, 0.15, -1.15, -0.28, 0], [0.86, -1.35, 0.15, -1.22, -0.2, 0], [1, AIM, 0, AIM_L, AIM_LZ, 0],
+  ],
   // the minigun lowered, the empty ammo box unlatched and swung away, a full one hooked on and slammed home
   box: [
     [0, AIM, 0, AIM_L, AIM_LZ, 0], [0.08, -0.95, 0.3, -0.9, -0.5, 0], [0.14, -0.95, 0.3, -0.75, -0.5, 0], [0.3, -0.9, 0.3, 0.45, 0.3, 0],

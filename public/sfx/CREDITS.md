@@ -14,3 +14,5 @@ Each file was trimmed, mixed, level-matched and saved as mono 64 kbps MP3 for th
 | | then `gun_reload_lock_or_click_sound.mp3` (the latch) | pauliuw | https://opengameart.org/content/gun-reload-lock-or-click-sound |
 | `reload-rpg.mp3` | `gun_reload.1.ogg`, pitched down | starninjas | https://opengameart.org/content/2-gun-reloads |
 | | then `gun_reload_lock_or_click_sound.mp3`, pitched down | pauliuw | https://opengameart.org/content/gun-reload-lock-or-click-sound |
+| `reload-sniper.mp3` | `gun_reload_lock_or_click_sound.mp3` (the bolt), pitched down | pauliuw | https://opengameart.org/content/gun-reload-lock-or-click-sound |
+| | then `assaultriflereload1_0.wav` (the magazine) and `shotguncock_0.wav` (the bolt going home), pitched up | springyspringo | https://opengameart.org/content/gun-reload-sounds |

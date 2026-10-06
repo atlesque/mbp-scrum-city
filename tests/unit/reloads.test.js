@@ -14,8 +14,11 @@ describe('reloads', () => {
       expect(existsSync(sfx(RELOADS[w.id].sound)), `${w.id}: missing sound file`).toBe(true);
     }
   });
-  it('only names guns that exist', () => {
-    for (const id of Object.keys(RELOADS)) expect(WEAPONS.some(w => w.id === id), id).toBe(true);
+  it('names a known move and an existing sound file on every line', () => {
+    for (const [id, r] of Object.entries(RELOADS)) {
+      expect(RELOAD_ANIMS[r.anim], `${id}: unknown move`).toBeTruthy();
+      expect(existsSync(sfx(r.sound)), `${id}: missing sound file`).toBe(true);
+    }
   });
   it('keeps each move in time order from 0 to 1', () => {
     for (const [name, keys] of Object.entries(RELOAD_ANIMS)) {
