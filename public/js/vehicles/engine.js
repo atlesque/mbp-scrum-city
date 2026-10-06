@@ -22,4 +22,5 @@ export function updateEngineSound() {
   let rpm = 1050;
   if (v > 0.5) { let g = 0; while (g < gears.length - 2 && v > gears[g + 1]) g++; rpm = 2600 + clamp((v - gears[g]) / (gears[g + 1] - gears[g]), 0, 1) * 5600 + (thr ? 300 : 0); }
   Sound.setEngine(vol, rpm * rev);
+  Sound.setSkid(G.state === 'play' && P.vehicle && P.vehicle.skid || 0);
 }
