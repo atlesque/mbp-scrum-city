@@ -6,7 +6,7 @@ import { save } from '../core/save.js';
 import { settings } from '../core/settings.js';
 import { G, I, P, cam, inv, keys } from '../core/state.js';
 import { $, angDiff, clamp, lerp, rnd } from '../core/util.js';
-import { wStat } from '../data/weapons.js';
+import { loadAll, wStat } from '../data/weapons.js';
 import { all, removeEntity } from '../entities/registry.js';
 import { emit as emitFx } from '../render/effects.js';
 import { faceTo, onFoot } from '../npcs/npc.js';
@@ -137,7 +137,7 @@ export function respawn() {
   G.wanted = 0; G.heat = 0; G.lostT = 0; G.heliT = 15;
   P.x = SPAWN.x; P.z = SPAWN.z; P.y = 0; P.hp = 100; P.alive = true; P.deadT = 0; P.yaw = SPAWN.yaw; cam.yaw = SPAWN.yaw; cam.pitch = -0.08;
   P.c.body.rotation.x = 0; P.c.body.position.y = 0;
-  const w = curWeapon(); inv.mag[w.id] = Math.max(inv.mag[w.id] || 0, 0);
+  loadAll(inv); G.reloadT = 0;
   $('wasted').hidden = true; canvasEl.style.filter = '';
   G.state = 'play'; showBig('City General discharged you');
 }
