@@ -394,6 +394,16 @@ try {
     await page.waitForTimeout(8000);
   });
 
+  await step('glows the minimap red while wanted', async () => {
+    const glow = () => game(() => { const w = document.getElementById('radarWrap'); return { heat: +w.style.getPropertyValue('--heat'), pulse: w.classList.contains('pulse') }; });
+    check(await until(() => __neonbay.G.wanted >= 4), 'lost the wanted level too soon');
+    const hot = await glow();
+    check(hot.heat >= 0.8 && hot.pulse, 'no strong pulsing glow at high stars: ' + JSON.stringify(hot));
+    await game(() => { const { G } = __neonbay; G.wanted = 0; G.heat = 0; });
+    check(await until(() => +document.getElementById('radarWrap').style.getPropertyValue('--heat') === 0), 'the glow stayed on with no stars');
+    check(!(await glow()).pulse, 'still pulsing with no stars');
+  });
+
   await step('lights the streets at night', async () => {
     await game(() => __neonbay.lighting.set(1));
     check(await until(() => __neonbay.lighting.lit.lamps > 0 && __neonbay.lighting.lit.beams > 0), 'no street lamps or headlights came on');
