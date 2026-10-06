@@ -23,13 +23,13 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 | --- | --- |
 | WASD | Move |
 | Mouse | Look and aim (click to capture the mouse) |
-| Left click / right click | Shoot (or punch and swing a melee weapon; every third punch is a kick) / zoom aim |
+| Left click / right click | Shoot (or punch and swing a melee weapon; every third punch is a kick) / zoom aim (with the sniper rifle, right click steps the scope through 2.25x, 9x and back out) |
 | Shift / Space | Sprint / jump |
 | E | Enter a gun shop, take the stairs to a roof and back down |
 | F | Get on or off a motorcycle, get in or out of a car, pull a driver out of their car |
 | On a bike: W / S, A / D, Shift, Space | Throttle / brake, lean, boost, rear brake. You can still shoot. |
 | In a car: W / S, A / D, Shift, Space | Gas / brake, steer, boost, handbrake. Steer with the handbrake to drift; hold the gas to keep the slide going, countersteer to straighten out. |
-| 1–6, mouse wheel | Switch weapons |
+| 1–7, mouse wheel | Switch weapons |
 | Q | Put the guns away: fists, then each melee weapon you own |
 | R | Reload |
 | M | Toggle the radio (Neon FM builds up with your wanted level: synths only at zero stars, drums from one star, more layers up to five) |
