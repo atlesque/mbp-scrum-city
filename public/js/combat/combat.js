@@ -14,6 +14,7 @@ import { scene } from '../render/scene.js';
 import { boltOut } from './scope.js';
 import { drawWeaponIcon, toast } from '../ui/hud.js';
 import { raySphere, wallHit } from '../world/collision.js';
+import { blastProps } from '../world/props.js';
 import { nextMelee } from './melee.js';
 
 // ================= COMBAT =================
@@ -100,6 +101,7 @@ export function explosion(x, y, z, R, dmg, byPlayer, power = 1) {
   cam.shake = stackShake(cam.shake, blastShake(R, Math.hypot(x - P.x, z - P.z, y - P.y)));
   for (const e of all()) if (e.blast && !e.removed) e.blast(x, y, z, R, dmg, byPlayer);
   for (const e of all()) if (e.fling && !e.removed) e.fling(x, y, z, R, power); // a second pass, so whoever the blast just killed flies too
+  blastProps(x, y, z, R, power); // palms, lamps and beach props nearby go over
   if (dP < R && P.alive) hurtPlayer((dmg * (1 - dP / R) + 10) * (byPlayer ? 0.35 : 0.6));
   alarm(x, z, 50);
 }

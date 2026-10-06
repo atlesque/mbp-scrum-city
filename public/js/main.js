@@ -27,6 +27,7 @@ import { updateEngineSound } from './vehicles/engine.js';
 import { spawnTrafficBike, spawnTrafficCar } from './vehicles/traffic.js';
 import { spawnVehicle } from './vehicles/vehicle.js';
 import { loadLandmarkModels } from './world/landmarks.js';
+import { updateProps } from './world/props.js';
 import { SPAWN, armorSpots, buildWorld, healthSpots, lotSpots, shopSpots, waterBase, waterMesh } from './world/city.js';
 import { isFree } from './world/collision.js';
 import { updateEdges } from './world/edges.js';
@@ -49,7 +50,7 @@ function frame(now) {
     // every person, vehicle, pickup and shop in the world
     for (const e of all()) if (e.update && !e.removed) e.update(dt);
     updateEngineSound();
-    updateRockets(dt); updateParts(dt); updateFx(dt); updateLighting(dt);
+    updateRockets(dt); updateProps(dt); updateParts(dt); updateFx(dt); updateLighting(dt);
     if (G.state !== 'title') updateWanted(dt);
     managePopulation(dt);
     // water swell
