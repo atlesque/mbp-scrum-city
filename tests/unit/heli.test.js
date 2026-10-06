@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { G, P } from '../../public/js/core/state.js';
 import { WBY, wStat } from '../../public/js/data/weapons.js';
 import { HELI_HP, removeHeli, spawnHeli } from '../../public/js/vehicles/heli.js';
+import { tallBoxes } from '../../public/js/world/collision.js';
 
 vi.mock('../../public/js/game/pickups.js', () => ({ reward() {} }));
 
@@ -44,5 +45,19 @@ describe('police helicopter', () => {
     for (let i = 0; i < 200 && G.heli; i++) h.update(0.05);
     expect(G.heli).toBeNull();
     expect(h.removed).toBe(true);
+  });
+  it('holds fire until it has seen the player for a moment', () => {
+    const h = chopper(); G.wanted = 5; P.alive = true; h.fireT = 0;
+    h.update(0.01);
+    expect(h.burst).toBe(0);
+    for (let i = 0; i < 30 && h.burst === 0; i++) h.update(0.01);
+    expect(h.burst).toBeGreaterThan(0);
+  });
+  it('never opens up through a building', () => {
+    const h = chopper(); G.wanted = 5; P.alive = true; h.fireT = 0;
+    const wall = { x0: -20, x1: 20, z0: 4, z1: 6, h: 200 }; tallBoxes.push(wall);
+    try {
+      for (let i = 0; i < 100; i++) { h.update(0.02); expect(h.burst).toBe(0); }
+    } finally { tallBoxes.splice(tallBoxes.indexOf(wall), 1); G.wanted = 0; }
   });
 });
