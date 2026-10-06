@@ -48,7 +48,7 @@ export const bike = {
   crash: { exitSpeed: 9, hurt: 1.4 },
   ram: { mass: 1, hull: [0.62, 0.42], heavierAt: 3, sameAt: 10 },
   ridesOver: 12, // m/s: meet a car slower than this and ride up over it, faster and crash into it
-  camera: { dist: 6.2, aimDist: 3.4, height: 1.95, fovPerSpeed: 0.35 },
+  camera: { dist: 6.2, aimDist: 3.4, height: 1.95, fovPerSpeed: 0.35, minArm: 2.2 }, // minArm: see game/camera.js
   laneHalf: 1.4, trafficDespawn: 170, reachMax: 2.8, ambientEngine: true,
   tip: M => M.name + '. <em>W</em>/<em>S</em> throttle and brake, <em>A</em>/<em>D</em> lean, <em>Shift</em> boost, <em>Space</em> rear brake, <em>F</em> to get off. Guns still work.',
 

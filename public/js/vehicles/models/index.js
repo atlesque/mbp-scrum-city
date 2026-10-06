@@ -13,6 +13,7 @@ import t7 from './t7.js';
 //   id, kind, name, short (HUD), tag (toasts), hp
 //   handling   overrides for the kind's handling (top speed, accel, brakes, steering)
 //   engine     { rev } pitch multiplier, { gears } speed (m/s) at each gear change
+//   electric   true: no engine note, a pedestrian-warning hum below 30 km/h and road noise above it
 //   traffic    { weight, speed: [min, max] }; weight 0 keeps it out of random traffic
 //   police     true for cop cars: flashing lights, and they leave with the heat
 // Bikes also give spec / geos / wheel / decal / decalAt (see models/gs.js); cars give mesh().

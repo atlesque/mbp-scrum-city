@@ -583,6 +583,16 @@ try {
     check(await until(() => __neonbay.Sound.voices().siren === 0), 'the sirens kept going after the cars left');
   });
 
+  await step('an electric car in traffic hums instead of revving', async () => {
+    await game(() => {
+      const { P, spawnVehicle, spawnNpc } = __neonbay;
+      const c = window.__ev = spawnVehicle('eqa', P.x + 6, P.z, 0, 'traffic'); c.seatDriver(spawnNpc('motorist', c.x, c.z));
+    });
+    check(await until(() => __neonbay.Sound.voices().ev === 1), 'the EQA makes no sound: ' + JSON.stringify(await game(() => __neonbay.Sound.voices())));
+    await game(() => { const c = __ev; if (c.driver) __neonbay.removeEntity(c.driver); __neonbay.removeEntity(c); });
+    check(await until(() => __neonbay.Sound.voices().ev === 0), 'the EQA hum kept going after it left');
+  });
+
   await step('survives a five-star chase', async () => {
     await game(() => { const { G, P } = __neonbay; G.heat = 100; G.wanted = 5; G.spawnT = 0; G.heliT = 0; P.hp = 100; });
     check(await until(() => __neonbay.all('npc').some(n => n.faction === 'law' && n.alive) && __neonbay.all('vehicle').some(v => v.model.police), undefined, 40000), 'the law never showed up');
