@@ -5,7 +5,7 @@ import { clamp } from '../core/util.js';
 export const colliders = [], tallBoxes = [], HASH = new Map(), HC = 20;
 const hkey = (i, j) => (i + 100) * 1000 + (j + 100);
 export function addCollider(x0, x1, z0, z1, h, tall) {
-  const c = { x0, x1, z0, z1, h }; colliders.push(c); if (tall) tallBoxes.push(c);
+  const c = { x0, x1, z0, z1, h, tall: !!tall }; colliders.push(c); if (tall) tallBoxes.push(c);
   for (let i = Math.floor(x0 / HC); i <= Math.floor(x1 / HC); i++) for (let j = Math.floor(z0 / HC); j <= Math.floor(z1 / HC); j++) {
     const k = hkey(i, j); if (!HASH.has(k)) HASH.set(k, []); HASH.get(k).push(c);
   }
@@ -78,10 +78,12 @@ export function wallHit(ox, oy, oz, dx, dy, dz, maxT) {
 }
 // like wallHit, for a ball of radius r rolled along the ray (the follow camera): each building counts as r bigger on every side,
 // and its walls reach below the ground, so a ray dipping under the street still stops at them.
-// A building the ball already starts inside is ignored, so it can still back out.
+// A building the ball already starts inside is ignored, so it can still back out. Only looks at buildings within a grid cell
+// of the start, so keep maxT under HC.
 export function sweepHit(ox, oy, oz, dx, dy, dz, maxT, r) {
   let best = maxT;
-  for (const b of tallBoxes) {
+  for (const b of nearColliders(ox, oz)) {
+    if (!b.tall) continue;
     const x0 = b.x0 - r, x1 = b.x1 + r, z0 = b.z0 - r, z1 = b.z1 + r, y1 = b.h + r;
     if (ox > x0 && ox < x1 && oz > z0 && oz < z1 && oy < y1) continue;
     const t = rayBox(ox, oy, oz, dx, dy, dz, x0, -50, z0, x1, y1, z1); if (t < best) best = t;
