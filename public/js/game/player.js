@@ -9,6 +9,7 @@ import { save } from '../core/save.js';
 import { settings } from '../core/settings.js';
 import { G, I, P, cam, inv, keys } from '../core/state.js';
 import { $, angDiff, clamp, lerp, rnd } from '../core/util.js';
+import { HEAR, beside } from '../core/spatial.js';
 import { loadAll, wStat } from '../data/weapons.js';
 import { all, removeEntity } from '../entities/registry.js';
 import { emit as emitFx } from '../render/effects.js';
@@ -20,6 +21,7 @@ import { driveByPlayer } from '../vehicles/vehicle.js';
 import { SPAWN } from '../world/city.js';
 import { collide, wallHit } from '../world/collision.js';
 import { collideRoof, roofHit } from '../world/rooftops.js';
+import { BAIL, bailDamage, bailLaunch, tumbleStep } from './bailout.js';
 import { updateInteraction } from './interact.js';
 
 // ================= PLAYER =================
@@ -38,14 +40,15 @@ export function updatePlayer(dt) {
   if (v) {
     driveByPlayer(v, dt);
     if (P.vehicle) v.K.aim(v, P.c, aimingNow ? clamp(angDiff(v.yaw, cam.yaw), -2.4, 2.4) : null, cam.pitch);
-  } else walk(dt, aimingNow);
+  } else if (P.tumble) tumble(dt); else walk(dt, aimingNow);
   // weapon
   const w = curWeapon(), st = wStat(w, inv.lvl[w.id] || 0);
   if (G.reloadT > 0) { G.reloadT -= dt; if (G.reloadT <= 0) { G.reloadT = 0; finishReload(); } }
   G.fireCd -= dt;
   if (w.spin) G.spin = (I.mouseL || I.clickQ > 0) ? Math.min(1, G.spin + dt * 2.5) : Math.max(0, G.spin - dt * 2);
   I.clickQ = Math.max(0, I.clickQ - dt);
-  if (w.melee) {
+  if (P.tumble) P.swing = null; // no fighting while rolling down the road
+  else if (w.melee) {
     // hold or click to keep swinging; nothing to swing at from the saddle
     if (P.vehicle) P.swing = null;
     else if ((I.mouseL || I.clickQ > 0) && G.fireCd <= 0 && G.state === 'play') { playerSwing(w, st); I.clickQ = 0; }
@@ -59,6 +62,7 @@ export function updatePlayer(dt) {
     for (const a of all('npc')) { if (!onFoot(a) || P.roof) continue; const dx = a.x - P.x, dz = a.z - P.z, d = Math.hypot(dx, dz); if (d < 0.75 && d > 0.001) { const k = (0.75 - d) * 0.5; a.x += dx / d * k; a.z += dz / d * k; P.x -= dx / d * k; P.z -= dz / d * k; } }
     animateChar(P, dt);
     P.c.root.position.set(P.x, floorY(), P.z); P.c.root.rotation.y = P.yaw;
+    if (P.tumble) rollPose(-P.tumble.roll); // rolling out towards the body's +x side turns it the negative way round z
   }
   updateInteraction();
 }
@@ -90,6 +94,26 @@ function walk(dt, aimingNow) {
   else if (ml > 0) faceTo(P, Math.atan2(mx, mz), dt, 10);
 }
 
+// thrown out of a moving vehicle (see bailout.js): no control until the player has rolled to a stop and is back up
+function tumble(dt) {
+  const T = P.tumble, air = P.y > 0 || P.vy > 0;
+  const going = tumbleStep(P, T, dt);
+  if (collide(P, 0.38)) { P.vx *= 0.6; P.vz *= 0.6; }
+  if (air && P.y === 0 && P.vy === 0) { Sound.thud(0.35, beside(0, 0), HEAR.near); emitFx(P.x, 0.15, P.z, 6, '#cfc8d8', 2, 0.4, 0.2, 1, 1); }
+  P.moveSpeed = 0; P.jumpY = P.y; P.grounded = false;
+  if (!going) { P.tumble = null; P.vx = P.vz = P.vy = 0; P.y = 0; P.jumpY = 0; P.grounded = true; rollPose(0); }
+}
+// roll the body sideways round its middle rather than its feet
+function rollPose(roll) {
+  const b = P.c.body, h = 0.9;
+  b.rotation.z = roll; b.position.x = h * Math.sin(roll); b.position.y += h * (1 - Math.cos(roll));
+}
+// which side to bail out of: the door side unless a wall is right there
+function bailSide(v, reach) {
+  const free = s => wallHit(v.x, 1, v.z, Math.cos(v.yaw) * s, 0, -Math.sin(v.yaw) * s, reach);
+  return free(1) >= reach || free(1) >= free(-1) ? 1 : -1;
+}
+
 // ---- getting on and off vehicles ----
 const told = {};
 export function enterVehicle(v) {
@@ -102,12 +126,19 @@ export function enterVehicle(v) {
 export function exitVehicle(crash) {
   const v = P.vehicle; if (!v) return;
   P.vehicle = null; v.driver = null; v.K.unseat(v, P.c);
-  const sp = Math.abs(v.v), at = v.K.exitAt(v);
-  P.x = at.x; P.z = at.z; collide(P, 0.38);
+  // still moving fast: bail out sideways, away from the vehicle and clear of its path, and take a few knocks
+  const vx = P.vx || 0, vz = P.vz || 0, sp = Math.max(Math.abs(v.v), Math.hypot(vx, vz)), fast = sp > v.K.crash.exitSpeed && P.alive;
+  const door = v.K.exitAt(v), dx = door.x - v.x, dz = door.z - v.z, side = fast ? bailSide(v, Math.hypot(dx, dz) + 1.2) : 1;
+  P.x = v.x + dx * side; P.z = v.z + dz * side; collide(P, 0.38, v);
   P.y = 0; P.vy = 0; P.grounded = true; P.yaw = v.yaw; P.vx = P.vz = 0; P.moveSpeed = 0;
   P.c.root.position.set(P.x, 0, P.z); P.c.root.rotation.y = P.yaw;
-  v.K.onPlayerExit(v, crash, sp);
-  if (sp > v.K.crash.exitSpeed) hurtPlayer(Math.min(60, sp * 1.1));
+  v.K.onPlayerExit(v, crash, sp, side);
+  if (fast) {
+    const T = P.tumble = bailLaunch(v.yaw, vx, vz, side);
+    P.vx = T.vx; P.vz = T.vz; P.vy = T.vy; P.grounded = false;
+    P.bailFrom = v; P.bailT = G.time + BAIL.ghost; // the vehicle rolls on past without running into them
+    hurtPlayer(bailDamage(sp, v.K.crash.exitSpeed)); cam.shake = Math.max(cam.shake, 0.3);
+  }
   G.hudCache = '';
   emit('vehicle:exit', { vehicle: v, crash });
 }
@@ -145,6 +176,7 @@ export function updateCamera(dt) {
   camera.lookAt(camTarget.x + d.x * 30, camTarget.y + d.y * 30, camTarget.z + d.z * 30);
 }
 export function die() {
+  if (P.tumble) { P.tumble = null; rollPose(0); }
   P.alive = false; P.deadT = 0; P.aiming = false; P.hp = 0; G.state = 'dead'; G.deadT = 0; I.mouseL = false; I.mouseR = false;
   if (P.vehicle) exitVehicle(true);
   const fee = Math.min(inv.money, Math.round(inv.money * 0.1));

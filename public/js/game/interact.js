@@ -10,7 +10,7 @@ const leave = { keys: ['KeyF', 'KeyE'], prompt: null, priority: 9, dist: 0, run:
 const better = (a, b) => b.priority - a.priority || a.dist - b.dist;
 export function updateInteraction() {
   const near = [];
-  if (P.alive && G.state === 'play') {
+  if (P.alive && G.state === 'play' && !P.tumble) { // nothing to grab while rolling down the road
     if (P.vehicle) near.push(leave);
     else for (const e of entities) { if (!e.interaction || (P.roof && !e.onRoof)) continue; const it = e.interaction(P); if (it) near.push(it); }
   }
