@@ -1,5 +1,5 @@
 // Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, snipe through the scope, throw a car with a rocket,
-// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, ride a bike over a car, shunt a parked car, drift, drive up a kerb, walk into the edge wall, take the stairs to a roof and change settings. Fails on any page error or broken step.
+// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, ride a bike over a car, shunt a parked car, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof and change settings. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -96,11 +96,13 @@ try {
       check(await until(id => (__neonbay.G.near[0] || {}).prompt?.includes(__neonbay.all('vehicle').find(v => v.testId === id).model.name), id), 'no prompt to get on');
       await press('KeyF');
       check(await until(id => __neonbay.P.vehicle && __neonbay.P.vehicle.testId === id, id), 'F did not get the player on board');
-      const from = await game(() => ({ x: __neonbay.P.vehicle.x, z: __neonbay.P.vehicle.z }));
+      const from = await game(() => ({ x: __neonbay.P.vehicle.x, z: __neonbay.P.vehicle.z, spin: __neonbay.P.vehicle.mesh.wheels.map(w => w.rotation.x) }));
       await page.keyboard.down('KeyW');
       const moved = await until(f => Math.hypot(__neonbay.P.vehicle.x - f.x, __neonbay.P.vehicle.z - f.z) > 3, from);
       await page.keyboard.up('KeyW');
       check(moved, 'vehicle did not move');
+      const spun = await game(f => __neonbay.P.vehicle.mesh.wheels.filter((w, i) => w.rotation.x !== f.spin[i]).length, from);
+      check(spun === from.spin.length, `only ${spun} of ${from.spin.length} wheels turned`);
       await page.keyboard.down('KeyS');
       const stopped = await until(() => Math.abs(__neonbay.P.vehicle.v) < 3);
       await page.keyboard.up('KeyS');
@@ -377,6 +379,7 @@ try {
   });
 
   await step('rides a bike up and over a parked car, and crashes into one going fast', async () => {
+    await until(() => !__neonbay.P.tumble); // still rolling from bailing out of the last car
     await clearVehicles(5, -50);
     await game(() => { const { P, spawnVehicle } = __neonbay; P.x = 4.5; P.z = -60; window.__ram = spawnVehicle('gs', 3, -60, 0); });
     check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes(__ram.model.name)), 'no prompt to get on');
@@ -466,6 +469,33 @@ try {
     await page.keyboard.up('KeyS');
     await press('KeyF');
     check(await until(() => !__neonbay.P.vehicle), 'F did not get the player out');
+    await game(() => __neonbay.removeEntity(__ram));
+  });
+
+  for (const model of ['sedan', 't7']) await step(`bails out of a ${model} at speed, sideways and clear of it`, async () => {
+    // on the open beach, heading up it at top speed
+    await clearVehicles(228, -60);
+    await game(m => { const { P, spawnVehicle } = __neonbay; P.x = 230.5; P.z = -60; window.__ram = spawnVehicle(m, 228, -60, 0); }, model);
+    check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes(__ram.model.name)), 'no prompt to get on');
+    await press('KeyF');
+    check(await until(() => __neonbay.P.vehicle === window.__ram), 'F did not put the player on board');
+    await until(() => __neonbay.G.near.some(i => i.priority === 9));
+    await game(() => {
+      const { P } = __neonbay; P.hp = 100; P.armor = 0; __ram.x = 228; __ram.z = -60; __ram.yaw = 0; __ram.v = 32; P.vx = 0; P.vz = 32;
+      // how close the body comes to the player while they roll away
+      window.__gap = Infinity; const up = __ram.update;
+      __ram.update = function (dt) { up.call(this, dt); if (P.tumble) __gap = Math.min(__gap, this.K.reach ? Math.max(0, Math.hypot(this.x - P.x, this.z - P.z) - 1) : 9); };
+    });
+    await press('KeyF');
+    check(await until(() => !__neonbay.P.vehicle), 'F did not get the player off');
+    const mid = await game(() => ({ tumbling: !!__neonbay.P.tumble, hp: __neonbay.P.hp }));
+    check(mid.tumbling, 'the player was not thrown out');
+    check(await until(() => !__neonbay.P.tumble), 'the player never got back up');
+    const r = await game(() => { const { P } = __neonbay; return { hp: P.hp, alive: P.alive, x: P.x, z: P.z, cz: __ram.z, gap: __gap, reach: __ram.K.reach(__ram, P) }; });
+    check(r.alive && r.hp < 100 && r.hp >= 88, `bailing at speed should only sting (hp ${r.hp.toFixed(1)})`);
+    check(r.x > 229.5, `not thrown out sideways (x ${r.x.toFixed(2)})`);
+    check(r.gap > 0.2, `the ${model} ran into the player on the way out (gap ${r.gap.toFixed(2)})`);
+    check(r.cz > r.z, `the ${model} did not roll on past the player`);
     await game(() => __neonbay.removeEntity(__ram));
   });
 
