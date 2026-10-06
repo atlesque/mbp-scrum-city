@@ -11,8 +11,9 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 - Downed police, SWAT, feds, soldiers and heavies can also drop armor (blue) and ammo (yellow) for every gun you own that uses it. Tougher enemies drop more often; a heavy always drops both.
 - Break line of sight with the law and the stars flash and fade one at a time.
 - Two gun shops (pink `$` on the radar) sell an SMG, shotgun, assault rifle, minigun and rocket launcher, plus upgrades, ammo, health and armor. They close at 4+ stars.
-- Adventure bikes cruise the streets (white dots on the radar): the black BMW R 1300 GS 'Triple Black' and the Yamaha Ténéré 700 Rally in blue rally livery. Shoot or ram the rider off, walk up and press `F` to take the bike. Riderless bikes show as cyan squares.
+- Adventure bikes cruise the streets (white dots on the radar): the black BMW R 1300 GS 'Triple Black' and the Yamaha Ténéré 700 Rally in blue rally livery. Shoot or ram the rider off, walk up and press `F` to take the bike. Riderless bikes show as cyan squares. Ride into a car gently (nosing into a parked one, or catching up with one going your way) and the bike climbs up over its bonnet and roof and drops off the far side; hit one hard and you crash into it.
 - Every car can be driven: 80s sedans and the white Tesla Model Y. Traffic cars have someone at the wheel. Shoot them through the glass, or walk up to a slow or stopped car and press `F` to drag them out (that's a crime). Parked cars are free to take. Cars crash into each other: drive into one and it skids off, dented and spinning if you hit it off-centre, and can knock into the next one along.
+- Eight buildings around the city have a lit **Roof** door at street level (green squares on the radar). Press `E` there to take the stairs up to a fenced rooftop with a view over the city, and `E` at the stair hut's **Exit** door to come back down.
 - Dying sends you to City General with a 10% hospital bill. Progress saves in `localStorage`.
 - **Settings** (pause menu or title screen): sound on/off, effects and music volume, render quality, draw distance, animated waves, mouse sensitivity, invert look, field of view, camera shake, crowd and traffic density, km/h or mph, and a read-only list of the controls. Settings save in this browser, separately from game progress.
 
@@ -22,13 +23,14 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 | --- | --- |
 | WASD | Move |
 | Mouse | Look and aim (click to capture the mouse) |
-| Left click / right click | Shoot / zoom aim |
+| Left click / right click | Shoot (or punch and swing a melee weapon; every third punch is a kick) / zoom aim |
 | Shift / Space | Sprint / jump |
-| E | Enter a gun shop |
+| E | Enter a gun shop, take the stairs to a roof and back down |
 | F | Get on or off a motorcycle, get in or out of a car, pull a driver out of their car |
 | On a bike: W / S, A / D, Shift, Space | Throttle / brake, lean, boost, rear brake. You can still shoot. |
 | In a car: W / S, A / D, Shift, Space | Gas / brake, steer, boost, handbrake. Steer with the handbrake to drift; hold the gas to keep the slide going, countersteer to straighten out. |
 | 1–6, mouse wheel | Switch weapons |
+| Q | Put the guns away: fists, then each melee weapon you own |
 | R | Reload |
 | M | Toggle the radio (Neon FM builds up with your wanted level: synths only at zero stars, drums from one star, more layers up to five) |
 | Esc / P | Pause |
@@ -62,7 +64,11 @@ Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share 
 
 **A new NPC.** Add an entry to `NPC_TYPES` in `npcs/types.js` (faction, behaviour, hp, look, cash, heat, `drops`, and weapon stats if armed). Spawn it with `spawnNpc(id, x, z)`, through a wanted level's `mix` in `data/wanted.js`, or with a row in `POPULATION` in `game/population.js`. New behaviours go in `npcs/behaviours.js`.
 
+**A new melee weapon.** Add a `melee({ ... })` entry to `WEAPONS` in `data/weapons.js` with its damage, `rate` (seconds between swings), `reach`, `arc`, `knock`, `hits` and `anim` (`punch`, `swing`, `chop`, `stab` or `saw`, the moves in `characters/swing.js`); `blade` cuts, `auto` keeps cutting while the button is held. Give it a model in `characters/melee-models.js` (grip at the origin, running down -Y, tipped forward by `tilt`) and an icon in `drawWeaponIcon` (`ui/hud.js`). It shows up in the gun shop on its own; list it in `STREET_MELEE` in `main.js` to lie around the city too. Blows land in `combat/melee.js` and use the same hit zones as bullets; people reel or go down (`meleeHit` in `npcs/npc.js`), and civilians with `fightBack` may punch back (the `brawl` behaviour).
+
 **A new shop.** Add an entry to `SHOP_TYPES` in `shops/types.js` (name, marker, storefront, catalogue) and place it in `SHOP_SITES` in `world/city.js`. New kinds of goods are an entry in `ITEM_TYPES` in `shops/items.js` with `render` and `act`.
+
+**More rooftop doors.** `ROOF_COUNT` in `world/rooftops.js` sets how many buildings get one. They are chosen from the flat-roofed city buildings after the city is built (the first next to the spawn, then each as far from the others as it can be), without the seeded random, so the rest of the layout doesn't move. `makeRoof` lays out the door, railings, stair hut and air-con units; the player's `P.roof` says which roof they are on, and `game/rooftop.js` holds the door entity. `node tests/roof-shots.mjs <folder>` takes screenshots of a door and its roof by day and night.
 
 **A new landmark.** Add a model file to `world/landmark-models/` and list it in `LANDMARK_MODELS` (it builds with the small kit in `kit.js`, in block-local metres with the front facing north, and marks its solid volumes with `k.solid()`), then place it in `LANDMARK_SITES` in `world/landmarks.js` with the block it takes and the street it faces, and give it a name sign in `SIGNS` there. Preview it at `/dev/landmarks.html?b=<type>`. The three Flemish government buildings (VAC Gent, the Herman Teirlinck and the Belpaire building) are worked examples. A site can also point at a `.glb` file instead (see `world/models.js`).
 
@@ -86,7 +92,7 @@ Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share 
 
 ```bash
 npm test             # unit tests (Vitest): rules, shop items, save migration, registry cross-checks
-npm run test:smoke   # plays the game in headless Chromium: walk, drive, ride, shoot, carjack, shop, a 5-star chase
+npm run test:smoke   # plays the game in headless Chromium: walk, drive, ride, shoot, carjack, shop, go up to a roof, a 5-star chase
 ```
 
 The registry tests catch a typo in a new vehicle, NPC or shop (an unknown kind, behaviour, weapon or item type). Opening the game with `?debug` exposes its state as `window.__neonbay`. `node tests/camera-shots.mjs` screenshots the follow camera in a narrow alley, on foot and in a car, and prints how far it stays from the walls. CI runs the unit tests on every pull request. The smoke test is too slow and timing-sensitive for shared CI runners, so it runs locally instead: `npm run test:smoke` must pass on your machine before a pull request is merged (run `npx playwright install chromium` once first).

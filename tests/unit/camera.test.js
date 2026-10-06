@@ -24,6 +24,11 @@ describe('camera sweep against buildings', () => {
     const d = Math.SQRT1_2;
     expect(sweepHit(AX, 1.6, AZ, -d, -d, 0, 10, CAM_R)).toBeCloseTo((1.6 - CAM_R) / d, 5);
   });
+  it('stops at a rooftop hut passed in as an extra box, and clears the roof trim', () => {
+    const hut = [{ x0: AX - 1, x1: AX + 1, y0: 20.6, y1: 23, z0: AZ - 10, z1: AZ - 8 }];
+    expect(sweepHit(AX, 22.3, AZ, 0, 0, -1, 10, CAM_R, hut)).toBeCloseTo(8 - CAM_R, 5);
+    expect(sweepHit(AX - 8, 30, AZ, 0, -1, 0, 20, CAM_R)).toBeCloseTo(30 - 20.7 - CAM_R, 5); // down onto the west building
+  });
   it('lets a ball that starts inside a building back out of it', () => {
     expect(sweepHit(AX - 1.5, 1.6, AZ, 1, 0, 0, 10, CAM_R)).toBeCloseTo(3.2 - CAM_R - 0.1, 5);
   });

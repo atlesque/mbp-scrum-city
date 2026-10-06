@@ -14,7 +14,11 @@ import { skidMark } from '../skids.js';
 const HW = 1.0, HL = 2.15; // half width and half length of the body
 const SILL = 0.95; // bottom of the windows: shots above it reach whoever is inside
 const WX = 0.82, WZ = 1.35; // wheels: half the track and half the wheelbase
-const SKID = 3; // sideways speed (m/s) above which the tyres squeal, smoke and leave marks
+const SKID = 3;
+// the shape of the top of the body for a bike riding over it (topAt): height along the length, front first, and across
+const TOP_ALONG = [[HL, 0.75], [HL - 0.3, 0.95], [1.05, 1.02], [0.35, 1.5], [-0.75, 1.5], [-1.2, 1.05], [-HL + 0.35, 1.0], [-HL, 0.8]];
+const TOP_ACROSS = [[HW, 0.85], [HW - 0.35, 1.5], [0, 1.5]];
+const profile = (pts, t) => { for (let i = 1; i < pts.length; i++) { const [t1, h1] = pts[i], [t0, h0] = pts[i - 1]; if (t >= t1) return lerp(h1, h0, (t - t1) / (t0 - t1)); } return pts[pts.length - 1][1]; }; // sideways speed (m/s) above which the tyres squeal, smoke and leave marks
 
 // Cars: four wheels, no lean, the driver sits inside out of sight. See kinds/bike.js for what each field means.
 // AI traffic keeps its body out of other cars' instead of driving through them
@@ -147,6 +151,13 @@ export const car = {
   exitAt: c => ({ x: c.x + Math.cos(c.yaw) * (HW + 0.7), z: c.z - Math.sin(c.yaw) * (HW + 0.7) }),
   hitBox(c) { const sy = Math.abs(Math.sin(c.yaw)), cy = Math.abs(Math.cos(c.yaw)); return { hx: sy * HL + cy * HW, hz: cy * HL + sy * HW, h: 1.55 }; },
   pushOut(c, o, r) { return pushOutOBB(o, r, c.x, c.z, c.yaw, HW, HL); },
+  // how high the top of the body is at (x, z), for a bike riding over it (see vehicles/knock.js); -Infinity off it
+  topAt(c, x, z) {
+    const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw), rx = x - c.x, rz = z - c.z;
+    const lx = Math.abs(rx * fz - rz * fx), lz = rx * fx + rz * fz;
+    if (lx > HW || Math.abs(lz) > HL) return -Infinity;
+    return Math.min(profile(TOP_ALONG, lz), profile(TOP_ACROSS, lx)) + (c.gy || 0) + (c.air || 0);
+  },
   // distance from the player to the nearest point of the body
   reach(c, p) {
     const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw), rx = p.x - c.x, rz = p.z - c.z;

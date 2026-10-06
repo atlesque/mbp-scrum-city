@@ -15,6 +15,15 @@ export function drawWeaponIcon() {
     rifle: [[-90, -16, 170, 20], [-20, 4, 18, 40], [-96, -12, 40, 30], [80, -10, 22, 6], [20, -26, 40, 10]],
     minigun: [[-80, -26, 100, 46], [20, -20, 80, 8], [20, -6, 80, 8], [20, 8, 80, 8], [-60, 20, 20, 24]],
     rpg: [[-100, -14, 200, 24], [60, -20, 30, 36], [-20, 10, 14, 30], [-60, 10, 14, 24]],
+    fist: [[-28, -30, 52, 40], [-28, -38, 13, 12], [-15, -40, 13, 12], [-2, -40, 13, 12], [11, -38, 13, 12], [-40, -12, 16, 26], [-20, 10, 40, 30]],
+    knuckles: [[-56, -16, 112, 30], [-50, -24, 22, 12], [-22, -24, 22, 12], [6, -24, 22, 12], [34, -24, 22, 12]],
+    knife: [[-90, -8, 60, 18], [-30, -16, 8, 34], [-22, -8, 100, 14], [78, -6, 14, 8]],
+    nightstick: [[-110, -9, 220, 18], [-60, 9, 12, 30]],
+    golf: [[-110, -6, 50, 14], [-60, -4, 150, 9], [86, -6, 22, 30]],
+    bat: [[-110, -6, 40, 13], [-70, -8, 60, 17], [-10, -12, 70, 24], [60, -15, 52, 30]],
+    machete: [[-100, -8, 46, 18], [-54, -14, 8, 30], [-46, -10, 130, 22], [84, -6, 18, 16]],
+    katana: [[-112, -7, 64, 15], [-48, -16, 8, 32], [-40, -5, 150, 11], [110, -3, 6, 7]],
+    chainsaw: [[-100, -24, 70, 44], [-96, -36, 46, 12], [-30, -12, 140, 20], [-104, 20, 30, 10]],
   };
   for (const s of shapes[id]) { x.strokeRect(s[0], s[1], s[2], s[3]); }
   for (const s of shapes[id]) { x.fillRect(s[0], s[1], s[2], s[3]); }
@@ -22,11 +31,11 @@ export function drawWeaponIcon() {
 }
 export function updateHUD() {
   const w = curWeapon(), mag = inv.mag[w.id] || 0;
-  const ammoStr = G.reloadT > 0 ? 'Reloading' : `${mag}<span>/${w.infinite ? '∞' : (inv.ammo[w.id] || 0)}</span>`;
+  const ammoStr = w.melee ? '' : G.reloadT > 0 ? 'Reloading' : `${mag}<span>/${w.infinite ? '∞' : (inv.ammo[w.id] || 0)}</span>`;
   const key = [ammoStr, w.name, Math.ceil(P.hp), Math.ceil(P.armor), inv.money, G.wanted].join('|');
   if (key !== G.hudCache) {
     G.hudCache = key;
-    $('ammo').innerHTML = ammoStr; $('wname').textContent = w.name;
+    $('ammo').innerHTML = ammoStr; $('wname').textContent = w.name; $('crosshair').style.opacity = w.melee ? '0.45' : '';
     $('hpNum').textContent = Math.max(0, Math.ceil(P.hp)); $('hpFill').style.width = clamp(P.hp, 0, 100) + '%';
     $('arNum').textContent = Math.ceil(P.armor); $('arFill').style.width = clamp(P.armor, 0, 100) + '%';
     $('money').textContent = '$' + String(Math.max(0, inv.money)).padStart(8, '0');

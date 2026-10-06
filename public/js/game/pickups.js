@@ -1,6 +1,8 @@
 import { Sound } from '../core/audio.js';
 import { G, P, inv, stats } from '../core/state.js';
-import { WEAPONS } from '../data/weapons.js';
+import { WBY, WEAPONS } from '../data/weapons.js';
+import { charMat, gunGeo } from '../characters/character.js';
+import { toast } from '../ui/hud.js';
 import { $, lerp } from '../core/util.js';
 import { addEntity, removeEntity } from '../entities/registry.js';
 import { PGEO } from '../render/effects.js';
@@ -37,6 +39,41 @@ export function makePickup(type, x, z) {
   const def = PICKUP_TYPES[type], m = def.mesh();
   m.position.set(x, 0.9, z); scene.add(m);
   return addEntity(Object.assign(Object.create(Pickup), { type, def, x, z, m, active: true, respawnT: 0 }));
+}
+
+// Melee weapons lying in the street, Vice City style: a slowly turning bat or blade over a soft glow. Walk over one
+// you don't have yet to pick it up; it comes back a while after it's taken. takeWeapon(inv, id) hands it over and
+// says whether it was new.
+export const WEAPON_PICKUP_RESPAWN = 90;
+export function takeWeapon(inv, id) {
+  if (inv.owned[id]) return false;
+  inv.owned[id] = true; inv.lvl[id] = inv.lvl[id] || 0; inv.mag[id] = 0; return true;
+}
+const glowGeo = new THREE.CircleGeometry(0.75, 20); glowGeo.rotateX(-Math.PI / 2);
+const glowMat = new THREE.MeshBasicMaterial({ color: '#ffd23e', transparent: true, opacity: 0.32, depthWrite: false });
+let toldMelee = false;
+const WeaponPickup = {
+  kind: 'pickup',
+  update(dt) {
+    const p = this;
+    if (!p.active) { p.respawnT -= dt; if (p.respawnT <= 0) { p.active = true; p.m.visible = p.glow.visible = true; } return; }
+    p.m.rotation.y += dt * 1.8; p.m.position.y = 1.0 + Math.sin(G.time * 2.4 + p.x) * 0.1;
+    if (!P.alive || P.vehicle || Math.hypot(P.x - p.x, P.z - p.z) > 1.3 || !takeWeapon(inv, p.id)) return;
+    Sound.pickup(); feed(WBY[p.id].name, false, '#ffd23e');
+    if (!toldMelee) { toldMelee = true; toast(`Got a <em>${WBY[p.id].name}</em>. Press <em>Q</em> to switch between your fists and melee weapons.`, 6); }
+    p.onTaken && p.onTaken(p.id);
+    p.active = false; p.m.visible = p.glow.visible = false; p.respawnT = WEAPON_PICKUP_RESPAWN;
+  },
+  dispose() { scene.remove(this.m); scene.remove(this.glow); },
+};
+export function makeWeaponPickup(id, x, z, onTaken) {
+  const inner = new THREE.Mesh(gunGeo(id).geo, charMat), tilt = gunGeo(id).tilt || 0;
+  inner.rotation.x = tilt; // stand it upright again (models tip forward to sit in a hand)
+  const hold = new THREE.Group(); hold.add(inner); hold.rotation.z = Math.PI / 2; hold.scale.setScalar(1.5); // lie it on its side
+  const box = new THREE.Box3().setFromObject(hold), c = box.getCenter(new THREE.Vector3()); hold.position.sub(c);
+  const m = new THREE.Group(); m.add(hold); m.position.set(x, 1, z); scene.add(m);
+  const glow = new THREE.Mesh(glowGeo, glowMat); glow.position.set(x, 0.05, z); scene.add(glow);
+  return addEntity(Object.assign(Object.create(WeaponPickup), { id, x, z, m, glow, active: true, respawnT: 0, onTaken }));
 }
 
 // dropped cash: drifts to the player when close, vanishes after 40 s

@@ -1,6 +1,7 @@
 import { setGun, muzzleOf } from '../characters/character.js';
 import { Sound } from '../core/audio.js';
 import { HEAR } from '../core/spatial.js';
+import { blastShake, stackShake } from './shake.js';
 import { G, I, P, cam, inv } from '../core/state.js';
 import { $, clamp, rnd } from '../core/util.js';
 import { WBY, WEAPONS, wStat } from '../data/weapons.js';
@@ -12,6 +13,7 @@ import { PGEO, boomFx, emit, muzzleFlash, pmat, tracer } from '../render/effects
 import { scene } from '../render/scene.js';
 import { drawWeaponIcon, toast } from '../ui/hud.js';
 import { raySphere, wallHit } from '../world/collision.js';
+import { nextMelee } from './melee.js';
 
 // ================= COMBAT =================
 const _d = new THREE.Vector3();
@@ -85,14 +87,15 @@ export function updateRockets(dt) {
 }
 // distance along a rocket's path to the player's body (or the vehicle they're in), or Infinity
 function hitsPlayer(o, d, maxT) {
-  const v = P.vehicle, r = v ? 1.6 : 0.6, y = v ? 1 : P.y + 1;
+  const v = P.vehicle, r = v ? 1.6 : 0.6, y = P.y + 1;
   const t = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, P.x, y, P.z, r);
   return t < maxT ? Math.max(0, t) : Infinity;
 }
 export function explosion(x, y, z, R, dmg, byPlayer, power = 1) {
   boomFx(x, y, z, R * 0.7);
-  const dP = Math.hypot(x - P.x, z - P.z);
-  Sound.boom(1.2, { x, y, z }, HEAR.boom); cam.shake = Math.max(cam.shake, clamp(1 - dP / 40, 0, 1) * 0.9);
+  const dP = Math.hypot(x - P.x, z - P.z, Math.max(0, Math.abs(y - P.y) - 2)); // a blast in the street doesn't reach a roof
+  Sound.boom(1.2, { x, y, z }, HEAR.boom);
+  cam.shake = stackShake(cam.shake, blastShake(R, Math.hypot(x - P.x, z - P.z, y - P.y)));
   for (const e of all()) if (e.blast && !e.removed) e.blast(x, y, z, R, dmg, byPlayer);
   for (const e of all()) if (e.fling && !e.removed) e.fling(x, y, z, R, power); // a second pass, so whoever the blast just killed flies too
   if (dP < R && P.alive) hurtPlayer((dmg * (1 - dP / R) + 10) * (byPlayer ? 0.35 : 0.6));
@@ -111,10 +114,14 @@ export function finishReload() {
 }
 export function selectWeapon(id) {
   if (!inv.owned[id] || inv.cur === id) return;
-  inv.cur = id; G.reloadT = 0; G.spin = 0; setGun(P.c, id); P.twoHand = !!WBY[id].twoHand;
+  const w = WBY[id];
+  inv.cur = id; G.reloadT = 0; G.spin = 0; setGun(P.c, id); P.twoHand = !!w.twoHand;
+  P.melee = w.melee ? w.anim : null; P.swing = null; if (w.melee) P.lastMelee = id;
   if (inv.mag[id] == null) inv.mag[id] = 0;
   drawWeaponIcon(); startReload.warn = null;
 }
+// Q: fists and the melee weapons the player owns (combat/melee.js)
+export function cycleMelee() { const id = nextMelee(inv.cur, inv.owned, P.lastMelee); if (id) selectWeapon(id); }
 export function cycleWeapon(dir) {
   const owned = WEAPONS.filter(w => inv.owned[w.id]); let i = owned.findIndex(w => w.id === inv.cur);
   i = (i + dir + owned.length) % owned.length; selectWeapon(owned[i].id);

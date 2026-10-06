@@ -92,6 +92,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 
 /* HUD */
 #hud{position:absolute;inset:0;pointer-events:none;user-select:none}
+#fade{position:absolute;inset:0;pointer-events:none;background:#000;opacity:0;transition:opacity .3s}#fade.on{opacity:1;transition:opacity .2s}
 #vignette{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .12s;background:radial-gradient(ellipse at center,rgba(255,0,40,0) 45%,rgba(255,0,40,.55) 100%)}
 #crosshair{position:absolute;left:50%;top:50%;width:0;height:0}
 #crosshair i{position:absolute;background:var(--ink);box-shadow:0 0 0 1px #000;transition:transform .06s}
@@ -250,6 +251,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 <div id="app">
   <div id="stage"></div>
   <div id="vignette"></div>
+  <div id="fade"></div>
   <div id="hud" hidden>
     <div id="crosshair"><i></i><i></i><i></i><i></i><b></b></div>
     <div class="hud-tr">
@@ -274,7 +276,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
     <div id="prompt" hidden></div>
     <div id="bigText" class="outline"></div>
     <div id="speedo" hidden><b id="kmh" class="outline">000</b><span class="u" id="spdUnit">km/h</span><div class="bar bk"><b id="vehHp"></b></div><span class="u"><span id="vehName">R 1300 GS</span> · <kbd>F</kbd> off</span></div>
-    <div id="hint"><kbd>F</kbd> ride / drive · <kbd>1</kbd>–<kbd>6</kbd> / wheel switch · <kbd>R</kbd> reload · <kbd>M</kbd> radio · <kbd>Esc</kbd> pause</div>
+    <div id="hint"><kbd>F</kbd> ride / drive · <kbd>1</kbd>–<kbd>6</kbd> / wheel switch · <kbd>Q</kbd> melee · <kbd>R</kbd> reload · <kbd>M</kbd> radio · <kbd>Esc</kbd> pause</div>
   </div>
 
   <section id="title" class="overlay">
@@ -284,13 +286,14 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
       <div class="controls">
         <div><kbd>WASD</kbd><span>Move</span></div>
         <div><kbd>Mouse</kbd><span>Look &amp; aim</span></div>
-        <div><kbd>L-Click</kbd><span>Shoot</span></div>
+        <div><kbd>L-Click</kbd><span>Shoot, punch, swing</span></div>
         <div><kbd>R-Click</kbd><span>Zoom aim</span></div>
         <div><kbd>Shift</kbd><span>Sprint</span></div>
         <div><kbd>Space</kbd><span>Jump</span></div>
-        <div><kbd>E</kbd><span>Enter gun shop</span></div>
+        <div><kbd>E</kbd><span>Gun shop, roof doors</span></div>
         <div><kbd>F</kbd><span>Ride, drive, get off</span></div>
-        <div><kbd>1–6</kbd><span>Weapons</span></div>
+        <div><kbd>1–6</kbd><span>Guns</span></div>
+        <div><kbd>Q</kbd><span>Fists &amp; melee</span></div>
       </div>
       <p class="small">More heat, tougher squads: police, SWAT, federal agents, the army, and a chopper overhead. Lose a star by breaking line of sight.</p>
       <p class="mobile-note">Built for desktop with a mouse and keyboard.</p>

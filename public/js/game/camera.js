@@ -9,18 +9,20 @@ import { sweepHit } from '../world/collision.js';
 export const CAM_R = 0.3;
 export const LIFTS = [0, 0.3, 0.6, 0.9, 1.2, 1.4]; // radians the arm may swing up, tried in order
 const MAX_LIFTED = -1.4; // the steepest the arm may hang, looking down on the player
+let extra = null; // a rooftop's hut and air-con units while the player is up there
+export function cameraRoof(roof) { extra = roof ? roof.blocks : null; }
 const EASE_OUT = 5, EASE_LIFT = 4, EASE_SIDE = 5; // per second
 const LOOK = 30, LOOK_LIFTED = 1.5, FULL_LIFT = 1.2; // metres along the aim the camera looks at, level and swung up FULL_LIFT or more
 
 // how much of the arm fits, leaving (x, y, z) backwards from a view at yaw and pitch
 export function armRoom(x, y, z, yaw, pitch, want) {
   const cp = Math.cos(pitch);
-  return sweepHit(x, y, z, -Math.sin(yaw) * cp, -Math.sin(pitch), -Math.cos(yaw) * cp, want, CAM_R);
+  return sweepHit(x, y, z, -Math.sin(yaw) * cp, -Math.sin(pitch), -Math.cos(yaw) * cp, want, CAM_R, extra);
 }
 // the shoulder offset that fits beside (x, y, z), up to `side` metres: to the right, or to the left when side is negative
 export function shoulderRoom(x, y, z, yaw, side) {
   const g = side < 0 ? -1 : 1, a = Math.abs(side);
-  return g * Math.max(0, Math.min(a, sweepHit(x, y, z, -Math.cos(yaw) * g, 0, Math.sin(yaw) * g, a + 0.05, CAM_R) - 0.05));
+  return g * Math.max(0, Math.min(a, sweepHit(x, y, z, -Math.cos(yaw) * g, 0, Math.sin(yaw) * g, a + 0.05, CAM_R, extra) - 0.05));
 }
 // which shoulder to look over, 1 (right) or -1 (left): the right, unless a wall there leaves the arm clearly less room than the left would
 export function pickSide(x, y, z, yaw, pitch, side, want, cur = 1) {

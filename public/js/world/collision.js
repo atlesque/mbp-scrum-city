@@ -19,7 +19,7 @@ function nearColliders(x, z) {
 // the play area: the inner faces of the walls round the city (world/edges.js) and the waterline
 export const W = { minX: -207.5, maxX: 252, minZ: -207.5, maxZ: 207.5 };
 export const ROADS = [-200, -150, -100, -50, 0, 50, 100, 150, 200];
-function pushOut(o, r, x0, x1, z0, z1) {
+export function pushOut(o, r, x0, x1, z0, z1) {
   const cx = clamp(o.x, x0, x1), cz = clamp(o.z, z0, z1), dx = o.x - cx, dz = o.z - cz, d2 = dx * dx + dz * dz;
   if (d2 >= r * r) return false;
   if (d2 > 1e-8) { const d = Math.sqrt(d2); o.x += dx / d * (r - d); o.z += dz / d * (r - d); }
@@ -47,7 +47,8 @@ export function collide(o, r, self) {
   let hit = false;
   for (const c of nearColliders(o.x, o.z)) if (pushOut(o, r, c.x0, c.x1, c.z0, c.z1)) hit = true;
   for (const e of entities) {
-    if (!e.pushOut || e === self || Math.abs(e.x - o.x) > 6 || Math.abs(e.z - o.z) > 6) continue;
+    // nor the car a bike is riding over (vehicles/knock.js), which is under it rather than in its way
+    if (!e.pushOut || e === self || Math.abs(e.x - o.x) > 6 || Math.abs(e.z - o.z) > 6 || (self && (self.over === e || e.over === self))) continue;
     if (e.pushOut(o, r)) hit = true;
   }
   const ox = o.x, oz = o.z; o.x = clamp(o.x, W.minX, W.maxX); o.z = clamp(o.z, W.minZ, W.maxZ);
@@ -77,17 +78,20 @@ export function wallHit(ox, oy, oz, dx, dy, dz, maxT) {
   return best;
 }
 // like wallHit, for a ball of radius r rolled along the ray (the follow camera): each building counts as r bigger on every side,
-// and its walls reach below the ground, so a ray dipping under the street still stops at them.
-// A building the ball already starts inside is ignored, so it can still back out. Only looks at buildings within a grid cell
+// its top as high as the roof trim (ROOF_TRIM), and its walls reach below the ground, so a ray dipping under the street still stops at them.
+// `extra` adds boxes with their own y0..y1 (a rooftop's hut and air-con units).
+// A box the ball already starts inside is ignored, so it can still back out. Only looks at buildings within a grid cell
 // of the start, so keep maxT under HC.
-export function sweepHit(ox, oy, oz, dx, dy, dz, maxT, r) {
+export const ROOF_TRIM = 0.7;
+export function sweepHit(ox, oy, oz, dx, dy, dz, maxT, r, extra) {
   let best = maxT;
-  for (const b of nearColliders(ox, oz)) {
-    if (!b.tall) continue;
-    const x0 = b.x0 - r, x1 = b.x1 + r, z0 = b.z0 - r, z1 = b.z1 + r, y1 = b.h + r;
-    if (ox > x0 && ox < x1 && oz > z0 && oz < z1 && oy < y1) continue;
-    const t = rayBox(ox, oy, oz, dx, dy, dz, x0, -50, z0, x1, y1, z1); if (t < best) best = t;
-  }
+  const ball = (x0, y0, z0, x1, y1, z1) => {
+    x0 -= r; x1 += r; y0 -= r; y1 += r; z0 -= r; z1 += r;
+    if (ox > x0 && ox < x1 && oy > y0 && oy < y1 && oz > z0 && oz < z1) return;
+    const t = rayBox(ox, oy, oz, dx, dy, dz, x0, y0, z0, x1, y1, z1); if (t < best) best = t;
+  };
+  for (const b of nearColliders(ox, oz)) if (b.tall) ball(b.x0, -50, b.z0, b.x1, b.h + ROOF_TRIM, b.z1);
+  if (extra) for (const b of extra) ball(b.x0, b.y0, b.z0, b.x1, b.y1, b.z1);
   return best;
 }
 // like wallHit, but also says which face of the building the ray struck: n gets its outward normal
