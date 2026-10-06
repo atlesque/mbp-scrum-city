@@ -92,16 +92,17 @@ const Vehicle = {
   blip(radar) { if (this.driver !== P && !this.dead) this.K.blip(this, radar); },
   interaction(p) {
     if (p.vehicle || this.driver === P || this.dead || this.burnT > 0) return null;
-    // someone at the wheel of a slow car can be dragged out; anyone on a bike has to be shot or rammed off
+    // someone at the wheel of a slow car is dragged out, a rider on a slow bike shoved off
     const jack = !!this.driver;
-    if (jack && !(this.K.enclosed && this.driver.alive && Math.abs(this.v) < 5)) return null;
+    if (jack && !(this.K.jack && this.driver.alive && Math.abs(this.v) < 5)) return null;
     const dist = this.K.reach(this, p); if (dist > this.K.reachMax) return null;
-    if (jack) return { keys: ['KeyF'], priority: 0, dist, prompt: `Press <kbd>F</kbd> to pull the driver out of the ${this.model.name}`, run: () => this.jack() };
+    if (jack) return { keys: ['KeyF'], priority: 0, dist, prompt: `Press <kbd>F</kbd> to ${this.K.jack} the ${this.model.name}`, run: () => this.jack() };
     return { keys: ['KeyF', 'KeyE'], priority: 0, dist, prompt: `Press <kbd>F</kbd> to ${this.K.verb} the ${this.model.name}`, run: () => enterVehicle(this) };
   },
-  // the player drags the driver out and takes the wheel
+  // the player drags the driver out (or shoves the rider off) and takes the wheel
   jack() {
     const a = this.driver; this.ejectDriver(true); alarm(this.x, this.z, 20);
+    if (this.K.shoveOff) this.K.shoveOff(this, a, P);
     emitEvent('vehicle:jacked', { vehicle: this, driver: a });
     enterVehicle(this);
   },
