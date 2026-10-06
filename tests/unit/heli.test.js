@@ -8,7 +8,7 @@ vi.mock('../../public/js/game/pickups.js', () => ({ reward() {} }));
 
 function chopper() {
   removeHeli(); P.x = 0; P.z = 0; spawnHeli();
-  const h = G.heli; h.x = 0; h.y = 28; h.z = 26; h.yaw = 0;
+  const h = G.heli; h.x = 0; h.y = 28; h.z = 26; h.yaw = 0; h.ang = Math.PI / 2; // circling from +z
   return h;
 }
 // a ray from where the player stands towards a point
