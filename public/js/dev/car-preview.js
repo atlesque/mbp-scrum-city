@@ -30,7 +30,7 @@ ground.rotation.x = -Math.PI / 2; scene.add(ground);
 const mesh = M.mesh(); scene.add(mesh.grp);
 const PLAYER = { skin: '#eab48f', shirt: '#2fb8c9', pa: '#ff6fae', pb: '#f6f1e7', pants: '#f4f0e6', hair: '#3a2416', hairStyle: 'mullet', glasses: true, shoes: '#f6f1e7' }; // as in main.js
 if (q.has('driver')) car.seat({ mesh }, makeCharacter(q.get('driver') === 'afro' ? { ...randomLook(), hairStyle: 'afro' } : PLAYER));
-const parts = [mesh.m, mesh.win, mesh.lamps].filter(Boolean).map(m => m.geometry.attributes.position.count / 3), tris = parts.reduce((s, n) => s + n, 0);
+const parts = [mesh.m, mesh.win, mesh.lamps, ...(mesh.wheels || [])].filter(Boolean).map(m => m.geometry.attributes.position.count / 3), tris = parts.reduce((s, n) => s + n, 0);
 document.getElementById('info').textContent = `${M.name} (${M.id}) · ${tris.toLocaleString()} triangles (${parts.join(" + ")}) · drag to orbit, scroll to zoom`;
 
 // preset views: [azimuth from the nose (deg), elevation (deg), distance]

@@ -96,11 +96,13 @@ try {
       check(await until(id => (__neonbay.G.near[0] || {}).prompt?.includes(__neonbay.all('vehicle').find(v => v.testId === id).model.name), id), 'no prompt to get on');
       await press('KeyF');
       check(await until(id => __neonbay.P.vehicle && __neonbay.P.vehicle.testId === id, id), 'F did not get the player on board');
-      const from = await game(() => ({ x: __neonbay.P.vehicle.x, z: __neonbay.P.vehicle.z }));
+      const from = await game(() => ({ x: __neonbay.P.vehicle.x, z: __neonbay.P.vehicle.z, spin: __neonbay.P.vehicle.mesh.wheels.map(w => w.rotation.x) }));
       await page.keyboard.down('KeyW');
       const moved = await until(f => Math.hypot(__neonbay.P.vehicle.x - f.x, __neonbay.P.vehicle.z - f.z) > 3, from);
       await page.keyboard.up('KeyW');
       check(moved, 'vehicle did not move');
+      const spun = await game(f => __neonbay.P.vehicle.mesh.wheels.filter((w, i) => w.rotation.x !== f.spin[i]).length, from);
+      check(spun === from.spin.length, `only ${spun} of ${from.spin.length} wheels turned`);
       await page.keyboard.down('KeyS');
       const stopped = await until(() => Math.abs(__neonbay.P.vehicle.v) < 3);
       await page.keyboard.up('KeyS');
