@@ -25,10 +25,34 @@ export function engineSources() {
   return out;
 }
 
-// the player's ride is heard as their own (unplaced); every bike passing by plays from where it is
+// ---- electric cars (a model with `electric: true`) ----
+// No engine note: below HUM_TOP km/h they play the soft pedestrian-warning hum a real EV makes, fading out over
+// the last few km/h, and from then on all you hear is the tyres and the wind, growing with speed.
+export const HUM_FADE = 24, HUM_TOP = 30, ROAD_FULL = 130; // km/h
+export const kmh = v => Math.abs(v) * 3.6;
+export function evMix(v) {
+  const k = kmh(v);
+  return {
+    hum: clamp((HUM_TOP - k) / (HUM_TOP - HUM_FADE), 0, 1) * (0.6 + 0.4 * clamp(k / 10, 0, 1)), // a little softer standing still
+    road: clamp(k / ROAD_FULL, 0, 1) ** 1.3,
+    speed: k,
+  };
+}
+export const isElectric = V => !!(V && V.model && V.model.electric);
+export const EV_NEAR = 0.07;
+// every electric car driving in traffic, as a sound source at its wheels
+export function evSources() {
+  const out = [];
+  if (G.state === 'play') for (const c of all('vehicle')) if (isElectric(c) && c.driver && !c.dead && c !== P.vehicle) out.push({ key: c, ...at(c, 0.5), vol: EV_NEAR, ...evMix(c.v) });
+  return out;
+}
+
+// the player's ride is heard as their own (unplaced); every bike and electric car passing by plays from where it is
 export function updateEngineSound() {
-  const V = G.state === 'play' && P.vehicle, thr = !!(keys.KeyW || keys.ArrowUp);
-  Sound.setEngine(V ? 0.08 + (thr ? 0.03 : 0) : 0, V ? rpmFor(V.model, Math.abs(V.v), thr) : 1050);
+  const V = G.state === 'play' && P.vehicle, thr = !!(keys.KeyW || keys.ArrowUp), ev = isElectric(V);
+  Sound.setEngine(V && !ev ? 0.08 + (thr ? 0.03 : 0) : 0, V && !ev ? rpmFor(V.model, Math.abs(V.v), thr) : 1050);
+  Sound.setElectric(ev ? 0.09 : 0, evMix(ev ? V.v : 0));
   Sound.loops('engine', engineSources(), ENGINE_HEAR);
+  Sound.loops('ev', evSources(), ENGINE_HEAR);
   Sound.setSkid(V && V.skid || 0);
 }

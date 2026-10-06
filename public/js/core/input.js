@@ -1,4 +1,5 @@
-import { cycleMelee, cycleWeapon, selectWeapon, startReload } from '../combat/combat.js';
+import { curWeapon, cycleMelee, cycleWeapon, selectWeapon, startReload } from '../combat/combat.js';
+import { toggleScope } from '../combat/scope.js';
 import { Sound } from './audio.js';
 import { save } from './save.js';
 import { G, I, P, cam, keys, stats } from './state.js';
@@ -30,7 +31,8 @@ canvasEl.addEventListener('mousedown', e => {
   if (G.state !== 'play') return;
   if (!I.locked) { requestLock(true); if (!I.noLock) return; }
   if (e.button === 0) { I.mouseL = { fresh: true }; I.clickQ = 0.3; }
-  if (e.button === 2) I.mouseR = true;
+  // a scoped gun zooms on right click instead of the over-the-shoulder aim
+  if (e.button === 2) { if (curWeapon().scope && !P.vehicle) toggleScope(); else I.mouseR = true; }
 });
 document.addEventListener('mouseup', e => { if (e.button === 0) I.mouseL = false; if (e.button === 2) I.mouseR = false; });
 canvasEl.addEventListener('contextmenu', e => e.preventDefault());

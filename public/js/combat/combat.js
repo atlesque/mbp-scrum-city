@@ -11,6 +11,7 @@ import { addHeat } from '../game/wanted.js';
 import { alarm } from '../npcs/npc.js';
 import { PGEO, boomFx, emit, muzzleFlash, pmat, tracer } from '../render/effects.js';
 import { scene } from '../render/scene.js';
+import { boltOut } from './scope.js';
 import { drawWeaponIcon, toast } from '../ui/hud.js';
 import { raySphere, wallHit } from '../world/collision.js';
 import { nextMelee } from './melee.js';
@@ -38,7 +39,7 @@ export function playerShoot() {
   const muz = muzzleOf(P.c).clone();
   const dir = new THREE.Vector3(Math.sin(cam.yaw) * Math.cos(cam.pitch), Math.sin(cam.pitch), Math.cos(cam.yaw) * Math.cos(cam.pitch));
   const origin = camTarget.clone();
-  const spreadMul = (P.moveSpeed > 6 ? 2 : P.moveSpeed > 1 ? 1.4 : 1) * (I.mouseR ? 0.55 : 1) * (P.grounded ? 1 : 1.6);
+  const spreadMul = (P.moveSpeed > 6 ? 2 : P.moveSpeed > 1 ? 1.4 : 1) * (I.mouseR ? 0.55 : 1) * (P.grounded ? 1 : 1.6), spread = G.scope ? w.scopeSpread : w.spread;
   Sound.shot(w.id, 1, 0); muzzleFlash(muz, w.id === 'shotgun' || w.id === 'rpg');
   cam.pitch = clamp(cam.pitch + w.recoil * (0.6 + Math.random() * 0.6), -1.1, 1.2); cam.yaw += (Math.random() - 0.5) * w.recoil * 0.6; cam.shake = Math.max(cam.shake, w.recoil * 2.2);
   if (w.rocket) {
@@ -47,7 +48,7 @@ export function playerShoot() {
   } else {
     let hitAny = false, headAny = false;
     for (let k = 0; k < w.pellets; k++) {
-      const sp = w.spread * spreadMul;
+      const sp = spread * spreadMul;
       _d.copy(dir).add(new THREE.Vector3(rnd(-sp, sp), rnd(-sp, sp), rnd(-sp, sp))).normalize();
       const h = castShot(origin, _d, w.range);
       tracer(muz, h.p, false);
@@ -56,6 +57,7 @@ export function playerShoot() {
     }
     if (hitAny) { G.hitT = 0.12; const ch = $('crosshair'); ch.className = headAny ? 'head' : 'hit'; headAny ? Sound.head() : Sound.hit(); }
   }
+  boltOut();
   // gunfire is a crime when people are around
   alarm(P.x, P.z, 32);
   if (G.wanted === 0 && all('npc').some(n => n.faction === 'civilian' && n.alive && !n.vehicle && Math.hypot(n.x - P.x, n.z - P.z) < 22)) addHeat(0.12);
@@ -105,7 +107,7 @@ export function startReload() {
   const w = curWeapon(), st = wStat(w, inv.lvl[w.id] || 0);
   if (G.reloadT > 0 || inv.mag[w.id] >= st.mag) return;
   if (!w.infinite && (inv.ammo[w.id] || 0) <= 0) { if (startReload.warn !== w.id) toast(`Out of ${w.name} ammo. Restock at <em>Bullet Bros. Guns</em> ($ on the radar).`); startReload.warn = w.id; return; }
-  G.reloadT = w.reload; Sound.reload(w.id);
+  G.reloadT = w.reload; G.scope = G.rescope = 0; Sound.reload(w.id);
 }
 export function finishReload() {
   const w = curWeapon(), st = wStat(w, inv.lvl[w.id] || 0), need = st.mag - (inv.mag[w.id] || 0);
@@ -115,7 +117,7 @@ export function finishReload() {
 export function selectWeapon(id) {
   if (!inv.owned[id] || inv.cur === id) return;
   const w = WBY[id];
-  inv.cur = id; if (G.reloadT > 0) Sound.stopReload(); G.reloadT = 0; G.spin = 0; setGun(P.c, id); P.twoHand = !!w.twoHand;
+  inv.cur = id; if (G.reloadT > 0) Sound.stopReload(); G.reloadT = 0; G.spin = 0; G.scope = G.rescope = 0; setGun(P.c, id); P.twoHand = !!w.twoHand;
   P.melee = w.melee ? w.anim : null; P.swing = null; if (w.melee) P.lastMelee = id;
   if (inv.mag[id] == null) inv.mag[id] = 0;
   drawWeaponIcon(); startReload.warn = null;

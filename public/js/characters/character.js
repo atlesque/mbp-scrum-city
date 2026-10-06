@@ -1,5 +1,5 @@
 import { lerp, pick } from '../core/util.js';
-import { GB, UNIT, box, boxAB } from '../render/geometry.js';
+import { GB, UNIT, box, boxAB, tube } from '../render/geometry.js';
 import { scene } from '../render/scene.js';
 import { shirtMat } from '../render/textures.js';
 import { meleeModel } from './melee-models.js';
@@ -28,7 +28,41 @@ export function gunGeo(id) {
   if (id === 'rifle') { box(g, 0.07, 0.62, 0.1, 0, -0.18, 0.07, dark); box(g, 0.05, 0.08, 0.2, 0, -0.1, -0.06, mid); box(g, 0.06, 0.24, 0.12, 0, 0.2, 0.05, dark); box(g, 0.03, 0.2, 0.03, 0, -0.55, 0.08, mid); muzzle = -0.64; }
   if (id === 'minigun') { box(g, 0.22, 0.5, 0.22, 0, -0.12, 0.1, '#5b5d66'); for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; box(g, 0.04, 0.55, 0.04, Math.cos(a) * 0.06, -0.62, 0.1 + Math.sin(a) * 0.06, dark); } box(g, 0.06, 0.1, 0.18, 0, 0.05, 0.25, dark); muzzle = -0.9; }
   if (id === 'rpg') { box(g, 0.15, 0.95, 0.15, 0, -0.15, 0.13, '#5b6a3a'); box(g, 0.2, 0.12, 0.2, 0, -0.64, 0.13, '#3f4a28'); box(g, 0.05, 0.1, 0.16, 0, 0.0, 0.0, dark); muzzle = -0.7; }
+  if (id === 'sniper') muzzle = sniperGeo(g, dark);
   return (GUN_DEF[id] = { geo: g.geometry(), muzzle: new THREE.Vector3(0, muzzle, 0.08) });
+}
+// a long-range bolt-action in the style of the classic arctic-warfare sniper: olive thumbhole stock, long
+// fluted barrel with a muzzle brake, and a big scope on top. -y points down the barrel, +z is up.
+function sniperGeo(g, dark) {
+  const olive = '#66763f', oliveDk = '#4a5630', steel = '#2c2d33', glass = '#3f8fb0';
+  // stock: butt pad, cheek comb, the lower bar that closes the thumbhole, pistol grip, then the forend
+  box(g, 0.075, 0.05, 0.22, 0, 0.5, 0.02, '#1c1c20');
+  box(g, 0.07, 0.32, 0.07, 0, 0.32, 0.1, olive);
+  box(g, 0.068, 0.3, 0.05, 0, 0.33, -0.06, olive);
+  box(g, 0.07, 0.06, 0.2, 0, 0.45, 0.02, olive);
+  boxAB(g, [0, 0.17, 0.08], [0, 0.11, -0.08], 0.06, 0.07, oliveDk);
+  box(g, 0.08, 0.3, 0.075, 0, -0.18, 0.06, olive);
+  box(g, 0.082, 0.1, 0.075, 0, 0.1, 0.07, olive);
+  // action, bolt handle, magazine and trigger guard
+  box(g, 0.055, 0.22, 0.06, 0, -0.02, 0.12, steel);
+  boxAB(g, [-0.03, 0.06, 0.13], [-0.1, 0.07, 0.1], 0.018, 0.018, steel); box(g, 0.035, 0.035, 0.035, -0.105, 0.07, 0.095, dark);
+  box(g, 0.05, 0.08, 0.1, 0, -0.03, -0.01, dark);
+  box(g, 0.02, 0.09, 0.012, 0, 0.06, -0.02, dark);
+  // fluted barrel (a thick shank, then a thinner run with dark flutes) and the slotted muzzle brake
+  tube(g, [0, -0.1, 0.12], [0, -0.38, 0.12], 0.024, steel, 8);
+  tube(g, [0, -0.38, 0.12], [0, -0.86, 0.12], 0.019, steel, 8);
+  for (const [x, z] of [[0.019, 0.12], [-0.019, 0.12], [0, 0.139]]) box(g, Math.abs(x) ? 0.004 : 0.01, 0.4, Math.abs(x) ? 0.01 : 0.004, x, -0.6, z, dark);
+  box(g, 0.05, 0.1, 0.05, 0, -0.91, 0.12, steel);
+  for (const y of [-0.89, -0.93]) box(g, 0.054, 0.016, 0.02, 0, y, 0.12, '#111114');
+  // scope: rings, tube, wide objective bell, eyepiece, turrets and a glint of lens at each end
+  for (const y of [0.03, -0.11]) box(g, 0.03, 0.03, 0.06, 0, y, 0.17, dark);
+  tube(g, [0, 0.12, 0.215], [0, -0.17, 0.215], 0.028, '#18181c', 10);
+  tube(g, [0, -0.17, 0.215], [0, -0.27, 0.215], 0.042, '#18181c', 10);
+  tube(g, [0, 0.12, 0.215], [0, 0.19, 0.215], 0.036, '#18181c', 10);
+  tube(g, [0, -0.04, 0.24], [0, -0.04, 0.27], 0.017, '#26262c', 8);
+  tube(g, [-0.025, -0.04, 0.215], [-0.055, -0.04, 0.215], 0.017, '#26262c', 8);
+  box(g, 0.06, 0.004, 0.06, 0, -0.272, 0.215, glass); box(g, 0.04, 0.004, 0.04, 0, 0.192, 0.215, '#1d3440');
+  return -0.97;
 }
 export function makeCharacter(L) {
   const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
