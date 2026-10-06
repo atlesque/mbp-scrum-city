@@ -10,6 +10,7 @@ import { all } from '../../entities/registry.js';
 import { driftDrive, followLane, keepLane, keepOnGrid } from '../drive.js';
 import { blockedAhead } from '../vehicle.js';
 import { skidMark } from '../skids.js';
+import { rolling, spinWheels } from '../wheels.js';
 
 const HW = 1.0, HL = 2.15; // half width and half length of the body
 const SILL = 0.95; // bottom of the windows: shots above it reach whoever is inside
@@ -62,6 +63,7 @@ export const car = {
     const lean = c.driver === P ? clamp((c.v || 0) * (c.yawRate || 0) * 0.005 - (c.slip || 0) * 0.004, -0.07, 0.07) : 0;
     c.lean = dt ? lerp(c.lean || 0, lean, Math.min(1, dt * 6)) : lean;
     m.grp.position.set(c.x, c.gy + (c.air || 0), c.z); m.grp.rotation.set(-c.gp, c.yaw, c.gr + c.lean + (c.wreckRoll || 0), 'YXZ');
+    spinWheels(m.wheels, rolling(c) * dt);
     if (c.dead || c.burnT > 0) return;
     if (m.lr) { const on = (G.time * 6 | 0) % 2 === 0; m.lr.visible = on; m.lb.visible = !on; }
     if (c.hp < 50 && dt && Math.random() < dt * 6) emit(c.x + Math.sin(c.yaw) * 1.8, 1.1, c.z + Math.cos(c.yaw) * 1.8, 1, '#8a8090', 1, 1.4, 0.4, 2, 1);

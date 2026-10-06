@@ -24,7 +24,7 @@ const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshL
 ground.rotation.x = -Math.PI / 2; scene.add(ground);
 
 const mesh = M.mesh(); scene.add(mesh.grp);
-const parts = [mesh.m, mesh.win, mesh.lamps].filter(Boolean).map(m => m.geometry.attributes.position.count / 3), tris = parts.reduce((s, n) => s + n, 0);
+const parts = [mesh.m, mesh.win, mesh.lamps, ...(mesh.wheels || [])].filter(Boolean).map(m => m.geometry.attributes.position.count / 3), tris = parts.reduce((s, n) => s + n, 0);
 document.getElementById('info').textContent = `${M.name} (${M.id}) · ${tris.toLocaleString()} triangles (${parts.join(" + ")}) · drag to orbit, scroll to zoom`;
 
 // preset views: [azimuth from the nose (deg), elevation (deg), distance]
