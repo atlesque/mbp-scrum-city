@@ -1,0 +1,6 @@
+# Cloudflare Pages response headers (https://developers.cloudflare.com/pages/configuration/headers/).
+# There is no build step, so file URLs never change between deploys. `no-cache`
+# makes browsers check with the server on every load; unchanged files come back as
+# a tiny 304 (ETag match), changed files are downloaded fresh.
+/*
+  Cache-Control: no-cache

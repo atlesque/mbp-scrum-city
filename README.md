@@ -102,3 +102,5 @@ Deploys run automatically through the Cloudflare Pages GitHub integration (proje
 - Pushing any other branch or opening a pull request creates a preview deployment.
 
 There is no build step. Pages serves the `public/` directory as is.
+
+Because file URLs never change, `public/_headers` sends `Cache-Control: no-cache` so browsers revalidate every file on each load and pick up a new deploy straight away (unchanged files come back as a small 304).
