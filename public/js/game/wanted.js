@@ -1,6 +1,6 @@
 import { Sound } from '../core/audio.js';
 import { emit } from '../core/events.js';
-import { vol3d } from '../core/spatial.js';
+import { pan3d, vol3d } from '../core/spatial.js';
 import { G, P, stats } from '../core/state.js';
 import { $, clamp } from '../core/util.js';
 import { HEAT, WANTED, heatToLevel, mixPick } from '../data/wanted.js';
@@ -49,9 +49,9 @@ export function updateWanted(dt) {
   } else starsEl.classList.remove('flash');
   G.seenNow = false;
   // siren: nearest police car, or faint while hunted on foot
-  let sv = 0;
-  if (G.wanted > 0) { sv = 0.025; for (const c of all('vehicle')) if (c.model.police && !c.dead) sv = Math.max(sv, vol3d(c.x, c.z) * 0.09); }
-  Sound.setSiren(G.state === 'play' ? sv : 0);
+  let sv = 0, sp = 0;
+  if (G.wanted > 0) { sv = 0.025; for (const c of all('vehicle')) if (c.model.police && !c.dead) { const cv = vol3d(c.x, c.z) * 0.09; if (cv > sv) { sv = cv; sp = pan3d(c.x, c.z); } } }
+  Sound.setSiren(G.state === 'play' ? sv : 0, sp);
   Sound.setIntensity(G.wanted);
-  Sound.setHeli(G.heli && G.state === 'play' ? clamp(1 - Math.hypot(G.heli.x - P.x, G.heli.z - P.z) / 120, 0, 1) * 0.5 : 0);
+  Sound.setHeli(G.heli && G.state === 'play' ? clamp(1 - Math.hypot(G.heli.x - P.x, G.heli.z - P.z) / 120, 0, 1) * 0.5 : 0, G.heli ? pan3d(G.heli.x, G.heli.z) : 0);
 }
