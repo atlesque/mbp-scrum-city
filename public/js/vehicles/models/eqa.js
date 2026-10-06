@@ -99,5 +99,6 @@ export default {
   // electric, a little softer than the Tesla
   handling: { accel: 9.5, boostAccel: 12, top: 30, boostTop: 38, coast: 0.9 },
   engine: { rev: 1.05, gears: [0, 48] },
+  electric: true, // no engine note: a hum below 30 km/h, then only road noise (vehicles/engine.js)
   traffic: { weight: 0.3, speed: [9, 13] },
 };

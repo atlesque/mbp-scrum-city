@@ -47,7 +47,7 @@ public/js/
   vehicles/          the shared vehicle layer: vehicle.js, kinds/ (bike, car), models/, traffic, helicopter
   npcs/              NPC_TYPES, behaviours (wander, hunt, ride) and the Npc entity
   shops/             SHOP_TYPES, item types and the shop entity and menu
-  game/              player, interaction prompts, rewards, wanted level, population, pickups
+  game/              player, follow camera, interaction prompts, rewards, wanted level, population, pickups
   world/             city layout, collision, radar, landmarks and .glb models
   render/ ui/ characters/ combat/ data/
 ```
@@ -58,7 +58,7 @@ Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share 
 
 ## Extending the game
 
-**A new vehicle.** Add a file to `public/js/vehicles/models/` whose default export describes it (`id`, `kind`, `name`, `short`, `hp`, `engine`, optional `traffic: { weight, speed }`, and the mesh or geometry its kind expects), then list it in `models/index.js`. `kind: 'bike'` or `'car'` gives it physics, seating, camera and crash rules; a model can override `handling`. A traffic weight above 0 puts it on the roads. A new kind of vehicle (a boat, a truck) is a new file in `vehicles/kinds/` implementing the hooks documented at the top of `kinds/bike.js`.
+**A new vehicle.** Add a file to `public/js/vehicles/models/` whose default export describes it (`id`, `kind`, `name`, `short`, `hp`, `engine`, optional `traffic: { weight, speed }`, `electric: true` for an EV (a hum below 30 km/h, then only road noise, instead of an engine note), and the mesh or geometry its kind expects), then list it in `models/index.js`. `kind: 'bike'` or `'car'` gives it physics, seating, camera and crash rules; a model can override `handling`. A traffic weight above 0 puts it on the roads. A new kind of vehicle (a boat, a truck) is a new file in `vehicles/kinds/` implementing the hooks documented at the top of `kinds/bike.js`.
 
 **A detailed car.** The blue Tesla Model Y, the Mercedes EQA 250 and the BMW 530e are drawn with the car kit in `models/carkit.js`: in real metres, as side outlines (body, glass, roof) pushed across the car's width with rounded edges, plus trims and lamps laid onto the panels, all bent by one warp (narrower nose and tail, sides leaning in towards the roof). Lamps use an unlit material, so they glow at night. Each model builds its geometry once and every car of that model shares it. `models/bmw5.js` is a worked example. Preview a car at `/dev/cars.html?car=<id>` (drag to orbit; `&night`, `&neutral` for plain white light) and render the previews with `node tests/car-shots.mjs`. Keep a car to about 15–18k triangles.
 
@@ -95,7 +95,7 @@ npm test             # unit tests (Vitest): rules, shop items, save migration, r
 npm run test:smoke   # plays the game in headless Chromium: walk, drive, ride, shoot, carjack, shop, go up to a roof, a 5-star chase
 ```
 
-The registry tests catch a typo in a new vehicle, NPC or shop (an unknown kind, behaviour, weapon or item type). Opening the game with `?debug` exposes its state as `window.__neonbay`. CI runs the unit tests on every pull request. The smoke test is too slow and timing-sensitive for shared CI runners, so it runs locally instead: `npm run test:smoke` must pass on your machine before a pull request is merged (run `npx playwright install chromium` once first).
+The registry tests catch a typo in a new vehicle, NPC or shop (an unknown kind, behaviour, weapon or item type). Opening the game with `?debug` exposes its state as `window.__neonbay`. `node tests/camera-shots.mjs` screenshots the follow camera in a narrow alley, on foot and in a car, and prints how far it stays from the walls. CI runs the unit tests on every pull request. The smoke test is too slow and timing-sensitive for shared CI runners, so it runs locally instead: `npm run test:smoke` must pass on your machine before a pull request is merged (run `npx playwright install chromium` once first).
 
 ## Develop and deploy
 
