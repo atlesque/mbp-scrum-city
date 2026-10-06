@@ -19,7 +19,7 @@ function nearColliders(x, z) {
 // the play area: the inner faces of the walls round the city (world/edges.js) and the waterline
 export const W = { minX: -207.5, maxX: 252, minZ: -207.5, maxZ: 207.5 };
 export const ROADS = [-200, -150, -100, -50, 0, 50, 100, 150, 200];
-function pushOut(o, r, x0, x1, z0, z1) {
+export function pushOut(o, r, x0, x1, z0, z1) {
   const cx = clamp(o.x, x0, x1), cz = clamp(o.z, z0, z1), dx = o.x - cx, dz = o.z - cz, d2 = dx * dx + dz * dz;
   if (d2 >= r * r) return false;
   if (d2 > 1e-8) { const d = Math.sqrt(d2); o.x += dx / d * (r - d); o.z += dz / d * (r - d); }
@@ -47,7 +47,8 @@ export function collide(o, r, self) {
   let hit = false;
   for (const c of nearColliders(o.x, o.z)) if (pushOut(o, r, c.x0, c.x1, c.z0, c.z1)) hit = true;
   for (const e of entities) {
-    if (!e.pushOut || e === self || Math.abs(e.x - o.x) > 6 || Math.abs(e.z - o.z) > 6) continue;
+    // nor the car a bike is riding over (vehicles/knock.js), which is under it rather than in its way
+    if (!e.pushOut || e === self || Math.abs(e.x - o.x) > 6 || Math.abs(e.z - o.z) > 6 || (self && (self.over === e || e.over === self))) continue;
     if (e.pushOut(o, r)) hit = true;
   }
   const ox = o.x, oz = o.z; o.x = clamp(o.x, W.minX, W.maxX); o.z = clamp(o.z, W.minZ, W.maxZ);

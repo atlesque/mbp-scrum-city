@@ -1,5 +1,5 @@
-// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, take a juggernaut's rocket, throw a car with a rocket,
-// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, shunt a parked car, drift, drive up a kerb, walk into the edge wall and change settings. Fails on any page error or broken step.
+// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, throw a car with a rocket,
+// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, ride a bike over a car, shunt a parked car, drift, drive up a kerb, walk into the edge wall, take the stairs to a roof and change settings. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -138,6 +138,32 @@ try {
     check(r.wanted > 0, 'no heat was added');
   });
 
+  await step('punches a civilian, then takes them down with a bat', async () => {
+    await clearLane();
+    const before = await game(async () => {
+      const { P, cam, inv, spawnNpc } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js');
+      selectWeapon('fist'); cam.pitch = -0.05; P.yaw = cam.yaw;
+      const n = window.__target = spawnNpc('civilian', P.x + Math.sin(P.yaw) * 1.1, P.z + Math.cos(P.yaw) * 1.1);
+      n.update = function () { this.place(); }; // stand still
+      n.def = { ...n.def, fightBack: 0 }; n.hp = 1000;
+      return { kills: __neonbay.stats.kills, heat: __neonbay.G.heat, wanted: __neonbay.G.wanted, owned: inv.owned.fist };
+    });
+    check(before.owned, 'the player has no fists');
+    const punch = async () => { await game(() => { __neonbay.P.yaw = __neonbay.cam.yaw; __neonbay.I.clickQ = 0.3; }); await until(() => !__neonbay.P.swing && __neonbay.I.clickQ === 0, undefined, 4000); };
+    await punch();
+    const hit = await game(() => ({ hp: window.__target.hp, heat: __neonbay.G.heat, cur: __neonbay.inv.cur }));
+    check(hit.cur === 'fist', 'fists are not in hand');
+    check(hit.hp < 1000, 'the punch did not land');
+    check(hit.heat > before.heat, 'hitting someone added no heat');
+    await game(async () => { const { inv } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js'); inv.owned.bat = true; selectWeapon('bat'); window.__target.hp = 20; });
+    for (let i = 0; i < 6 && await game(() => window.__target.alive); i++) await punch();
+    const r = await game(() => ({ alive: window.__target.alive, kills: __neonbay.stats.kills, gun: !!__neonbay.P.c.gun }));
+    check(r.gun, 'the bat is not in the player\'s hand');
+    check(!r.alive && r.kills === before.kills + 1, 'the bat did not take the civilian down');
+    // back to the pistol, at the heat the step started with, so the next steps meet the same squad
+    await game(async ({ heat, wanted }) => { const { G } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js'); selectWeapon('pistol'); G.heat = heat; G.wanted = wanted; }, before);
+  });
+
   await step('a downed juggernaut drops armor and ammo the player can pick up', async () => {
     for (let i = 0; i < 12; i++) {
       const done = await game(() => {
@@ -174,7 +200,8 @@ try {
       P.x = 5.5; P.z = -60; P.hp = 100; P.armor = 0;
       for (const n of all('npc')) if (Math.hypot(n.x - 5.5, n.z + 50) < 20) removeEntity(n);
       const n = window.__rpg = spawnNpc('jugg', 5.5, -40);
-      n.fireT = 0;
+      // a dead-on aim: a missed rocket flies past, and the next one is too far off at software-rendering speed
+      n.fireT = 0; n.def = { ...n.def, acc: 2 };
     });
     const hurt = await until(() => __neonbay.P.hp < 100, undefined, 30000);
     const r = await game(() => ({ hp: __neonbay.P.hp, alive: __rpg.alive, d: Math.hypot(__rpg.x - __neonbay.P.x, __rpg.z - __neonbay.P.z) }));
@@ -292,6 +319,33 @@ try {
     await press('KeyF');
     check(await until(() => !__neonbay.P.vehicle), 'F did not get the player out');
     await game(() => { __neonbay.removeEntity(__ram); __neonbay.removeEntity(__bike); });
+  });
+
+  await step('rides a bike up and over a parked car, and crashes into one going fast', async () => {
+    await clearVehicles(5, -50);
+    await game(() => { const { P, spawnVehicle } = __neonbay; P.x = 4.5; P.z = -60; window.__ram = spawnVehicle('gs', 3, -60, 0); });
+    check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes(__ram.model.name)), 'no prompt to get on');
+    await press('KeyF');
+    check(await until(() => __neonbay.P.vehicle === window.__ram), 'F did not put the player on the bike');
+    // gently into the back of a car parked in the lane: up the boot, over the roof and down the bonnet
+    await game(() => { __ram.x = 3; __ram.z = -60; __ram.yaw = 0; __ram.v = 9; __ram.peak = 0; window.__hit = __neonbay.spawnVehicle('sedan', 3, -50, 0); });
+    const watch = () => { __ram.peak = Math.max(__ram.peak, __ram.lift || 0); return __ram.z > -45; };
+    // a few seconds of game time, which a slow software GPU stretches out a long way
+    const over = await until(watch, null, 60000);
+    const r = await game(() => ({ z: __ram.z, peak: __ram.peak, on: __neonbay.P.vehicle === __ram, car: __hit.z }));
+    check(over, `the bike did not get past the car (at ${r.z.toFixed(1)})`);
+    check(r.peak > 1, `the bike went through the car instead of over it (rose ${r.peak.toFixed(2)} m)`);
+    check(r.on, 'the rider came off');
+    check(Math.abs(r.car + 50) < 0.5, `the car was pushed out of the way (to ${r.car.toFixed(1)})`);
+    check(await until(() => !__ram.over && !__ram.lift, null, 30000), 'the bike did not come back down onto the road');
+    // and much faster into it from the far side: the usual crash, stopped against it
+    await game(() => { __ram.x = 3; __ram.z = -38; __ram.yaw = Math.PI; __ram.v = 24; __ram.peak = 0; });
+    await until(() => { __ram.peak = Math.max(__ram.peak, __ram.lift || 0); return __ram.v < 5; }, null, 30000);
+    const c = await game(() => ({ z: __ram.z, peak: __ram.peak, over: !!__ram.over }));
+    check(!c.over && c.peak < 0.3 && c.z > -48.2, `the bike rode over the car at speed (at ${c.z.toFixed(1)}, rose ${c.peak.toFixed(2)} m)`);
+    await press('KeyF');
+    check(await until(() => !__neonbay.P.vehicle), 'F did not get the player off');
+    await game(() => { __neonbay.removeEntity(__ram); __neonbay.removeEntity(__hit); });
   });
 
   await step('a car explosion throws the dead, and whoever it kills, through the air', async () => {
@@ -446,6 +500,27 @@ try {
     check(off === 0, `${off} traffic vehicle(s) drove off the grid`);
   });
 
+  await step('takes the stairs up to a roof, stays inside the railings and comes back down', async () => {
+    const n = await game(() => __neonbay.ROOFS.length);
+    check(n >= 6, `only ${n} rooftop door(s) in the city`);
+    await game(() => { const { P, cam, ROOFS } = __neonbay, r = ROOFS[0]; P.x = r.street.x; P.z = r.street.z; cam.yaw = r.yaw + Math.PI; });
+    await clearLane();
+    check(await until(() => /roof/.test(document.getElementById('prompt').textContent)), 'no prompt at the street door');
+    await press('KeyE');
+    check(await until(() => { const { P, ROOFS } = __neonbay; return P.roof === ROOFS[0] && Math.abs(P.y - ROOFS[0].floor) < 0.01; }), 'did not get up onto the roof');
+    // run straight at the railing: the player stops at it instead of walking off
+    await game(() => { const { cam, ROOFS } = __neonbay; cam.yaw = ROOFS[0].yaw; });
+    await page.keyboard.down('KeyW'); await page.waitForTimeout(2500); await page.keyboard.up('KeyW');
+    const on = await game(() => { const { P, ROOFS } = __neonbay, w = ROOFS[0].walk; return P.roof === ROOFS[0] && P.x > w.x0 && P.x < w.x1 && P.z > w.z0 && P.z < w.z1 && P.y >= ROOFS[0].floor - 0.01; });
+    check(on, 'walked off the roof');
+    await game(() => { const { P, cam, ROOFS } = __neonbay, r = ROOFS[0]; P.x = r.hutOut.x; P.z = r.hutOut.z; cam.yaw = r.yaw + Math.PI; });
+    check(await until(() => /down/.test(document.getElementById('prompt').textContent)), 'no prompt at the roof door');
+    await press('KeyE');
+    const down = await until(() => !__neonbay.P.roof);
+    const at = await game(() => { const { P, G, ROOFS } = __neonbay; return { y: P.y, d: Math.hypot(P.x - ROOFS[0].street.x, P.z - ROOFS[0].street.z), near: G.near.map(i => i.prompt), roof: !!P.roof }; });
+    check(down && at.y === 0 && at.d < 1.5, 'did not come back down to the street: ' + JSON.stringify(at));
+  });
+
   await step('changes settings from the pause menu', async () => {
     await press('KeyP');
     check(await until(() => __neonbay.G.state === 'paused'), 'P did not pause');
@@ -487,6 +562,22 @@ try {
     check(await until(() => !__neonbay.Sound.ready || __neonbay.Sound.intensity === 5), 'the music never reached five-star intensity');
     check(await until(() => __neonbay.Sound.voices().rotor === 1), 'the chopper makes no sound');
     await page.waitForTimeout(8000);
+  });
+
+  await step('a chopper crash wrecks the car and drops the bystander it comes down on', async () => {
+    check(await until(() => !!__neonbay.G.heli, undefined, 20000), 'no helicopter to shoot down');
+    await clearVehicles(5, -85);
+    await game(() => {
+      const { G, P, spawnVehicle, spawnNpc } = __neonbay; P.x = 5.5; P.z = -60; P.hp = 100;
+      window.__ccar = spawnVehicle('sedan', 3, -80, 0); window.__cnpc = spawnNpc('civilian', 1, -88);
+      const h = G.heli; h.x = 4; h.z = -85; h.y = 20; h.damage(1e6);
+    });
+    try {
+      check(await until(() => !__neonbay.G.heli || !__neonbay.G.heli.falling, null, 60000), 'the chopper never hit the ground');
+      check(await game(() => (__ccar.burnT > 0 || __ccar.dead) && !__cnpc.alive), 'the crash left the car or the bystander unharmed');
+    } finally {
+      await game(() => { __neonbay.removeEntity(__ccar); __neonbay.removeEntity(__cnpc); });
+    }
   });
 
   await step('glows the minimap red while wanted', async () => {

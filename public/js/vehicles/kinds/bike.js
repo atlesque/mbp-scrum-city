@@ -10,6 +10,8 @@ const bikeMat = new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 60,
 const bikeMatteMat = new THREE.MeshLambertMaterial({ vertexColors: true });
 const bikeGlowMat = new THREE.MeshBasicMaterial({ vertexColors: true });
 const bikeGlassMat = new THREE.MeshPhongMaterial({ color: '#b5cce0', transparent: true, opacity: 0.32, shininess: 120, specular: 0xffffff, depthWrite: false, side: THREE.DoubleSide });
+// the ground under a bike's wheel, or the top of the car it is riding over where that is higher (see vehicles/knock.js)
+const surfaceAt = (b, x, z) => Math.max(groundAt(x, z), b.over ? b.over.K.topAt(b.over, x, z) : -Infinity);
 const TURN_X = [-150, -100, -50, 0, 50, 100, 150, 200], TURN_Z = [-150, -100, -50, 0, 50, 100, 150];
 
 // A vehicle kind: everything about how bikes behave, whatever the model.
@@ -29,6 +31,7 @@ const TURN_X = [-150, -100, -50, 0, 50, 100, 150, 200], TURN_Z = [-150, -100, -5
 //   bumper                   zone ahead that runs people over: back, front, half width, speed kept
 //   crash                    exitSpeed above which getting off is a crash, hurt multiplier on big hits
 //   ram, knock(v, vx, vz, up) mass and body for ramming, and how it flies when rammed (see vehicles/knock.js)
+//   ridesOver, topAt(v, x, z) the closing speed up to which it rides over a car, and the top of a kind ridden over
 //   camera                   chase distance, aiming distance and eye height
 //   verb, tip(M)             'ride' or 'drive', and the first-time help toast
 //   laneHalf, trafficDespawn, ambientEngine, stopsWhileBurning
@@ -43,6 +46,7 @@ export const bike = {
   bumper: { back: -0.6, front: 1.35, half: 0.7, slow: 0.82 },
   crash: { exitSpeed: 9, hurt: 1.4 },
   ram: { mass: 1, hull: [0.62, 0.42], heavierAt: 3, sameAt: 10 },
+  ridesOver: 12, // m/s: meet a car slower than this and ride up over it, faster and crash into it
   camera: { dist: 6.2, aimDist: 3.4, height: 1.95, fovPerSpeed: 0.35 },
   laneHalf: 1.4, trafficDespawn: 170, reachMax: 2.8, ambientEngine: true,
   tip: M => M.name + '. <em>W</em>/<em>S</em> throttle and brake, <em>A</em>/<em>D</em> lean, <em>Shift</em> boost, <em>Space</em> rear brake, <em>F</em> to get off. Guns still work.',
@@ -51,10 +55,22 @@ export const bike = {
   build(v) { return makeBikeMesh(v.model); },
   pose(b, dt) {
     const m = b.mesh, S = b.model.spec, fx = Math.sin(b.yaw), fz = Math.cos(b.yaw);
-    // ride up onto kerbs: each wheel follows the ground under it, eased so a kerb reads as a quick hop
-    const tF = groundAt(b.x + fx * S.zF, b.z + fz * S.zF), tR = groundAt(b.x + fx * S.zR, b.z + fz * S.zR), k = Math.min(1, dt * 16);
-    b.hF = b.hF == null || !dt ? tF : lerp(b.hF, tF, k); b.hR = b.hR == null || !dt ? tR : lerp(b.hR, tR, k);
-    m.grp.position.set(b.x, b.hR - (b.hF - b.hR) * S.zR / S.wb + (b.air || 0), b.z); m.grp.rotation.set(-Math.atan2(b.hF - b.hR, S.wb), b.yaw, 0, 'YXZ');
+    // ride up onto kerbs and over cars: each wheel follows what's under it, eased so a step up reads as a quick hop,
+    // and drops off the far side under gravity
+    if (b.over && Math.hypot(b.over.x - b.x, b.over.z - b.z) > 5) b.over = null;
+    const tF = surfaceAt(b, b.x + fx * S.zF, b.z + fz * S.zF), tR = surfaceAt(b, b.x + fx * S.zR, b.z + fz * S.zR), k = Math.min(1, dt * 16);
+    const wheel = (h, t, fall) => {
+      if (h == null || !dt || t >= h) { b[fall] = 0; return h == null || !dt ? t : lerp(h, t, k); }
+      b[fall] += 22 * dt; const y = Math.max(t, h - b[fall] * dt);
+      if (y === t) { b.landV = Math.max(b.landV || 0, b[fall]); b[fall] = 0; }
+      return y;
+    };
+    b.hF = wheel(b.hF, tF, 'fallF'); b.hR = wheel(b.hR, tR, 'fallR');
+    // the hop as it mounts a car, settling back on the suspension
+    if (b.hopV || b.hop > 0) { b.hopV -= 22 * dt; b.hop = (b.hop || 0) + b.hopV * dt; if (b.hop <= 0) b.hop = b.hopV = 0; }
+    const y = b.hR - (b.hF - b.hR) * S.zR / S.wb + (b.air || 0) + (b.hop || 0);
+    b.lift = Math.max(0, (b.hF + b.hR) / 2 + (b.hop || 0) - groundAt(b.x, b.z)); // how far above the road it rides, on a car
+    m.grp.position.set(b.x, y, b.z); m.grp.rotation.set(-Math.atan2(b.hF - b.hR, S.wb), b.yaw, 0, 'YXZ');
     m.lean.rotation.z = b.lean; m.lean.position.y = clamp(Math.abs(b.lean) - 0.75, 0, 0.6) * 0.75; // rest on the cylinder head when down
     m.steer.rotation.y = b.steer;
     m.fw.rotation.x += b.v / S.rF * dt; m.rw.rotation.x += b.v / S.rR * dt;
