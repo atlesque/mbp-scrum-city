@@ -138,6 +138,28 @@ try {
     check(r.wanted > 0, 'no heat was added');
   });
 
+  await step('every gun reloads with its own move and sound', async () => {
+    const guns = ['pistol', 'smg', 'shotgun', 'rifle', 'minigun', 'rpg']; // keys 1 to 6
+    if (await game(() => __neonbay.Sound.ready)) check(await until(n => __neonbay.Sound.samplesLoaded.length === n, guns.length), 'the reload sounds did not load');
+    for (const [i, id] of guns.entries()) {
+      await game(id => { const { inv } = __neonbay; inv.owned[id] = true; inv.ammo[id] = 50; inv.mag[id] = 0; }, id);
+      await press(`Digit${i + 1}`);
+      check(await until(id => __neonbay.inv.cur === id, id, 3000), `could not switch to the ${id}`);
+      // frames are slow under software WebGL, so watch every frame from inside the page
+      await game(() => { const { P } = __neonbay, w = window.__rl = { anims: new Set(), move: 0, x0: P.c.armL.rotation.x }; w.timer = setInterval(() => { if (P.reload) { w.anims.add(P.reload.anim); w.move = Math.max(w.move, Math.abs(P.c.armL.rotation.x - w.x0)); } }, 10); });
+      await press('KeyR');
+      // the game runs slowly here, so once the move is under way skip to the end of the reload
+      const moved = await until(() => __rl.move > 0.3, undefined, 20000);
+      await game(() => { if (__neonbay.G.reloadT > 0.01) __neonbay.G.reloadT = 0.01; });
+      const done = await until(id => !__neonbay.G.reloadT && __neonbay.inv.mag[id] > 0, id, 5000);
+      const seen = await game(() => { clearInterval(__rl.timer); return { anims: [...__rl.anims], move: __rl.move, t: __neonbay.G.reloadT, mag: __neonbay.inv.mag[__neonbay.inv.cur] }; });
+      check(moved && seen.anims.length === 1, `the ${id} reload move did not play ${JSON.stringify(seen)}`);
+      check(done, `the ${id} did not finish reloading ${JSON.stringify(seen)}`);
+    }
+    await press('Digit1');
+    await game(guns => { const { inv } = __neonbay; for (const id of guns) if (id !== 'pistol') { delete inv.owned[id]; delete inv.ammo[id]; delete inv.mag[id]; } }, guns);
+  });
+
   await step('a downed juggernaut drops armor and ammo the player can pick up', async () => {
     for (let i = 0; i < 12; i++) {
       const done = await game(() => {

@@ -2,6 +2,7 @@ import { lerp, pick } from '../core/util.js';
 import { GB, UNIT, box, boxAB } from '../render/geometry.js';
 import { scene } from '../render/scene.js';
 import { shirtMat } from '../render/textures.js';
+import { applyReload } from './reload.js';
 
 // ================= CHARACTERS =================
 export const charMat = new THREE.MeshLambertMaterial({ vertexColors: true });
@@ -98,6 +99,9 @@ export function animateChar(a, dt) {
   } else {
     c.armR.rotation.set(-s * amp * 0.8, 0, 0); c.armL.rotation.set(s * amp * 0.8, 0, 0);
   }
+  // a.reload: { anim, u } while reloading (u runs 0 to 1)
+  c.gunHolder.rotation.y = 0;
+  if (a.reload) applyReload(c, a.reload.anim, a.reload.u);
 }
 export function deathAnim(a, dt) {
   a.deadT += dt; const k = Math.min(1, a.deadT / 0.45);
