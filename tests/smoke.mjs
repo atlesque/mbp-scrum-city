@@ -610,6 +610,16 @@ try {
     check(await until(() => __neonbay.Sound.voices().siren === 0), 'the sirens kept going after the cars left');
   });
 
+  await step('an electric car in traffic hums instead of revving', async () => {
+    await game(() => {
+      const { P, spawnVehicle, spawnNpc } = __neonbay;
+      const c = window.__ev = spawnVehicle('eqa', P.x + 6, P.z, 0, 'traffic'); c.seatDriver(spawnNpc('motorist', c.x, c.z));
+    });
+    check(await until(() => __neonbay.Sound.voices().ev === 1), 'the EQA makes no sound: ' + JSON.stringify(await game(() => __neonbay.Sound.voices())));
+    await game(() => { const c = __ev; if (c.driver) __neonbay.removeEntity(c.driver); __neonbay.removeEntity(c); });
+    check(await until(() => __neonbay.Sound.voices().ev === 0), 'the EQA hum kept going after it left');
+  });
+
   await step('survives a five-star chase', async () => {
     await game(() => { const { G, P } = __neonbay; G.heat = 100; G.wanted = 5; G.spawnT = 0; G.heliT = 0; P.hp = 100; });
     check(await until(() => __neonbay.all('npc').some(n => n.faction === 'law' && n.alive) && __neonbay.all('vehicle').some(v => v.model.police), undefined, 40000), 'the law never showed up');
@@ -649,6 +659,30 @@ try {
     await game(() => __neonbay.lighting.set(1));
     check(await until(() => __neonbay.lighting.lit.lamps > 0 && __neonbay.lighting.lit.beams > 0), 'no street lamps or headlights came on');
     await game(() => __neonbay.lighting.set(null));
+  });
+
+  await step('every gun reloads with its own move and sound', async () => {
+    const guns = await game(() => import('/js/data/weapons.js').then(m => m.GUNS.map(w => w.id))); // on keys 1, 2, 3, ...
+    await game(() => { const { G, P } = __neonbay; G.heat = 0; G.wanted = 0; P.hp = 100; });
+    if (await game(() => __neonbay.Sound.ready)) check(await until(() => import('/js/data/reloads.js').then(m => __neonbay.Sound.samplesLoaded.length === Object.keys(m.RELOADS).length)), 'the reload sounds did not load');
+    for (const [i, id] of guns.entries()) {
+      await game(id => { const { inv } = __neonbay; inv.owned[id] = true; if (id !== 'pistol') inv.ammo[id] = 50; inv.mag[id] = 0; }, id);
+      await press(`Digit${i + 1}`);
+      check(await until(id => __neonbay.inv.cur === id, id, 3000), `could not switch to the ${id}`);
+      // frames are slow under software WebGL, so watch every frame from inside the page
+      await game(() => { const { P } = __neonbay, w = window.__rl = { anims: new Set(), move: 0, x0: P.c.armL.rotation.x }; w.timer = setInterval(() => { if (P.reload) { w.anims.add(P.reload.anim); w.move = Math.max(w.move, Math.abs(P.c.armL.rotation.x - w.x0)); } }, 10); });
+      await press('KeyR');
+      // the game runs slowly here, so once the move is under way skip to the end of the reload
+      const moved = await until(() => __rl.move > 0.3, undefined, 20000);
+      await game(() => { if (__neonbay.G.reloadT > 0.01) __neonbay.G.reloadT = 0.01; });
+      const done = await until(id => !__neonbay.G.reloadT && __neonbay.inv.mag[id] > 0, id, 5000);
+      const seen = await game(() => { clearInterval(__rl.timer); return { anims: [...__rl.anims], move: __rl.move, t: __neonbay.G.reloadT, mag: __neonbay.inv.mag[__neonbay.inv.cur] }; });
+      check(moved && seen.anims.length === 1, `the ${id} reload move did not play ${JSON.stringify(seen)}`);
+      check(done, `the ${id} did not finish reloading ${JSON.stringify(seen)}`);
+    }
+    await press('Digit1');
+    check(await until(() => __neonbay.inv.cur === 'pistol', undefined, 3000), 'could not switch back to the pistol');
+    await game(guns => { const { inv } = __neonbay; for (const id of guns) if (id !== 'pistol') { delete inv.owned[id]; delete inv.ammo[id]; delete inv.mag[id]; } }, guns);
   });
 } finally {
   await browser.close(); server.close();

@@ -37,6 +37,7 @@ export const HEAR = {
   thud: { ref: 4, max: 70 },
   near: { ref: 3, max: 3.5 }, // the player's own bumps: always at full volume, just placed on the side they came from
   ting: { ref: 2, max: 20 }, // a near miss whizzing past
+  reload: { ref: 3, max: 35 }, // clicks and clacks of someone reloading
   siren: { ref: 10, max: 160 },
   rotor: { ref: 18, max: 200 },
 };

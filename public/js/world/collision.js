@@ -5,7 +5,7 @@ import { clamp } from '../core/util.js';
 export const colliders = [], tallBoxes = [], HASH = new Map(), HC = 20;
 const hkey = (i, j) => (i + 100) * 1000 + (j + 100);
 export function addCollider(x0, x1, z0, z1, h, tall) {
-  const c = { x0, x1, z0, z1, h }; colliders.push(c); if (tall) tallBoxes.push(c);
+  const c = { x0, x1, z0, z1, h, tall: !!tall }; colliders.push(c); if (tall) tallBoxes.push(c);
   for (let i = Math.floor(x0 / HC); i <= Math.floor(x1 / HC); i++) for (let j = Math.floor(z0 / HC); j <= Math.floor(z1 / HC); j++) {
     const k = hkey(i, j); if (!HASH.has(k)) HASH.set(k, []); HASH.get(k).push(c);
   }
@@ -75,6 +75,23 @@ export function raySphere(ox, oy, oz, dx, dy, dz, cx, cy, cz, r) {
 export function wallHit(ox, oy, oz, dx, dy, dz, maxT) {
   let best = maxT;
   for (const b of tallBoxes) { const t = rayBox(ox, oy, oz, dx, dy, dz, b.x0, 0, b.z0, b.x1, b.h, b.z1); if (t < best) best = t; }
+  return best;
+}
+// like wallHit, for a ball of radius r rolled along the ray (the follow camera): each building counts as r bigger on every side,
+// its top as high as the roof trim (ROOF_TRIM), and its walls reach below the ground, so a ray dipping under the street still stops at them.
+// `extra` adds boxes with their own y0..y1 (a rooftop's hut and air-con units).
+// A box the ball already starts inside is ignored, so it can still back out. Only looks at buildings within a grid cell
+// of the start, so keep maxT under HC.
+export const ROOF_TRIM = 0.7;
+export function sweepHit(ox, oy, oz, dx, dy, dz, maxT, r, extra) {
+  let best = maxT;
+  const ball = (x0, y0, z0, x1, y1, z1) => {
+    x0 -= r; x1 += r; y0 -= r; y1 += r; z0 -= r; z1 += r;
+    if (ox > x0 && ox < x1 && oy > y0 && oy < y1 && oz > z0 && oz < z1) return;
+    const t = rayBox(ox, oy, oz, dx, dy, dz, x0, y0, z0, x1, y1, z1); if (t < best) best = t;
+  };
+  for (const b of nearColliders(ox, oz)) if (b.tall) ball(b.x0, -50, b.z0, b.x1, b.h + ROOF_TRIM, b.z1);
+  if (extra) for (const b of extra) ball(b.x0, b.y0, b.z0, b.x1, b.y1, b.z1);
   return best;
 }
 // like wallHit, but also says which face of the building the ray struck: n gets its outward normal

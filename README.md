@@ -37,7 +37,7 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 
 ## Project layout
 
-`public/index.html` holds the page, styles and HUD markup, and loads the game as native ES modules from `public/js/` (no build step). Three.js (r186) loads from jsDelivr as an ES module in `js/three.js`, which sets it as the global `THREE`, fonts from Google Fonts, and all sound is synthesized with the Web Audio API.
+`public/index.html` holds the page, styles and HUD markup, and loads the game as native ES modules from `public/js/` (no build step). Three.js (r186) loads from jsDelivr as an ES module in `js/three.js`, which sets it as the global `THREE`, fonts from Google Fonts, and sound is synthesized with the Web Audio API, apart from the gun reloads, which are CC0 recordings in `public/sfx/` (credited in `public/sfx/CREDITS.md`).
 
 ```
 public/js/
@@ -47,7 +47,7 @@ public/js/
   vehicles/          the shared vehicle layer: vehicle.js, kinds/ (bike, car), models/, traffic, helicopter
   npcs/              NPC_TYPES, behaviours (wander, hunt, ride) and the Npc entity
   shops/             SHOP_TYPES, item types and the shop entity and menu
-  game/              player, interaction prompts, rewards, wanted level, population, pickups
+  game/              player, follow camera, interaction prompts, rewards, wanted level, population, pickups
   world/             city layout, collision, radar, landmarks and .glb models
   render/ ui/ characters/ combat/ data/
 ```
@@ -58,7 +58,7 @@ Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share 
 
 ## Extending the game
 
-**A new vehicle.** Add a file to `public/js/vehicles/models/` whose default export describes it (`id`, `kind`, `name`, `short`, `hp`, `engine`, optional `traffic: { weight, speed }`, and the mesh or geometry its kind expects), then list it in `models/index.js`. `kind: 'bike'` or `'car'` gives it physics, seating, camera and crash rules; a model can override `handling`. A traffic weight above 0 puts it on the roads. A new kind of vehicle (a boat, a truck) is a new file in `vehicles/kinds/` implementing the hooks documented at the top of `kinds/bike.js`.
+**A new vehicle.** Add a file to `public/js/vehicles/models/` whose default export describes it (`id`, `kind`, `name`, `short`, `hp`, `engine`, optional `traffic: { weight, speed }`, `electric: true` for an EV (a hum below 30 km/h, then only road noise, instead of an engine note), and the mesh or geometry its kind expects), then list it in `models/index.js`. `kind: 'bike'` or `'car'` gives it physics, seating, camera and crash rules; a model can override `handling`. A traffic weight above 0 puts it on the roads. A new kind of vehicle (a boat, a truck) is a new file in `vehicles/kinds/` implementing the hooks documented at the top of `kinds/bike.js`.
 
 **A detailed car.** The blue Tesla Model Y, the Mercedes EQA 250 and the BMW 530e are drawn with the car kit in `models/carkit.js`: in real metres, as side outlines (body, glass, roof) pushed across the car's width with rounded edges, plus trims and lamps laid onto the panels, all bent by one warp (narrower nose and tail, sides leaning in towards the roof). Lamps use an unlit material, so they glow at night. Each model builds its geometry once and every car of that model shares it. `models/bmw5.js` is a worked example. Preview a car at `/dev/cars.html?car=<id>` (drag to orbit; `&night`, `&neutral` for plain white light) and render the previews with `node tests/car-shots.mjs`. Keep a car to about 15–18k triangles.
 
@@ -82,6 +82,8 @@ Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share 
 
 `public/models/test-building.glb` is a worked example, written by `node tests/make-test-model.mjs`.
 
+**A reload for a new gun.** Add a line to `RELOADS` in `data/reloads.js`: the move (`pistol`, `mag`, `pump`, `bolt`, `box` or `tube`, keyframed in `characters/reload.js`) and a sound file in `public/sfx/` (mono MP3, CC0 or your own, credited in `public/sfx/CREDITS.md`). A unit test fails until every gun with a magazine has one. A new move is a new list of keyframes in `RELOAD_ANIMS`.
+
 **A new setting.** Add a row to `SETTINGS` in `core/settings.js` (a toggle, range or choice, on the Sound, Graphics or Gameplay tab), then read `settings.<id>` where it matters or apply it in `apply()` in `ui/settings.js`. The Settings screen, saving and validation pick it up on their own.
 
 **A sound from something in the world.** Pass where it comes from: `Sound.shot(kind, vol, at(entity, height))` and the other one-shots take a world point (`at`, `beside` in `core/spatial.js`), and looping sources go through `Sound.loops(kind, sources)` once a frame. Each plays through its own HRTF panner relative to a listener at the player's head facing the camera, with inverse-distance falloff and distance dulling by the profile in `HEAR`. Sounds with no source (UI, the player's own gun) take no point.
@@ -95,7 +97,7 @@ npm test             # unit tests (Vitest): rules, shop items, save migration, r
 npm run test:smoke   # plays the game in headless Chromium: walk, drive, ride, shoot, carjack, shop, go up to a roof, a 5-star chase
 ```
 
-The registry tests catch a typo in a new vehicle, NPC or shop (an unknown kind, behaviour, weapon or item type). Opening the game with `?debug` exposes its state as `window.__neonbay`. CI runs the unit tests on every pull request. The smoke test is too slow and timing-sensitive for shared CI runners, so it runs locally instead: `npm run test:smoke` must pass on your machine before a pull request is merged (run `npx playwright install chromium` once first).
+The registry tests catch a typo in a new vehicle, NPC or shop (an unknown kind, behaviour, weapon or item type). Opening the game with `?debug` exposes its state as `window.__neonbay`. `node tests/camera-shots.mjs` screenshots the follow camera in a narrow alley, on foot and in a car, and prints how far it stays from the walls. CI runs the unit tests on every pull request. The smoke test is too slow and timing-sensitive for shared CI runners, so it runs locally instead: `npm run test:smoke` must pass on your machine before a pull request is merged (run `npx playwright install chromium` once first).
 
 ## Develop and deploy
 

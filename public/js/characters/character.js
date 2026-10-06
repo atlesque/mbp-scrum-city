@@ -3,6 +3,7 @@ import { GB, UNIT, box, boxAB, tube } from '../render/geometry.js';
 import { scene } from '../render/scene.js';
 import { shirtMat } from '../render/textures.js';
 import { meleeModel } from './melee-models.js';
+import { applyReload } from './reload.js';
 import { READY, swingPose, swingWeight } from './swing.js';
 
 // ================= CHARACTERS =================
@@ -143,6 +144,9 @@ export function animateChar(a, dt) {
   }
   c.body.rotation.y = 0; if (c.gun) c.gun.rotation.x = 0;
   if (a.swing) poseSwing(c, a.swing);
+  // a.reload: { anim, u } while reloading (u runs 0 to 1)
+  c.gunHolder.rotation.y = 0;
+  if (a.reload) applyReload(c, a.reload.anim, a.reload.u);
 }
 // lay a melee swing (characters/swing.js) over the walking pose
 const _r = new THREE.Euler();

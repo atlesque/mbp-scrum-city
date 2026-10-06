@@ -94,10 +94,11 @@ let geo = null;
 export default {
   id: 'eqa', kind: 'car', name: 'Mercedes EQA 250', short: 'EQA', tag: 'Mercedes',
   hp: 145,
-  mesh: () => carMeshes(geo || (geo = build()), [0.4 * S, -0.42, -0.38 * S]),
+  mesh: () => carMeshes(geo || (geo = build()), [0.4 * S, -0.45, -0.38 * S - 0.1], { fit: 0.88, knees: -1.2 }),
   build,
   // electric, a little softer than the Tesla
   handling: { accel: 9.5, boostAccel: 12, top: 30, boostTop: 38, coast: 0.9 },
   engine: { rev: 1.05, gears: [0, 48] },
+  electric: true, // no engine note: a hum below 30 km/h, then only road noise (vehicles/engine.js)
   traffic: { weight: 0.3, speed: [9, 13] },
 };
