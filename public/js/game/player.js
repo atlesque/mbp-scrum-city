@@ -22,15 +22,16 @@ import { removeTank } from '../vehicles/tank.js';
 import { driveByPlayer } from '../vehicles/vehicle.js';
 import { SPAWN } from '../world/city.js';
 import { collide, wallHit } from '../world/collision.js';
-import { collideRoof } from '../world/rooftops.js';
+import { collideRoofs, surfaceAt } from '../world/rooftops.js';
 import { BAIL, bailDamage, bailLaunch, tumbleStep } from './bailout.js';
 import { cameraRoof, stepArm, stepShoulder } from './camera.js';
+import { JET, jetFx, jetStep, refuel, takeOffJetpack } from './jetpack.js';
 import { updateInteraction } from './interact.js';
 
 // ================= PLAYER =================
 export const camTarget = new THREE.Vector3();
 export function updatePlayer(dt) {
-  if (!P.alive) { deathAnim(P, dt); P.c.root.position.set(P.x, floorY(), P.z); P.c.root.rotation.y = P.yaw; return; }
+  if (!P.alive) { fallDead(dt); deathAnim(P, dt); P.c.root.position.set(P.x, P.y, P.z); P.c.root.rotation.y = P.yaw; return; }
   // look
   // through the scope the mouse slows with the zoom, so the crosshair moves as far on screen as it does unzoomed
   const sens = (G.scope ? 0.0022 * scopeFov(1, G.scope) : I.mouseR ? 0.0013 : 0.0022) * settings.sensitivity, sensY = settings.invertY ? -sens : sens;
@@ -63,16 +64,23 @@ export function updatePlayer(dt) {
   if (P.c.gun && w.spin && G.spin > 0) P.c.gun.rotation.y += dt * G.spin * 40;
   if (!P.vehicle) {
     // separation from people
-    for (const a of all('npc')) { if (!onFoot(a) || P.roof) continue; const dx = a.x - P.x, dz = a.z - P.z, d = Math.hypot(dx, dz); if (d < 0.75 && d > 0.001) { const k = (0.75 - d) * 0.5; a.x += dx / d * k; a.z += dz / d * k; P.x -= dx / d * k; P.z -= dz / d * k; } }
+    for (const a of all('npc')) { if (!onFoot(a) || P.y > 1) continue; const dx = a.x - P.x, dz = a.z - P.z, d = Math.hypot(dx, dz); if (d < 0.75 && d > 0.001) { const k = (0.75 - d) * 0.5; a.x += dx / d * k; a.z += dz / d * k; P.x -= dx / d * k; P.z -= dz / d * k; } }
     animateChar(P, dt);
-    P.c.root.position.set(P.x, floorY(), P.z); P.c.root.rotation.y = P.yaw;
+    P.c.root.position.set(P.x, P.floor || 0, P.z); P.c.root.rotation.y = P.yaw;
     if (P.tumble) rollPose(-P.tumble.roll); // rolling out towards the body's +x side turns it the negative way round z
+    flipPose(dt);
   }
+  jetFx();
   updateInteraction();
 }
 const JUMP_V = 7.6, GRAVITY = 18; // m/s, m/s²
-// what the player stands on: the street, or the roof they took the stairs up to (P.y is measured from the street)
-const floorY = () => P.roof ? P.roof.floor : 0;
+const AIR_JUMP_V = 7; // the second jump, pushed off thin air
+// Landing harder than SAFE_LAND m/s (a drop of about 5 m) hurts, LAND_HURT hit points for every m/s over it:
+// a 10 m drop costs about 20, a fall from 30 m (a tall roof) about 80, and a 45 m one is the end.
+export const SAFE_LAND = 13.5, LAND_HURT = 4;
+export const landDamage = vy => Math.max(0, -vy - SAFE_LAND) * LAND_HURT;
+// Feet and floors: P.y is the height of the feet above the street, P.floor the top they are over (the street, a roof,
+// or a hut or air-con unit on one; world/rooftops.js), P.roof the roof that top is on (null in the street).
 function walk(dt, aimingNow) {
   let ix = 0, iz = 0;
   if (!G.stairs) { // standing still while the screen is black
@@ -82,20 +90,54 @@ function walk(dt, aimingNow) {
   const fx = Math.sin(cam.yaw), fz = Math.cos(cam.yaw), rx = -Math.cos(cam.yaw), rz = Math.sin(cam.yaw);
   let mx = fx * iz + rx * ix, mz = fz * iz + rz * ix; const ml = Math.hypot(mx, mz);
   const sprint = (keys.ShiftLeft || keys.ShiftRight) && !I.mouseR && iz >= 0;
-  const speed = (sprint ? 8.2 : 5.0) * (P.swing ? 0.6 : 1); // a swing slows you down
+  const flying = P.jetpack && !P.grounded;
+  const speed = flying ? JET.air : (sprint ? 8.2 : 5.0) * (P.swing ? 0.6 : 1); // a swing slows you down
   if (ml > 0) { mx /= ml; mz /= ml; }
   P.vx = lerp(P.vx || 0, mx * speed, Math.min(1, dt * 12)); P.vz = lerp(P.vz || 0, mz * speed, Math.min(1, dt * 12));
   const ox = P.x, oz = P.z; P.x += P.vx * dt; P.z += P.vz * dt;
-  if (P.roof) collideRoof(P, 0.38, P.roof); else collide(P, 0.38);
+  // buildings and props stop the feet only where they reach up to them; railings only while the feet are below the top rail
+  collide(P, 0.38, null, P.y); collideRoofs(P, 0.38, P.y);
   P.moveSpeed = Math.hypot(P.x - ox, P.z - oz) / Math.max(dt, 1e-4);
-  // jump: v²/2g puts the top at about 1.6 m (walls, railings and cars push out on the ground plan, so height clears nothing)
-  const floor = floorY();
-  if (keys.Space && P.grounded && !G.stairs) { P.vy = JUMP_V; P.grounded = false; }
-  if (!P.grounded) { P.vy -= GRAVITY * dt; P.y += P.vy * dt; if (P.y <= floor) { P.y = floor; P.vy = 0; P.grounded = true; } }
+  const { floor, roof } = surfaceAt(P.x, P.z, P.y);
+  P.floor = floor; P.roof = roof;
+  if (P.grounded) {
+    if (P.y > floor + 0.05) { P.grounded = false; P.vy = 0; P.jumps = 1; } // walked off an edge: one jump left in the air
+    else P.y = floor; // stepped up or down a little
+  }
+  // jump, and once more in the air (v²/2g puts the top of the first at about 1.6 m); with the jetpack, hold Space to fly
+  const space = !!keys.Space && !G.stairs, press = space && !P.spaceHeld; P.spaceHeld = space;
+  if (press && P.grounded) { P.vy = JUMP_V; P.grounded = false; P.jumps = 1; }
+  else if (press && (P.jumps || 0) < 2) { P.vy = Math.max(P.vy, AIR_JUMP_V); P.jumps = 2; P.flipT = FLIP; }
+  if (!P.grounded) {
+    if (P.jetpack) P.vy = jetStep(P.jetpack, P.vy, space && !press, dt, GRAVITY);
+    else P.vy -= GRAVITY * dt;
+    P.y += P.vy * dt;
+    if (P.y <= floor) land(floor);
+  } else if (P.jetpack) refuel(P.jetpack, dt);
   P.jumpY = P.y - floor;
   // facing and aim
   if (aimingNow) faceTo(P, cam.yaw, dt, 20);
   else if (ml > 0) faceTo(P, Math.atan2(mx, mz), dt, 10);
+}
+// the second jump tucks into a forward roll (after animateChar has posed the body)
+const FLIP = 0.45;
+function flipPose(dt) {
+  if (!P.flipT) return;
+  P.flipT = P.grounded || P.vehicle ? 0 : Math.max(0, P.flipT - dt);
+  P.c.body.rotation.x = P.flipT ? (1 - P.flipT / FLIP) * Math.PI * 2 : 0;
+}
+// feet down on a floor: a hard landing hurts
+function land(floor) {
+  const hurt = landDamage(P.vy);
+  P.y = floor; P.vy = 0; P.grounded = true; P.jumps = 0;
+  if (hurt > 0) { Sound.thud(0.6, beside(0, 0), HEAR.near); emitFx(P.x, floor + 0.15, P.z, 8, '#cfc8d8', 2.5, 0.45, 0.22, 1, 1); hurtPlayer(hurt); cam.shake = Math.max(cam.shake, 0.35); }
+}
+// a body falls the rest of the way down to whatever is under it
+function fallDead(dt) {
+  if (P.vehicle || P.tumble) return;
+  const { floor } = surfaceAt(P.x, P.z, P.y);
+  if (P.y > floor) { P.vy = Math.min(0, P.vy || 0) - GRAVITY * dt; P.y = Math.max(floor, P.y + P.vy * dt); } else { P.y = floor; P.vy = 0; }
+  P.floor = floor;
 }
 
 // thrown out of a moving vehicle (see bailout.js): no control until the player has rolled to a stop and is back up
@@ -122,7 +164,7 @@ function bailSide(v, reach) {
 const told = {};
 export function enterVehicle(v) {
   P.vehicle = v; v.driver = P; v.mode = 'player'; v.K.onPlayerEnter(v);
-  v.K.seat(v, P.c); P.x = v.x; P.z = v.z; P.y = 0; P.roof = null; P.vy = 0; P.grounded = true; P.lookT = -9;
+  v.K.seat(v, P.c); P.x = v.x; P.z = v.z; P.y = 0; P.floor = 0; P.roof = null; P.vy = 0; P.grounded = true; P.flipT = 0; P.c.body.rotation.x = 0; P.lookT = -9;
   $('prompt').hidden = true; G.hudCache = ''; $('vehName').textContent = v.model.short;
   if (!told[v.model.id]) { told[v.model.id] = true; toast(v.K.tip(v.model), 7); }
   emit('vehicle:enter', { vehicle: v });
@@ -134,7 +176,7 @@ export function exitVehicle(crash) {
   const vx = P.vx || 0, vz = P.vz || 0, sp = Math.max(Math.abs(v.v), Math.hypot(vx, vz)), fast = sp > v.K.crash.exitSpeed && P.alive;
   const door = v.K.exitAt(v), dx = door.x - v.x, dz = door.z - v.z, side = fast ? bailSide(v, Math.hypot(dx, dz) + 1.2) : 1;
   P.x = v.x + dx * side; P.z = v.z + dz * side; collide(P, 0.38, v);
-  P.y = 0; P.vy = 0; P.grounded = true; P.yaw = v.yaw; P.vx = P.vz = 0; P.moveSpeed = 0;
+  P.y = 0; P.floor = 0; P.vy = 0; P.grounded = true; P.yaw = v.yaw; P.vx = P.vz = 0; P.moveSpeed = 0;
   P.c.root.position.set(P.x, 0, P.z); P.c.root.rotation.y = P.yaw;
   v.K.onPlayerExit(v, crash, sp, side);
   if (fast) {
@@ -198,9 +240,10 @@ export function respawn() {
   for (const e of all()) if ((e.kind === 'npc' && e.faction === 'law') || (e.kind === 'vehicle' && (e.model.police || e.dead))) removeEntity(e);
   removeHeli(); removeTank(null, true);
   G.wanted = 0; G.heat = 0; G.lostT = 0; G.heliT = 15; G.tankT = 6;
-  P.x = SPAWN.x; P.z = SPAWN.z; P.y = 0; P.roof = null; P.hp = 100; P.alive = true; P.deadT = 0; P.yaw = SPAWN.yaw; cam.yaw = SPAWN.yaw; cam.pitch = -0.08;
+  P.x = SPAWN.x; P.z = SPAWN.z; P.y = 0; P.floor = 0; P.vy = 0; P.grounded = true; P.roof = null; P.hp = 100; P.alive = true; P.deadT = 0; P.yaw = SPAWN.yaw; cam.yaw = SPAWN.yaw; cam.pitch = -0.08;
   P.c.body.rotation.x = 0; P.c.body.position.y = 0; P.swing = null;
   loadAll(inv); G.reloadT = 0;
+  takeOffJetpack(); // found, not bought: it waits on the Belpaire again
   $('wasted').hidden = true; canvasEl.style.filter = '';
   G.state = 'play'; showBig('City General discharged you');
 }

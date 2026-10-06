@@ -13,7 +13,7 @@ const RoofDoor = {
   onRoof: true, // offers its interaction while the player is up on a roof
   interaction(p) {
     if (G.stairs) return null;
-    const up = !p.roof;
+    const up = p.y < 2;
     if (!up && p.roof !== this.roof) return null;
     const at = up ? this.roof.street : this.roof.hutOut, dist = Math.hypot(at.x - p.x, at.z - p.z);
     if (dist >= REACH) return null;
@@ -27,8 +27,8 @@ export function spawnRoofDoor(roof) { return addEntity(Object.assign(Object.crea
 export function placeOnRoof(roof, up) {
   const at = up ? roof.hutOut : roof.street;
   P.roof = up ? roof : null;
-  P.x = at.x; P.z = at.z; P.y = up ? roof.floor : 0; P.vy = 0; P.grounded = true; P.vx = P.vz = 0; P.moveSpeed = 0;
-  P.yaw = cam.yaw = roof.yaw;
+  P.x = at.x; P.z = at.z; P.y = P.floor = up ? roof.floor : 0; P.vy = 0; P.grounded = true; P.vx = P.vz = 0; P.moveSpeed = 0;
+  P.yaw = cam.yaw = up ? roof.hutYaw ?? roof.yaw : roof.yaw;
   P.c.root.position.set(P.x, P.y, P.z); P.c.root.rotation.y = P.yaw;
   emit(up ? 'roof:up' : 'roof:down', { roof });
 }

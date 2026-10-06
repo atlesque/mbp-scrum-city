@@ -13,7 +13,8 @@ import { G, I, P, cam, inv, stats } from './core/state.js';
 import { $ } from './core/util.js';
 import { WBY, WEAPONS, wStat } from './data/weapons.js';
 import { all, count, entities, removeEntity } from './entities/registry.js';
-import { makePickup, makeWeaponPickup } from './game/pickups.js';
+import { makeJetpackPickup } from './game/jetpack.js';
+import { makePickup, makeRoofGun, makeWeaponPickup } from './game/pickups.js';
 import { respawn, updateCamera, updatePlayer } from './game/player.js';
 import { managePopulation } from './game/population.js';
 import { spawnRoofDoor } from './game/rooftop.js';
@@ -116,6 +117,9 @@ async function start(data) {
   placeMeleePickups();
   for (const s of shopSpots) spawnShop(s.type, s.x, s.z);
   for (const r of ROOFS) spawnRoofDoor(r);
+  // up on the roofs: a sniper rifle on each (the rocket launcher on the Herman Teirlinck), the jetpack on the Belpaire
+  for (const r of ROOFS) if (r.gunAt) makeRoofGun(r.gun, r.gunAt.x, r.floor, r.gunAt.z, got => { selectWeapon(got); save(); });
+  for (const r of ROOFS) if (r.jetpackAt) makeJetpackPickup(r.jetpackAt.x, r.floor, r.jetpackAt.z);
   lotSpots.forEach((s, i) => { spawnVehicle(i % 3 ? 'sedan' : 'modely', s.x, s.z, s.yaw).home = true; });
   P.x = 230; P.z = -40;
   for (let i = 0; i < 26; i++) spawnTrafficCar(false);
