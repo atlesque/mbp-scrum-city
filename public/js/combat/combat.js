@@ -22,7 +22,7 @@ export function castShot(o, d, maxT) {
   if (d.y < -1e-4) { const tg = -o.y / d.y; if (tg < best.t) best = { t: tg, kind: 'ground' }; }
   for (const e of entities) {
     if (!e.raycast) continue;
-    const h = e.raycast(o, d, best.t); if (h && h.t < best.t) best = { t: h.t, kind: 'entity', entity: e, head: !!h.head, occupant: !!h.occupant };
+    const h = e.raycast(o, d, best.t); if (h && h.t < best.t) best = { t: h.t, kind: 'entity', entity: e, head: !!h.head, zone: h.zone, occupant: !!h.occupant };
   }
   best.p = o.clone().addScaledVector(d, best.t);
   return best;

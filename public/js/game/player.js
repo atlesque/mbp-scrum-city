@@ -95,10 +95,11 @@ export function exitVehicle(crash) {
   emit('vehicle:exit', { vehicle: v, crash });
 }
 
-export function hurtPlayer(d) {
+// zone: where a bullet landed (combat/hitzones.js); a shot to the head rocks the camera harder
+export function hurtPlayer(d, zone) {
   if (!P.alive || G.state !== 'play') return;
   if (P.armor > 0) { const a = Math.min(P.armor, d * 0.7); P.armor -= a; d -= a; }
-  P.hp -= d; Sound.hurt(); cam.shake = Math.max(cam.shake, 0.15);
+  P.hp -= d; Sound.hurt(); cam.shake = Math.max(cam.shake, zone === 'head' ? 0.4 : 0.15);
   const vg = $('vignette'); vg.style.opacity = '1'; clearTimeout(hurtPlayer.t); hurtPlayer.t = setTimeout(() => { vg.style.opacity = '0'; }, 140);
   emitFx(P.x, P.y + 1.2, P.z, 4, '#b3122a', 3, 0.5, 0.08);
   if (P.hp <= 0) die();
