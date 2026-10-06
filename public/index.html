@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- the Three.js add-ons (GLTFLoader for world/models.js) import 'three': point them at the build public/js/three.js loads -->
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.min.js" } }</script>
 <script>
 // Pick one of the loading posters at random on every load. This is the first thing the page fetches:
 // it starts at high priority ahead of the fonts, and the game code (Three.js included) waits for it below.
@@ -274,7 +276,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 
   <section id="title" class="overlay">
     <div class="title-card">
-      <h1 class="logo" aria-label="MBP - Scrum City">Scrum City<small>MBP</small></h1>
+      <h1 class="logo" aria-label="MBP - Scrum City">MBP<small>Scrum City</small></h1>
       <p class="tagline">Ocean Drive at dusk. Pastel hotels, palm trees and too many witnesses. Shoot for cash, outrun the heat, and spend it at Bullet Bros. Guns before the next squad rolls in.</p>
       <div class="controls">
         <div><kbd>WASD</kbd><span>Move</span></div>
@@ -335,7 +337,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 
   <section id="loading" class="overlay" aria-label="Loading">
     <div class="ld-art" aria-hidden="true"></div>
-    <p class="ld-logo" aria-hidden="true">Scrum City<small>MBP</small></p>
+    <p class="ld-logo" aria-hidden="true">MBP<small>Scrum City</small></p>
     <div class="ld-foot">
       <div class="ld-row"><span id="ldText" class="outline">Loading</span><span id="ldTip" class="outline"></span></div>
       <div class="ld-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="ldBar"><b id="ldFill"></b></div>

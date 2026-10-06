@@ -1,12 +1,15 @@
 import { seeded } from '../core/util.js';
 import { box, wallBox } from '../render/geometry.js';
 import { addCollider } from './collision.js';
+import { loadModel, placeModel } from './models.js';
 
 // ================= LANDMARKS =================
 // Hand-built buildings that take a whole block of the city, in place of the generated ones.
 // Each type draws itself in block-local metres (the lot runs -16..16 on both axes, the front faces -z)
 // and the site's `face` turns it to the street it fronts ('n', 'e', 's' or 'w').
 // To add one, add a builder to LANDMARK_TYPES and a site to LANDMARK_SITES.
+// A site can also name a `model`: a .glb in public/models/ (see world/models.js) drawn in place of the builder.
+// If the file is missing or fails to load, the site falls back to its builder, or to a plain block without one.
 export const LANDMARK_SITES = [
   { block: [2, 3], type: 'vac', face: 'e' },
   { block: [2, 4], type: 'belpaire', face: 'e' },
@@ -130,7 +133,19 @@ function belpaire(g, S) {
   S.sign('Belpaire', 11, 5, -11.4, 9);
 }
 
-export const LANDMARK_TYPES = { vac, teirlinck, belpaire };
+// stands in for a model that did not load and has no builder: a plain glazed block
+function placeholder(g, S) { S.mass(-12, 12, -12, 12, 0, 16, '#d9d2c8', true); }
+
+export const LANDMARK_TYPES = { vac, teirlinck, belpaire, placeholder };
 export const landmarkAt = (i, j) => LANDMARK_SITES.find(s => s.block[0] === i && s.block[1] === j);
+const models = new Map(); // site -> prepared model, filled by loadLandmarkModels
+// fetch every site's model before the world is built (buildWorld is synchronous)
+export async function loadLandmarkModels(sites = LANDMARK_SITES) {
+  await Promise.all(sites.filter(s => s.model).map(async s => { const m = await loadModel(s.model); if (m) models.set(s, m); }));
+}
 // g: { walls, plain, neon } geometry builders and sign(spec) to queue a neon sign
-export function buildLandmark(g, s, cx, cz) { LANDMARK_TYPES[s.type](g, site(g, cx, cz, s.face)); }
+export function buildLandmark(g, s, cx, cz) {
+  const m = models.get(s);
+  if (m) return placeModel(m, cx, cz, s.face);
+  (LANDMARK_TYPES[s.type] || placeholder)(g, site(g, cx, cz, s.face));
+}

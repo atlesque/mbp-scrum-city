@@ -1,4 +1,4 @@
-// Plays a short session in headless Chromium: boot, walk, drive each kind of car, ride a bike, shoot someone,
+// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone,
 // shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, shunt a parked car, walk into the edge wall and change settings. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
@@ -25,6 +25,7 @@ page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
 // (the CDN's .min.js files are minified copies of the package's build files)
 const threeBuild = new URL('../node_modules/three/build/', import.meta.url);
 await page.route('https://cdn.jsdelivr.net/npm/three@*/build/*', async r => r.fulfill({ body: await readFile(new URL(r.request().url().split('/').pop().replace('.min.js', '.js'), threeBuild)), contentType: 'text/javascript' }));
+await page.route('https://cdn.jsdelivr.net/npm/three@*/examples/jsm/**', async r => r.fulfill({ body: await readFile(new URL('../node_modules/three/examples/jsm/' + r.request().url().split('/examples/jsm/')[1], import.meta.url)), contentType: 'text/javascript' }));
 await page.route('https://fonts.googleapis.com/**', r => r.fulfill({ body: '', contentType: 'text/css' }));
 await page.route('https://fonts.gstatic.com/**', r => r.fulfill({ body: '' }));
 
@@ -63,6 +64,14 @@ try {
     await page.waitForFunction(() => !document.getElementById('playBtn').disabled, null, { timeout: 60000 });
     check(await game(() => window.__neonbay.all('npc').length > 10), 'expected the streets to be populated');
     console.log('     three r' + await game(() => THREE.REVISION));
+  });
+  await step('loads a .glb building', async () => {
+    const m = await game(async () => {
+      const { loadModel } = await import('/js/world/models.js'), m = await loadModel('test-building.glb');
+      return m && { meshes: m.group.children.length, colliders: m.colliders.length, lambert: m.group.children.every(o => o.material.isMeshLambertMaterial) };
+    });
+    check(m, 'the test model did not load');
+    check(m.meshes === 5 && m.colliders === 1 && m.lambert, 'unexpected model: ' + JSON.stringify(m));
   });
   await page.click('#playBtn');
   await page.waitForTimeout(1000);
@@ -262,9 +271,13 @@ try {
       return !bystander.alive;
     });
     check(ok, 'the blast did not kill the bystander');
-    check(await until(() => __body.peak > 1 && __bystander.peak > 1), 'the bodies were not thrown into the air');
-    check(await until(() => !__body.y && !__bystander.y), 'the bodies did not come back down');
-    await game(() => { __neonbay.removeEntity(__boom); __neonbay.removeEntity(__body); __neonbay.removeEntity(__bystander); });
+    try {
+      // the flight takes about two seconds of game time, which a slow software GPU stretches to most of a minute
+      check(await until(() => __body.peak > 1 && __bystander.peak > 1, null, 60000), 'the bodies were not thrown into the air');
+      check(await until(() => !__body.y && !__bystander.y, null, 60000), 'the bodies did not come back down');
+    } finally {
+      await game(() => { __neonbay.removeEntity(__boom); __neonbay.removeEntity(__body); __neonbay.removeEntity(__bystander); });
+    }
   });
 
   await step('shunts a parked car down the road', async () => {

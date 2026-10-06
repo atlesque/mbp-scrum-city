@@ -46,7 +46,7 @@ public/js/
   npcs/              NPC_TYPES, behaviours (wander, hunt, ride) and the Npc entity
   shops/             SHOP_TYPES, item types and the shop entity and menu
   game/              player, interaction prompts, rewards, wanted level, population, pickups
-  world/             city layout, collision, radar
+  world/             city layout, collision, radar, landmarks and .glb models
   render/ ui/ characters/ combat/ data/
 ```
 
@@ -64,6 +64,16 @@ Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share 
 
 **A new landmark.** Add a builder to `LANDMARK_TYPES` in `world/landmarks.js` (it draws in block-local metres with the front facing north) and place it in `LANDMARK_SITES` with the block it takes and the street it faces. The three Flemish government buildings there (VAC Gent, the Herman Teirlinck and the Belpaire building) are worked examples.
 
+**A building made in another tool.** Export it as glTF binary (`.glb`) into `public/models/` and give its site a `model`: `{ block: [2, 3], type: 'vac', face: 'e', model: 'vac.glb' }`. The game loads it before building the city (`world/models.js`, Three's GLTFLoader from the same CDN build) and draws it in place of the builder; if the file is missing or broken the site falls back to its builder (or a plain block when `type` is left out). For it to drop in cleanly:
+- **Scale and orientation:** 1 unit = 1 metre, Y up, origin at the middle of the footprint at ground level, front facing +Z. In Blender: model the building facing the Front view (−Y), apply all transforms, and export glTF Binary with "+Y Up" on (the default). The lot is 32 × 32 m (−16..16 on X and Z); `face` turns the front to the street.
+- **Low poly:** keep it under about 5–10k triangles. CI renders on a slow software GPU.
+- **Materials:** plain colours, vertex colours or one small texture atlas (1024 px or less). Materials are turned into the city's flat Lambert shading, so roughness, metalness and normal maps are ignored. Colours show as you picked them.
+- **Lit windows and signs:** give them their own material with an Emission colour (for example `Windows_lit`). Every emissive material glows faintly by day and fully at night, like the other buildings.
+- **Collision:** add one or more boxes named `collider…` (they are not drawn) for what the player bumps into; without one the whole model's bounding box is used. Boxes are axis aligned, so an L-shaped building wants one box per wing.
+- **No compression:** skip Draco and meshopt for now; they need extra decoder files.
+
+`public/models/test-building.glb` is a worked example, written by `node tests/make-test-model.mjs`.
+
 **A new setting.** Add a row to `SETTINGS` in `core/settings.js` (a toggle, range or choice, on the Sound, Graphics or Gameplay tab), then read `settings.<id>` where it matters or apply it in `apply()` in `ui/settings.js`. The Settings screen, saving and validation pick it up on their own.
 
 **Saves.** When the save shape changes, bump `SAVE_VERSION` in `core/save.js` and add a migration from the previous version.
@@ -75,7 +85,7 @@ npm test             # unit tests (Vitest): rules, shop items, save migration, r
 npm run test:smoke   # plays the game in headless Chromium: walk, drive, ride, shoot, carjack, shop, a 5-star chase
 ```
 
-The registry tests catch a typo in a new vehicle, NPC or shop (an unknown kind, behaviour, weapon or item type). Opening the game with `?debug` exposes its state as `window.__neonbay`. CI runs both suites on every pull request.
+The registry tests catch a typo in a new vehicle, NPC or shop (an unknown kind, behaviour, weapon or item type). Opening the game with `?debug` exposes its state as `window.__neonbay`. CI runs the unit tests on every pull request. The smoke test is too slow and timing-sensitive for shared CI runners, so it runs locally instead: `npm run test:smoke` must pass on your machine before a pull request is merged (run `npx playwright install chromium` once first).
 
 ## Develop and deploy
 
