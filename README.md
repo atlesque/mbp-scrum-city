@@ -35,7 +35,7 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 
 ## Project layout
 
-`public/index.html` holds the page, styles and HUD markup, and loads the game as native ES modules from `public/js/` (no build step). Three.js (r186) loads from jsDelivr as an ES module in `js/three.js`, which sets it as the global `THREE`, fonts from Google Fonts, and all sound is synthesized with the Web Audio API.
+`public/index.html` holds the page, styles and HUD markup, and loads the game as native ES modules from `public/js/` (no build step). Three.js (r186) loads from jsDelivr as an ES module in `js/three.js`, which sets it as the global `THREE`, fonts from Google Fonts, and sound is synthesized with the Web Audio API, apart from the gun reloads, which are CC0 recordings in `public/sfx/` (credited in `public/sfx/CREDITS.md`).
 
 ```
 public/js/
@@ -76,7 +76,11 @@ Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share 
 
 `public/models/test-building.glb` is a worked example, written by `node tests/make-test-model.mjs`.
 
+**A reload for a new gun.** Add a line to `RELOADS` in `data/reloads.js`: the move (`pistol`, `mag`, `pump`, `box` or `tube`, keyframed in `characters/reload.js`) and a sound file in `public/sfx/` (mono MP3, CC0 or your own, credited in `public/sfx/CREDITS.md`). A unit test fails until every gun with a magazine has one. A new move is a new list of keyframes in `RELOAD_ANIMS`.
+
 **A new setting.** Add a row to `SETTINGS` in `core/settings.js` (a toggle, range or choice, on the Sound, Graphics or Gameplay tab), then read `settings.<id>` where it matters or apply it in `apply()` in `ui/settings.js`. The Settings screen, saving and validation pick it up on their own.
+
+**A sound from something in the world.** Pass where it comes from: `Sound.shot(kind, vol, at(entity, height))` and the other one-shots take a world point (`at`, `beside` in `core/spatial.js`), and looping sources go through `Sound.loops(kind, sources)` once a frame. Each plays through its own HRTF panner relative to a listener at the player's head facing the camera, with inverse-distance falloff and distance dulling by the profile in `HEAR`. Sounds with no source (UI, the player's own gun) take no point.
 
 **Saves.** When the save shape changes, bump `SAVE_VERSION` in `core/save.js` and add a migration from the previous version.
 

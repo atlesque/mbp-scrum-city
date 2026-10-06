@@ -1,6 +1,6 @@
 import { Sound } from '../core/audio.js';
 import { emit as emitEvent } from '../core/events.js';
-import { pan3d, vol3d } from '../core/spatial.js';
+import { at } from '../core/spatial.js';
 import { P, cam } from '../core/state.js';
 import { angDiff, lerp, rnd } from '../core/util.js';
 import { deathAnim, disposeChar, makeCharacter, setGun } from '../characters/character.js';
@@ -64,7 +64,7 @@ const Npc = {
     if (dir) this.yaw = Math.atan2(-dir.x, -dir.z);
     bloodPool(this.x, this.z); emit(this.x, 1, this.z, 10, '#a30f24', 4, 0.7, 0.1);
     if (this.c.gun) setGun(this.c, null);
-    if (this.def.screams) Sound.scream(vol3d(this.x, this.z), pan3d(this.x, this.z));
+    if (this.def.screams) Sound.scream(1, at(this, 1.5));
     emitEvent('npc:killed', { npc: this, byPlayer, dir, vehicle });
   },
   // switch to another behaviour, e.g. a biker who lands on foot starts wandering

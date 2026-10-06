@@ -1,5 +1,5 @@
 import { Sound } from '../core/audio.js';
-import { pan3d, panFor, vol3d } from '../core/spatial.js';
+import { HEAR, at, beside } from '../core/spatial.js';
 import { emit as emitEvent } from '../core/events.js';
 import { G, I, P, cam, keys } from '../core/state.js';
 import { angDiff, clamp, rnd } from '../core/util.js';
@@ -166,7 +166,7 @@ export function driveByPlayer(v, dt) {
     v.v = impact > 7 ? -Math.sign(v.v) * impact * 0.12 : v.v * (1 - head * 0.9);
     if (v.slip) v.slip *= 0.3; // a slide into a wall ends against it
     if (impact > 7) {
-      Sound.thud(clamp(impact / 25, 0.3, 1), panFor(-px, -pz, cam.yaw, 0)); cam.shake = Math.max(cam.shake, clamp(impact / 40, 0.1, 0.7));
+      Sound.thud(clamp(impact / 25, 0.3, 1), ...bump(v, -px, -pz)); cam.shake = Math.max(cam.shake, clamp(impact / 40, 0.1, 0.7));
       v.damage(impact * 1.6, false); if (impact > 15 && P.vehicle === v) hurtPlayer((impact - 13) * K.crash.hurt);
       if (P.vehicle !== v) return;
     }
@@ -179,7 +179,7 @@ export function driveByPlayer(v, dt) {
     if (ah > bm.back && ah < bm.front && la < bm.half) {
       a.bumpT = G.time + 0.8; a.hurt(Math.abs(v.v) * 6, new THREE.Vector3(fx, 0, fz), true);
       if (a.alive && !a.vehicle) { a.x += fx * Math.sign(v.v) * 1.2; a.z += fz * Math.sign(v.v) * 1.2; }
-      v.v *= bm.slow; Sound.thud(0.6, panFor(rx, rz, cam.yaw, 0)); cam.shake = Math.max(cam.shake, 0.2); alarm(v.x, v.z, 25);
+      v.v *= bm.slow; Sound.thud(0.6, ...bump(v, rx, rz)); cam.shake = Math.max(cam.shake, 0.2); alarm(v.x, v.z, 25);
     }
   }
   if (K.afterDrive) K.afterDrive(v, dt);
@@ -202,7 +202,7 @@ function ram(v) {
       v.v = k.avx * Math.sin(v.yaw) + k.avz * Math.cos(v.yaw); if (v.slip != null) v.slip = k.avx * Math.cos(v.yaw) - k.avz * Math.sin(v.yaw);
       const hit = k.closing - 6; if (hit > 0) v.damage(hit * 1.4, false);
       if (k.closing > 16 && P.vehicle === v) hurtPlayer((k.closing - 14) * v.K.crash.hurt);
-      Sound.thud(clamp(k.closing / 25, 0.3, 1), panFor(b.x - v.x, b.z - v.z, cam.yaw, 0)); cam.shake = Math.max(cam.shake, clamp(k.closing / 40, 0.1, 0.7));
+      Sound.thud(clamp(k.closing / 25, 0.3, 1), ...bump(v, b.x - v.x, b.z - v.z)); cam.shake = Math.max(cam.shake, clamp(k.closing / 40, 0.1, 0.7));
       if (k.closing > 8) alarm(v.x, v.z, 25);
       continue;
     }
@@ -212,11 +212,15 @@ function ram(v) {
     if (a) { b.ejectDriver(false); a.svx = k.vx * 0.7; a.svz = k.vz * 0.7; a.hurt(k.closing * 4, new THREE.Vector3(k.vx, 0, k.vz).normalize(), true); }
     b.ghostT = G.time + 0.6; b.K.knock(b, k.vx, k.vz, k.up); b.damage(k.closing * 1.2, true);
     v.v *= k.keep;
-    Sound.thud(clamp(k.closing / 25, 0.3, 1), panFor(b.x - v.x, b.z - v.z, cam.yaw, 0)); cam.shake = Math.max(cam.shake, clamp(k.closing / 50, 0.1, 0.5)); alarm(v.x, v.z, 25);
+    Sound.thud(clamp(k.closing / 25, 0.3, 1), ...bump(v, b.x - v.x, b.z - v.z)); cam.shake = Math.max(cam.shake, clamp(k.closing / 50, 0.1, 0.5)); alarm(v.x, v.z, 25);
     emit(b.x, 0.8, b.z, 8, '#ffd23e', 5, 0.35, 0.06);
   }
   return shoved;
 }
+
+// where a bump on vehicle `v` from the direction (dx, dz) is heard: on the side it hit when it's the player's own
+// ride (the listener sits on it), else out at that vehicle
+const bump = (v, dx, dz) => P.vehicle === v ? [beside(dx, dz), HEAR.near] : [at(v, 0.7), HEAR.thud];
 
 // `b` takes a shove from `a`: it skids off, a hard hit dents it, and a driver in traffic sits stunned a moment
 function shove(a, b, k, byPlayer) {
@@ -234,7 +238,7 @@ function shoveAround(v) {
     if (b === v || !b.K.slide || b.driver === P || Math.abs(b.x - v.x) > 6 || Math.abs(b.z - v.z) > 6) continue;
     const k = shoveImpulse(v, b); if (!k) continue;
     shove(v, b, k, v.byPlayer); v.kvx = k.avx; v.kvz = k.avz;
-    Sound.thud(clamp(k.closing / 25, 0.2, 0.8) * vol3d(v.x, v.z), pan3d(v.x, v.z));
+    Sound.thud(clamp(k.closing / 25, 0.2, 0.8), at(v, 0.7));
   }
 }
 

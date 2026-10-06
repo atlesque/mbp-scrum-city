@@ -1,5 +1,5 @@
 import { Sound } from '../core/audio.js';
-import { pan3d, vol3d } from '../core/spatial.js';
+import { at } from '../core/spatial.js';
 import { clamp, lerp } from '../core/util.js';
 import { blockedAhead } from './vehicle.js';
 
@@ -65,7 +65,7 @@ export function followLane(v, dt, T) {
   if (blk) {
     v.v = Math.max(0, v.v - T.decel * dt); v.waitT += dt;
     if (blk === 'car' && v.waitT > T.patience) { v.ignoreT = T.passFor || 1.5; v.waitT = 0; }
-    if (blk === 'player' && v.waitT > T.hornAfter && v.hornT <= 0) { Sound.horn(vol3d(v.x, v.z), pan3d(v.x, v.z)); v.hornT = 3; }
+    if (blk === 'player' && v.waitT > T.hornAfter && v.hornT <= 0) { Sound.horn(1, at(v, 1)); v.hornT = 3; }
   } else { v.v = Math.min(v.top, v.v + T.accel * dt); v.waitT = 0; }
   v.x += v.dirX * v.v * dt; v.z += v.dirZ * v.v * dt;
 }
