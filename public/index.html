@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- the Three.js add-ons (GLTFLoader for world/models.js) import 'three': point them at the build public/js/three.js loads -->
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.min.js" } }</script>
 <script>
 // Pick one of the loading posters at random on every load. This is the first thing the page fetches:
 // it starts at high priority ahead of the fonts, and the game code (Three.js included) waits for it below.
