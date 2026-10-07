@@ -723,9 +723,11 @@ try {
 
   await step('every gun reloads with its own move and sound', async () => {
     const guns = await game(() => import('/js/data/weapons.js').then(m => m.GUNS.map(w => w.id))); // on keys 1, 2, 3, ...
+    const thrown = await game(() => import('/js/data/weapons.js').then(m => m.GUNS.filter(w => w.thrown).map(w => w.id))); // grenades and molotovs never reload
     await game(() => { const { G, P } = __neonbay; G.heat = 0; G.wanted = 0; P.hp = 100; });
     if (await game(() => __neonbay.Sound.ready)) check(await until(() => import('/js/data/reloads.js').then(m => __neonbay.Sound.samplesLoaded.length === Object.keys(m.RELOADS).length)), 'the reload sounds did not load');
     for (const [i, id] of guns.entries()) {
+      if (thrown.includes(id)) continue;
       await game(id => { const { inv } = __neonbay; inv.owned[id] = true; if (id !== 'pistol') inv.ammo[id] = 50; inv.mag[id] = 0; }, id);
       await press(`Digit${i + 1}`);
       check(await until(id => __neonbay.inv.cur === id, id, 3000), `could not switch to the ${id}`);
