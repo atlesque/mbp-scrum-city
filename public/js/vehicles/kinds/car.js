@@ -43,7 +43,7 @@ export const car = {
   handling: { top: 30, boostTop: 40, accel: 8, boostAccel: 11, brake: 24, reverseBrake: 18, reverseTop: 7, reverseAccel: 6, handbrake: 7, coast: 1.2, drag: 0.006, turnLow: 2.0, turnHigh: 1.0, maxSteer: 0.65,
     steerRate: 6, grip: 10, gripFast: 5, drift: { min: 9, grip: 3, throttleGrip: 2, handbrakeGrip: 1.4, turn: 1.3, angle: 0.75, keep: 0.8, exit: 1.2, hold: 0.5 } }, // see driftDrive in drive.js
   traffic: { look: 7.5, decel: 30, accel: 6, patience: 3, hornAfter: 1.5, passFor: 3.5 },
-  fx: { smokeRate: 4, smokeY: 1.2, smokeSpeed: 1.5, smokeLife: 2, smokeSize: 0.6, fireRate: 0.6, fireY: 1.3, fireSize: 0.35, spread: 0.6, fuse: 1.6, boomFuse: 0.25 },
+  fx: { smokeRate: 4, smokeY: 1.2, smokeSpeed: 1.5, smokeLife: 2, smokeSize: 0.6, fireRate: 0.6, fireY: 1.3, fireSize: 0.35, spread: 0.6, fuse: 1.6, boomFuse: 0.25, crashFuse: 45 },
   blast: { y: 0.8, r: 9, dmg: 240 }, // big enough to set off a car parked alongside and drop anyone within a few metres
   wreckReward: { heat: 3, cash: [40, 160] },
   bumper: { back: -2.2, front: 2.6, half: 1.15, slow: 0.9 },

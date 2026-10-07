@@ -9,7 +9,7 @@ import { SHOP_TYPES } from '../../public/js/shops/types.js';
 
 describe('melee weapons', () => {
   it('fists plus the Vice City street set, ahead of six guns on keys 1-6', () => {
-    expect(MELEE.map(w => w.id)).toEqual(['fist', 'knuckles', 'knife', 'nightstick', 'golf', 'bat', 'machete', 'katana', 'chainsaw']);
+    expect(MELEE.map(w => w.id)).toEqual(['fist', 'knuckles', 'knife', 'nightstick', 'golf', 'bat', 'machete', 'katana', 'fireaxe', 'chainsaw']);
     expect(GUNS.map(w => w.id).slice(0, 6)).toEqual(['pistol', 'smg', 'shotgun', 'rifle', 'minigun', 'rpg']);
     expect(WEAPONS.length).toBe(MELEE.length + GUNS.length);
   });
@@ -102,7 +102,8 @@ describe('getting melee weapons', () => {
   it('the gun shop sells them (not the fists) without ammo', () => {
     const cat = SHOP_TYPES.gunshop.catalogue.map(i => i.id);
     expect(cat).not.toContain('fist');
-    for (const w of MELEE.filter(w => !w.builtin)) expect(cat).toContain(w.id);
+    for (const w of MELEE.filter(w => !w.builtin && !w.dropOnly)) expect(cat).toContain(w.id);
+    expect(cat).not.toContain('fireaxe'); // firemen drop it, nobody sells it
     const inv = { money: 5000, owned: { fist: true }, lvl: {}, mag: {}, ammo: {}, cur: 'fist' };
     const ctx = { inv, player: { hp: 100, armor: 0 }, pay(n) { if (inv.money < n) return false; inv.money -= n; return true; }, equip(id) { inv.cur = id; } };
     const html = ITEM_TYPES.weapon.render({ type: 'weapon', id: 'bat' }, ctx, 0);

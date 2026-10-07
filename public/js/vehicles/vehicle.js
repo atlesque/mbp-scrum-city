@@ -22,6 +22,12 @@ import { VEHICLE_MODELS } from './models/index.js';
 // How each kind of vehicle drives, seats its rider and gets hit. See kinds/bike.js for the full list of fields.
 export const KINDS = { bike, car };
 
+// Crash fires. A vehicle set alight by a collision burns for its kind's fx.crashFuse seconds before it goes up, long
+// enough for the fire brigade to get there (vehicles/firetruck.js). Shooting it or a blast still sets it off sooner:
+// each point of damage takes `shot` seconds off what is left. Firemen hosing it hold the fire back, and `need` seconds
+// of hose (two firemen fill it twice as fast) put it out, leaving the vehicle smoking on `hp`.
+export const CRASH_FIRE = { shot: 0.25, need: 7, hp: 25 };
+
 // A vehicle in the world: parked, in traffic, answering a call, or driven by the player.
 // mode: 'parked' | 'fallen' (a bike on its side) | 'traffic' | 'respond' (police) | 'player'
 const Vehicle = {
@@ -39,8 +45,15 @@ const Vehicle = {
       K.pose(this, dt); return;
     }
     if (this.burnT > 0) {
-      this.burnT -= dt;
-      if (Math.random() < fx.fireRate) emit(this.x + rnd(-fx.spread, fx.spread), fx.fireY, this.z + rnd(-fx.spread, fx.spread), 1, Math.random() < 0.5 ? '#ff7a2a' : '#ffd23e', 1, 0.5, fx.fireSize, 4, 1);
+      // under the hose the fire holds, and the flames shrink as the water gets on top of them
+      const wet = this.wetT > G.time, flames = 1 - (this.water || 0) / CRASH_FIRE.need;
+      if (!wet) this.burnT -= dt;
+      if (this.crashFire) {
+        // a crash fire burns big: a column of dark smoke and extra flames licking up out of the body
+        if (Math.random() < dt * 4 * flames) emit(this.x + rnd(-0.4, 0.4), fx.fireY + 0.5, this.z + rnd(-0.4, 0.4), 1, '#3a3440', 1, 2.2, fx.smokeSize * 0.55, 1.2, 1.4);
+        if (Math.random() < fx.fireRate * flames) emit(this.x + rnd(-fx.spread, fx.spread), fx.fireY - 0.1, this.z + rnd(-fx.spread, fx.spread), 1, Math.random() < 0.5 ? '#ff5a1a' : '#ffb02e', 1.2, 0.7, fx.fireSize * 1.5, 3, 1.6);
+      }
+      if (Math.random() < fx.fireRate * flames) emit(this.x + rnd(-fx.spread, fx.spread), fx.fireY, this.z + rnd(-fx.spread, fx.spread), 1, Math.random() < 0.5 ? '#ff7a2a' : '#ffd23e', 1, 0.5, fx.fireSize, 4, 1);
       if (this.burnT <= 0) { this.explode(); K.pose(this, 0); return; }
       if (K.stopsWhileBurning) { K.pose(this, dt); return; }
     }
@@ -49,19 +62,43 @@ const Vehicle = {
     if (ai) ai(this, dt); else K.coast(this, dt);
     K.pose(this, dt);
   },
-  damage(dmg, byPlayer) {
-    if (this.dead || this.burnT > 0) return;
+  // crash: the damage came from a collision (a wall, a prop, another vehicle), which starts a long crash fire
+  damage(dmg, byPlayer, crash) {
+    if (this.dead) return;
+    if (this.burnT > 0) {
+      // already burning from a crash: anything but more crashing brings the bang closer
+      if (this.crashFire && !crash && dmg > 0) {
+        const fx = this.K.fx; this.burnT = Math.min(this.burnT, byPlayer === 'boom' ? fx.boomFuse : Math.max(fx.fuse, this.burnT - dmg * CRASH_FIRE.shot));
+        if (byPlayer) this.byPlayer = true;
+      }
+      return;
+    }
     this.hp -= dmg; if (byPlayer) this.byPlayer = true;
     if (this.driver && this.driver !== P) this.top = 24; // a shot-at rider guns it
     if (this.hp > 0) return;
-    this.burnT = byPlayer === 'boom' ? this.K.fx.boomFuse : this.K.fx.fuse;
+    const fx = this.K.fx;
+    this.crashFire = !!crash && !!fx.crashFuse;
+    this.burnT = byPlayer === 'boom' ? fx.boomFuse : this.crashFire ? fx.crashFuse : fx.fuse;
+    this.water = 0;
     if (this.K.stopsWhileBurning) this.v = 0;
-    if (this.driver === P) { exitVehicle(true); toast(`Bail! The ${this.model.tag} is going up.`, 3); }
+    if (this.driver === P) { exitVehicle(true); toast(this.crashFire ? `The ${this.model.tag} is on fire! Get clear, the fire brigade is on its way.` : `Bail! The ${this.model.tag} is going up.`, 3); }
     else if (this.driver) this.ejectDriver(true);
+    emitEvent('vehicle:burning', { vehicle: this, crash: this.crashFire });
+  },
+  // a fireman's hose on it for `amount` seconds; true once the fire is out
+  douse(amount) {
+    if (this.dead || !(this.burnT > 0)) return false;
+    this.wetT = G.time + 0.3; this.water = (this.water || 0) + amount;
+    if (Math.random() < 0.5) emit(this.x + rnd(-0.8, 0.8), 1.2, this.z + rnd(-0.8, 0.8), 1, '#e8eef4', 1.2, 1.4, 0.45, 2, 1.5); // steam
+    if (this.water < CRASH_FIRE.need) return false;
+    this.burnT = 0; this.water = 0; this.crashFire = false; this.hp = CRASH_FIRE.hp;
+    emit(this.x, 1.4, this.z, 14, '#e8eef4', 2, 1.8, 0.6, 2, 2);
+    emitEvent('vehicle:doused', { vehicle: this });
+    return true;
   },
   explode() {
     const K = this.K;
-    this.dead = true; this.burnT = 0; this.v = 0;
+    this.dead = true; this.burnT = 0; this.v = 0; this.crashFire = false;
     for (const m of this.mesh.solid) m.material = burntMat; for (const m of this.mesh.lit) m.visible = false;
     K.wreck(this);
     explosion(this.x, K.blast.y, this.z, K.blast.r, K.blast.dmg, this.byPlayer);
@@ -173,7 +210,7 @@ export function driveByPlayer(v, dt) {
     if (v.slip) v.slip *= 0.3; // a slide into a wall ends against it
     if (impact > 7) {
       Sound.thud(clamp(impact / 25, 0.3, 1), ...bump(v, -px, -pz)); cam.shake = Math.max(cam.shake, clamp(impact / 40, 0.1, 0.7));
-      v.damage(impact * 1.6, false); if (impact > 15 && P.vehicle === v) hurtPlayer((impact - 13) * K.crash.hurt);
+      v.damage(impact * 1.6, false, true); if (impact > 15 && P.vehicle === v) hurtPlayer((impact - 13) * K.crash.hurt);
       if (P.vehicle !== v) return;
     }
   }
@@ -199,7 +236,7 @@ export function smash(v, vx, vz) {
   const H = v.K.hull; if (!H) return;
   for (const { p, closing } of smashProps(v.x, v.z, Math.sin(v.yaw), Math.cos(v.yaw), vx, vz, H.half, H.r)) {
     const T = p.T; v.v *= T.slow; if (v.slip) v.slip *= T.slow; if (v.kvx) { v.kvx *= T.slow; v.kvz *= T.slow; }
-    if (T.dent) v.damage(closing * T.dent, false);
+    if (T.dent) v.damage(closing * T.dent, false, true);
     Sound.thud(clamp(closing / 30, 0.2, 0.8), ...bump(v, p.x - v.x, p.z - v.z));
     if (P.vehicle === v) cam.shake = Math.max(cam.shake, clamp(closing / 60 * (T.dent ? 1 : 0.3), 0.05, 0.4));
   }
@@ -232,7 +269,7 @@ function ram(v) {
       shove(v, b, k, true); shoved = true;
       // what's left of our speed, along the way we're pointing
       v.v = k.avx * Math.sin(v.yaw) + k.avz * Math.cos(v.yaw); if (v.slip != null) v.slip = k.avx * Math.cos(v.yaw) - k.avz * Math.sin(v.yaw);
-      const hit = k.closing - 6; if (hit > 0) v.damage(hit * 1.4, false);
+      const hit = k.closing - 6; if (hit > 0) v.damage(hit * 1.4, false, true);
       if (k.closing > 16 && P.vehicle === v) hurtPlayer((k.closing - 14) * v.K.crash.hurt);
       Sound.thud(clamp(k.closing / 25, 0.3, 1), ...bump(v, b.x - v.x, b.z - v.z)); cam.shake = Math.max(cam.shake, clamp(k.closing / 40, 0.1, 0.7));
       if (k.closing > 8) alarm(v.x, v.z, 25);
@@ -242,7 +279,7 @@ function ram(v) {
     const k = knockImpulse(v, b); if (!k) continue;
     const a = b.driver;
     if (a) { b.ejectDriver(false); a.svx = k.vx * 0.7; a.svz = k.vz * 0.7; a.hurt(k.closing * 4, new THREE.Vector3(k.vx, 0, k.vz).normalize(), true); }
-    b.ghostT = G.time + 0.6; b.K.knock(b, k.vx, k.vz, k.up); b.damage(k.closing * 1.2, true);
+    b.ghostT = G.time + 0.6; b.K.knock(b, k.vx, k.vz, k.up); b.damage(k.closing * 1.2, true, true);
     v.v *= k.keep;
     Sound.thud(clamp(k.closing / 25, 0.3, 1), ...bump(v, b.x - v.x, b.z - v.z)); cam.shake = Math.max(cam.shake, clamp(k.closing / 50, 0.1, 0.5)); alarm(v.x, v.z, 25);
     emit(b.x, 0.8, b.z, 8, '#ffd23e', 5, 0.35, 0.06);
@@ -257,7 +294,7 @@ const bump = (v, dx, dz) => P.vehicle === v ? [beside(dx, dz), HEAR.near] : [at(
 // `b` takes a shove from `a`: it skids off, a hard hit dents it, and a driver in traffic sits stunned a moment
 function shove(a, b, k, byPlayer) {
   b.kvx = k.vx; b.kvz = k.vz; b.kspin = k.spin; b.v = 0;
-  const hit = k.closing - 6; if (hit > 0) b.damage(hit * 1.4, byPlayer);
+  const hit = k.closing - 6; if (hit > 0) b.damage(hit * 1.4, byPlayer, true);
   if (b.mode === 'traffic') b.dazeT = clamp(k.closing * 0.12, 0.6, 2.5);
   if (k.closing > 5) emit((a.x + b.x) / 2, 0.7, (a.z + b.z) / 2, Math.min(12, k.closing | 0), '#ffd23e', 5, 0.3, 0.06);
   emitEvent('vehicle:shoved', { vehicle: b, by: a, closing: k.closing, byPlayer });
@@ -283,5 +320,6 @@ export function blockedAhead(v, range, ignoreVehicles) {
   for (const n of list) if (onFoot(n) && test(n.x, n.z, 1.6)) return 'ped';
   if (!ignoreVehicles) for (const o of list) if (o.kind === 'vehicle' && o !== v && o !== P.vehicle && test(o.x, o.z, o.K.laneHalf)) return 'car';
   for (const o of list) if (o.kind === 'tank' && test(o.x, o.z, 3.4)) return 'car'; // a tank can't be squeezed past
+  for (const o of list) if (o.kind === 'firetruck' && test(o.x, o.z, 2.6)) return 'car';
   return null;
 }

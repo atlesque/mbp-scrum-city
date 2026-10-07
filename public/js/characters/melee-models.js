@@ -57,6 +57,17 @@ const MODELS = {
     box(g, 0.012, 0.1, 0.03, 0, -0.98, 0.012, '#e8edf2');
     return -1.03;
   } },
+  // a fire axe: a long yellow fibreglass handle, a red head with a bright steel edge out front and a spike on the back
+  fireaxe: { tilt: 1.0, build(g) {
+    box(g, 0.05, 0.16, 0.05, 0, 0.02, 0, '#1b1b20');
+    box(g, 0.04, 0.66, 0.04, 0, -0.39, 0, '#f2c21b');
+    box(g, 0.05, 0.13, 0.19, 0, -0.76, 0.04, '#c8141e');
+    box(g, 0.035, 0.2, 0.05, 0, -0.76, 0.16, '#c8141e');
+    box(g, 0.022, 0.22, 0.025, 0, -0.76, 0.2, '#e4e8ee');
+    box(g, 0.035, 0.06, 0.15, 0, -0.76, -0.12, '#c8141e');
+    box(g, 0.025, 0.035, 0.07, 0, -0.76, -0.22, '#9aa0a8');
+    return -0.88;
+  } },
   // an orange two-stroke saw: the body in the hands, the bar and chain out front
   chainsaw: { tilt: 0.75, build(g) {
     box(g, 0.16, 0.36, 0.22, 0, -0.06, 0.02, '#ff7a1a');

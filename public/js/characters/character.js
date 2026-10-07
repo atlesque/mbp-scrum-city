@@ -29,6 +29,8 @@ export function gunGeo(id) {
   if (id === 'minigun') { box(g, 0.22, 0.5, 0.22, 0, -0.12, 0.1, '#5b5d66'); for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; box(g, 0.04, 0.55, 0.04, Math.cos(a) * 0.06, -0.62, 0.1 + Math.sin(a) * 0.06, dark); } box(g, 0.06, 0.1, 0.18, 0, 0.05, 0.25, dark); muzzle = -0.9; }
   if (id === 'rpg') { box(g, 0.15, 0.95, 0.15, 0, -0.15, 0.13, '#5b6a3a'); box(g, 0.2, 0.12, 0.2, 0, -0.64, 0.13, '#3f4a28'); box(g, 0.05, 0.1, 0.16, 0, 0.0, 0.0, dark); muzzle = -0.7; }
   if (id === 'sniper') muzzle = sniperGeo(g, dark);
+  // a fireman's hose nozzle: a red coupling at the hose end, the brass pipe with its pistol grip and the tip
+  if (id === 'nozzle') { box(g, 0.09, 0.09, 0.09, 0, 0.03, 0.07, '#c8141e'); box(g, 0.065, 0.24, 0.065, 0, -0.12, 0.07, '#c9a24a'); box(g, 0.045, 0.08, 0.045, 0, -0.27, 0.07, '#e0bf6a'); box(g, 0.035, 0.1, 0.1, 0, -0.06, 0.0, '#2a2a30'); muzzle = -0.31; }
   // thrown weapons sit in the hand: a ribbed olive grenade with its lever and ring, a bottle with a burning rag
   if (id === 'grenade') { box(g, 0.09, 0.12, 0.09, 0, -0.08, 0.06, '#4f5a32'); for (const y of [-0.12, -0.08, -0.04]) box(g, 0.1, 0.012, 0.1, 0, y, 0.06, '#3c4526'); box(g, 0.04, 0.04, 0.04, 0, -0.16, 0.06, '#8a8d94'); box(g, 0.012, 0.1, 0.02, 0, -0.1, 0.11, '#8a8d94'); muzzle = -0.16; }
   if (id === 'molotov') { box(g, 0.08, 0.16, 0.08, 0, -0.06, 0.06, '#3f7a3a'); box(g, 0.035, 0.08, 0.035, 0, -0.18, 0.06, '#3f7a3a'); box(g, 0.03, 0.07, 0.03, 0, -0.25, 0.06, '#e8dcc0'); box(g, 0.05, 0.05, 0.05, 0, -0.3, 0.06, '#ff8a2a'); muzzle = -0.3; }
@@ -74,6 +76,7 @@ export function makeCharacter(L) {
   const lg = new GB(), pl = L.shorts ? 0.42 : 0.8;
   box(lg, 0.2, pl, 0.22, 0, -pl / 2, 0, L.pants);
   if (L.shorts) box(lg, 0.16, 0.8 - pl, 0.17, 0, -pl - (0.8 - pl) / 2, 0, skin);
+  if (L.stripes) box(lg, 0.22, 0.05, 0.24, 0, -0.62, 0, L.stripes); // reflective bands on a fireman's turnout gear
   box(lg, 0.21, 0.1, 0.3, 0, -0.85, 0.04, shoes);
   const legGeo = lg.geometry();
   const legL = new THREE.Mesh(legGeo, charMat), legR = new THREE.Mesh(legGeo, charMat);
@@ -83,12 +86,14 @@ export function makeCharacter(L) {
   box(core, 0.48, 0.16, 0.27, 0, 0.93, 0, L.pants);
   if (L.vest) { box(core, 0.56, 0.44, 0.36, 0, 1.24, 0, L.vest); box(core, 0.2, 0.08, 0.02, 0, 1.3, 0.185, '#e8e0c0'); }
   if (L.tie) { box(core, 0.16, 0.5, 0.02, 0, 1.24, 0.151, '#f2f2f2'); box(core, 0.06, 0.42, 0.02, 0, 1.24, 0.162, '#b3122a'); }
+  if (L.stripes) for (const y of [1.0, 1.32]) box(core, 0.54, 0.05, 0.32, 0, y, 0, L.stripes);
   if (L.badge) box(core, 0.07, 0.08, 0.02, 0.13, 1.36, 0.155, '#ffd23e');
   body.add(new THREE.Mesh(core.geometry(), charMat));
   const ag = new GB(), sl = L.longSleeve ? 0.52 : 0.24;
   box(ag, 0.17, sl, 0.18, 0, -sl / 2 + 0.04, 0, L.sleeve || L.shirt);
   box(ag, 0.13, 0.62 - sl, 0.14, 0, -sl - (0.62 - sl) / 2 + 0.04, 0, skin);
   box(ag, 0.14, 0.12, 0.15, 0, -0.64, 0, L.gloves || skin);
+  if (L.stripes) box(ag, 0.19, 0.05, 0.2, 0, -0.38, 0, L.stripes);
   const armGeo = ag.geometry();
   const armL = new THREE.Group(), armR = new THREE.Group();
   armL.add(new THREE.Mesh(armGeo, charMat)); armR.add(new THREE.Mesh(armGeo, charMat));
@@ -102,13 +107,15 @@ export function makeCharacter(L) {
   else { box(hg, 0.05, 0.04, 0.02, 0.07, 0.27, 0.148, '#1a1222'); box(hg, 0.05, 0.04, 0.02, -0.07, 0.27, 0.148, '#1a1222'); }
   box(hg, 0.1, 0.025, 0.02, 0, 0.14, 0.148, '#8a3a3a');
   const hs = L.hairStyle;
-  if (hs !== 'bald' && L.hat !== 'helmet') {
+  if (hs !== 'bald' && L.hat !== 'helmet' && L.hat !== 'fire') {
     box(hg, 0.32, 0.09, 0.31, 0, 0.42, -0.005, L.hair);
     box(hg, 0.32, hs === 'long' ? 0.42 : hs === 'mullet' ? 0.36 : 0.2, 0.07, 0, hs === 'long' ? 0.2 : hs === 'mullet' ? 0.23 : 0.31, -0.15, L.hair);
     if (hs === 'afro') box(hg, 0.42, 0.24, 0.4, 0, 0.46, -0.02, L.hair);
     box(hg, 0.04, 0.16, 0.25, 0.155, 0.33, -0.02, L.hair); box(hg, 0.04, 0.16, 0.25, -0.155, 0.33, -0.02, L.hair);
   }
   if (L.hat === 'cap') { box(hg, 0.33, 0.1, 0.32, 0, 0.45, 0, L.hatColor); box(hg, 0.28, 0.03, 0.13, 0, 0.41, 0.2, L.hatColor); box(hg, 0.06, 0.05, 0.02, 0, 0.46, 0.165, '#ffd23e'); }
+  // a fire helmet: a dome with a wide brim, longer at the back, and a white shield on the front
+  if (L.hat === 'fire') { box(hg, 0.36, 0.2, 0.36, 0, 0.43, -0.01, L.hatColor); box(hg, 0.44, 0.03, 0.52, 0, 0.33, -0.05, L.hatColor); box(hg, 0.14, 0.13, 0.03, 0, 0.47, 0.19, '#f2efe6'); }
   if (L.hat === 'helmet') { box(hg, 0.36, 0.2, 0.36, 0, 0.42, -0.01, L.hatColor); box(hg, 0.37, 0.06, 0.04, 0, 0.33, 0.17, L.hatColor); }
   const head = new THREE.Mesh(hg.geometry(), charMat); head.position.y = 1.5; body.add(head);
   if (L.scale) root.scale.setScalar(L.scale);

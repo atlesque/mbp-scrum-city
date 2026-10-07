@@ -13,6 +13,14 @@ export function emit(x, y, z, n, col, spd, life, size, grav = -12, up = 2) {
     parts.push({ m, vx: Math.cos(a) * spd * rnd(0.3, 1), vy: up + e * spd, vz: Math.sin(a) * spd * rnd(0.3, 1), life: life * rnd(0.6, 1.2), max: life, s, grav });
   }
 }
+// a jet: n particles sent along (vx, vy, vz), each scattered up to `scatter` m/s off it (water out of a hose)
+export function jet(x, y, z, n, col, vx, vy, vz, scatter, life, size, grav = -9.8) {
+  for (let i = 0; i < n && parts.length < 600; i++) {
+    const m = partPool.pop() || new THREE.Mesh(PGEO, pmat(col)); m.material = pmat(col);
+    const s = size * rnd(0.6, 1.3); m.scale.setScalar(s); m.position.set(x, y, z); m.rotation.set(rnd(0, 3), rnd(0, 3), 0); scene.add(m);
+    parts.push({ m, vx: vx + rnd(-scatter, scatter), vy: vy + rnd(-scatter, scatter), vz: vz + rnd(-scatter, scatter), life: life * rnd(0.8, 1.1), max: life, s, grav });
+  }
+}
 export function updateParts(dt) {
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i]; p.life -= dt;

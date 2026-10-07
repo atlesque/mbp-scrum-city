@@ -57,10 +57,12 @@ export function updateWanted(dt) {
 }
 
 // sirens: one per police car out hunting you, each playing from its car (core/audio.js keeps the loudest few);
-// none while only cops on foot hunt you
+// none while only cops on foot hunt you. A fire truck on its way to a fire has its siren going too.
 export function sirenSources() {
   const out = [];
-  if (G.wanted > 0 && G.state === 'play') for (const c of all('vehicle')) if (isPolice(c) && !c.dead) out.push({ key: c, ...at(c, 1.6), vol: SIREN_VOL });
+  if (G.state !== 'play') return out;
+  if (G.wanted > 0) for (const c of all('vehicle')) if (isPolice(c) && !c.dead) out.push({ key: c, ...at(c, 1.6), vol: SIREN_VOL });
+  for (const t of all('firetruck')) if (t.siren && !t.dead) out.push({ key: t, ...at(t, 3), vol: SIREN_VOL });
   return out;
 }
 export const SIREN_VOL = 0.09, ROTOR_VOL = 0.5;

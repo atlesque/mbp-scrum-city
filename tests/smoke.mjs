@@ -1,5 +1,5 @@
 // Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, get shelled by the army's tank and blow it up, snipe through the scope, throw a car with a rocket,
-// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, ride a bike over a car, shunt a parked car, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, change settings and remap keys. Fails on any page error or broken step.
+// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, ride a bike over a car, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, change settings and remap keys. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -446,6 +446,34 @@ try {
     await press('KeyF');
     check(await until(() => !__neonbay.P.vehicle), 'F did not get the player out');
     await game(() => { __neonbay.removeEntity(__ram); __neonbay.removeEntity(__hit); });
+  });
+
+  await step('a crash fire brings the fire truck, its crew put it out, and a downed fireman drops his axe', async () => {
+    await clearVehicles(-3, -25); await clearVehicles(-3, -50);
+    // a car skids into the back of one parked in the lane and sets it alight
+    await game(() => {
+      const { G, P, spawnVehicle } = __neonbay; G.heat = 0; G.wanted = 0; P.x = 9; P.z = -45; P.hp = 100;
+      const hit = window.__hit = spawnVehicle('sedan', -3, -25, 0); hit.hp = 1;
+      const ram = window.__ram = spawnVehicle('modely', -3, -30.2, 0); Object.assign(ram, { kvx: 0, kvz: 22, kspin: 0 });
+    });
+    check(await until(() => __hit.crashFire && __hit.burnT > 30), 'the crash did not start a long fire');
+    const truck = await game(() => { const t = window.__truck = __neonbay.all('firetruck')[0]; return t && { siren: t.siren, d: Math.hypot(t.x - __hit.x, t.z - __hit.z) }; });
+    check(truck, 'no fire truck was sent');
+    check(truck.siren, 'the truck came without its siren');
+    check(truck.d > 40, `the truck turned up right on top of the fire (${truck.d.toFixed(0)} m)`);
+    // software WebGL is slow: put it on the road just down from the fire and let it drive the last of the way
+    await game(() => Object.assign(__truck, { ax: 0, az: -60, ox: -3, oz: 0, dirX: 0, dirZ: 1, toX: 0, toZ: -50, yaw: 0, v: 8 }));
+    check(await until(() => __truck.state === 'work', null, 60000), `the truck never pulled up (${await game(() => `${__truck.state} at ${__truck.x.toFixed(1)}, ${__truck.z.toFixed(1)}`)})`);
+    check(await until(() => __neonbay.all('npc').some(n => n.type === 'fireman' && n.c.gunId === 'nozzle'), null, 60000), 'nobody got the hose on the fire');
+    check(await until(() => !(__hit.burnT > 0), null, 90000), `the fire was not put out (${await game(() => __hit.burnT.toFixed(1))} s left)`);
+    check(await game(() => !__hit.dead), 'the car blew up anyway');
+    const axe = await game(() => {
+      const f = __neonbay.all('npc').find(n => n.type === 'fireman' && n.alive); if (!f) return 'no fireman left';
+      f.hurt(999, new THREE.Vector3(0, 0, 1), true);
+      return __neonbay.all('pickup').some(p => p.id === 'fireaxe' && Math.hypot(p.x - f.x, p.z - f.z) < 2) || 'no axe on the street';
+    });
+    check(axe === true, axe);
+    await game(() => { for (const e of [__truck, __hit, __ram, ...__neonbay.all('pickup').filter(p => p.id === 'fireaxe')]) __neonbay.removeEntity(e); });
   });
 
   await step('drifts a car round with the handbrake', async () => {
