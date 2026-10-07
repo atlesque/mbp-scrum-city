@@ -1,4 +1,5 @@
 import { emit } from './events.js';
+import { PRESETS, sanitizeBinds } from './keymap.js';
 
 // ================= SETTINGS =================
 // Player preferences, kept in their own localStorage key so they survive a lost or reset save.
@@ -7,6 +8,8 @@ import { emit } from './events.js';
 //   type 'toggle'  true / false
 //   type 'range'   a number from min to max in steps of step; fmt turns it into the label shown beside the slider
 //   type 'choice'  one of options: [[value, label], ...]
+//   type 'binds'   the key for each action in core/keymap.js (drawn by the Controls tab itself)
+// A row's optional then(value) runs after it changes.
 export const SETTINGS_KEY = 'neonbay86.settings';
 const pct = v => Math.round(v * 100) + '%';
 export const SETTINGS = [
@@ -24,6 +27,10 @@ export const SETTINGS = [
   { id: 'shake', tab: 'gameplay', label: 'Camera shake', type: 'toggle', def: true },
   { id: 'density', tab: 'gameplay', label: 'Crowds and traffic', type: 'choice', def: 'normal', options: [['light', 'Light'], ['normal', 'Normal'], ['busy', 'Busy']] },
   { id: 'units', tab: 'gameplay', label: 'Speed', type: 'choice', def: 'kmh', options: [['kmh', 'km/h'], ['mph', 'mph']] },
+
+  // picking a keyboard loads its preset; the keys can then be changed one by one
+  { id: 'layout', tab: 'controls', label: 'Keyboard', type: 'choice', def: 'qwerty', options: [['qwerty', 'QWERTY'], ['azerty', 'AZERTY']], then: v => setSetting('binds', PRESETS[v]) },
+  { id: 'binds', tab: 'controls', label: 'Keys', type: 'binds', def: PRESETS.qwerty },
 ];
 // what the choices mean to the game
 export const RENDER_SCALE = { low: 0.6, medium: 1, high: 1.5, ultra: 2 }; // cap on the device pixel ratio
@@ -42,6 +49,7 @@ export function sanitize(raw) {
     if (s.type === 'toggle' && typeof v === 'boolean') out[s.id] = v;
     else if (s.type === 'range' && typeof v === 'number' && Number.isFinite(v)) out[s.id] = Math.min(s.max, Math.max(s.min, v));
     else if (s.type === 'choice' && s.options.some(o => o[0] === v)) out[s.id] = v;
+    else if (s.type === 'binds') out[s.id] = sanitizeBinds(v, out.layout);
   }
   return out;
 }
@@ -57,9 +65,10 @@ export function saveSettings() {
 }
 export function setSetting(id, value) {
   const next = sanitize({ ...settings, [id]: value });
-  if (next[id] === settings[id]) return;
+  if (JSON.stringify(next[id]) === JSON.stringify(settings[id])) return;
   settings[id] = next[id]; saveSettings();
   emit('settings:changed', { id, value: settings[id] });
+  SETTINGS.find(s => s.id === id).then?.(settings[id]);
 }
 export function resetSettings() {
   for (const s of SETTINGS) setSetting(s.id, s.def);

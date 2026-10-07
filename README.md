@@ -18,9 +18,11 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 - Eight buildings around the city have a lit **Roof** door at street level (green squares on the radar). Press `E` there to take the stairs up to a fenced rooftop with a view over the city, and `E` at the stair hut's **Exit** door to come back down. VAC Gent, the Belpaire and the Herman Teirlinck have one too. A sniper rifle waits on every roof with a door, the rocket launcher on top of the Herman Teirlinck's tower, and a jetpack on the Belpaire. Like enemy drops, they are lost when you get wasted.
 - Every flat roof can be stood on. Press `Space` again in the air to double jump, jump over a roof's railings, and hop across to the next roof; a fall of more than about 5 m hurts. With the jetpack on, hold `Space` in the air to fly and let go to float down.
 - Dying sends you to City General with a 10% hospital bill. Progress saves in `localStorage`.
-- **Settings** (pause menu or title screen): sound on/off, effects and music volume, render quality, draw distance, animated waves, mouse sensitivity, invert look, field of view, camera shake, crowd and traffic density, km/h or mph, and a read-only list of the controls. Settings save in this browser, separately from game progress.
+- **Settings** (pause menu or title screen): sound on/off, effects and music volume, render quality, draw distance, animated waves, mouse sensitivity, invert look, field of view, camera shake, crowd and traffic density, km/h or mph, and the keys: a QWERTY or AZERTY preset, then any action rebound by clicking it and pressing the new key (a key already in use swaps over). On a first visit in Chrome or Edge an AZERTY keyboard is detected and picked for you. Settings save in this browser, separately from game progress.
 
 ## Controls
+
+These are the QWERTY defaults; the AZERTY preset uses ZQSD to move, A for melee and M (right of L) for the radio, and every key except the mouse, 1–9 and Esc can be changed under Settings → Controls. The arrow keys always move too.
 
 | Key | Action |
 | --- | --- |
@@ -45,7 +47,7 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 ```
 public/js/
   main.js            boot and the frame loop: updates every entity in the registry
-  core/              state, input, audio, save (versioned), event bus, helpers
+  core/              state, input, key bindings (keymap, controls), audio, save (versioned), event bus, helpers
   entities/          the registry every person, vehicle, pickup and shop lives in
   vehicles/          the shared vehicle layer: vehicle.js, kinds/ (bike, car), models/, traffic, helicopter
   npcs/              NPC_TYPES, behaviours (wander, hunt, ride) and the Npc entity
@@ -90,6 +92,8 @@ Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share 
 **A reload for a new gun.** Add a line to `RELOADS` in `data/reloads.js`: the move (`pistol`, `mag`, `pump`, `bolt`, `box` or `tube`, keyframed in `characters/reload.js`) and a sound file in `public/sfx/` (mono MP3, CC0 or your own, credited in `public/sfx/CREDITS.md`). A unit test fails until every gun with a magazine has one. A new move is a new list of keyframes in `RELOAD_ANIMS`.
 
 **A new setting.** Add a row to `SETTINGS` in `core/settings.js` (a toggle, range or choice, on the Sound, Graphics or Gameplay tab), then read `settings.<id>` where it matters or apply it in `apply()` in `ui/settings.js`. The Settings screen, saving and validation pick it up on their own.
+
+**A new key.** Add an action to `ACTIONS` and both presets in `core/keymap.js`, then check `held('<id>')` (in `core/controls.js`) every frame or `actionFor(e.code) === '<id>'` in the keydown handler in `core/input.js`. Use `kb('<id>')` for the key's name in prompts and tips so they follow the player's bindings. The Controls tab lists and rebinds it on its own.
 
 **A sound from something in the world.** Pass where it comes from: `Sound.shot(kind, vol, at(entity, height))` and the other one-shots take a world point (`at`, `beside` in `core/spatial.js`), and looping sources go through `Sound.loops(kind, sources)` once a frame. Each plays through its own HRTF panner relative to a listener at the player's head facing the camera, with inverse-distance falloff and distance dulling by the profile in `HEAR`. Sounds with no source (UI, the player's own gun) take no point.
 

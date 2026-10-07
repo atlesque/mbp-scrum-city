@@ -2,7 +2,7 @@ import { WEAPONS } from '../data/weapons.js';
 
 // Every kind of shop. To add one, add an entry here and place it in SHOP_SITES (world/city.js).
 //   name, tagline, calm      menu title, and the subtitle shown when no cops are around
-//   footer                   small print under the menu
+//   footer                   small print under the menu ({melee} becomes the melee key)
 //   closedAtWanted           wanted level at which the shutters come down (omit to never close)
 //   marker                   radar glyph and colour, also used for the ring at the door
 //   storefront               colours and sign for the building world/city.js puts up
@@ -10,7 +10,7 @@ import { WEAPONS } from '../data/weapons.js';
 export const SHOP_TYPES = {
   gunshop: {
     name: 'Bullet Bros. Guns', tagline: 'Est. 1979', calm: 'No questions asked',
-    footer: 'Upgrades raise damage, magazine size and fire rate, plus blast radius for rockets; on a bat or a blade, harder and quicker swings. Press Q to put the guns away. Progress saves in this browser.',
+    footer: 'Upgrades raise damage, magazine size and fire rate, plus blast radius for rockets; on a bat or a blade, harder and quicker swings. Press {melee} to put the guns away. Progress saves in this browser.',
     closedAtWanted: 4,
     marker: { glyph: '$', color: '#ff4fa3' },
     storefront: { wall: '#ffd0e5', roof: '#2b1b3d', neon: '#ff2fa8', awning: '#ff4fa3', sign: { text: 'Bullet Bros. Guns', color: '#ff3fae', font: '"Yellowtail", cursive' } },

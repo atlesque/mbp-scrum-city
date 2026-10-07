@@ -1,6 +1,7 @@
 import { Sound } from '../core/audio.js';
 import { at } from '../core/spatial.js';
-import { G, P, keys } from '../core/state.js';
+import { held } from '../core/controls.js';
+import { G, P } from '../core/state.js';
 import { clamp } from '../core/util.js';
 import { all } from '../entities/registry.js';
 
@@ -49,7 +50,7 @@ export function evSources() {
 
 // the player's ride is heard as their own (unplaced); every bike and electric car passing by plays from where it is
 export function updateEngineSound() {
-  const V = G.state === 'play' && P.vehicle, thr = !!(keys.KeyW || keys.ArrowUp), ev = isElectric(V);
+  const V = G.state === 'play' && P.vehicle, thr = held('forward'), ev = isElectric(V);
   Sound.setEngine(V && !ev ? 0.08 + (thr ? 0.03 : 0) : 0, V && !ev ? rpmFor(V.model, Math.abs(V.v), thr) : 1050);
   Sound.setElectric(ev ? 0.09 : 0, evMix(ev ? V.v : 0));
   Sound.loops('engine', engineSources(), ENGINE_HEAR);

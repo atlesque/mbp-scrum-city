@@ -1,4 +1,5 @@
 import { Sound } from '../core/audio.js';
+import { kb } from '../core/controls.js';
 import { G, P, inv, stats } from '../core/state.js';
 import { GUNS, WBY, WEAPONS, wStat } from '../data/weapons.js';
 import { charMat, gunGeo } from '../characters/character.js';
@@ -10,14 +11,45 @@ import { scene } from '../render/scene.js';
 
 // ================= PICKUPS & MONEY =================
 const cashGeo = new THREE.BoxGeometry(0.55, 0.28, 0.08), cashMat = new THREE.MeshBasicMaterial({ color: '#5cff6a' });
-const hpMat = new THREE.MeshBasicMaterial({ color: '#ff3b5c' }), arMat = new THREE.MeshBasicMaterial({ color: '#3fb0ff' });
+const hpMat = new THREE.MeshBasicMaterial({ color: '#ff3b5c' });
+
+// A plate-carrier armor vest: front and back panels (the front with a scooped neck), shoulder straps over the top,
+// cummerbund straps round the sides, three mag pouches and a light ID patch. Lit, with some glow so it reads at night.
+// Built once at 0.9 m tall; armorVest(s) hands out a scaled copy that shares the geometry.
+const vestMat = new THREE.MeshLambertMaterial({ color: '#2f86dc', emissive: '#0c3460' });
+const strapMat = new THREE.MeshLambertMaterial({ color: '#132438', emissive: '#060e18' });
+const patchMat = new THREE.MeshBasicMaterial({ color: '#d8f1ff' });
+function vestPanel(neckDip) {
+  const s = new THREE.Shape(), w = 0.34;
+  s.moveTo(-w, -0.42); s.lineTo(w, -0.42); s.lineTo(w + 0.02, 0);
+  s.quadraticCurveTo(0.21, 0.04, 0.21, 0.3); s.lineTo(0.21, 0.44); s.lineTo(0.1, 0.44);
+  s.quadraticCurveTo(0, 0.44 - neckDip * 2, -0.1, 0.44);
+  s.lineTo(-0.21, 0.44); s.lineTo(-0.21, 0.3); s.quadraticCurveTo(-0.21, 0.04, -w - 0.02, 0); s.closePath();
+  const g = new THREE.ExtrudeGeometry(s, { depth: 0.07, bevelEnabled: true, bevelThickness: 0.025, bevelSize: 0.022, bevelSegments: 2, curveSegments: 10 });
+  g.translate(0, 0, -0.035); return g;
+}
+const VEST = (() => {
+  const m = new THREE.Group(), gap = 0.13;
+  const front = new THREE.Mesh(vestPanel(0.16), vestMat), back = new THREE.Mesh(vestPanel(0.05), vestMat);
+  front.position.z = gap; back.position.z = -gap; m.add(front, back);
+  const strap = (w, h, d, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), strapMat); b.position.set(x, y, z); m.add(b); };
+  for (const x of [-0.155, 0.155]) strap(0.09, 0.05, 2 * gap + 0.13, x, 0.46, 0);           // over the shoulders
+  for (const y of [-0.12, -0.3]) for (const x of [-0.36, 0.36]) strap(0.05, 0.1, 2 * gap, x, y, 0); // round the sides
+  for (const x of [-0.18, 0, 0.18]) {                                                       // mag pouches with flaps
+    strap(0.15, 0.17, 0.07, x, -0.27, gap + 0.08);
+    strap(0.16, 0.05, 0.085, x, -0.18, gap + 0.085);
+  }
+  const patch = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.07, 0.02), patchMat); patch.position.set(0, 0.06, gap + 0.07); m.add(patch);
+  return m;
+})();
+const armorVest = s => { const m = VEST.clone(); m.scale.setScalar(s); return m; };
 
 // Pickups that sit on the street and come back after a while. stat is the field on the player they top up.
 export const PICKUP_TYPES = {
   health: { stat: 'hp', amount: 50, respawn: 45, label: '+50 health', color: '#ff7a9a', radar: '#ff5a7a',
     mesh() { const m = new THREE.Group(), a = new THREE.Mesh(PGEO, hpMat), b = new THREE.Mesh(PGEO, hpMat); a.scale.set(0.7, 0.22, 0.22); b.scale.set(0.22, 0.7, 0.22); m.add(a, b); return m; } },
   armor: { stat: 'armor', amount: 50, respawn: 60, label: '+50 armor', color: '#5ec8ff', radar: '#5ec8ff',
-    mesh() { const m = new THREE.Group(), a = new THREE.Mesh(new THREE.OctahedronGeometry(0.42, 0), arMat); a.scale.set(1, 1.2, 0.45); m.add(a); return m; } },
+    mesh() { return armorVest(1.2); } },
 };
 
 const Pickup = {
@@ -73,7 +105,7 @@ const WeaponPickup = {
     p.m.rotation.y += dt * 1.8; p.m.position.y = 1.0 + Math.sin(G.time * 2.4 + p.x) * 0.1;
     if (!P.alive || P.vehicle || P.y > 2 || Math.hypot(P.x - p.x, P.z - p.z) > 1.3 || !takeWeapon(inv, p.id)) return;
     Sound.pickup(); feed(WBY[p.id].name, false, '#ffd23e');
-    if (!toldMelee) { toldMelee = true; toast(`Got a <em>${WBY[p.id].name}</em>. Press <em>Q</em> to switch between your fists and melee weapons.`, 6); }
+    if (!toldMelee) { toldMelee = true; toast(`Got a <em>${WBY[p.id].name}</em>. Press <em>${kb('melee')}</em> to switch between your fists and melee weapons.`, 6); }
     p.onTaken && p.onTaken(p.id);
     p.active = false; p.m.visible = p.glow.visible = false; p.respawnT = WEAPON_PICKUP_RESPAWN;
   },
@@ -155,7 +187,7 @@ export const DROP_TYPES = {
   armor: { color: '#5ec8ff',
     useful: player => player.armor < 100,
     take(player) { player.armor = Math.min(100, player.armor + 25); return '+25 armor'; },
-    mesh() { const m = new THREE.Group(), a = new THREE.Mesh(new THREE.OctahedronGeometry(0.32, 0), arMat); a.scale.set(1, 1.2, 0.45); m.add(a); return m; } },
+    mesh() { return armorVest(0.85); } },
   // a quarter of a shop pack for every gun the player owns that uses ammo
   ammo: { color: '#ffd23e',
     useful: (player, inv) => ammoGuns(inv).length > 0,

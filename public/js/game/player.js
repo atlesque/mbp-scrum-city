@@ -6,8 +6,9 @@ import { tickSwing } from '../characters/swing.js';
 import { Sound } from '../core/audio.js';
 import { emit } from '../core/events.js';
 import { save } from '../core/save.js';
+import { held } from '../core/controls.js';
 import { settings } from '../core/settings.js';
-import { G, I, P, cam, inv, keys } from '../core/state.js';
+import { G, I, P, cam, inv } from '../core/state.js';
 import { $, angDiff, clamp, lerp, rnd } from '../core/util.js';
 import { HEAR, beside } from '../core/spatial.js';
 import { reloadOf } from '../data/reloads.js';
@@ -84,12 +85,12 @@ export const landDamage = vy => Math.max(0, -vy - SAFE_LAND) * LAND_HURT;
 function walk(dt, aimingNow) {
   let ix = 0, iz = 0;
   if (!G.stairs) { // standing still while the screen is black
-    if (keys.KeyW || keys.ArrowUp) iz += 1; if (keys.KeyS || keys.ArrowDown) iz -= 1;
-    if (keys.KeyA || keys.ArrowLeft) ix -= 1; if (keys.KeyD || keys.ArrowRight) ix += 1;
+    if (held('forward')) iz += 1; if (held('back')) iz -= 1;
+    if (held('left')) ix -= 1; if (held('right')) ix += 1;
   }
   const fx = Math.sin(cam.yaw), fz = Math.cos(cam.yaw), rx = -Math.cos(cam.yaw), rz = Math.sin(cam.yaw);
   let mx = fx * iz + rx * ix, mz = fz * iz + rz * ix; const ml = Math.hypot(mx, mz);
-  const sprint = (keys.ShiftLeft || keys.ShiftRight) && !I.mouseR && iz >= 0;
+  const sprint = held('sprint') && !I.mouseR && iz >= 0;
   const flying = P.jetpack && !P.grounded;
   const speed = flying ? JET.air : (sprint ? 8.2 : 5.0) * (P.swing ? 0.6 : 1); // a swing slows you down
   if (ml > 0) { mx /= ml; mz /= ml; }
@@ -105,7 +106,7 @@ function walk(dt, aimingNow) {
     else P.y = floor; // stepped up or down a little
   }
   // jump, and once more in the air (v²/2g puts the top of the first at about 1.6 m); with the jetpack, hold Space to fly
-  const space = !!keys.Space && !G.stairs, press = space && !P.spaceHeld; P.spaceHeld = space;
+  const space = held('jump') && !G.stairs, press = space && !P.spaceHeld; P.spaceHeld = space;
   if (press && P.grounded) { P.vy = JUMP_V; P.grounded = false; P.jumps = 1; }
   else if (press && (P.jumps || 0) < 2) { P.vy = Math.max(P.vy, AIR_JUMP_V); P.jumps = 2; P.flipT = FLIP; }
   if (!P.grounded) {

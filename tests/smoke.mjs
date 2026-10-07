@@ -1,5 +1,5 @@
 // Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, get shelled by the army's tank and blow it up, snipe through the scope, throw a car with a rocket,
-// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, ride a bike over a car, shunt a parked car, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof and change settings. Fails on any page error or broken step.
+// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, ride a bike over a car, shunt a parked car, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, change settings and remap keys. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -629,6 +629,30 @@ try {
     check(!(await game(() => __neonbay.Sound.dimmed)), 'the sound stayed dimmed after resuming');
   });
 
+  await step('switches to AZERTY and rebinds a key', async () => {
+    await press('KeyP');
+    check(await until(() => __neonbay.G.state === 'paused'), 'P did not pause');
+    await page.click('#pauseSettingsBtn'); await page.click('#setTabs [data-tab="controls"]');
+    await page.click('#setBody [data-set="layout"][data-val="azerty"]');
+    check(await page.textContent('#setBody [data-bind="forward"]') === 'Z' && await page.textContent('#setBody [data-bind="melee"]') === 'A', 'the AZERTY preset does not show Z and A');
+    check(await page.textContent('#hint [data-kb="radio"]') === 'M' && await page.textContent('.controls [data-kb="move"]') === 'ZQSD', 'the on-screen hints did not follow the preset');
+    await page.click('#setBody [data-bind="pause"]');
+    await page.keyboard.press('KeyO');
+    check(await page.textContent('#setBody [data-bind="pause"]') === 'O', 'pause was not rebound to O');
+    check(await page.isVisible('#settings'), 'the key press left the Settings screen');
+    await page.click('#setBack'); await page.click('#resumeBtn');
+    check(await until(() => __neonbay.G.state === 'play'), 'did not resume');
+    await press('KeyP'); await page.waitForTimeout(300);
+    check(await game(() => __neonbay.G.state === 'play'), 'P still pauses after moving pause to O');
+    await press('KeyO');
+    check(await until(() => __neonbay.G.state === 'paused'), 'O did not pause');
+    await page.click('#pauseSettingsBtn'); await page.click('#setTabs [data-tab="controls"]');
+    await page.click('#setBody [data-set="layout"][data-val="qwerty"]');
+    check(await page.textContent('#setBody [data-bind="forward"]') === 'W' && await page.textContent('#setBody [data-bind="pause"]') === 'P', 'QWERTY did not restore the keys');
+    await page.click('#setBack'); await page.click('#resumeBtn');
+    check(await until(() => __neonbay.G.state === 'play'), 'did not resume');
+  });
+
   await step('plays a siren from each police car', async () => {
     check(await game(() => __neonbay.Sound.ready), 'audio did not start');
     await game(() => {
@@ -722,12 +746,12 @@ try {
   });
 
   await step('every gun reloads with its own move and sound', async () => {
-    const guns = await game(() => import('/js/data/weapons.js').then(m => m.GUNS.map(w => w.id))); // on keys 1, 2, 3, ...
-    const thrown = await game(() => import('/js/data/weapons.js').then(m => m.GUNS.filter(w => w.thrown).map(w => w.id))); // grenades and molotovs never reload
+    // on keys 1, 2, 3, ...; grenades and molotovs are thrown one at a time and never reload
+    const guns = await game(() => import('/js/data/weapons.js').then(m => m.GUNS.map((w, i) => [i, w.id, !!w.thrown])));
     await game(() => { const { G, P } = __neonbay; G.heat = 0; G.wanted = 0; P.hp = 100; });
     if (await game(() => __neonbay.Sound.ready)) check(await until(() => import('/js/data/reloads.js').then(m => __neonbay.Sound.samplesLoaded.length === Object.keys(m.RELOADS).length)), 'the reload sounds did not load');
-    for (const [i, id] of guns.entries()) {
-      if (thrown.includes(id)) continue;
+    for (const [i, id, thrown] of guns) {
+      if (thrown) continue;
       await game(id => { const { inv } = __neonbay; inv.owned[id] = true; if (id !== 'pistol') inv.ammo[id] = 50; inv.mag[id] = 0; }, id);
       await press(`Digit${i + 1}`);
       check(await until(id => __neonbay.inv.cur === id, id, 3000), `could not switch to the ${id}`);
@@ -744,7 +768,7 @@ try {
     }
     await press('Digit1');
     check(await until(() => __neonbay.inv.cur === 'pistol', undefined, 3000), 'could not switch back to the pistol');
-    await game(guns => { const { inv } = __neonbay; for (const id of guns) if (id !== 'pistol') { delete inv.owned[id]; delete inv.ammo[id]; delete inv.mag[id]; } }, guns);
+    await game(guns => { const { inv } = __neonbay; for (const [, id] of guns) if (id !== 'pistol') { delete inv.owned[id]; delete inv.ammo[id]; delete inv.mag[id]; } }, guns);
   });
 } finally {
   await browser.close(); server.close();

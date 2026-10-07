@@ -1,3 +1,4 @@
+import { kb } from '../core/controls.js';
 import { emit } from '../core/events.js';
 import { G, P, cam } from '../core/state.js';
 import { $ } from '../core/util.js';
@@ -17,7 +18,7 @@ const RoofDoor = {
     if (!up && p.roof !== this.roof) return null;
     const at = up ? this.roof.street : this.roof.hutOut, dist = Math.hypot(at.x - p.x, at.z - p.z);
     if (dist >= REACH) return null;
-    return { keys: ['KeyE'], priority: 1, dist, prompt: up ? 'Press <kbd>E</kbd> to take the stairs to the roof' : 'Press <kbd>E</kbd> to head back down', run: () => takeStairs(this.roof, up) };
+    return { keys: ['use'], priority: 1, dist, prompt: `Press <kbd>${kb('use')}</kbd> to ` + (up ? 'take the stairs to the roof' : 'head back down'), run: () => takeStairs(this.roof, up) };
   },
   blip(radar) { if (P.roof !== this.roof) radar.dot(this.roof.street.x, this.roof.street.z, '#5dff9e', 7, false, 'sq'); },
 };
