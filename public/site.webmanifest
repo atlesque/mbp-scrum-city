@@ -1,7 +1,7 @@
 {
   "name": "MBP - Scrum City",
   "short_name": "Scrum City",
-  "description": "A free low-poly 80s beach-city shooter for desktop browsers.",
+  "description": "A low-poly beach-city shooter.",
   "start_url": "/",
   "display": "fullscreen",
   "orientation": "landscape",
