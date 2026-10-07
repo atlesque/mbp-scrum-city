@@ -618,7 +618,7 @@ try {
     check(n >= 6, `only ${n} rooftop door(s) in the city`);
     await game(() => { const { P, cam, ROOFS } = __neonbay, r = ROOFS[0]; P.x = r.street.x; P.z = r.street.z; cam.yaw = r.yaw + Math.PI; });
     await clearLane();
-    check(await until(() => /roof/.test(document.getElementById('prompt').textContent)), 'no prompt at the street door');
+    check(await until(() => __neonbay.G.near.some(i => /roof/.test(i.prompt))), 'no prompt at the street door'); // the prompt element keeps stale text, so ask the game
     await press('KeyE');
     check(await until(() => { const { P, ROOFS } = __neonbay; return P.roof === ROOFS[0] && Math.abs(P.y - ROOFS[0].floor) < 0.01; }), 'did not get up onto the roof');
     // run straight at the railing: the player stops at it instead of walking off
@@ -627,7 +627,7 @@ try {
     const on = await game(() => { const { P, ROOFS } = __neonbay, w = ROOFS[0].walk; return P.roof === ROOFS[0] && P.x > w.x0 && P.x < w.x1 && P.z > w.z0 && P.z < w.z1 && P.y >= ROOFS[0].floor - 0.01; });
     check(on, 'walked off the roof');
     await game(() => { const { P, cam, ROOFS } = __neonbay, r = ROOFS[0]; P.x = r.hutOut.x; P.z = r.hutOut.z; cam.yaw = r.yaw + Math.PI; });
-    check(await until(() => /down/.test(document.getElementById('prompt').textContent)), 'no prompt at the roof door');
+    check(await until(() => __neonbay.G.near.some(i => /down/.test(i.prompt))), 'no prompt at the roof door');
     await press('KeyE');
     const down = await until(() => !__neonbay.P.roof);
     const at = await game(() => { const { P, G, ROOFS } = __neonbay; return { y: P.y, d: Math.hypot(P.x - ROOFS[0].street.x, P.z - ROOFS[0].street.z), near: G.near.map(i => i.prompt), roof: !!P.roof }; });

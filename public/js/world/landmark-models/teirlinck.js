@@ -9,6 +9,9 @@ import { Kit, hiddenBy } from './kit.js';
 // Havenlaan is at -z, and the tower stands at the back on the right as seen from it.
 const BRICK = '#dcc08a', ROOF = '#8f8e88', CONCRETE = '#e6e1d6', LOUVRE = '#c9c6bf', GARDEN = '#4f7fa6', GLASS = '#5f7486', STEEL = '#2d2d31';
 const FH = 3.6, GROUND = 4.5, TOP = GROUND + 5 * FH; // 22.5 m
+// the rooftop door's place on the front (x, at z = -16; world/landmarks.js): the last ground-floor bay on the right,
+// which gets no shop window
+export const ROOF_DOOR_X = 13.56;
 
 export function buildTeirlinck() {
   const k = new Kit(2017);
@@ -63,7 +66,7 @@ export function buildTeirlinck() {
   frame(tower, ['front', 'back', 'left', 'right'], TOP, 10, [], { tall: true });
   frame(tower, ['back', 'left'], GROUND, 5, []);
   // shop windows on the ground floor away from the entrance
-  frame(front, ['front', 'left', 'right'], 0.3, 1, [], { skip: (s, t) => s === 'front' && t > E[0] + 16 - 1 && t < E[1] + 16 + 1 });
+  frame(front, ['front', 'left', 'right'], 0.3, 1, [], { skip: (s, t) => s === 'front' && ((t > E[0] + 16 - 1 && t < E[1] + 16 + 1) || Math.abs(t - 16 - ROOF_DOOR_X) < 1.2) });
   frame(side, ['right', 'back'], 0.3, 1, []);
   for (const R of wings) k.solid(R, TOP + 1);
   k.solid(tower, towerTop + 0.9); k.solid([-16, 6, -6, 0], TOP + 1.6); k.solid([0, 6, 0, 8], TOP); // the winter gardens
