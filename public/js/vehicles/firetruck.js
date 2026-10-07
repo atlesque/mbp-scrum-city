@@ -1,21 +1,24 @@
-import { charMat, muzzleOf } from '../characters/character.js';
+import { muzzleOf } from '../characters/character.js';
 import { explosion } from '../combat/combat.js';
 import { Sound } from '../core/audio.js';
+import { kb } from '../core/controls.js';
 import { on } from '../core/events.js';
 import { at } from '../core/spatial.js';
 import { G, P } from '../core/state.js';
 import { angDiff, clamp, lerp, rnd } from '../core/util.js';
 import { addEntity, all, removeEntity } from '../entities/registry.js';
+import { enterVehicle } from '../game/player.js';
 import { addHeat } from '../game/wanted.js';
 import { BEHAVIOURS } from '../npcs/behaviours.js';
-import { onFoot, spawnNpc } from '../npcs/npc.js';
+import { alarm, onFoot, spawnNpc } from '../npcs/npc.js';
 import { emit, jet } from '../render/effects.js';
-import { GB, addGeo, box, cylG, tube } from '../render/geometry.js';
 import { scene } from '../render/scene.js';
 import { ROADS, blocked, pushOutOBB, rayBox } from '../world/collision.js';
 import { burntMat } from './materials.js';
 import { nextDir } from './tank.js';
-import { hubWheelGeo, spinWheels, wheelAt } from './wheels.js';
+import { KINDS, spawnVehicle } from './vehicle.js';
+import { BODY, PUMP, buildTruck } from './firetruck-mesh.js';
+import { spinWheels } from './wheels.js';
 
 // ================= FIRE TRUCK =================
 // A crash fire (see CRASH_FIRE in vehicle.js) calls out the fire brigade: a fire engine sets off from a junction a
@@ -27,13 +30,11 @@ import { hubWheelGeo, spinWheels, wheelAt } from './wheels.js';
 //   turn       how fast it swings round onto a new road (rad/s)
 //   stop       how far short of the fire it parks (from its middle to the burning vehicle's)
 //   crew       firemen aboard; reach: they hose from up to this far off; sites: trucks out at once
-export const TRUCK = { hw: 1.3, hl: 4.3, top: 16, corner: 5, accel: 5, brake: 9, turn: 1.8, stop: 10, crew: 2, hp: 700, reach: 7.5, sites: 2 };
+export const TRUCK = { hw: BODY.hw, hl: BODY.hl, top: 16, corner: 5, accel: 5, brake: 9, turn: 1.8, stop: 10, crew: 2, hp: 700, reach: 7.5, sites: 2 };
 // where it sets off from: a junction this far from the fire (preferably out of the player's sight and away from them)
 export const START = { min: 60, max: 130, clearOfPlayer: 35 };
 // it blows up a bit bigger than a car (r 9, dmg 240)
 export const TRUCK_BLAST = { y: 1.2, r: 11, dmg: 280, power: 1.3 };
-// the side of the truck the hoses come off (its pump panel), in the truck's space: x across, z along
-const PUMP = { x: TRUCK.hw + 0.05, y: 1.2, z: 1.2 };
 const STEP = ROADS[1] - ROADS[0];
 const nearestRoad = v => ROADS.reduce((a, b) => Math.abs(b - v) < Math.abs(a - v) ? b : a);
 // the lane on the right of a road heading (dx, dz), from the middle of the road (as laneFor in traffic.js)
@@ -107,6 +108,12 @@ const Truck = {
     if (t.hp <= 0) destroy(t);
   },
   pushOut(o, r) { return pushOutOBB(o, r, this.x, this.z, this.yaw, TRUCK.hw, TRUCK.hl); },
+  // the player can take it: climb up into the cab while it's stopped or crawling along, and drive off in it
+  interaction(p) {
+    if (p.vehicle || this.dead || this.v > 5) return null;
+    const K = KINDS.truck, dist = K.reach(this, p); if (dist > K.reachMax) return null;
+    return { keys: ['ride'], priority: 0, dist, prompt: `Press <kbd>${kb('ride')}</kbd> to take the fire truck`, run: () => takeTruck(this) };
+  },
   blip(radar) { if (!this.dead) radar.dot(this.x, this.z, radar.flash && this.state !== 'leave' ? '#ffffff' : '#ff3b2e', 9, true, 'sq'); },
   shouldDespawn() {
     const d = Math.hypot(this.x - P.x, this.z - P.z);
@@ -206,6 +213,18 @@ function leave(t) {
   for (const n of t.crew) if (n.alive && !n.removed) removeEntity(n);
   t.crew = [];
 }
+// The player takes the truck: it becomes a vehicle they drive (models/firetruck.js), as battered as it was and with
+// its siren as it was. The crew give up on the fire and run, and stealing a fire engine draws the law.
+export function takeTruck(t) {
+  const hp = t.hp / TRUCK.hp, siren = t.siren, v = t.v;
+  for (const n of t.crew) if (n.alive && !n.removed) { n.truck = null; n.become('wander'); Object.assign(n, { state: 'flee', timer: 9, fx: P.x, fz: P.z, panic: true }); }
+  t.crew = []; removeEntity(t);
+  const c = spawnVehicle('firetruck', t.x, t.z, t.yaw);
+  c.hp = Math.max(1, Math.round(hp * c.model.hp)); c.siren = siren; c.v = v;
+  alarm(c.x, c.z, 20); addHeat(2);
+  enterVehicle(c);
+  return c;
+}
 function destroy(t) {
   t.dead = true; t.hp = 0; t.v = 0; t.deadT = 0; t.siren = false; t.state = 'dead';
   for (const m of t.meshes) m.material = burntMat;
@@ -249,60 +268,6 @@ function pose(t, dt) {
   // the light bar flashes red and white while it is out on a call
   const on = t.state !== 'leave', ph = (t.time * 5 | 0) % 2 === 0;
   t.lights.r.visible = on && ph; t.lights.w.visible = on && !ph;
-}
-
-// ---- the model: an original low-poly fire engine, red with a white band, a ladder on the roof, +z forward ----
-const RED = '#c8141e', DKRED = '#8e0d14', WHITE = '#f2efe6', CHROME = '#c9ccd2', GLASS = '#26364a', DARK = '#1c1c22', SHUTTER = '#b5bac2';
-function truckGeometry() {
-  const g = new GB(), L = TRUCK.hl, W = TRUCK.hw;
-  // chassis and the cab: a tall flat-fronted crew cab with big windows
-  box(g, 2.3, 0.4, 2 * L - 0.3, 0, 0.75, 0, DARK);
-  box(g, 2 * W, 1.95, 2.0, 0, 1.9, L - 1.0, RED);
-  box(g, 2 * W + 0.02, 0.14, 2.02, 0, 2.94, L - 1.0, WHITE);
-  box(g, 2 * W - 0.2, 0.85, 0.04, 0, 2.3, L + 0.01, GLASS);
-  for (const s of [-1, 1]) { box(g, 0.04, 0.7, 0.75, s * (W + 0.005), 2.3, L - 0.55, GLASS); box(g, 0.04, 0.7, 0.75, s * (W + 0.005), 2.3, L - 1.5, GLASS); }
-  box(g, 1.5, 0.55, 0.04, 0, 1.3, L + 0.01, '#2a2a30');
-  for (let i = 0; i < 4; i++) box(g, 1.4, 0.04, 0.05, 0, 1.12 + i * 0.12, L + 0.02, CHROME);
-  for (const s of [-1, 1]) { box(g, 0.36, 0.22, 0.05, s * 0.88, 1.15, L + 0.02, '#fff4cc'); box(g, 0.08, 0.5, 0.08, s * (W + 0.05), 2.4, L - 0.15, DARK); box(g, 0.05, 0.3, 0.2, s * (W + 0.1), 2.55, L - 0.15, DARK); }
-  box(g, 2 * W + 0.1, 0.3, 0.25, 0, 0.75, L + 0.05, CHROME);
-  // the body behind: equipment lockers with roller shutters down both sides, the pump panel and a white band
-  box(g, 2 * W, 2.15, 2 * L - 2.1, 0, 1.97, -1.05, RED);
-  box(g, 2 * W + 0.02, 0.12, 2 * L, 0, 1.25, 0, WHITE);
-  for (const s of [-1, 1]) {
-    for (const z of [-3.15, -1.6]) {
-      box(g, 0.03, 1.25, 1.35, s * (W + 0.01), 2.15, z, SHUTTER);
-      for (let i = 0; i < 6; i++) box(g, 0.035, 0.03, 1.35, s * (W + 0.012), 1.6 + i * 0.21, z, '#8d939c');
-    }
-    box(g, 0.05, 0.9, 0.9, s * (W + 0.02), 1.85, PUMP.z - 0.25, CHROME);
-    for (const dz of [-0.5, 0]) addGeo(g, cylG(8), s * (W + 0.12), PUMP.y, PUMP.z + dz - 0.1, 0.16, 0.16, 0.16, 0, 0, Math.PI / 2, '#d9b45a');
-    box(g, 0.25, 0.08, 2 * L - 2.4, s * (W + 0.1), 0.6, -1.0, CHROME); // running boards
-  }
-  // the rear: a step, a hose reel and the tail lights
-  box(g, 2 * W, 0.15, 0.4, 0, 0.6, -L - 0.1, CHROME);
-  addGeo(g, cylG(12), 0, 2.2, -L - 0.05, 1.0, 1.6, 1.0, 0, 0, Math.PI / 2, '#d8c7a0');
-  for (const s of [-1, 1]) box(g, 0.2, 0.3, 0.04, s * 1.0, 1.1, -L - 0.01, '#ff3040');
-  // the ladder on the roof, on a turntable at the back
-  addGeo(g, cylG(12), 0, 3.15, -2.9, 1.3, 0.2, 1.3, 0, 0, 0, DKRED);
-  for (const s of [-1, 1]) tube(g, [s * 0.42, 3.35, -3.3], [s * 0.42, 3.35, L - 0.4], 0.05, CHROME, 6);
-  for (let z = -3.1; z < L - 0.5; z += 0.45) box(g, 0.84, 0.04, 0.05, 0, 3.35, z, CHROME);
-  box(g, 0.3, 0.3, 0.5, 0, 3.15, L - 0.6, DKRED);
-  return g.geometry();
-}
-let GEO = null;
-const lightR = new THREE.MeshBasicMaterial({ color: '#ff2a2a' }), lightW = new THREE.MeshBasicMaterial({ color: '#ffffff' });
-export function buildTruck() {
-  if (!GEO) GEO = truckGeometry();
-  const grp = new THREE.Group(), body = new THREE.Mesh(GEO, charMat); grp.add(body);
-  // the light bar: a dark base with red and white halves that take turns lighting up
-  const base = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.12, 0.35), new THREE.MeshLambertMaterial({ color: '#222' })); base.position.set(0, 3.06, TRUCK.hl - 0.7); grp.add(base);
-  const r = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.16, 0.3), lightR), w = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.16, 0.3), lightW);
-  r.position.set(-0.47, 3.18, TRUCK.hl - 0.7); w.position.set(0.47, 3.18, TRUCK.hl - 0.7); grp.add(r, w);
-  const wheels = [];
-  for (const s of [-1, 1]) for (const z of [TRUCK.hl - 1.15, -1.7, -2.95]) {
-    const wh = wheelAt(hubWheelGeo(s, { r: 0.52, width: 0.38, cap: 0.3, capCol: '#c9ccd2', slotCol: '#4a4c52' }), charMat, s * 1.05, 0.52, z, 0.52);
-    grp.add(wh); wheels.push(wh);
-  }
-  return { grp, wheels, lights: { r, w }, meshes: [body, ...wheels] };
 }
 
 // a fire truck already called out to a fire near (x, z)

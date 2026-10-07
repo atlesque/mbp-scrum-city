@@ -5,9 +5,11 @@ import { WBY } from '../../public/js/data/weapons.js';
 import { all, removeEntity } from '../../public/js/entities/registry.js';
 import { NPC_TYPES } from '../../public/js/npcs/types.js';
 import { SHOP_TYPES } from '../../public/js/shops/types.js';
-import { TRUCK, stopShort } from '../../public/js/vehicles/firetruck.js';
-import { CRASH_FIRE, spawnVehicle } from '../../public/js/vehicles/vehicle.js';
+import { TRUCK, TRUCK_BLAST, spawnTruck, stopShort, takeTruck } from '../../public/js/vehicles/firetruck.js';
+import { CRASH_FIRE, KINDS, driveByPlayer, spawnVehicle } from '../../public/js/vehicles/vehicle.js';
 
+// getting in needs the page (the HUD); here it only takes the seat
+vi.mock('../../public/js/game/player.js', async orig => ({ ...await orig(), enterVehicle(v) { P.vehicle = v; v.driver = P; v.mode = 'player'; } }));
 vi.mock('../../public/js/game/pickups.js', () => ({ reward() {}, dropCash() {}, dropItem() {}, dropWeapon() {} }));
 
 const clear = () => { for (const e of all()) if (e.kind === 'vehicle' || e.kind === 'firetruck' || e.kind === 'npc') removeEntity(e); };
@@ -72,6 +74,45 @@ describe('fire truck', () => {
   it('sends one truck per fire', () => {
     const a = parked(); spawnVehicle('sedan', -3, 32, 0).damage(999, false, true); a.damage(999, false, true);
     expect(all('firetruck')).toHaveLength(1);
+  });
+});
+
+describe('driving the fire truck', () => {
+  it('is the same size as the one on call and goes up as big', () => {
+    const K = KINDS.truck;
+    expect([K.body.hw, K.body.hl]).toEqual([TRUCK.hw, TRUCK.hl]);
+    expect(K.blast.r).toBe(TRUCK_BLAST.r);
+    expect(K.ram.mass).toBeGreaterThan(KINDS.car.ram.mass);
+  });
+  it('the player can take one parked at a fire: they drive off in it and the crew runs', () => {
+    const c = parked(); c.damage(999, false, true);
+    const [t] = all('firetruck');
+    for (let s = 0; s < 40 && t.state === 'respond'; s += 0.5) run(0.5);
+    run(1);
+    expect(t.state).toBe('work');
+    const door = KINDS.truck.exitAt(t); P.x = door.x; P.z = door.z; P.y = 0;
+    const it = t.interaction(P); expect(it).toBeTruthy(); expect(it.keys).toContain('ride');
+    const heat = G.heat;
+    const v = takeTruck(t);
+    expect(t.removed).toBe(true); expect(all('firetruck')).toHaveLength(0);
+    expect(v.model.id).toBe('firetruck'); expect(P.vehicle).toBe(v); expect(v.driver).toBe(P);
+    expect(v.siren).toBe(false); expect(G.heat).toBeGreaterThan(heat);
+    expect(all('npc').filter(n => n.type === 'fireman' && n.alive).every(n => !n.truck && n.state === 'flee')).toBe(true);
+    P.vehicle = null;
+  });
+  it('can not be taken while it races to a fire', () => {
+    const c = parked(); const t = spawnTruck(-3, -60, c);
+    t.v = 12; const door = KINDS.truck.exitAt(t); P.x = door.x; P.z = door.z;
+    expect(t.interaction(P)).toBeNull();
+  });
+  it('shoves a car out of its way instead of stopping dead', () => {
+    clear(); P.alive = true; G.state = 'play';
+    const v = spawnVehicle('firetruck', -3, 0, 0), car = spawnVehicle('sedan', -3, 6.4, 0);
+    P.vehicle = v; v.driver = P; v.mode = 'player'; v.v = 12;
+    driveByPlayer(v, 1 / 60);
+    expect(Math.hypot(car.kvx || 0, car.kvz || 0)).toBeGreaterThan(5);
+    expect(v.v).toBeGreaterThan(8);
+    P.vehicle = null; v.driver = null;
   });
 });
 

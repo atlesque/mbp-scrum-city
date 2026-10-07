@@ -3,12 +3,13 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { G, P } from '../../public/js/core/state.js';
 import { addEntity, removeEntity } from '../../public/js/entities/registry.js';
 import { rotorSources, sirenSources } from '../../public/js/game/wanted.js';
+import { lightsOn, toggleSiren } from '../../public/js/vehicles/vehicle.js';
 
 const added = [];
 const add = e => (added.push(addEntity(e)), added.at(-1));
 const car = (police, x = 0, z = 20) => add({ kind: 'vehicle', model: { police }, x, z, dead: false });
 
-afterEach(() => { for (const e of added.splice(0)) removeEntity(e); G.wanted = 0; G.state = 'loading'; });
+afterEach(() => { for (const e of added.splice(0)) removeEntity(e); G.wanted = 0; G.state = 'loading'; P.vehicle = null; });
 
 describe('police siren', () => {
   it('stays silent on the first star until a police car shows up', () => {
@@ -35,6 +36,31 @@ describe('police siren', () => {
     expect(sirenSources()).toEqual([]);
     G.state = 'play'; G.wanted = 0;
     expect(sirenSources()).toEqual([]);
+  });
+});
+
+describe('siren switch', () => {
+  const drive = (model) => { const c = add({ kind: 'vehicle', model, x: 0, z: 0, dead: false }); P.vehicle = c; return c; };
+  it('turns a police car\'s siren and lights on and off at the wheel, with or without stars', () => {
+    P.x = 0; P.z = 0; G.wanted = 0; G.state = 'play';
+    const c = drive({ police: true, siren: true });
+    expect(toggleSiren()).toBe(true);
+    expect(sirenSources().map(s => s.key)).toEqual([c]); expect(lightsOn(c)).toBe(true);
+    G.wanted = 3; toggleSiren();
+    expect(sirenSources()).toEqual([]); expect(lightsOn(c)).toBe(false);
+  });
+  it('keeps going after the player gets out, and plays up on the fire truck\'s roof', () => {
+    P.x = 0; P.z = 0; G.state = 'play';
+    const t = drive({ siren: true, sirenY: 3 });
+    expect(lightsOn(t)).toBe(false); expect(sirenSources()).toEqual([]);
+    toggleSiren(); P.vehicle = null;
+    const [s] = sirenSources();
+    expect(s.key).toBe(t); expect(s.y).toBeGreaterThan(2.5);
+  });
+  it('does nothing in a car without one, or on foot', () => {
+    G.state = 'play';
+    drive({}); expect(toggleSiren()).toBe(false);
+    P.vehicle = null; expect(toggleSiren()).toBe(false);
   });
 });
 

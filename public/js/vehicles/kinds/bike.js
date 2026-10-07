@@ -42,6 +42,7 @@ const TURN_X = [-150, -100, -50, 0, 50, 100, 150, 200], TURN_Z = [-150, -100, -5
 //   enclosed, occupantHit    riders sit inside (cars): bullets through the windows reach them via occupantHit(v, o, d, maxT)
 export const bike = {
   hull: { half: 0.62, r: 0.42 },
+  front: 1.1, // how far ahead of the middle the headlight is (render/lighting.js)
   verb: 'ride',
   handling: { top: 34, boostTop: 46, accel: 11, boostAccel: 15, brake: 26, reverseBrake: 22, reverseTop: 5, reverseAccel: 7, handbrake: 32, coast: 1.6, drag: 0.01, turnLow: 1.8, turnHigh: 0.9, maxSteer: 0.5 },
   traffic: { look: 7, decel: 28, accel: 8, patience: 2.5, hornAfter: 1.2 },

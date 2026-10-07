@@ -20,7 +20,7 @@ import { camera, canvasEl } from '../render/scene.js';
 import { showBig, toast } from '../ui/hud.js';
 import { removeHeli } from '../vehicles/heli.js';
 import { removeTank } from '../vehicles/tank.js';
-import { driveByPlayer } from '../vehicles/vehicle.js';
+import { driveByPlayer, sirenOn } from '../vehicles/vehicle.js';
 import { SPAWN } from '../world/city.js';
 import { collide, wallHit } from '../world/collision.js';
 import { collideRoofs, surfaceAt } from '../world/rooftops.js';
@@ -165,8 +165,9 @@ function bailSide(v, reach) {
 const told = {};
 export function enterVehicle(v) {
   P.vehicle = v; v.driver = P; v.mode = 'player'; v.K.onPlayerEnter(v);
+  if (v.model.siren) v.siren = sirenOn(v); // the siren is the player's to switch now, starting as it was
   v.K.seat(v, P.c); P.x = v.x; P.z = v.z; P.y = 0; P.floor = 0; P.roof = null; P.vy = 0; P.grounded = true; P.flipT = 0; P.c.body.rotation.x = 0; P.lookT = -9;
-  $('prompt').hidden = true; G.hudCache = ''; $('vehName').textContent = v.model.short;
+  $('prompt').hidden = true; G.hudCache = ''; $('vehName').textContent = v.model.short; $('vehSiren').hidden = !v.model.siren;
   if (!told[v.model.id]) { told[v.model.id] = true; toast(v.K.tip(v.model), 7); }
   emit('vehicle:enter', { vehicle: v });
 }

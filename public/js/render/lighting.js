@@ -117,7 +117,7 @@ export function updateLighting(dt) {
   let pi = 0, fi = 0;
   for (const v of cars) {
     if (pi >= MAX_CARS) break;
-    const bike = v.model.kind === 'bike', sy = Math.sin(v.yaw), cy = Math.cos(v.yaw), front = bike ? 1.1 : 2.2;
+    const bike = v.model.kind === 'bike', sy = Math.sin(v.yaw), cy = Math.cos(v.yaw), front = v.K.front;
     _q.setFromAxisAngle(_e.set(0, 1, 0), v.yaw);
     _m.compose(_p.set(v.x + sy * (front + 7), 0.18, v.z + cy * (front + 7)), _q, _s.set(bike ? 0.7 : 1, 1, 1)); carPools.setMatrixAt(pi++, _m);
     for (const side of bike ? [0] : [-0.62, 0.62]) {
@@ -128,11 +128,11 @@ export function updateLighting(dt) {
   carPools.instanceMatrix.needsUpdate = carFlares.instanceMatrix.needsUpdate = true;
 
   const mine = P.vehicle && cars.includes(P.vehicle) ? P.vehicle : null;
-  const ahead = v => { const f = v.model.kind === 'bike' ? 1.1 : 2.2; return { x: v.x + Math.sin(v.yaw) * (f + 3), z: v.z + Math.cos(v.yaw) * (f + 3) }; };
+  const ahead = v => { const f = v.K.front; return { x: v.x + Math.sin(v.yaw) * (f + 3), z: v.z + Math.cos(v.yaw) * (f + 3) }; };
   assign(carSlots, nearest(cars.filter(v => v !== mine), P.x, P.z, CAR_LIGHTS, ahead), dt, (l, v) => { const a = ahead(v); l.position.set(a.x, 1.1, a.z); });
   for (const s of carSlots) s.l.intensity = CAR_I * on * s.k;
   if (mine) {
-    const sy = Math.sin(mine.yaw), cy = Math.cos(mine.yaw), f = mine.model.kind === 'bike' ? 1.1 : 2.2;
+    const sy = Math.sin(mine.yaw), cy = Math.cos(mine.yaw), f = mine.K.front;
     beam.position.set(mine.x + sy * f, 1.0, mine.z + cy * f); beam.target.position.set(mine.x + sy * (f + 18), 0, mine.z + cy * (f + 18));
   }
   beam.intensity = mine ? BEAM_I * on : 0;

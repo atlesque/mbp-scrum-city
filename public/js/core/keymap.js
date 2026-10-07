@@ -17,9 +17,10 @@ export const ACTIONS = [
   { id: 'reload', label: 'Reload', group: 'Actions' },
   { id: 'melee', label: 'Fists and melee weapons', group: 'Actions' },
   { id: 'radio', label: 'Radio on / off', group: 'Actions' },
+  { id: 'siren', label: 'Siren on / off (police car, fire truck)', group: 'Actions' },
   { id: 'pause', label: 'Pause', group: 'Actions' },
 ];
-const QWERTY = { forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD', sprint: 'ShiftLeft', jump: 'Space', use: 'KeyE', ride: 'KeyF', reload: 'KeyR', melee: 'KeyQ', radio: 'KeyM', pause: 'KeyP' };
+const QWERTY = { forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD', sprint: 'ShiftLeft', jump: 'Space', use: 'KeyE', ride: 'KeyF', reload: 'KeyR', melee: 'KeyQ', radio: 'KeyM', siren: 'KeyH', pause: 'KeyP' };
 export const PRESETS = { qwerty: QWERTY, azerty: { ...QWERTY, radio: 'Semicolon' } };
 // keys that work alongside the binding and can't be changed
 export const ALT = { forward: 'ArrowUp', back: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight', sprint: 'ShiftRight' };
