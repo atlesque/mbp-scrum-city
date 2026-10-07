@@ -9,36 +9,47 @@ import { groundAt } from '../../world/city.js';
 import { collide, pushOutOBB, raySphere } from '../../world/collision.js';
 import { all } from '../../entities/registry.js';
 import { driftDrive, followLane, keepLane, keepOnGrid } from '../drive.js';
-import { blockedAhead, smash } from '../vehicle.js';
+import { blockedAhead, lightsOn, smash } from '../vehicle.js';
 import { skidMark } from '../skids.js';
 import { rolling, spinWheels } from '../wheels.js';
 
-const HW = 1.0, HL = 2.15; // half width and half length of the body
-const SILL = 0.95; // bottom of the windows: shots above it reach whoever is inside
-const WX = 0.82, WZ = 1.35; // wheels: half the track and half the wheelbase
-const SKID = 3;
-// the shape of the top of the body for a bike riding over it (topAt): height along the length, front first, and across
-const TOP_ALONG = [[HL, 0.75], [HL - 0.3, 0.95], [1.05, 1.02], [0.35, 1.5], [-0.75, 1.5], [-1.2, 1.05], [-HL + 0.35, 1.0], [-HL, 0.8]];
-const TOP_ACROSS = [[HW, 0.85], [HW - 0.35, 1.5], [0, 1.5]];
-const profile = (pts, t) => { for (let i = 1; i < pts.length; i++) { const [t1, h1] = pts[i], [t0, h0] = pts[i - 1]; if (t >= t1) return lerp(h1, h0, (t - t1) / (t0 - t1)); } return pts[pts.length - 1][1]; }; // sideways speed (m/s) above which the tyres squeal, smoke and leave marks
+// The body of a car, in its own space (+z forward): half width and half length, the bottom of the windows (shots above
+// it reach whoever is inside), the wheels (half the track and half the wheelbase), how tall it is for bullets, the
+// circles along it that keep it out of walls, and the shape of its top for a bike riding over it (topAt): height along
+// the length, front first, and across. A bigger body (the fire truck, kinds/truck.js) makes its own kind with carKind.
+const SEDAN = {
+  hw: 1.0, hl: 2.15, sill: 0.95, wx: 0.82, wz: 1.35, h: 1.55, circles: [1.15, -1.15], front: 2.2,
+  along: [[2.15, 0.75], [1.85, 0.95], [1.05, 1.02], [0.35, 1.5], [-0.75, 1.5], [-1.2, 1.05], [-1.8, 1.0], [-2.15, 0.8]],
+  across: [[1.0, 0.85], [0.65, 1.5], [0, 1.5]],
+};
+const SKID = 3; // sideways speed (m/s) above which the tyres squeal, smoke and leave marks
+const profile = (pts, t) => { for (let i = 1; i < pts.length; i++) { const [t1, h1] = pts[i], [t0, h0] = pts[i - 1]; if (t >= t1) return lerp(h1, h0, (t - t1) / (t0 - t1)); } return pts[pts.length - 1][1]; };
+
+// the circles along a car's body, out in the world; `settle` then moves the car by half of what pushing them out moved
+// them all together (for two circles, to halfway between them, as a car always did)
+const circlesOf = c => { const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw); return c.K.body.circles.map(l => ({ x: c.x + fx * l, z: c.z + fz * l, x0: c.x + fx * l, z0: c.z + fz * l })); };
+function settle(c, pts) { for (const p of pts) { c.x += (p.x - p.x0) / 2; c.z += (p.z - p.z0) / 2; } }
 
 // Cars: four wheels, no lean, the driver sits inside out of sight. See kinds/bike.js for what each field means.
 // AI traffic keeps its body out of other cars' instead of driving through them
 function keepApart(c) {
-  const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw), F = { x: c.x + fx * 1.15, z: c.z + fz * 1.15 }, R = { x: c.x - fx * 1.15, z: c.z - fz * 1.15 };
+  const pts = circlesOf(c);
   let hit = false;
   for (const o of all('vehicle')) {
-    if (o === c || o.K !== car || Math.abs(o.x - c.x) > 6 || Math.abs(o.z - c.z) > 6) continue;
-    if (o.pushOut(F, HW)) hit = true;
-    if (o.pushOut(R, HW)) hit = true;
+    if (o === c || !o.K.enclosed || Math.abs(o.x - c.x) > 9 || Math.abs(o.z - c.z) > 9) continue;
+    for (const p of pts) if (o.pushOut(p, c.K.body.hw)) hit = true;
   }
-  if (hit) { c.x = (F.x + R.x) / 2; c.z = (F.z + R.z) / 2; }
+  if (hit) settle(c, pts);
   return hit;
 }
 
-export const car = {
+// a car kind for body `B` (see SEDAN); `extra(K)` returns what to override of the car kind K (handling, camera, blast, ...)
+export function carKind(B = SEDAN, extra = () => ({})) {
+const { hw: HW, hl: HL, sill: SILL, wx: WX, wz: WZ } = B;
+const K = {
+  body: B, front: B.front,
   // the capsule it breaks props with (world/props.js): half its length either side of the centre, and how wide
-  hull: { half: 1.15, r: HW },
+  hull: { half: B.circles[0], r: HW },
   verb: 'drive',
   handling: { top: 30, boostTop: 40, accel: 8, boostAccel: 11, brake: 24, reverseBrake: 18, reverseTop: 7, reverseAccel: 6, handbrake: 7, coast: 1.2, drag: 0.006, turnLow: 2.0, turnHigh: 1.0, maxSteer: 0.65,
     steerRate: 6, grip: 10, gripFast: 5, drift: { min: 9, grip: 3, throttleGrip: 2, handbrakeGrip: 1.4, turn: 1.3, angle: 0.75, keep: 0.8, exit: 1.2, hold: 0.5 } }, // see driftDrive in drive.js
@@ -48,11 +59,11 @@ export const car = {
   wreckReward: { heat: 3, cash: [40, 160] },
   bumper: { back: -2.2, front: 2.6, half: 1.15, slow: 0.9 },
   crash: { exitSpeed: 9, hurt: 0.5 },
-  ram: { mass: 4, hull: [1.15, HW], heavierAt: 3, sameAt: Infinity }, // see vehicles/knock.js
+  ram: { mass: 4, hull: [B.circles[0], HW], heavierAt: 3, sameAt: Infinity }, // see vehicles/knock.js
   camera: { dist: 7.4, aimDist: 4.2, height: 2.2, fovPerSpeed: 0.3, minArm: 3.4 }, // minArm: see game/camera.js
   laneHalf: 1.7, trafficDespawn: Infinity, reachMax: 1.6, stopsWhileBurning: true, enclosed: true, jack: 'pull the driver out of',
   wheelbase: WZ * 2,
-  tip: M => `The ${M.name}. <em>${kb('forward')}</em>/<em>${kb('back')}</em> gas and brake, <em>${kb('left')}</em>/<em>${kb('right')}</em> steer, <em>${kb('sprint')}</em> boost, <em>${kb('jump')}</em> handbrake (steer with it to drift), <em>${kb('ride')}</em> to get out.`,
+  tip: M => `The ${M.name}. <em>${kb('forward')}</em>/<em>${kb('back')}</em> gas and brake, <em>${kb('left')}</em>/<em>${kb('right')}</em> steer, <em>${kb('sprint')}</em> boost, <em>${kb('jump')}</em> handbrake (steer with it to drift),${M.siren ? ` <em>${kb('siren')}</em> siren,` : ''} <em>${kb('ride')}</em> to get out.`,
 
   build(v) { return v.model.mesh(v); },
   pose(c, dt) {
@@ -68,10 +79,10 @@ export const car = {
     m.grp.position.set(c.x, c.gy + (c.air || 0), c.z); m.grp.rotation.set(-c.gp, c.yaw, c.gr + c.lean + (c.wreckRoll || 0), 'YXZ');
     spinWheels(m.wheels, rolling(c) * dt);
     if (c.dead || c.burnT > 0) return;
-    if (m.lr) { const on = (G.time * 6 | 0) % 2 === 0; m.lr.visible = on; m.lb.visible = !on; }
+    if (m.lr) { const lit = lightsOn(c), on = (G.time * 6 | 0) % 2 === 0; m.lr.visible = lit && on; m.lb.visible = lit && !on; }
     if (c.hp < 50 && dt && Math.random() < dt * 6) emit(c.x + Math.sin(c.yaw) * 1.8, 1.1, c.z + Math.cos(c.yaw) * 1.8, 1, '#8a8090', 1, 1.4, 0.4, 2, 1);
   },
-  drive(v, dt, c) { driftDrive(v, dt, c, car.wheelbase); },
+  drive(v, dt, c) { driftDrive(v, dt, c, K.wheelbase); },
   // sliding: tyre smoke and black marks off the rear wheels, and a squeal (see updateEngineSound)
   afterDrive(c, dt) {
     const s = Math.abs(c.slip || 0), on = s > SKID && Math.abs(c.v) > 2;
@@ -86,15 +97,15 @@ export const car = {
   },
 
   collideSelf(c) {
-    const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw), F = { x: c.x + fx * 1.15, z: c.z + fz * 1.15 }, R = { x: c.x - fx * 1.15, z: c.z - fz * 1.15 };
-    const h1 = collide(F, HW, c), h2 = collide(R, HW, c);
-    c.x = (F.x + R.x) / 2; c.z = (F.z + R.z) / 2; return h1 || h2;
+    const pts = circlesOf(c);
+    let hit = false; for (const p of pts) if (collide(p, HW, c)) hit = true;
+    settle(c, pts); return hit;
   },
   ai: {
     // follow the lane without driving through other cars; a shove leaves the driver stunned, then they get back in lane
     traffic(c, dt) {
       if (c.dazeT > 0) { c.dazeT -= dt; c.v = 0; return; }
-      followLane(c, dt, car.traffic); keepOnGrid(c, dt);
+      followLane(c, dt, K.traffic); keepOnGrid(c, dt);
       c.yaw += angDiff(c.yaw, keepLane(c, dt)) * Math.min(1, dt * 5);
       if (keepApart(c)) c.v *= 0.9;
       const a = c.driver; if (a) { a.x = c.x; a.z = c.z; a.yaw = c.yaw; }
@@ -118,7 +129,7 @@ export const car = {
     c.kspin = Math.abs(c.kspin || 0) < 0.05 ? 0 : c.kspin * Math.max(0, 1 - dt * 3);
     c.x += c.kvx * dt; c.z += c.kvz * dt; c.yaw += c.kspin * dt;
     if (!(c.air > 0)) smash(c, c.kvx, c.kvz); // a car sent skidding takes palms and lamps down too
-    if (car.collideSelf(c)) { c.kvx *= 0.5; c.kvz *= 0.5; c.kspin *= 0.5; }
+    if (K.collideSelf(c)) { c.kvx *= 0.5; c.kvz *= 0.5; c.kspin *= 0.5; }
     if (sp > 4 && dt && Math.random() < dt * 20) emit(c.x + rnd(-1, 1), 0.15, c.z + rnd(-1, 1), 1, '#cfc8d8', 2, 0.6, 0.35, 1, 1); // tyre smoke
     // a traffic car comes out of it facing along its road again
     if (!c.kvx && !c.kvz && !c.kspin && c.mode === 'traffic') { const a = Math.round(c.yaw / (Math.PI / 2)) * Math.PI / 2; if (Math.round(Math.sin(a)) === -c.dirX && Math.round(Math.cos(a)) === -c.dirZ) { c.dirX = -c.dirX; c.dirZ = -c.dirZ; } }
@@ -128,7 +139,7 @@ export const car = {
   coast(c, dt) {
     if (!c.v) return;
     const dec = 6 * dt; c.v = Math.abs(c.v) <= dec ? 0 : c.v - Math.sign(c.v) * dec;
-    c.x += Math.sin(c.yaw) * c.v * dt; c.z += Math.cos(c.yaw) * c.v * dt; if (car.collideSelf(c)) c.v *= 0.4;
+    c.x += Math.sin(c.yaw) * c.v * dt; c.z += Math.cos(c.yaw) * c.v * dt; if (K.collideSelf(c)) c.v *= 0.4;
   },
   // the driver sits behind the wheel, seen through the windows; the seat keeps their gun where drive-by shots come from
   seat(c, ch) {
@@ -156,14 +167,14 @@ export const car = {
   },
   seatZ: () => -0.3,
   exitAt: c => ({ x: c.x + Math.cos(c.yaw) * (HW + 0.7), z: c.z - Math.sin(c.yaw) * (HW + 0.7) }),
-  hitBox(c) { const sy = Math.abs(Math.sin(c.yaw)), cy = Math.abs(Math.cos(c.yaw)); return { hx: sy * HL + cy * HW, hz: cy * HL + sy * HW, h: 1.55 }; },
+  hitBox(c) { const sy = Math.abs(Math.sin(c.yaw)), cy = Math.abs(Math.cos(c.yaw)); return { hx: sy * HL + cy * HW, hz: cy * HL + sy * HW, h: B.h }; },
   pushOut(c, o, r) { return pushOutOBB(o, r, c.x, c.z, c.yaw, HW, HL); },
   // how high the top of the body is at (x, z), for a bike riding over it (see vehicles/knock.js); -Infinity off it
   topAt(c, x, z) {
     const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw), rx = x - c.x, rz = z - c.z;
     const lx = Math.abs(rx * fz - rz * fx), lz = rx * fx + rz * fz;
     if (lx > HW || Math.abs(lz) > HL) return -Infinity;
-    return Math.min(profile(TOP_ALONG, lz), profile(TOP_ACROSS, lx)) + (c.gy || 0) + (c.air || 0);
+    return Math.min(profile(B.along, lz), profile(B.across, lx)) + (c.gy || 0) + (c.air || 0);
   },
   // distance from the player to the nearest point of the body
   reach(c, p) {
@@ -184,3 +195,7 @@ export const car = {
   // the detailed models share one geometry between all their cars (models/carkit.js), so that stays
   dispose(c) { for (const m of [c.mesh.m, c.mesh.win, c.mesh.lamps]) if (m && !m.geometry.userData.shared) m.geometry.dispose(); },
 };
+return Object.assign(K, extra(K));
+}
+export const car = carKind();
+

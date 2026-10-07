@@ -15,12 +15,13 @@ import { rayBox } from '../world/collision.js';
 import { smashProps } from '../world/props.js';
 import { bike } from './kinds/bike.js';
 import { car } from './kinds/car.js';
+import { truck } from './kinds/truck.js';
 import { blastThrow, knockImpulse, rideOver, shoveImpulse, touching } from './knock.js';
 import { burntMat } from './materials.js';
 import { VEHICLE_MODELS } from './models/index.js';
 
 // How each kind of vehicle drives, seats its rider and gets hit. See kinds/bike.js for the full list of fields.
-export const KINDS = { bike, car };
+export const KINDS = { bike, car, truck };
 
 // Crash fires. A vehicle set alight by a collision burns for its kind's fx.crashFuse seconds before it goes up, long
 // enough for the fire brigade to get there (vehicles/firetruck.js). Shooting it or a blast still sets it off sooner:
@@ -190,6 +191,19 @@ export function spawnVehicle(model, x, z, yaw, mode = 'parked') {
 
 export const vehicles = () => all('vehicle');
 
+// ---- sirens ----
+// Police cars and the fire truck (models with `siren`) have a siren and flashing lights. A police car out on its own
+// flashes its lights, and sounds its siren while you're wanted; once the player has been at the wheel it's whatever
+// they last switched it to with the siren key, and stays that way after they get out.
+export const lightsOn = v => v.siren ?? !!v.model.police;
+export const sirenOn = v => !v.dead && !(v.burnT > 0) && (v.siren ?? (!!v.model.police && G.wanted > 0));
+export function toggleSiren() {
+  const v = P.vehicle; if (!v || !v.model.siren || v.dead) return false;
+  v.siren = !sirenOn(v);
+  toast(v.siren ? 'Siren on' : 'Siren off', 1.2);
+  return true;
+}
+
 // ---- the player at the controls ----
 const controls = () => ({
   throttle: held('forward'), brake: held('back'), boost: held('sprint'), handbrake: held('jump'),
@@ -257,13 +271,17 @@ function mount(v) {
   v.landV = 0;
 }
 
+// too far apart to touch: a quick check before the real one (knock.js); trucks reach further than cars and bikes
+const span = v => v.K.ram ? v.K.ram.hull[0] + v.K.ram.hull[1] : 2.5;
+const apart = (a, b) => { const r = Math.max(6, span(a) + span(b) + 1); return Math.abs(b.x - a.x) > r || Math.abs(b.z - a.z) > r; };
+
 // send lighter vehicles we drive into flying and shove cars along (see knock.js); anything we only bump stops
 // us as usual. True when we shoved something, which has already taken the speed and damage off us.
 function ram(v) {
   if (!v.K.ram || !v.v) return false;
   let shoved = false;
   for (const b of all('vehicle')) {
-    if (b === v || b.driver === P || b.ghostT > G.time || Math.abs(b.x - v.x) > 6 || Math.abs(b.z - v.z) > 6) continue;
+    if (b === v || b.driver === P || b.ghostT > G.time || apart(v, b)) continue;
     if (b.K.slide) {
       const k = shoveImpulse(v, b); if (!k) continue;
       shove(v, b, k, true); shoved = true;
@@ -304,7 +322,7 @@ function shove(a, b, k, byPlayer) {
 function shoveAround(v) {
   if (!v.K.ram || Math.hypot(v.kvx || 0, v.kvz || 0) < 2) return;
   for (const b of all('vehicle')) {
-    if (b === v || !b.K.slide || b.driver === P || Math.abs(b.x - v.x) > 6 || Math.abs(b.z - v.z) > 6) continue;
+    if (b === v || !b.K.slide || b.driver === P || apart(v, b)) continue;
     const k = shoveImpulse(v, b); if (!k) continue;
     shove(v, b, k, v.byPlayer); v.kvx = k.avx; v.kvz = k.avz;
     Sound.thud(clamp(k.closing / 25, 0.2, 0.8), at(v, 0.7));

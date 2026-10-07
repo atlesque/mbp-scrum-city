@@ -12,6 +12,7 @@ import { camera, canvasEl, renderer } from '../render/scene.js';
 import { closeShop } from '../shops/shop.js';
 import { drawWeaponIcon, showRadio, toast } from '../ui/hud.js';
 import { closeSettings, settingsOpen } from '../ui/settings.js';
+import { toggleSiren } from '../vehicles/vehicle.js';
 import { SPAWN } from '../world/city.js';
 
 export function requestLock(fromClick) {
@@ -49,6 +50,7 @@ document.addEventListener('keydown', e => {
   keys[e.code] = true;
   if (act === 'reload') startReload();
   if ((act === 'ride' || act === 'use') && P.alive) interact(act);
+  if (act === 'siren') toggleSiren();
   if (act === 'radio') { const on = Sound.toggleMusic(); showRadio(on ? 'Neon FM 86.0' : 'Radio off'); }
   if (act === 'pause' || (e.code === 'Escape' && I.noLock)) pauseGame();
   if (act === 'melee') cycleMelee();

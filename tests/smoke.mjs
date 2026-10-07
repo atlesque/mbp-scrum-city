@@ -692,6 +692,27 @@ try {
     check(await until(() => __neonbay.Sound.voices().siren === 0), 'the sirens kept going after the cars left');
   });
 
+  await step('drives a fire truck and a police car with the siren switched on and off', async () => {
+    await clearVehicles(228, -60);
+    for (const id of ['firetruck', 'police']) {
+      await game(id => { const { G, P, spawnVehicle } = __neonbay; G.heat = 0; G.wanted = 0; P.x = 230.6; P.z = -60; window.__ram = spawnVehicle(id, 228, -60, 0); }, id);
+      check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes(__ram.model.name)), `no prompt to get in the ${id}`);
+      await press('KeyF');
+      check(await until(() => __neonbay.P.vehicle === window.__ram), `F did not put the player in the ${id}`);
+      check(await until(() => __neonbay.Sound.voices().siren === 0 && !__ram.mesh.lr.visible && !__ram.mesh.lb.visible, null, 3000), `the ${id} came with its siren on`);
+      await press('KeyH');
+      check(await until(() => __ram.siren && __neonbay.Sound.voices().siren === 1), `H did not switch the ${id}'s siren on`);
+      check(await until(() => __ram.mesh.lr.visible || __ram.mesh.lb.visible), `the ${id}'s lights did not flash`);
+      await page.keyboard.down('KeyW'); const drove = await until(() => __ram.z > -57, null, 10000); await page.keyboard.up('KeyW');
+      check(drove, `the ${id} did not drive (${await game(() => __ram.z.toFixed(1))})`);
+      await press('KeyH');
+      check(await until(() => !__ram.siren && __neonbay.Sound.voices().siren === 0), `H did not switch the ${id}'s siren off`);
+      await press('KeyF');
+      check(await until(() => !__neonbay.P.vehicle), 'F did not get the player out');
+      await game(() => __neonbay.removeEntity(__ram));
+    }
+  });
+
   await step('an electric car in traffic hums instead of revving', async () => {
     await game(() => {
       const { P, spawnVehicle, spawnNpc } = __neonbay;

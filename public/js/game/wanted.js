@@ -10,6 +10,7 @@ import { showBig } from '../ui/hud.js';
 import { spawnHeli } from '../vehicles/heli.js';
 import { spawnTank } from '../vehicles/tank.js';
 import { spawnPoliceCar } from '../vehicles/traffic.js';
+import { sirenOn } from '../vehicles/vehicle.js';
 
 // ================= WANTED =================
 const LEVEL_TEXT = ['', 'The cops noticed', 'Police are rolling', 'SWAT has been called', 'The Feds are here', 'They sent the army'];
@@ -57,11 +58,12 @@ export function updateWanted(dt) {
 }
 
 // sirens: one per police car out hunting you, each playing from its car (core/audio.js keeps the loudest few);
-// none while only cops on foot hunt you. A fire truck on its way to a fire has its siren going too.
+// none while only cops on foot hunt you. A fire truck on its way to a fire has its siren going too, and so does a police
+// car or fire truck the player switched theirs on in (see sirenOn in vehicles/vehicle.js).
 export function sirenSources() {
   const out = [];
   if (G.state !== 'play') return out;
-  if (G.wanted > 0) for (const c of all('vehicle')) if (isPolice(c) && !c.dead) out.push({ key: c, ...at(c, 1.6), vol: SIREN_VOL });
+  for (const c of all('vehicle')) if ((c.model.police || c.model.siren) && sirenOn(c)) out.push({ key: c, ...at(c, c.model.sirenY ?? 1.6), vol: SIREN_VOL });
   for (const t of all('firetruck')) if (t.siren && !t.dead) out.push({ key: t, ...at(t, 3), vol: SIREN_VOL });
   return out;
 }

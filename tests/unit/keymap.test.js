@@ -50,4 +50,9 @@ describe('key map', () => {
     expect(b.reload).toBe('KeyR'); expect(b.pause).toBe('KeyP'); expect(b.jump).toBe('Space'); expect(b.melee).toBe('KeyQ');
     expect(sanitize({ layout: 'azerty' }).binds).toEqual(PRESETS.azerty);
   });
+  it('binds saved before the siren key existed get H for it', () => {
+    const old = { ...PRESETS.qwerty }; delete old.siren;
+    expect(sanitizeBinds(old).siren).toBe('KeyH');
+    expect(keyLabel(PRESETS.azerty.siren, 'azerty')).toBe('H');
+  });
 });
