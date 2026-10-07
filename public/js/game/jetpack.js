@@ -1,4 +1,5 @@
 import { Sound } from '../core/audio.js';
+import { kb } from '../core/controls.js';
 import { G, P } from '../core/state.js';
 import { $ } from '../core/util.js';
 import { addEntity } from '../entities/registry.js';
@@ -47,7 +48,7 @@ export function putOnJetpack() {
   if (P.jetpack) return;
   P.jetpack = { fuel: JET.fuel, on: false, mesh: packMesh() };
   P.jetpack.mesh.position.set(0, 1.2, -0.25); P.c.body.add(P.jetpack.mesh);
-  toast('Got the <em>jetpack</em>. Hold <em>Space</em> in the air to fly; let go to float down.', 7);
+  toast(`Got the <em>jetpack</em>. Hold <em>${kb('jump')}</em> in the air to fly; let go to float down.`, 7);
 }
 export function takeOffJetpack() {
   if (!P.jetpack) return;

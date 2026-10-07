@@ -1,3 +1,4 @@
+import { kb } from '../../core/controls.js';
 import { clamp, lerp, rnd } from '../../core/util.js';
 import { seatedLegs, shadowGeo, shadowMat } from '../../characters/character.js';
 import { emit } from '../../render/effects.js';
@@ -52,7 +53,7 @@ export const bike = {
   ridesOver: 12, // m/s: meet a car slower than this and ride up over it, faster and crash into it
   camera: { dist: 6.2, aimDist: 3.4, height: 1.95, fovPerSpeed: 0.35, minArm: 2.2 }, // minArm: see game/camera.js
   laneHalf: 1.4, trafficDespawn: 170, reachMax: 2.8, ambientEngine: true, jack: 'shove the rider off',
-  tip: M => M.name + '. <em>W</em>/<em>S</em> throttle and brake, <em>A</em>/<em>D</em> lean, <em>Shift</em> boost, <em>Space</em> rear brake, <em>F</em> to get off. Guns still work.',
+  tip: M => `${M.name}. <em>${kb('forward')}</em>/<em>${kb('back')}</em> throttle and brake, <em>${kb('left')}</em>/<em>${kb('right')}</em> lean, <em>${kb('sprint')}</em> boost, <em>${kb('jump')}</em> rear brake, <em>${kb('ride')}</em> to get off. Guns still work.`,
 
   init(v) { v.lean = -0.12; v.fallen = false; v.fallSide = 1; },
   build(v) { return makeBikeMesh(v.model); },

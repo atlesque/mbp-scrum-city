@@ -207,6 +207,11 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 .set-controls h3{margin:0 0 6px;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--pink)}
 .ctl{display:flex;gap:10px;align-items:baseline;font-size:14px;padding:2px 0}
 .ctl kbd{font-family:var(--f-ui);font-weight:700;font-size:12px;color:var(--night);background:var(--cyan);border-radius:3px;padding:1px 6px;white-space:nowrap;min-width:20px;text-align:center}
+.ctl button.bind{font-family:var(--f-ui);font-weight:700;font-size:12px;color:var(--night);background:var(--cyan);border:0;border-radius:3px;padding:3px 8px;min-width:44px;text-align:center;cursor:pointer;white-space:nowrap}
+.ctl button.bind:hover{background:#9ff8ff}
+.ctl button.bind[aria-pressed="true"]{background:var(--pink);color:#fff;animation:flash 1s infinite}
+.ctl button.bind:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
+.ctl small{opacity:.6}
 .settings-foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
 .settings-foot .sbtn{flex:0 0 auto}
 #setBack{margin-left:auto}
@@ -283,8 +288,8 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
     <div id="radio">Neon FM 86.0</div>
     <div id="prompt" hidden></div>
     <div id="bigText" class="outline"></div>
-    <div id="speedo" hidden><b id="kmh" class="outline">000</b><span class="u" id="spdUnit">km/h</span><div class="bar bk"><b id="vehHp"></b></div><span class="u"><span id="vehName">R 1300 GS</span> · <kbd>F</kbd> off</span></div>
-    <div id="hint"><kbd>F</kbd> ride / drive · <kbd>1</kbd>–<kbd>9</kbd> / wheel switch · <kbd>Q</kbd> melee · <kbd>R</kbd> reload · <kbd>M</kbd> radio · <kbd>Esc</kbd> pause</div>
+    <div id="speedo" hidden><b id="kmh" class="outline">000</b><span class="u" id="spdUnit">km/h</span><div class="bar bk"><b id="vehHp"></b></div><span class="u"><span id="vehName">R 1300 GS</span> · <kbd data-kb="ride">F</kbd> off</span></div>
+    <div id="hint"><kbd data-kb="ride">F</kbd> ride / drive · <kbd>1</kbd>–<kbd>9</kbd> / wheel switch · <kbd data-kb="melee">Q</kbd> melee · <kbd data-kb="reload">R</kbd> reload · <kbd data-kb="radio">M</kbd> radio · <kbd>Esc</kbd> pause</div>
   </div>
 
   <section id="title" class="overlay">
@@ -292,16 +297,16 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
       <h1 class="logo" aria-label="MBP - Scrum City">MBP<small>Scrum City</small></h1>
       <p class="tagline">Ocean Drive at dusk. Pastel hotels, palm trees and too many witnesses. Shoot for cash, outrun the heat, and spend it at Bullet Bros. Guns before the next squad rolls in.</p>
       <div class="controls">
-        <div><kbd>WASD</kbd><span>Move</span></div>
+        <div><kbd data-kb="move">WASD</kbd><span>Move</span></div>
         <div><kbd>Mouse</kbd><span>Look &amp; aim</span></div>
         <div><kbd>L-Click</kbd><span>Shoot, punch, swing</span></div>
         <div><kbd>R-Click</kbd><span>Zoom aim / scope</span></div>
-        <div><kbd>Shift</kbd><span>Sprint</span></div>
-        <div><kbd>Space</kbd><span>Jump</span></div>
-        <div><kbd>E</kbd><span>Gun shop, roof doors</span></div>
-        <div><kbd>F</kbd><span>Ride, drive, get off</span></div>
+        <div><kbd data-kb="sprint">Shift</kbd><span>Sprint</span></div>
+        <div><kbd data-kb="jump">Space</kbd><span>Jump</span></div>
+        <div><kbd data-kb="use">E</kbd><span>Gun shop, roof doors</span></div>
+        <div><kbd data-kb="ride">F</kbd><span>Ride, drive, get off</span></div>
         <div><kbd>1–7</kbd><span>Guns</span></div>
-        <div><kbd>Q</kbd><span>Fists &amp; melee</span></div>
+        <div><kbd data-kb="melee">Q</kbd><span>Fists &amp; melee</span></div>
       </div>
       <p class="small">More heat, tougher squads: police, SWAT, federal agents, the army, and a chopper overhead. Lose a star by breaking line of sight.</p>
       <p class="mobile-note">Built for desktop with a mouse and keyboard.</p>
