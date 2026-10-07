@@ -6,16 +6,14 @@ import { keys } from './state.js';
 // ================= CONTROLS =================
 // The game asks about actions, not keys: held('forward') while driving, actionFor(e.code) on a key press,
 // kb('ride') for the key name in a prompt or tip. The bindings live in settings.binds (core/keymap.js).
-let printed = null; // the browser's own key names for this keyboard, where it shares them (Chromium)
-
 export const held = action => !!(keys[settings.binds[action]] || keys[ALT[action]]);
 export function actionFor(code) {
   for (const id in settings.binds) if (settings.binds[id] === code) return id;
   return null;
 }
-export const kb = action => keyLabel(settings.binds[action], settings.layout, printed);
+export const kb = action => keyLabel(settings.binds[action], settings.layout);
 export const kbMove = () => ['forward', 'left', 'back', 'right'].map(kb).join('');
-export const labelOf = code => keyLabel(code, settings.layout, printed);
+export const labelOf = code => keyLabel(code, settings.layout);
 
 // <kbd data-kb="ride"> anywhere on the page shows the key for that action (data-kb="move" the four movement keys)
 export function paintKeys() {
@@ -24,12 +22,12 @@ export function paintKeys() {
 }
 on('settings:changed', ({ id }) => { if (id === 'binds' || id === 'layout') paintKeys(); });
 
-// Ask the browser what the keys read; on a first visit with an AZERTY board, start on the AZERTY preset.
+// On a first visit, ask the browser what the keys read (Chromium shares it) and start on AZERTY for an AZERTY board.
+// Key names then follow the chosen preset, so picking one always shows its letters.
 export async function detectLayout(firstVisit, choose) {
   try {
-    if (typeof navigator === 'undefined' || !navigator.keyboard?.getLayoutMap) return;
-    printed = await navigator.keyboard.getLayoutMap();
-    if (firstVisit && printed.get('KeyQ') === 'a' && printed.get('KeyW') === 'z') choose('azerty');
+    if (!firstVisit || typeof navigator === 'undefined' || !navigator.keyboard?.getLayoutMap) return;
+    const printed = await navigator.keyboard.getLayoutMap();
+    if (printed.get('KeyQ') === 'a' && printed.get('KeyW') === 'z') choose('azerty');
   } catch (e) {}
-  paintKeys();
 }

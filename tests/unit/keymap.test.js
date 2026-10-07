@@ -21,7 +21,6 @@ describe('key map', () => {
     expect(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyM'].map(c => keyLabel(c))).toEqual(['W', 'A', 'S', 'D', 'Q', 'M']);
     expect(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'Semicolon'].map(c => keyLabel(c, 'azerty'))).toEqual(['Z', 'Q', 'S', 'D', 'A', 'M']);
     expect(keyLabel('Space', 'azerty')).toBe('Space');
-    expect(keyLabel('KeyW', 'qwerty', new Map([['KeyW', 'z']]))).toBe('Z');
   });
   it('the AZERTY preset reads ZQSD, A for melee and M for the radio', () => {
     setSetting('layout', 'azerty');

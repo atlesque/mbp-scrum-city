@@ -34,10 +34,8 @@ const NAMES = {
   Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/', Backquote: '`', BracketLeft: '[', BracketRight: ']', Backslash: '\\', Minus: '-', Equal: '=', IntlBackslash: '\\',
 };
 const AZERTY_NAMES = { KeyQ: 'A', KeyA: 'Q', KeyW: 'Z', KeyZ: 'W', KeyM: ',', Semicolon: 'M', Comma: ';', Period: ':', Slash: '!', Quote: 'ù', BracketLeft: '^', BracketRight: '$', Backslash: '*', Backquote: '²', Minus: ')', IntlBackslash: '<' };
-// `printed` is what the browser says the key reads on this keyboard (navigator.keyboard), when it can tell
-export function keyLabel(code, layout = 'qwerty', printed = null) {
+export function keyLabel(code, layout = 'qwerty') {
   if (!code) return '—';
-  if (printed && printed.get(code) && !/^(Shift|Control|Alt|Meta|Arrow)/.test(code) && code !== 'Space') return printed.get(code).toUpperCase();
   if (layout === 'azerty' && AZERTY_NAMES[code]) return AZERTY_NAMES[code];
   if (NAMES[code]) return NAMES[code];
   let m = /^Key([A-Z])$/.exec(code); if (m) return m[1];
