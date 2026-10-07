@@ -224,7 +224,7 @@ export function driveByPlayer(v, dt) {
     if (v.slip) v.slip *= 0.3; // a slide into a wall ends against it
     if (impact > 7) {
       Sound.thud(clamp(impact / 25, 0.3, 1), ...bump(v, -px, -pz)); cam.shake = Math.max(cam.shake, clamp(impact / 40, 0.1, 0.7));
-      v.damage(impact * 1.6, false, true); if (impact > 15 && P.vehicle === v) hurtPlayer((impact - 13) * K.crash.hurt);
+      v.damage(impact * 1.6, false, true); if (impact > 15) crashDriver(v, impact - 13);
       if (P.vehicle !== v) return;
     }
   }
@@ -243,6 +243,13 @@ export function driveByPlayer(v, dt) {
   // camera swings in behind when the mouse is idle
   if (G.time - (P.lookT || 0) > 1.2 && Math.abs(v.v) > 3 && !I.mouseR) cam.yaw += angDiff(cam.yaw, v.yaw) * Math.min(1, dt * 2.2);
   P.x = v.x; P.z = v.z; P.y = v.lift || 0; P.vy = 0; P.grounded = true; P.yaw = v.yaw; P.moveSpeed = Math.abs(v.v); P.vx = fx * v.v + fz * (v.slip || 0); P.vz = fz * v.v - fx * (v.slip || 0);
+}
+
+// a hard crash shakes up the player at the wheel, by the kind's crash.hurt; heavy vehicles (the fire engine) have
+// crash.hurt 0, so only the vehicle takes the knock and the driver doesn't feel it at all
+export function crashDriver(v, hit) {
+  const d = hit * v.K.crash.hurt;
+  if (P.vehicle === v && d > 0) hurtPlayer(d);
 }
 
 // drive through palms, lamps and beach props hard enough and they go over (world/props.js), taking some speed with them
@@ -288,7 +295,7 @@ function ram(v) {
       // what's left of our speed, along the way we're pointing
       v.v = k.avx * Math.sin(v.yaw) + k.avz * Math.cos(v.yaw); if (v.slip != null) v.slip = k.avx * Math.cos(v.yaw) - k.avz * Math.sin(v.yaw);
       const hit = k.closing - 6; if (hit > 0) v.damage(hit * 1.4, false, true);
-      if (k.closing > 16 && P.vehicle === v) hurtPlayer((k.closing - 14) * v.K.crash.hurt);
+      if (k.closing > 16) crashDriver(v, k.closing - 14);
       Sound.thud(clamp(k.closing / 25, 0.3, 1), ...bump(v, b.x - v.x, b.z - v.z)); cam.shake = Math.max(cam.shake, clamp(k.closing / 40, 0.1, 0.7));
       if (k.closing > 8) alarm(v.x, v.z, 25);
       continue;
