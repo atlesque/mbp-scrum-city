@@ -1,4 +1,5 @@
 import { Sound } from '../core/audio.js';
+import { kb } from '../core/controls.js';
 import { G, P, inv, stats } from '../core/state.js';
 import { GUNS, WBY, WEAPONS, wStat } from '../data/weapons.js';
 import { charMat, gunGeo } from '../characters/character.js';
@@ -73,7 +74,7 @@ const WeaponPickup = {
     p.m.rotation.y += dt * 1.8; p.m.position.y = 1.0 + Math.sin(G.time * 2.4 + p.x) * 0.1;
     if (!P.alive || P.vehicle || P.y > 2 || Math.hypot(P.x - p.x, P.z - p.z) > 1.3 || !takeWeapon(inv, p.id)) return;
     Sound.pickup(); feed(WBY[p.id].name, false, '#ffd23e');
-    if (!toldMelee) { toldMelee = true; toast(`Got a <em>${WBY[p.id].name}</em>. Press <em>Q</em> to switch between your fists and melee weapons.`, 6); }
+    if (!toldMelee) { toldMelee = true; toast(`Got a <em>${WBY[p.id].name}</em>. Press <em>${kb('melee')}</em> to switch between your fists and melee weapons.`, 6); }
     p.onTaken && p.onTaken(p.id);
     p.active = false; p.m.visible = p.glow.visible = false; p.respawnT = WEAPON_PICKUP_RESPAWN;
   },

@@ -1,3 +1,4 @@
+import { kb } from '../../core/controls.js';
 import { emit as emitEvent } from '../../core/events.js';
 import { G, P } from '../../core/state.js';
 import { seatedLegs } from '../../characters/character.js';
@@ -51,7 +52,7 @@ export const car = {
   camera: { dist: 7.4, aimDist: 4.2, height: 2.2, fovPerSpeed: 0.3, minArm: 3.4 }, // minArm: see game/camera.js
   laneHalf: 1.7, trafficDespawn: Infinity, reachMax: 1.6, stopsWhileBurning: true, enclosed: true, jack: 'pull the driver out of',
   wheelbase: WZ * 2,
-  tip: M => `The ${M.name}. <em>W</em>/<em>S</em> gas and brake, <em>A</em>/<em>D</em> steer, <em>Shift</em> boost, <em>Space</em> handbrake (steer with it to drift), <em>F</em> to get out.`,
+  tip: M => `The ${M.name}. <em>${kb('forward')}</em>/<em>${kb('back')}</em> gas and brake, <em>${kb('left')}</em>/<em>${kb('right')}</em> steer, <em>${kb('sprint')}</em> boost, <em>${kb('jump')}</em> handbrake (steer with it to drift), <em>${kb('ride')}</em> to get out.`,
 
   build(v) { return v.model.mesh(v); },
   pose(c, dt) {

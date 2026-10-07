@@ -5,8 +5,8 @@ import { exitVehicle } from './player.js';
 
 // What the player can use right now: every entity offering an interaction (a shop door, a free
 // vehicle), best first by priority then distance. The best one is shown as the on-screen prompt;
-// a key press runs the best one that listens for that key.
-const leave = { keys: ['KeyF', 'KeyE'], prompt: null, priority: 9, dist: 0, run: () => exitVehicle(false) };
+// a key press runs the best one that listens for that action ('ride' or 'use', core/keymap.js).
+const leave = { keys: ['ride', 'use'], prompt: null, priority: 9, dist: 0, run: () => exitVehicle(false) };
 const better = (a, b) => b.priority - a.priority || a.dist - b.dist;
 export function updateInteraction() {
   const near = [];

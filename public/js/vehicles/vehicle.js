@@ -1,7 +1,8 @@
 import { Sound } from '../core/audio.js';
 import { HEAR, at, beside } from '../core/spatial.js';
 import { emit as emitEvent } from '../core/events.js';
-import { G, I, P, cam, keys } from '../core/state.js';
+import { held, kb } from '../core/controls.js';
+import { G, I, P, cam } from '../core/state.js';
 import { angDiff, clamp, rnd } from '../core/util.js';
 import { addEntity, all, removeEntity } from '../entities/registry.js';
 import { explosion } from '../combat/combat.js';
@@ -97,8 +98,8 @@ const Vehicle = {
     const jack = !!this.driver;
     if (jack && !(this.K.jack && this.driver.alive && Math.abs(this.v) < 5)) return null;
     const dist = this.K.reach(this, p); if (dist > this.K.reachMax) return null;
-    if (jack) return { keys: ['KeyF'], priority: 0, dist, prompt: `Press <kbd>F</kbd> to ${this.K.jack} the ${this.model.name}`, run: () => this.jack() };
-    return { keys: ['KeyF', 'KeyE'], priority: 0, dist, prompt: `Press <kbd>F</kbd> to ${this.K.verb} the ${this.model.name}`, run: () => enterVehicle(this) };
+    if (jack) return { keys: ['ride'], priority: 0, dist, prompt: `Press <kbd>${kb('ride')}</kbd> to ${this.K.jack} the ${this.model.name}`, run: () => this.jack() };
+    return { keys: ['ride', 'use'], priority: 0, dist, prompt: `Press <kbd>${kb('ride')}</kbd> to ${this.K.verb} the ${this.model.name}`, run: () => enterVehicle(this) };
   },
   // the player drags the driver out (or shoves the rider off) and takes the wheel
   jack() {
@@ -154,8 +155,8 @@ export const vehicles = () => all('vehicle');
 
 // ---- the player at the controls ----
 const controls = () => ({
-  throttle: !!(keys.KeyW || keys.ArrowUp), brake: !!(keys.KeyS || keys.ArrowDown), boost: !!(keys.ShiftLeft || keys.ShiftRight), handbrake: !!keys.Space,
-  steer: ((keys.KeyA || keys.ArrowLeft) ? 1 : 0) - ((keys.KeyD || keys.ArrowRight) ? 1 : 0),
+  throttle: held('forward'), brake: held('back'), boost: held('sprint'), handbrake: held('jump'),
+  steer: (held('left') ? 1 : 0) - (held('right') ? 1 : 0),
 });
 export function driveByPlayer(v, dt) {
   const K = v.K;

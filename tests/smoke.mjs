@@ -1,5 +1,5 @@
 // Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, get shelled by the army's tank and blow it up, snipe through the scope, throw a car with a rocket,
-// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, ride a bike over a car, shunt a parked car, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof and change settings. Fails on any page error or broken step.
+// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, ride a bike over a car, shunt a parked car, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, change settings and remap keys. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -627,6 +627,30 @@ try {
     await page.click('#resumeBtn');
     check(await until(() => __neonbay.G.state === 'play'), 'did not resume');
     check(!(await game(() => __neonbay.Sound.dimmed)), 'the sound stayed dimmed after resuming');
+  });
+
+  await step('switches to AZERTY and rebinds a key', async () => {
+    await press('KeyP');
+    check(await until(() => __neonbay.G.state === 'paused'), 'P did not pause');
+    await page.click('#pauseSettingsBtn'); await page.click('#setTabs [data-tab="controls"]');
+    await page.click('#setBody [data-set="layout"][data-val="azerty"]');
+    check(await page.textContent('#setBody [data-bind="forward"]') === 'Z' && await page.textContent('#setBody [data-bind="melee"]') === 'A', 'the AZERTY preset does not show Z and A');
+    check(await page.textContent('#hint [data-kb="radio"]') === 'M' && await page.textContent('.controls [data-kb="move"]') === 'ZQSD', 'the on-screen hints did not follow the preset');
+    await page.click('#setBody [data-bind="pause"]');
+    await page.keyboard.press('KeyO');
+    check(await page.textContent('#setBody [data-bind="pause"]') === 'O', 'pause was not rebound to O');
+    check(await page.isVisible('#settings'), 'the key press left the Settings screen');
+    await page.click('#setBack'); await page.click('#resumeBtn');
+    check(await until(() => __neonbay.G.state === 'play'), 'did not resume');
+    await press('KeyP'); await page.waitForTimeout(300);
+    check(await game(() => __neonbay.G.state === 'play'), 'P still pauses after moving pause to O');
+    await press('KeyO');
+    check(await until(() => __neonbay.G.state === 'paused'), 'O did not pause');
+    await page.click('#pauseSettingsBtn'); await page.click('#setTabs [data-tab="controls"]');
+    await page.click('#setBody [data-set="layout"][data-val="qwerty"]');
+    check(await page.textContent('#setBody [data-bind="forward"]') === 'W' && await page.textContent('#setBody [data-bind="pause"]') === 'P', 'QWERTY did not restore the keys');
+    await page.click('#setBack'); await page.click('#resumeBtn');
+    check(await until(() => __neonbay.G.state === 'play'), 'did not resume');
   });
 
   await step('plays a siren from each police car', async () => {

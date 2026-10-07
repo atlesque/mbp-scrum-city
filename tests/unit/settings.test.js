@@ -11,7 +11,7 @@ describe('settings', () => {
   it('has a valid default and a unique id for every row', () => {
     expect(new Set(SETTINGS.map(s => s.id)).size).toBe(SETTINGS.length);
     expect(sanitize(DEFAULTS)).toEqual(DEFAULTS);
-    for (const s of SETTINGS) expect(['sound', 'graphics', 'gameplay']).toContain(s.tab);
+    for (const s of SETTINGS) expect(['sound', 'graphics', 'gameplay', 'controls']).toContain(s.tab);
   });
   it('gives every choice a meaning', () => {
     const maps = { quality: RENDER_SCALE, drawDistance: DRAW_DISTANCE, density: DENSITY };

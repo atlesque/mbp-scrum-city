@@ -1,3 +1,4 @@
+import { kb } from '../core/controls.js';
 import { on } from '../core/events.js';
 import { G, stats } from '../core/state.js';
 import { rnd } from '../core/util.js';
@@ -15,7 +16,7 @@ const cashOf = c => Array.isArray(c) ? Math.round(rnd(c[0], c[1])) : c || 0;
 let toldRide = false;
 
 on('npc:killed', ({ npc, byPlayer, vehicle }) => {
-  if (vehicle && byPlayer && !toldRide) { toldRide = true; setTimeout(() => toast(`That ${vehicle.model.name} is up for grabs. Walk over and press <em>F</em> to ${vehicle.K.verb} it.`, 5), 600); }
+  if (vehicle && byPlayer && !toldRide) { toldRide = true; setTimeout(() => toast(`That ${vehicle.model.name} is up for grabs. Walk over and press <em>${kb('ride')}</em> to ${vehicle.K.verb} it.`, 5), 600); }
   if (!byPlayer) return;
   const def = npc.def;
   stats.kills++; if (npc.faction === 'law') stats.cops++;

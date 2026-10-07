@@ -1,5 +1,6 @@
 import { selectWeapon } from '../combat/combat.js';
 import { Sound } from '../core/audio.js';
+import { kb } from '../core/controls.js';
 import { emit } from '../core/events.js';
 import { requestLock } from '../core/input.js';
 import { save } from '../core/save.js';
@@ -21,7 +22,7 @@ const Shop = {
   interaction(p) {
     const dist = Math.hypot(this.x - p.x, this.z - p.z); if (dist >= 2.2) return null;
     const closed = this.closed();
-    return { keys: ['KeyE'], priority: 1, dist, prompt: closed ? 'Shutters down. Lose some heat first (under ' + this.def.closedAtWanted + ' ★)' : `Press <kbd>E</kbd> to shop at ${this.def.name}`, run: () => openShop(this) };
+    return { keys: ['use'], priority: 1, dist, prompt: closed ? 'Shutters down. Lose some heat first (under ' + this.def.closedAtWanted + ' ★)' : `Press <kbd>${kb('use')}</kbd> to shop at ${this.def.name}`, run: () => openShop(this) };
   },
   blip(radar) { radar.glyph(this.x, this.z, this.def.marker.glyph, this.def.marker.color); },
 };
@@ -42,8 +43,8 @@ const ctx = {
 };
 export function openShop(shop) {
   if (shop.closed()) { Sound.deny(); return; }
-  G.shop = shop; G.state = 'shop'; I.mouseL = false; I.mouseR = false; keys.KeyW = keys.KeyA = keys.KeyS = keys.KeyD = false;
-  $('shopName').textContent = shop.def.name; $('shopFoot').textContent = shop.def.footer || '';
+  G.shop = shop; G.state = 'shop'; I.mouseL = false; I.mouseR = false; for (const k in keys) keys[k] = false;
+  $('shopName').textContent = shop.def.name; $('shopFoot').textContent = (shop.def.footer || '').replace('{melee}', kb('melee'));
   $('shop').hidden = false; $('hud').hidden = true; renderShop();
   try { document.exitPointerLock(); } catch (e) {}
   Sound.hush();
