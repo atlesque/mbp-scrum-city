@@ -3,6 +3,7 @@ import { addCollider } from './collision.js';
 import { FACE_YAW, glowMaterials, loadModel, placeModel, turnBox } from './models.js';
 import { STAND, landmarkRoofs } from './rooftops.js';
 import { LANDMARK_MODELS, landmarkMats, landmarkParts } from './landmark-models/index.js';
+import { ROOF_DOOR_X } from './landmark-models/teirlinck.js';
 
 // ================= LANDMARKS =================
 // Hand-built buildings that take a whole block of the city, in place of the generated ones.
@@ -73,7 +74,7 @@ const SIGNS = {
 const ROOFTOPS = {
   vac: { rect: [-9, 4, -15, 11], door: [-6, -15], dir: [0, -1], hut: [-2.5, 5], hutDir: [0, -1], gun: 'sniper', gunAt: [0, -10] },
   // the tower, 59 m up, with its plant room; the rocket launcher waits here instead of a sniper rifle
-  teirlinck: { rect: [-16, 0, 0, 16], door: [12.5, -16], dir: [0, -1], hut: [-12, 3], hutDir: [1, 0], gun: 'rpg', gunAt: [-3, 12], blocks: [[-11, -5, 6, 12, 59.4, 61.1]] },
+  teirlinck: { rect: [-16, 0, 0, 16], door: [ROOF_DOOR_X, -16], dir: [0, -1], hut: [-12, 3], hutDir: [1, 0], gun: 'rpg', gunAt: [-3, 12], blocks: [[-11, -5, 6, 12, 59.4, 61.1]] },
   // the new middle block's roof garden round the red pavilion, with the jetpack
   belpaire: { rect: [-7, 7, -9, 12], door: [3, -9], dir: [0, -1], hut: [-3, 9], hutDir: [1, 0], gun: 'sniper', gunAt: [-4, -7.6], jetpackAt: [3.5, 9], blocks: [[-5, 5, -6, 6, 101.2, 105.2]] },
 };
