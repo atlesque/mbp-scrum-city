@@ -26,6 +26,7 @@ import { camera, renderer, scene, sky } from './render/scene.js';
 import { spawnShop } from './shops/shop.js';
 import { updateHUD } from './ui/hud.js';
 import { updateEngineSound } from './vehicles/engine.js';
+import './vehicles/firetruck.js'; // sends the fire brigade to crash fires
 import { spawnTrafficBike, spawnTrafficCar } from './vehicles/traffic.js';
 import { spawnVehicle } from './vehicles/vehicle.js';
 import { loadLandmarkModels } from './world/landmarks.js';

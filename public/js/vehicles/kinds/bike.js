@@ -31,6 +31,7 @@ const TURN_X = [-150, -100, -50, 0, 50, 100, 150, 200], TURN_Z = [-150, -100, -5
 //   jack, shoveOff(v, a, p)  carjacking: the prompt's verb, and optionally where the ejected rider `a` lands
 //   onDriverGone(v), wreck(v), blip(v, radar), dispose(v)
 //   fx, blast, wreckReward   fire and smoke, explosion size, heat and cash for wrecking one
+//                            (fx.fuse: seconds alight before it goes up; crashFuse when a collision set it alight)
 //   bumper                   zone ahead that runs people over: back, front, half width, speed kept
 //   crash                    exitSpeed above which getting off is a crash, hurt multiplier on big hits
 //   ram, knock(v, vx, vz, up) mass and body for ramming, and how it flies when rammed (see vehicles/knock.js)
@@ -44,7 +45,7 @@ export const bike = {
   verb: 'ride',
   handling: { top: 34, boostTop: 46, accel: 11, boostAccel: 15, brake: 26, reverseBrake: 22, reverseTop: 5, reverseAccel: 7, handbrake: 32, coast: 1.6, drag: 0.01, turnLow: 1.8, turnHigh: 0.9, maxSteer: 0.5 },
   traffic: { look: 7, decel: 28, accel: 8, patience: 2.5, hornAfter: 1.2 },
-  fx: { smokeRate: 3, smokeY: 0.8, smokeSpeed: 1.2, smokeLife: 1.8, smokeSize: 0.4, fireRate: 0.5, fireY: 0.9, fireSize: 0.25, spread: 0.4, fuse: 1.4, boomFuse: 0.2 },
+  fx: { smokeRate: 3, smokeY: 0.8, smokeSpeed: 1.2, smokeLife: 1.8, smokeSize: 0.4, fireRate: 0.5, fireY: 0.9, fireSize: 0.25, spread: 0.4, fuse: 1.4, boomFuse: 0.2, crashFuse: 40 },
   blast: { y: 0.6, r: 6, dmg: 120 },
   wreckReward: { heat: 2, cash: 0 },
   bumper: { back: -0.6, front: 1.35, half: 0.7, slow: 0.82 },

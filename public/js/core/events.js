@@ -3,6 +3,8 @@
 // Events the game emits:
 //   npc:killed        { npc, byPlayer, dir, vehicle }   vehicle: what the NPC was riding, if anything
 //   vehicle:wrecked   { vehicle, byPlayer }
+//   vehicle:burning   { vehicle, crash }                caught fire; crash: a collision did it, so it burns long (vehicles/firetruck.js)
+//   vehicle:doused    { vehicle }                       firemen put the fire out
 //   vehicle:enter     { vehicle }                       the player got on or in
 //   vehicle:exit      { vehicle, crash }
 //   wanted:up         { level }

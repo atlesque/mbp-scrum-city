@@ -19,6 +19,9 @@ export const NPC_TYPES = {
   civilian: { name: 'Civilian', faction: 'civilian', behaviour: 'wander', hp: 40, walkSpeed: 1.4, runSpeed: 6.3, look: randomLook, cash: [30, 120], heat: 3, screams: true, despawn: 115, fightBack: 0.3, punch: 5 },
   motorist: { name: 'Driver', faction: 'civilian', behaviour: 'ride', hp: 40, walkSpeed: 1.4, runSpeed: 6.3, look: randomLook, cash: [40, 140], heat: 3, screams: true, despawn: 115 },
   biker: { name: 'Biker', faction: 'civilian', behaviour: 'ride', hp: 50, walkSpeed: 1.4, runSpeed: 6.3, look: bikerLook, cash: [30, 120], heat: 3, screams: true, despawn: 115 },
+  // off the fire truck (vehicles/firetruck.js) to put out crash fires; each carries a fire axe and drops it when taken down
+  fireman: { name: 'Fireman', faction: 'civilian', behaviour: 'douse', hp: 90, walkSpeed: 1.8, runSpeed: 5.6, cash: [20, 90], heat: 4, weaponDrops: { fireaxe: 1 }, screams: true, despawn: 160,
+    look: () => uniform({ shirt: '#b8995a', pants: '#b8995a', stripes: '#e8ff5a', hat: 'fire', hatColor: '#c8141e', longSleeve: true, gloves: '#2a241c', shoes: '#141316', shorts: false, glasses: false }) },
   cop: { name: 'Police', faction: 'law', behaviour: 'hunt', hp: 70, speed: 4.8, gun: 'pistol', dmg: 7, rate: 1.2, burst: 1, gap: 0.2, acc: 0.38, range: 34, cash: 150, drops: { armor: 0.35, ammo: 0.6 }, weaponDrops: { nightstick: 0.2 }, heat: 5, radar: 'siren', despawn: 130,
     look: () => uniform({ shirt: '#8ab8ec', pants: '#1d2a4a', hat: 'cap', hatColor: '#1d2a4a', badge: true, shorts: false, hairStyle: 'short', glasses: Math.random() < 0.5 }) },
   swat: { name: 'SWAT', faction: 'law', behaviour: 'hunt', hp: 170, speed: 5.0, gun: 'smg', dmg: 4, rate: 1.7, burst: 4, gap: 0.1, acc: 0.32, range: 30, cash: 300, drops: { armor: 0.5, ammo: 0.75 }, heat: 6, radar: '#ff3b4e', despawn: 130,

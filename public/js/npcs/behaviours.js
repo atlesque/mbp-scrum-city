@@ -9,6 +9,8 @@ import { startSwing, tickSwing } from '../characters/swing.js';
 import { SIGHT_EVERY, newSight, reactTo } from '../combat/sight.js';
 import { removeEntity } from '../entities/registry.js';
 import { hurtPlayer } from '../game/player.js';
+import { setGun } from '../characters/character.js';
+import { TRUCK, spray } from '../vehicles/firetruck.js';
 import { muzzleFlash, tracer } from '../render/effects.js';
 import { blocked, isFree, onRoad } from '../world/collision.js';
 import { faceTo, moveActor } from './npc.js';
@@ -110,12 +112,57 @@ export const BEHAVIOURS = {
     onHurt(e) { e.los = true; e.losT = 0.3; },
   },
 
+  // A fireman off the fire truck (n.truck, see vehicles/firetruck.js): he runs his hose out to the burning vehicle nearest
+  // the truck, stands a few metres off it on the truck's side (the two of them a little apart) and hoses it down until the
+  // fire is out, then takes the next one. With nothing left burning he walks back and climbs aboard. Hurt, he drops it
+  // all and runs for a bit, then goes back to work.
+  douse: {
+    init(n) { n.state = 'go'; n.job = null; n.stuck = 0; n.aiming = false; n.panic = false; },
+    update(n, dt) {
+      const t = n.truck;
+      if (!t || t.removed || t.dead) { n.truck = null; setGun(n.c, null); n.become('wander'); return; }
+      if (n.state === 'flee') { BEHAVIOURS.wander.update(n, dt); if (n.state !== 'flee') n.state = 'go'; return; }
+      if (!n.job || n.job.removed || n.job.dead || !(n.job.burnT > 0)) n.job = t.fireNear();
+      const job = n.job;
+      let tx, tz, sprayNow = false;
+      if (job) {
+        const a = Math.atan2(t.x - job.x, t.z - job.z) + n.side * 0.6;
+        tx = job.x + Math.sin(a) * DOUSE_AT; tz = job.z + Math.cos(a) * DOUSE_AT;
+        const d = Math.hypot(job.x - n.x, job.z - n.z);
+        sprayNow = d < TRUCK.reach && (Math.hypot(tx - n.x, tz - n.z) < 0.7 || n.stuck > 1 || d < DOUSE_AT);
+      } else {
+        const door = t.doorAt(n.side), way = t.wayToDoor(n.x, n.z, n.side); tx = way.x; tz = way.z;
+        if (Math.hypot(door.x - n.x, door.z - n.z) < 0.9) { t.board(n); return; }
+      }
+      if (sprayNow) {
+        setGun(n.c, 'nozzle'); n.aiming = true; n.twoHand = true; n.aimPitch = 0.12;
+        n.moveSpeed = lerp(n.moveSpeed, 0, 0.3); faceTo(n, Math.atan2(job.x - n.x, job.z - n.z), dt, 8);
+        spray(n, job, dt); if (job.douse(dt)) n.job = null;
+      } else {
+        setGun(n.c, 'fireaxe'); n.aiming = false;
+        let dx = tx - n.x, dz = tz - n.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
+        if (n.stuck > 0.4) { const k = dx; dx = -dz * (n.sideStep || 1); dz = k * (n.sideStep || 1); if (n.stuck > 1.6) { n.sideStep = -(n.sideStep || 1); n.stuck = 0.5; } }
+        if (moveActor(n, dx, dz, job ? n.def.runSpeed : n.def.walkSpeed, dt)) n.stuck += dt; else n.stuck = Math.max(0, n.stuck - dt);
+        faceTo(n, Math.atan2(dx, dz), dt, 8);
+      }
+      animateChar(n, dt); n.place();
+    },
+    onHurt(n) {
+      if (n.state === 'flee') return;
+      setGun(n.c, null); n.aiming = false;
+      n.state = 'flee'; n.timer = rnd(5, 8); n.fx = P.x; n.fz = P.z; n.panic = true;
+    },
+  },
+
   // sitting on a vehicle that steers itself; a wounded rider guns it
   ride: {
     update() {},
     onHurt(n) { if (n.vehicle) n.vehicle.top = 24; },
   },
 };
+
+// how far off a burning vehicle a fireman stands to hose it
+const DOUSE_AT = 4;
 
 function shootAtPlayer(e, dist) {
   if (!P.alive) return;

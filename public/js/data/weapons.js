@@ -18,6 +18,8 @@ export const WEAPONS = [
   melee({ id: 'bat', name: 'Baseball Bat', price: 800, dmg: 36, rate: 0.7, reach: 1.95, arc: 0.95, knock: 7.5, anim: 'swing', twoHand: true, hits: 2, up: 450 }),
   melee({ id: 'machete', name: 'Machete', price: 1200, dmg: 44, rate: 0.58, reach: 1.8, arc: 0.8, knock: 3, anim: 'chop', blade: true, up: 600 }),
   melee({ id: 'katana', name: 'Katana', price: 2500, dmg: 62, rate: 0.6, reach: 2.2, arc: 1.0, knock: 4, anim: 'swing', blade: true, twoHand: true, hits: 3, up: 1200 }),
+  // dropped by firemen (npcs/types.js), never sold
+  melee({ id: 'fireaxe', name: 'Fire Axe', price: 0, dmg: 52, rate: 0.75, reach: 1.9, arc: 0.85, knock: 6, anim: 'chop', blade: true, hits: 2, up: 0, dropOnly: true }),
   melee({ id: 'chainsaw', name: 'Chainsaw', price: 4500, dmg: 13, rate: 0.09, reach: 1.8, arc: 0.6, knock: 0.6, anim: 'saw', blade: true, twoHand: true, auto: true, hits: 2, up: 2000, upRate: 0.04 }),
   { id: 'pistol', name: 'Pistol', price: 0, dmg: 26, rate: 0.26, mag: 12, spread: 0.012, range: 140, auto: false, pellets: 1, ammoPrice: 0, ammoPack: 0, infinite: true, recoil: 0.014, reload: 1.1, up: 350 },
   { id: 'smg', name: 'Micro SMG', price: 1200, dmg: 15, rate: 0.075, mag: 30, spread: 0.04, range: 110, auto: true, pellets: 1, ammoPrice: 120, ammoPack: 120, recoil: 0.007, reload: 1.4, up: 700, twoHand: true },
