@@ -13,7 +13,7 @@ import { scene } from '../render/scene.js';
 import { toast } from '../ui/hud.js';
 import { rayBox } from '../world/collision.js';
 import { smashProps } from '../world/props.js';
-import { bike } from './kinds/bike.js';
+import { THROWN, bike } from './kinds/bike.js';
 import { car } from './kinds/car.js';
 import { step } from './kinds/step.js';
 import { truck } from './kinds/truck.js';
@@ -156,6 +156,14 @@ const Vehicle = {
     if (this.K.shoveOff) this.K.shoveOff(this, a, P);
     emitEvent('vehicle:jacked', { vehicle: this, driver: a });
     enterVehicle(this);
+  },
+  // a melee blow on a civilian's car or bike: the driver gets out and runs, leaving it behind; a rider is thrown off
+  // the bike and runs once back up. Returns who fled, or null if nobody civilian was at the wheel.
+  scareDriver(p) {
+    const a = this.driver; if (!a || a === P || !a.alive || a.faction !== 'civilian') return null;
+    this.ejectDriver(true); alarm(this.x, this.z, 20);
+    if (this.K.shoveOff) this.K.shoveOff(this, a, p, THROWN);
+    return a;
   },
   shouldDespawn() {
     if (this.driver === P) return false;

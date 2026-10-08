@@ -338,6 +338,28 @@ try {
     });
   });
 
+  await step('a bat on a car scares the driver out, and on a bike throws the rider off', async () => {
+    const swing = async () => { await game(() => { __neonbay.P.yaw = __neonbay.cam.yaw; __neonbay.I.clickQ = 0.3; }); await until(() => !__neonbay.P.swing && __neonbay.I.clickQ === 0, undefined, 4000); };
+    for (const [model, type, ahead] of [['sedan', 'motorist', 2.1], ['gs', 'biker', 1.2]]) {
+      await game(async ({ model, type, ahead }) => {
+        const { G, P, cam, inv, all, removeEntity, spawnVehicle, spawnNpc } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js');
+        G.heat = 0; G.wanted = 0; inv.owned.bat = true; selectWeapon('bat'); cam.pitch = -0.05; P.yaw = cam.yaw;
+        for (const e of all()) if ((e.kind === 'vehicle' || (e.kind === 'npc' && e !== P)) && Math.hypot(e.x - P.x, e.z - P.z) < 14) removeEntity(e);
+        // side on, just ahead of the player
+        const v = window.__scared = spawnVehicle(model, P.x + Math.sin(P.yaw) * ahead, P.z + Math.cos(P.yaw) * ahead, P.yaw + Math.PI / 2);
+        v.seatDriver(window.__scaredDriver = spawnNpc(type, v.x, v.z));
+      }, { model, type, ahead });
+      for (let i = 0; i < 3 && await game(() => !!__scared.driver); i++) await swing();
+      const r = await game(() => ({ out: !__scared.driver && !__scaredDriver.vehicle && __scaredDriver.alive, flee: __scaredDriver.state === 'flee', down: __scaredDriver.downT > 0, fallen: !!__scared.fallen, heat: __neonbay.G.heat }));
+      check(r.out, `the ${type} is still in the ${model}`);
+      check(r.flee, `the ${type} did not run`);
+      check(r.heat > 0, `hitting the ${type}'s vehicle added no heat`);
+      if (model === 'gs') { check(r.down, 'the rider was not knocked down'); check(r.fallen, 'the bike did not fall over'); }
+      await game(() => { const { removeEntity } = __neonbay; removeEntity(__scared); removeEntity(__scaredDriver); });
+    }
+    await game(async () => { const { G } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js'); selectWeapon('pistol'); G.heat = 0; G.wanted = 0; });
+  });
+
   await step('buys armor at the gun shop', async () => {
     await game(() => {
       const { P, G, inv, all } = __neonbay, s = all('shop')[0];
@@ -756,8 +778,11 @@ try {
   await step('survives a five-star chase', async () => {
     await game(() => { const { G, P } = __neonbay; G.heat = 100; G.wanted = 5; G.spawnT = 0; G.heliT = 0; P.hp = 100; });
     check(await until(() => __neonbay.all('npc').some(n => n.faction === 'law' && n.alive) && __neonbay.all('vehicle').some(v => v.model.police || v.model.army), undefined, 40000), 'the law never showed up');
-    // the army comes in its own trucks, and soldiers get out of them
-    check(await until(() => __neonbay.all('npc').some(n => (n.type === 'army' || n.type === 'jugg') && __neonbay.all('vehicle').some(v => v.model.army && v.mode === 'parked' && Math.hypot(v.x - n.x, v.z - n.z) < 7)), undefined, 40000), 'no soldiers got out of an army truck');
+    // the army comes in its own trucks, and soldiers get out of them. Which vehicle comes next is random and the game
+    // runs slowly here, so send one army truck up the player's road rather than wait for the dice to pick one
+    check(await until(async () => !!(window.__armyTruck = (await import('/js/vehicles/traffic.js')).spawnResponder('army')), undefined, 20000), 'no road to send an army truck up');
+    check(await until(() => __armyTruck.mode === 'parked' || __armyTruck.dead, undefined, 60000), `the army truck never pulled up (${await game(() => JSON.stringify({ mode: __armyTruck.mode, respT: __armyTruck.respT }))})`);
+    check(await until(() => __neonbay.all('npc').some(n => (n.type === 'army' || n.type === 'jugg') && Math.hypot(__armyTruck.x - n.x, __armyTruck.z - n.z) < 9)), 'no soldiers got out of the army truck');
     check(await until(() => !!__neonbay.G.heli, undefined, 20000), 'no helicopter at five stars');
     check(await until(() => !__neonbay.Sound.ready || __neonbay.Sound.intensity === 5), 'the music never reached five-star intensity');
     check(await until(() => __neonbay.Sound.voices().rotor === 1), 'the chopper makes no sound');

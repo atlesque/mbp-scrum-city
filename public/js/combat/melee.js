@@ -35,6 +35,9 @@ export function meleeHeat(victim, copNear) {
   return copNear ? 1 : 0.35;
 }
 
+// is a cop close enough to see the player hit n (an officer always counts as the victim, see meleeHeat)
+const copSees = n => n.faction !== 'law' && all('npc').some(c => c.faction === 'law' && c.alive && Math.hypot(c.x - P.x, c.z - P.z) < 30);
+
 export function playerSwing(w, st) {
   const combo = w.combo && G.time - (P.lastSwing ?? -9) < st.rate + 0.4 ? ((P.combo || 0) + 1) % 3 : 0;
   P.combo = combo; P.lastSwing = G.time; P.lastShot = G.time; G.fireCd = st.rate;
@@ -62,9 +65,8 @@ export function landPlayerSwing(sw) {
     const dx = (n.x - P.x) / (d || 1), dz = (n.z - P.z) / (d || 1);
     _o.set(P.x, P.y + 1.3, P.z); _d.set(dx * Math.cos(pitch), Math.sin(pitch), dz * Math.cos(pitch)).normalize();
     const h = b.kick ? null : n.raycast(_o, _d, b.reach + 2), zone = (h && h.zone) || 'torso';
-    const copNear = n.faction !== 'law' && all('npc').some(c => c.faction === 'law' && c.alive && Math.hypot(c.x - P.x, c.z - P.z) < 30);
     n.meleeHit({ dmg: blowDamage(w, n, b.dmg, zone), zone, dir: new THREE.Vector3(dx, 0, dz), knock: b.knock, down: b.down, blade: !!w.blade, weapon: w.id });
-    addHeat(meleeHeat(n, copNear));
+    addHeat(meleeHeat(n, copSees(n)));
     landed++; if (zone === 'head') head = true;
   }
   if (landed) {
@@ -74,13 +76,17 @@ export function landPlayerSwing(sw) {
     alarm(P.x, P.z, 14);
     return;
   }
-  // nobody in reach: a swing at a car dents it
-  if (w.id === 'fist' && !b.kick) return;
+  // nobody in reach: the swing lands on a vehicle. A civilian at the wheel gets out and runs (a rider is thrown off),
+  // and anything harder than a jab of the fist dents it
+  const jab = w.id === 'fist' && !b.kick;
   _o.set(P.x, P.y + 0.9, P.z); _d.set(Math.sin(yaw), 0, Math.cos(yaw));
   for (const v of all('vehicle')) {
     if (v.dead || v.driver === P || Math.hypot(v.x - P.x, v.z - P.z) > 8) continue;
-    const h = v.raycast(_o, _d, b.reach + 0.3); if (!h || h.occupant) continue;
-    v.damage(b.dmg * 0.4, true);
+    const h = v.raycast(_o, _d, b.reach + 0.3); if (!h) continue;
+    const fled = v.scareDriver(P);
+    if (fled) addHeat(meleeHeat(fled, copSees(fled)));
+    if (jab && !fled) return;
+    if (!jab) v.damage(b.dmg * 0.4, true);
     const p = _o.clone().addScaledVector(_d, h.t); emit(p.x, p.y, p.z, 5, '#ffe9a8', 4, 0.25, 0.06);
     Sound.smack('metal'); cam.shake = Math.max(cam.shake, 0.12);
     return;
