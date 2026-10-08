@@ -39,23 +39,32 @@ function packMesh() {
   const t = new THREE.Mesh(tagGeo, tagMat); t.position.set(0.12, -0.08, -0.09); g.add(t); // the ripcord handle
   return g;
 }
-// the canopy: eight gores in two colours and the lines down to the shoulders, drawn round the origin at the feet
-const GORES = 8, R = 2.8, LIFT = 4.2;
-const goreMats = [new THREE.MeshLambertMaterial({ color: '#ff5a3c', side: THREE.DoubleSide }), new THREE.MeshLambertMaterial({ color: '#f4efe4', side: THREE.DoubleSide })];
-const goreGeos = Array.from({ length: GORES }, (_, i) => new THREE.SphereGeometry(R, 4, 5, (i / GORES) * Math.PI * 2, Math.PI * 2 / GORES, 0, Math.PI * 0.42));
+// the canopy: a yellow paraglider wing, cells along an arch across the shoulders (the character faces +z, so the span
+// runs along x), its lines gathered to the two risers at the shoulders; drawn round the origin at the feet
+const CELLS = 13, ARC = 5.2, SPREAD = 1.05, CHORD = 2.4, LIFT = 6.2; // arch radius, half the angle it spans (rad), metres
+// a little glow of their own so the underside, all you see from below, still reads yellow and not brown
+const cellMats = [['#ffe03a', '#6b5600'], ['#ffc400', '#5c4300']].map(([color, emissive]) => new THREE.MeshLambertMaterial({ color, emissive }));
+const tipMat = new THREE.MeshLambertMaterial({ color: '#2b2d33' });
+const cellW = 2 * ARC * Math.sin(SPREAD / CELLS) + 0.02;
+const cellGeo = new THREE.BoxGeometry(cellW, 0.32, CHORD), noseGeo = new THREE.BoxGeometry(cellW, 0.2, 0.25);
+// where a cell sits on the arch: angle from straight up, its centre, and its underside
+const cellAt = i => { const a = ((i + 0.5) / CELLS - 0.5) * 2 * SPREAD; return { a, x: Math.sin(a) * ARC, y: LIFT - ARC + Math.cos(a) * ARC }; };
 const lineMat = new THREE.LineBasicMaterial({ color: '#30323a' });
 const lineGeo = (() => {
-  const pts = [], rim = Math.sin(Math.PI * 0.42) * R, low = Math.cos(Math.PI * 0.42) * R;
-  for (let i = 0; i < GORES; i++) {
-    const a = (i / GORES) * Math.PI * 2;
-    pts.push(Math.sin(a) * rim, LIFT + (low - R) * 0.62, Math.cos(a) * rim, Math.sin(a) > 0 ? 0.2 : -0.2, 1.45, -0.1);
+  const pts = [];
+  for (let i = 0; i < CELLS; i += 2) {
+    const c = cellAt(i), sx = c.x > 0 ? 0.2 : -0.2;
+    for (const z of [CHORD * 0.3, -CHORD * 0.3]) pts.push(c.x - Math.sin(c.a) * 0.16, c.y - Math.cos(c.a) * 0.16, z, sx, 1.45, -0.05);
   }
   return new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
 })();
 function canopyMesh() {
-  const g = new THREE.Group(), dome = new THREE.Group();
-  goreGeos.forEach((geo, i) => dome.add(new THREE.Mesh(geo, goreMats[i % 2])));
-  dome.scale.y = 0.62; dome.position.y = LIFT - R * 0.62; g.add(dome);
+  const g = new THREE.Group();
+  for (let i = 0; i < CELLS; i++) {
+    const c = cellAt(i), cell = new THREE.Mesh(cellGeo, cellMats[i % 2]);
+    cell.position.set(c.x, c.y, 0); cell.rotation.set(0.08, 0, -c.a); g.add(cell); // nose tipped up a little into the air
+    if (i === 0 || i === CELLS - 1) { const tip = new THREE.Mesh(noseGeo, tipMat); tip.position.set(0, 0, CHORD / 2 - 0.12); cell.add(tip); }
+  }
   g.add(new THREE.LineSegments(lineGeo, lineMat));
   return g;
 }
@@ -64,9 +73,9 @@ export function strapOnChute() {
   if (P.chute) return;
   P.chute = { open: false, t: 0, mesh: packMesh(), canopy: null };
   P.chute.mesh.position.set(0, 1.1, -0.24); P.c.body.add(P.chute.mesh);
-  toast(`Got a <em>parachute</em>. Jump off, then press <em>${kb('jump')}</em> again in the air to open it. One jump only.`, 7);
+  toast(`Got a <em>paraglider</em>. Jump off, then press <em>${kb('jump')}</em> again in the air to open it. One jump only.`, 7);
 }
-// pull the cord: the pack empties and the canopy blooms over the head
+// pull the cord: the pack empties and the wing opens over the head
 export function openChute() {
   const c = P.chute; if (!c || c.open) return;
   c.open = true; c.t = 0;
@@ -80,7 +89,7 @@ export function dropChute() {
   if (c.open) P.c.root.remove(c.canopy); else P.c.body.remove(c.mesh);
   P.chute = null; $('chuteVital').hidden = true;
 }
-// the canopy unfolding and swaying, and the HUD tag while one is packed
+// the wing filling out and swaying, and the HUD tag while one is packed
 export function chuteFx(dt) {
   const c = P.chute, tag = $('chuteVital');
   const packed = !!c && !c.open;
@@ -89,7 +98,8 @@ export function chuteFx(dt) {
   c.t += dt;
   const k = Math.min(1, c.t / 0.45), s = 1 - (1 - k) ** 3;
   c.canopy.scale.set(s, 0.3 + 0.7 * s, s); c.canopy.position.y = P.jumpY || 0; // the root stays at the floor; the body rises
-  c.canopy.rotation.z = Math.sin(G.time * 1.3) * 0.05 - (P.vx || 0) * 0.01; c.canopy.rotation.x = Math.sin(G.time * 0.9) * 0.04;
+  const side = (P.vx || 0) * Math.cos(P.yaw) - (P.vz || 0) * Math.sin(P.yaw); // sideways speed, banks the wing
+  c.canopy.rotation.z = Math.sin(G.time * 1.3) * 0.04 + side * 0.03; c.canopy.rotation.x = Math.sin(G.time * 0.9) * 0.04;
 }
 
 // the pack lying on the roof: walk over it to take it. Once taken the spot stays empty for PARA.respawn seconds.
