@@ -172,6 +172,13 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 .btn:focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
 .btn[disabled]{opacity:.5;cursor:wait}
 .small{font-size:13px;color:var(--dim)}
+.menu-row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.acct-box{display:flex;flex-direction:column;align-items:center;gap:4px;max-width:60ch;margin-top:-8px}
+.acct-box p{margin:0}
+.acct-warn{color:var(--danger);font-weight:700}
+.acct-note{color:var(--cash)}
+.linkbtn{pointer-events:auto;font:inherit;color:var(--cyan);background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
+.linkbtn:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .mobile-note{display:none;color:var(--sun);font-weight:700}
 @media (max-width:760px),(pointer:coarse){.mobile-note{display:block}}
 #pause .panel,#wasted .panel{text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center}
@@ -312,7 +319,8 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
       <p class="mobile-note">Built for desktop with a mouse and keyboard.</p>
       <noscript><p class="mobile-note">Turn on JavaScript to play.</p></noscript>
       <button id="playBtn" class="btn" disabled>Loading the city…</button>
-      <button id="titleSettingsBtn" class="sbtn cy menu-btn">Settings</button>
+      <div class="menu-row"><button id="signInBtn" class="sbtn cy menu-btn" hidden>Sign in or create account</button><button id="titleSettingsBtn" class="sbtn cy menu-btn">Settings</button></div>
+      <div id="acctBox" class="acct-box" aria-live="polite"></div>
     </div>
   </section>
 
@@ -322,6 +330,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
       <button id="resumeBtn" class="btn">Back to the streets</button>
       <button id="pauseSettingsBtn" class="sbtn cy menu-btn">Settings</button>
       <p class="small" id="pauseStats"></p>
+      <p class="small" id="pauseAcct"></p>
     </div>
   </section>
 

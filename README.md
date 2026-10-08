@@ -19,7 +19,8 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 - Palm trees, street lamps, beach umbrellas and the lifeguard huts on the beach can be knocked down: drive into them fast enough (umbrellas go at any speed, palms need a proper hit and slow you down) or set off an explosion nearby. A fallen lamp goes dark. The wreckage lies there a while, and the prop is back once you are well away.
 - Eight buildings around the city have a lit **Roof** door at street level (green squares on the radar). Press `E` there to take the stairs up to a fenced rooftop with a view over the city, and `E` at the stair hut's **Exit** door to come back down. VAC Gent, the Belpaire and the Herman Teirlinck have one too. A sniper rifle waits on every roof with a door, the rocket launcher on top of the Herman Teirlinck's tower, and a jetpack on the Belpaire. Like enemy drops, they are lost when you get wasted.
 - Every flat roof can be stood on. Press `Space` again in the air to double jump, jump over a roof's railings, and hop across to the next roof; a fall of more than about 5 m hurts. With the jetpack on, hold `Space` in the air to fly and let go to float down.
-- Dying sends you to City General with a 10% hospital bill. Progress saves in `localStorage`.
+- Dying sends you to City General with a 10% hospital bill.
+- **Guest or account.** Play as a guest and your progress (cash, guns, upgrades, ammo) saves in this browser. Or press **Sign in or create account** on the title screen (or **Sign in** in the pause menu): you get an email link, no password, for an MBP Games account that works across every MBP game. Signed in, your progress saves to the account every 5 minutes, every time you get wasted, and when you close the page, so it follows you to any device. The first time you sign in, guest progress moves into the account, unless the account already has progress, which then wins.
 - **Settings** (pause menu or title screen): sound on/off, effects and music volume, render quality, draw distance, animated waves, mouse sensitivity, invert look, field of view, camera shake, crowd and traffic density, km/h or mph, and the keys: a QWERTY or AZERTY preset, then any action rebound by clicking it and pressing the new key (a key already in use swaps over). On a first visit in Chrome or Edge an AZERTY keyboard is detected and picked for you. Settings save in this browser, separately from game progress.
 
 ## Controls
@@ -61,6 +62,8 @@ public/js/
 ```
 
 Everything in the world is an entity in `entities/registry.js`. Entities opt into traits (`update`, `raycast`, `onShot`, `blast`, `pushOut`, `blip`, `interaction`, `shouldDespawn`, `dispose`), so shooting, explosions, collisions, the radar and the E/F prompt work for anything new without touching those systems. Systems talk through `core/events.js` (`npc:killed`, `vehicle:wrecked`, `shop:purchase`, …); `game/rewards.js` turns those into cash, drops and heat.
+
+Accounts live in a separate service, [atlesque/mbp-games](https://github.com/atlesque/mbp-games): the MBP Games accounts Worker (sign-in, saved progress, admin page) at https://accounts.atlesque.dev. Its README covers the API and setup. With it checked out next to this repo, `node tests/account-shots.mjs <folder>` plays the account flow against a local copy and saves screenshots. The game's side is `core/account.js` (sign-in, sync) and `ui/account.js` (the title and pause menu lines).
 
 Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share image `og-image.jpg`, `robots.txt` and `sitemap.xml`.
 
