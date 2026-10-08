@@ -25,6 +25,7 @@ export function buildVac() {
       k.box('trim', x - 0.45, x + 0.45, 0, BASE - 0.8, z - 0.45, z + 0.45, WHITE);
   }
   k.box('dark', 7, 11, topA + 1.4, topA + 3, 0, 8, '#8d8a86'); // plant on the lower roof
+  k.roofPart(7, 11, 0, 8, topA + 1.4, topA + 3);
   // B's end on the square: eight glass slits between deep brick piers, over a fully glazed floor
   const FB = k.face(B, 'front'), slitTop = topB - 2.2, slitBot = BASE + FH + 0.4;
   k.pane('dark', FB, 1.2, FB.len - 1.2, slitBot, slitTop, -0.87, SLIT);
@@ -56,7 +57,8 @@ export function buildVac() {
   }
   for (let z = L[2] + 1; z < L[3]; z += 6) k.box('trim', L[0] + 0.5, L[0] + 1.3, 0, ly0, z - 0.4, z + 0.4, WHITE);
   k.box('trim', L[0], L[1] - 0.3, ly1, ly1 + 1.1, L[2], L[2] + 0.2, '#b9c4c6'); // glass balustrade of the city courtyard
-  k.solid(A, topA + 1.4); k.solid(B, topB + 1.4); k.solid(L, ly1 + 1.1);
+  k.roofPart(L[0], L[1] - 0.3, L[2], L[2] + 0.2, ly1, ly1 + 1.1);
+  k.solid(A, topA + 1.4); k.solid(B, topB + 1.4); k.solid(L, ly1);
   return k;
 }
 

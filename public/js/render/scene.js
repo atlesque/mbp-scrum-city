@@ -13,7 +13,8 @@ scene.background = HORIZON;
 scene.fog = new THREE.Fog(HORIZON, 60, 290);
 export const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 1000);
 scene.add(camera);
-const SUN_DIR = new THREE.Vector3(1, 0.13, 0.32).normalize();
+// render/lighting.js moves the sun along with the time of day
+export const SUN_DIR = new THREE.Vector3(1, 0.13, 0.32).normalize();
 // Lights are physically based since r155; the factor of PI keeps the brightness they had in r128.
 // render/lighting.js fades the first three between sunset and night.
 export const hemiLight = new THREE.HemisphereLight(0xffd8e8, 0x5c3c70, 0.85 * Math.PI); scene.add(hemiLight);
@@ -31,7 +32,7 @@ export const sky = new THREE.Mesh(new THREE.SphereGeometry(700, 32, 16), new THR
       vec3 col = mix(cHor, cMid, smoothstep(0.02, 0.22, h)); col = mix(col, cTop, smoothstep(0.22, 0.75, h));
       float s = max(dot(d, normalize(sunDir)), 0.0);
       col += vec3(1.0, 0.55, 0.25) * pow(s, 10.0) * 0.55 * (1.0 - night);
-      float disc = smoothstep(0.9965, 0.9975, s) * (1.0 - night);
+      float disc = smoothstep(0.9965, 0.9975, s) * step(0.0, d.y); // sinks behind the horizon as night falls
       vec3 q = floor(d * 260.0); float star = step(0.9975, fract(sin(dot(q, vec3(12.9898, 78.233, 37.719))) * 43758.5453));
       col += vec3(0.9, 0.85, 1.0) * star * night * smoothstep(0.08, 0.3, h);
       float stripes = step(0.5, fract((d.y - 0.06) * 90.0)) + step(0.14, d.y);

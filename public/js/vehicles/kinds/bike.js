@@ -1,4 +1,5 @@
 import { kb } from '../../core/controls.js';
+import { toast } from '../../ui/hud.js';
 import { clamp, lerp, rnd } from '../../core/util.js';
 import { seatedLegs, shadowGeo, shadowMat } from '../../characters/character.js';
 import { emit } from '../../render/effects.js';
@@ -37,6 +38,7 @@ const TURN_X = [-150, -100, -50, 0, 50, 100, 150, 200], TURN_Z = [-150, -100, -5
 //   shieldsDriver            true: nothing hurts the player at the wheel, hits land on the vehicle (game/player.js)
 //   ram, knock(v, vx, vz, up) mass and body for ramming, and how it flies when rammed (see vehicles/knock.js)
 //   ridesOver, topAt(v, x, z) the closing speed up to which it rides over a car, and the top of a kind ridden over
+//   wheelie                  how a bike lifts its front wheel with the wheelie key (see wheelie() below)
 //   camera                   chase distance, aiming distance and eye height
 //   verb, tip(M)             'ride' or 'drive', and the first-time help toast
 //   laneHalf, trafficDespawn, ambientEngine, stopsWhileBurning
@@ -54,11 +56,17 @@ export const bike = {
   crash: { exitSpeed: 9, hurt: 1.4 },
   ram: { mass: 1, hull: [0.62, 0.42], heavierAt: 3, sameAt: 10 },
   ridesOver: 12, // m/s: meet a car slower than this and ride up over it, faster and crash into it
+  // hold the wheelie key and the gas above `min` m/s: the front pops up to `pop` rad, then rises towards `ride`
+  // (about 34°) and stays there; off the gas or on the back brake it comes down. Boost pulls it on towards `boost`, past `max`, where it
+  // loops over backwards and throws the rider off. `rate` is how fast it chases the angle, `fall` how fast it drops
+  // when let go (rad/s²), and `brake` how fast the back brake brings it down. Steering is cut by up to `steer` while up,
+  // and a wheelie held for `brag` seconds gets a toast with its time and distance when the front comes down.
+  wheelie: { min: 4, pop: 0.3, ride: 0.6, boost: 1.4, max: 1.15, rate: 1.6, fall: 9, brake: 3, steer: 0.6, brag: 2 },
   camera: { dist: 6.2, aimDist: 3.4, height: 1.95, fovPerSpeed: 0.35, minArm: 2.2 }, // minArm: see game/camera.js
   laneHalf: 1.4, trafficDespawn: 170, reachMax: 2.8, ambientEngine: true, jack: 'shove the rider off',
-  tip: M => `${M.name}. <em>${kb('forward')}</em>/<em>${kb('back')}</em> throttle and brake, <em>${kb('left')}</em>/<em>${kb('right')}</em> lean, <em>${kb('sprint')}</em> boost, <em>${kb('jump')}</em> rear brake, <em>${kb('ride')}</em> to get off. Guns still work.`,
+  tip: M => `${M.name}. <em>${kb('forward')}</em>/<em>${kb('back')}</em> throttle and brake, <em>${kb('left')}</em>/<em>${kb('right')}</em> lean, <em>${kb('sprint')}</em> boost, <em>${kb('jump')}</em> rear brake, <em>${kb('wheelie')}</em> wheelie, <em>${kb('ride')}</em> to get off. Guns still work.`,
 
-  init(v) { v.lean = -0.12; v.fallen = false; v.fallSide = 1; },
+  init(v) { v.lean = -0.12; v.fallen = false; v.fallSide = 1; v.pop = 0; v.popW = 0; },
   build(v) { return makeBikeMesh(v.model); },
   pose(b, dt) {
     const m = b.mesh, S = b.model.spec, fx = Math.sin(b.yaw), fz = Math.cos(b.yaw);
@@ -75,15 +83,23 @@ export const bike = {
     b.hF = wheel(b.hF, tF, 'fallF'); b.hR = wheel(b.hR, tR, 'fallR');
     // the hop as it mounts a car, settling back on the suspension
     if (b.hopV || b.hop > 0) { b.hopV -= 22 * dt; b.hop = (b.hop || 0) + b.hopV * dt; if (b.hop <= 0) b.hop = b.hopV = 0; }
-    const y = b.hR - (b.hF - b.hR) * S.zR / S.wb + (b.air || 0) + (b.hop || 0);
+    // pitch with the ground under the wheels, and back by the wheelie, turning about the rear axle so the back tyre stays put
+    const a = -Math.atan2(b.hF - b.hR, S.wb) - (b.pop || 0), ca = Math.cos(a), sa = Math.sin(a);
+    const y = b.hR + S.rR * (1 - ca) + S.zR * sa + (b.air || 0) + (b.hop || 0), d = S.zR * (1 - ca) - S.rR * sa;
     b.lift = Math.max(0, (b.hF + b.hR) / 2 + (b.hop || 0) - groundAt(b.x, b.z)); // how far above the road it rides, on a car
-    m.grp.position.set(b.x, y, b.z); m.grp.rotation.set(-Math.atan2(b.hF - b.hR, S.wb), b.yaw, 0, 'YXZ');
+    m.grp.position.set(b.x + fx * d, y, b.z + fz * d); m.grp.rotation.set(a, b.yaw, 0, 'YXZ');
+    // the shadow stays flat on the road under the middle of the bike, whatever the wheelie
+    const sy = b.hR + 0.03 - y, sz = -d; m.shadow.position.set(0, sy * ca + sz * sa, -sy * sa + sz * ca); m.shadow.rotation.x = b.pop || 0;
     m.lean.rotation.z = b.lean; m.lean.position.y = clamp(Math.abs(b.lean) - 0.75, 0, 0.6) * 0.75; // rest on the cylinder head when down
     m.steer.rotation.y = b.steer;
     spinWheels(m.wheels, rolling(b) * dt);
     m.stand.visible = b.mode === 'parked' && !b.fallen && !b.dead;
   },
-  drive(v, dt, c) { arcadeDrive(v, dt, c, v.model.spec.wb); },
+  drive(v, dt, c) {
+    const W = bike.wheelie, up = clamp((v.pop || 0) / W.pop, 0, 1);
+    arcadeDrive(v, dt, up ? { ...c, steer: c.steer * (1 - W.steer * up) } : c, v.model.spec.wb);
+    wheelie(v, dt, c);
+  },
   afterDrive(b, dt) { b.lean = lerp(b.lean, -Math.max(-0.7, Math.min(0.7, Math.atan(b.v * b.yawRate / 9.8))), Math.min(1, dt * 6)); },
   collideSelf(b) {
     const fx = Math.sin(b.yaw), fz = Math.cos(b.yaw), F = { x: b.x + fx * 0.62, z: b.z + fz * 0.62 }, R = { x: b.x - fx * 0.62, z: b.z - fz * 0.62 };
@@ -136,6 +152,7 @@ export const bike = {
       b.x += Math.sin(b.yaw) * b.v * dt; b.z += Math.cos(b.yaw) * b.v * dt; if (bike.collideSelf(b)) b.v *= 0.5;
       if (b.fallen && Math.abs(b.v) > 2 && Math.random() < 0.7) emit(b.x + rnd(-0.5, 0.5), 0.1, b.z + rnd(-0.5, 0.5), 1, '#ffd23e', 3, 0.25, 0.05, -12, 1.5);
     } else if (b.mode === 'fallen') b.mode = 'parked';
+    if (b.pop) wheelie(b, dt, {});
     b.steer = lerp(b.steer, 0, Math.min(1, dt * 3));
     b.lean = lerp(b.lean, b.fallen ? -1.35 * b.fallSide : -0.12, Math.min(1, dt * 4));
   },
@@ -173,10 +190,31 @@ export const bike = {
     if (crash || speed > bike.crash.exitSpeed) { b.mode = 'fallen'; b.fallen = true; b.fallSide = -side; }
     else { b.mode = 'parked'; b.v = 0; }
   },
-  onPlayerEnter(b) { b.fallen = false; b.v = 0; b.steer = 0; b.kvx = b.kvz = 0; b.air = 0; },
-  wreck(b) { b.fallen = true; b.lean = -1.35 * b.fallSide; b.air = 0; b.kvx = b.kvz = 0; },
+  onPlayerEnter(b) { b.fallen = false; b.v = 0; b.steer = 0; b.kvx = b.kvz = 0; b.air = 0; b.pop = b.popW = 0; b.looped = false; },
+  wreck(b) { b.pop = b.popW = 0; b.fallen = true; b.lean = -1.35 * b.fallSide; b.air = 0; b.kvx = b.kvz = 0; },
   blip(b, radar) { if (b.driver) radar.dot(b.x, b.z, '#f4f4f4', 5, false); else radar.dot(b.x, b.z, '#3ef0ff', 6, true, 'sq'); },
 };
+
+// The wheelie, one step: c holds the player's controls (wheelie, throttle, boost, handbrake), {} for a riderless bike.
+// b.pop is how far the front is up (rad), b.popW how fast it is moving. Held, the angle chases a target; let go, or
+// too slow, it falls under gravity and lands with a thump (b.landV, see mount() in vehicle.js). Past W.max it has looped
+// over: b.looped is set for driveByPlayer to throw the rider off.
+export function wheelie(b, dt, c) {
+  const W = bike.wheelie, a = b.pop || 0, fast = b.v > (a > 0 ? W.min - 1 : W.min);
+  if (c.wheelie && fast && !b.fallen && !(b.air > 0)) {
+    const target = c.handbrake || !c.throttle ? -0.1 : c.boost ? W.boost : W.ride;
+    // on the gas the front pops up quickly to W.pop, then eases on towards the target
+    const rate = c.handbrake ? -W.brake : Math.max(W.rate * (target - a), c.throttle && a < W.pop ? W.rate * 3 : -Infinity);
+    b.popW = rate; b.pop = a + rate * dt;
+  } else if (a > 0) { b.popW = (b.popW || 0) - W.fall * dt; b.pop = a + b.popW * dt; }
+  if (b.pop > 0.15) { b.wheelieT = (b.wheelieT || 0) + dt; b.wheelieD = (b.wheelieD || 0) + Math.abs(b.v) * dt; }
+  if (b.pop > W.max) { b.pop = W.max; b.popW = 0; b.looped = true; b.wheelieT = b.wheelieD = 0; return; }
+  if (b.pop <= 0) {
+    if (a > 0) b.landV = Math.max(b.landV || 0, -(b.popW || 0) * b.model.spec.wb);
+    if (b.wheelieT >= W.brag && 'wheelie' in c) toast(`Wheelie! ${b.wheelieT.toFixed(1)} s, ${Math.round(b.wheelieD)} m`, 2);
+    b.pop = b.popW = 0; b.wheelieT = b.wheelieD = 0;
+  }
+}
 
 function makeBikeMesh(M) {
   const S = M.spec, G = M.geos(), grp = new THREE.Group(), lean = new THREE.Group(); grp.add(lean);
@@ -190,5 +228,5 @@ function makeBikeMesh(M) {
   const stB = new THREE.Mesh(G.st, bikeMat), stG = new THREE.Mesh(G.stGlow, bikeGlowMat), fw = wheelAt(M.wheel(true), bikeMat, 0, S.rF - S.H.y, S.zF - S.H.z, S.rF); inner.add(stB, stG, fw);
   const decals = [-1, 1].map(s => { const m = new THREE.Mesh(G.decal, M.decal()); m.position.set(s * M.decalAt[0], M.decalAt[1], M.decalAt[2]); m.rotation.y = s * Math.PI / 2; lean.add(m); return m; });
   const seat = new THREE.Group(); seat.position.set(0, S.seatY, S.seat); lean.add(seat);
-  return { grp, lean, steer, fw, rw, wheels: [fw, rw], seat, stand, solid: [body, matte, stand, rw, stB, fw], lit: [glow, stG, glass, ...decals] };
+  return { grp, lean, shadow: sh, steer, fw, rw, wheels: [fw, rw], seat, stand, solid: [body, matte, stand, rw, stB, fw], lit: [glow, stG, glass, ...decals] };
 }

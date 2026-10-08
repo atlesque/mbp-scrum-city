@@ -3,6 +3,7 @@ import { settings } from '../core/settings.js';
 import { RADAR_GLOW, RADAR_PULSE_FROM } from '../data/wanted.js';
 import { G, I, P, inv } from '../core/state.js';
 import { $, clamp } from '../core/util.js';
+import { hintShown } from '../game/hint.js';
 
 // ================= HUD =================
 export function drawWeaponIcon() {
@@ -46,8 +47,10 @@ export function updateHUD() {
     const radar = $('radarWrap'); radar.style.setProperty('--heat', RADAR_GLOW[G.wanted] || 0); radar.classList.toggle('pulse', G.wanted >= RADAR_PULSE_FROM);
   }
   const v = P.vehicle, mph = settings.units === 'mph', spd = v ? Math.round(Math.abs(v.v) * (mph ? 2.237 : 3.6)) : -1, sk = spd + settings.units;
+  const shown = hintShown() && $('settings').hidden, paused = G.state === 'paused', hk = `${shown}${!!v}${paused}`;
+  if (hk !== updateHUD.hint) { updateHUD.hint = hk; const h = $('hint'); h.hidden = !shown; h.classList.toggle('up', !!v); h.classList.toggle('top', paused); }
   if (sk !== updateHUD.spd) {
-    updateHUD.spd = sk; $('speedo').hidden = spd < 0; $('hint').hidden = spd >= 0;
+    updateHUD.spd = sk; $('speedo').hidden = spd < 0;
     if (spd >= 0) { $('kmh').textContent = String(spd).padStart(3, '0'); $('spdUnit').textContent = mph ? 'mph' : 'km/h'; }
   }
   if (v) $('vehHp').style.width = clamp(v.hp / v.model.hp * 100, 0, 100) + '%';

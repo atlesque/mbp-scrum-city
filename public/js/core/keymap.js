@@ -12,6 +12,7 @@ export const ACTIONS = [
   { id: 'right', label: 'Right, steer, lean', group: 'Move' },
   { id: 'sprint', label: 'Sprint, boost', group: 'Move' },
   { id: 'jump', label: 'Jump, handbrake, jetpack', group: 'Move' },
+  { id: 'wheelie', label: 'Wheelie (hold, on a motorcycle)', group: 'Move' },
   { id: 'use', label: 'Gun shop, roof doors', group: 'Actions' },
   { id: 'ride', label: 'Ride, drive, get out', group: 'Actions' },
   { id: 'reload', label: 'Reload', group: 'Actions' },
@@ -20,7 +21,7 @@ export const ACTIONS = [
   { id: 'siren', label: 'Siren on / off (police car, fire truck)', group: 'Actions' },
   { id: 'pause', label: 'Pause', group: 'Actions' },
 ];
-const QWERTY = { forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD', sprint: 'ShiftLeft', jump: 'Space', use: 'KeyE', ride: 'KeyF', reload: 'KeyR', melee: 'KeyQ', radio: 'KeyM', siren: 'KeyH', pause: 'KeyP' };
+const QWERTY = { forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD', sprint: 'ShiftLeft', jump: 'Space', wheelie: 'KeyC', use: 'KeyE', ride: 'KeyF', reload: 'KeyR', melee: 'KeyQ', radio: 'KeyM', siren: 'KeyH', pause: 'KeyP' };
 export const PRESETS = { qwerty: QWERTY, azerty: { ...QWERTY, radio: 'Semicolon' } };
 // keys that work alongside the binding and can't be changed
 export const ALT = { forward: 'ArrowUp', back: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight', sprint: 'ShiftRight' };

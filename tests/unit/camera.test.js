@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CAM_R, armRoom, pickSide, shoulderRoom, stepArm } from '../../public/js/game/camera.js';
+import { CAM_R, PITCH_MIN, armRoom, pickSide, shoulderRoom, stepArm } from '../../public/js/game/camera.js';
 import { addCollider, sweepHit } from '../../public/js/world/collision.js';
 
 // an alley 3.2 m wide running north-south between two 20 m tall buildings, out past the edge of the city
@@ -35,6 +35,12 @@ describe('camera sweep against buildings', () => {
 });
 
 describe('follow camera spring arm', () => {
+  it('hangs the arm as steep as the steepest aim, so the camera stays on the shot line looking down at the feet', () => {
+    expect(PITCH_MIN).toBeLessThan(-1.4); // within a few degrees of straight down
+    const s = settle(AX + 100, 30, AZ, 0, PITCH_MIN, 4.6, 1.4); // open air, high above the street
+    expect(s.pitch).toBeCloseTo(PITCH_MIN, 5);
+    expect(s.arm).toBeCloseTo(4.6, 2);
+  });
   it('keeps the shoulder offset off the wall', () => {
     expect(shoulderRoom(AX, 1.6, AZ, 0, 0.55)).toBe(0.55);
     expect(shoulderRoom(AX - 1.0, 1.6, AZ, 0, 0.55)).toBeLessThan(0.3); // facing north, right is towards -x

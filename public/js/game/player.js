@@ -23,9 +23,9 @@ import { removeTank } from '../vehicles/tank.js';
 import { driveByPlayer, sirenOn } from '../vehicles/vehicle.js';
 import { SPAWN } from '../world/city.js';
 import { collide, wallHit } from '../world/collision.js';
-import { collideRoofs, surfaceAt } from '../world/rooftops.js';
+import { ceilingAt, collideRoofs, surfaceAt } from '../world/rooftops.js';
 import { BAIL, bailDamage, bailLaunch, tumbleStep } from './bailout.js';
-import { cameraRoof, stepArm, stepShoulder } from './camera.js';
+import { PITCH_MAX, PITCH_MIN, cameraRoof, stepArm, stepShoulder } from './camera.js';
 import { JET, jetFx, jetStep, refuel, takeOffJetpack } from './jetpack.js';
 import { updateInteraction } from './interact.js';
 
@@ -37,7 +37,7 @@ export function updatePlayer(dt) {
   // through the scope the mouse slows with the zoom, so the crosshair moves as far on screen as it does unzoomed
   const sens = (G.scope ? 0.0022 * scopeFov(1, G.scope) : I.mouseR ? 0.0013 : 0.0022) * settings.sensitivity, sensY = settings.invertY ? -sens : sens;
   if (I.mouseDX || I.mouseDY) P.lookT = G.time;
-  cam.yaw -= I.mouseDX * sens; cam.pitch = clamp(cam.pitch - I.mouseDY * sensY, -1.0, 1.15); I.mouseDX = I.mouseDY = 0;
+  cam.yaw -= I.mouseDX * sens; cam.pitch = clamp(cam.pitch - I.mouseDY * sensY, PITCH_MIN, PITCH_MAX); I.mouseDX = I.mouseDY = 0;
   const aimingNow = I.mouseR || G.scope > 0 || I.mouseL || I.clickQ > 0 || G.time - P.lastShot < 0.7;
   P.aiming = aimingNow;
   P.aimPitch = cam.pitch;
@@ -112,7 +112,9 @@ function walk(dt, aimingNow) {
   if (!P.grounded) {
     if (P.jetpack) P.vy = jetStep(P.jetpack, P.vy, space && !press, dt, GRAVITY);
     else P.vy -= GRAVITY * dt;
+    const head = ceilingAt(P.x, P.z, P.y) - 1.8;
     P.y += P.vy * dt;
+    if (P.vy > 0 && P.y > head) { P.y = Math.max(floor, head); P.vy = 0; } // bumped the head on something overhead
     if (P.y <= floor) land(floor);
   } else if (P.jetpack) refuel(P.jetpack, dt);
   P.jumpY = P.y - floor;
@@ -167,7 +169,7 @@ export function enterVehicle(v) {
   P.vehicle = v; v.driver = P; v.mode = 'player'; v.K.onPlayerEnter(v);
   if (v.model.siren) v.siren = sirenOn(v); // the siren is the player's to switch now, starting as it was
   v.K.seat(v, P.c); P.x = v.x; P.z = v.z; P.y = 0; P.floor = 0; P.roof = null; P.vy = 0; P.grounded = true; P.flipT = 0; P.c.body.rotation.x = 0; P.lookT = -9;
-  $('prompt').hidden = true; G.hudCache = ''; $('vehName').textContent = v.model.short; $('vehSiren').hidden = !v.model.siren;
+  $('prompt').hidden = true; G.hudCache = ''; $('vehName').textContent = v.model.short; $('vehSiren').hidden = !v.model.siren; $('vehWheelie').hidden = !v.K.wheelie;
   if (!told[v.model.id]) { told[v.model.id] = true; toast(v.K.tip(v.model), 7); }
   emit('vehicle:enter', { vehicle: v });
 }

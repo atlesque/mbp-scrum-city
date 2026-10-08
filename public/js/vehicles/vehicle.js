@@ -28,6 +28,15 @@ export const KINDS = { bike, car, truck };
 // each point of damage takes `shot` seconds off what is left. Firemen hosing it hold the fire back, and `need` seconds
 // of hose (two firemen fill it twice as fast) put it out, leaving the vehicle smoking on `hp`.
 export const CRASH_FIRE = { shot: 0.25, need: 7, hp: 25 };
+// How tough the bodywork is against weapons: a bullet does `shot` of its damage, so guns take a while
+// to set a vehicle burning, while a rocket or grenade going off within `wreckIn` of its blast radius
+// (or a direct rocket hit) wrecks it in one.
+export const TOUGH = { shot: 1 / 3, wreckIn: 0.5 };
+// damage a vehicle takes from a blast `d` from its centre (hull edge for big ones) of radius R
+export const blastDamage = (v, d, R, dmg, extra, ordnance) => {
+  const hit = dmg * (1 - d / R) + extra;
+  return ordnance && d < R * TOUGH.wreckIn ? Math.max(hit, v.hp + 1) : hit;
+};
 
 // A vehicle in the world: parked, in traffic, answering a call, or driven by the player.
 // mode: 'parked' | 'fallen' (a bike on its side) | 'traffic' | 'respond' (police) | 'player'
@@ -116,7 +125,8 @@ const Vehicle = {
   },
   onShot(hit, dmg, dir) {
     if (hit.occupant && this.driver && this.driver.alive) { emit(hit.p.x, hit.p.y, hit.p.z, 4, '#cfe6ff', 4, 0.3, 0.05); return this.driver.onShot(hit, dmg, dir); }
-    this.damage(dmg, true); emit(hit.p.x, hit.p.y, hit.p.z, 3, '#ffe9a8', 5, 0.25, 0.06); return { head: false };
+    // the bodywork soaks up bullets; once it's burning, each shot brings the bang closer as before
+    this.damage(this.burnT > 0 ? dmg : dmg * TOUGH.shot, true); emit(hit.p.x, hit.p.y, hit.p.z, 3, '#ffe9a8', 5, 0.25, 0.06); return { head: false };
   },
   onRocket() { this.damage(999, true); },
   // after every blast() has landed: wrecks, and vehicles the blast set burning, get thrown (see knock.js); rockets throw harder
@@ -126,7 +136,7 @@ const Vehicle = {
     if (this.K.slide) { this.kvx = (this.kvx || 0) + t.vx; this.kvz = (this.kvz || 0) + t.vz; this.kspin = (this.kspin || 0) + t.spin; this.avy = Math.max(this.avy || 0, 0) + t.up; this.air = Math.max(this.air || 0, 0.01); this.v = 0; }
     else this.K.knock(this, (this.kvx || 0) + t.vx, (this.kvz || 0) + t.vz, t.up);
   },
-  blast(x, y, z, R, dmg, byPlayer) { const d = Math.hypot(this.x - x, this.z - z); if (d < R && !this.dead) this.damage(dmg * (1 - d / R) + 40, byPlayer ? 'boom' : false); },
+  blast(x, y, z, R, dmg, byPlayer, ordnance) { const d = Math.hypot(this.x - x, this.z - z); if (d < R && !this.dead) this.damage(blastDamage(this, d, R, dmg, 40, ordnance), byPlayer ? 'boom' : false); },
   // a vehicle just rammed flies through whatever hit it, and one just bailed out of rolls on past the player
   pushOut(o, r) { return !(this.ghostT > G.time) && !(o === P && P.bailFrom === this && P.bailT > G.time) && this.K.pushOut(this, o, r); },
   blip(radar) { if (this.driver !== P && !this.dead) this.K.blip(this, radar); },
@@ -206,12 +216,14 @@ export function toggleSiren() {
 
 // ---- the player at the controls ----
 const controls = () => ({
-  throttle: held('forward'), brake: held('back'), boost: held('sprint'), handbrake: held('jump'),
+  throttle: held('forward'), brake: held('back'), boost: held('sprint'), handbrake: held('jump'), wheelie: held('wheelie'),
   steer: (held('left') ? 1 : 0) - (held('right') ? 1 : 0),
 });
 export function driveByPlayer(v, dt) {
   const K = v.K;
   K.drive(v, dt, controls());
+  // pulled a bike's wheelie up too far: it goes over backwards and throws the rider off
+  if (v.looped) { v.looped = false; exitVehicle(true); toast('Looped it! Ease off the boost to hold a wheelie.', 2.5); return; }
   if (K.ridesOver) mount(v);
   if (ram(v)) v.shoveT = G.time + 0.3;
   const fx = Math.sin(v.yaw), fz = Math.cos(v.yaw), nx = v.x, nz = v.z;
