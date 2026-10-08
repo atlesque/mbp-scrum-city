@@ -166,6 +166,33 @@ try {
     await game(async ({ heat, wanted }) => { const { G } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js'); selectWeapon('pistol'); G.heat = heat; G.wanted = wanted; }, before);
   });
 
+  await step('holding Q opens the weapon wheel, the mouse picks a weapon and a tap still goes to melee', async () => {
+    await game(() => { const { inv } = __neonbay; inv.owned.rifle = true; inv.owned.bat = true; inv.owned.katana = true; });
+    const point = (x, y) => game(async ([x, y]) => (await import('/js/ui/wheel.js')).wheelMove(x, y), [x, y]);
+    await page.keyboard.down('KeyQ');
+    check(await game(() => !document.getElementById('wheel').hidden), 'the wheel did not open');
+    // the rifle is the fifth slice of ten, pointing down and to the right
+    await point(240 * 0.6 * Math.sin(Math.PI * 0.8), -240 * 0.6 * Math.cos(Math.PI * 0.8));
+    await page.keyboard.up('KeyQ');
+    const r = await game(() => ({ cur: __neonbay.inv.cur, shut: document.getElementById('wheel').hidden }));
+    check(r.shut, 'the wheel stayed open after letting go of Q');
+    check(r.cur === 'rifle', `pointing at the rifle gave ${r.cur}`);
+    // straight up onto the melee slice, then out into its ring to the katana
+    await page.keyboard.down('KeyQ');
+    await point(0, -120);
+    await game(async () => {
+      const { ringOf, RING_ARC } = await import('/js/game/wheel.js'), { wheelMove } = await import('/js/ui/wheel.js');
+      const g = ringOf(0, __neonbay.inv.owned), a = g.start + (g.items.indexOf('katana') + 0.5) * RING_ARC;
+      wheelMove(240 * 0.95 * Math.sin(a), -240 * 0.95 * Math.cos(a) + 120);
+    });
+    await page.keyboard.up('KeyQ');
+    check(await game(() => __neonbay.inv.cur) === 'katana', 'the melee ring did not give the katana');
+    await game(async () => (await import('/js/combat/combat.js')).selectWeapon('pistol'));
+    await press('KeyQ', 40);
+    check(await game(() => __neonbay.inv.cur) === 'katana', 'a tap on Q did not go back to the melee weapon used last');
+    await game(async () => (await import('/js/combat/combat.js')).selectWeapon('pistol'));
+  });
+
   await step('a downed juggernaut drops armor and ammo the player can pick up', async () => {
     for (let i = 0; i < 12; i++) {
       const done = await game(() => {

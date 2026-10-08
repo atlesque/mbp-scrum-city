@@ -38,8 +38,9 @@ These are the QWERTY defaults; the AZERTY preset uses ZQSD to move, A for melee 
 | On a bike: W / S, A / D, Shift, Space | Throttle / brake, lean, boost, rear brake. You can still shoot. |
 | On a bike: hold C with W | Wheelie. Off the gas or on the rear brake the front comes down; boost while up and it climbs until it loops over and throws you off. |
 | In a car: W / S, A / D, Shift, Space | Gas / brake, steer, boost, handbrake. Steer with the handbrake to drift; hold the gas to keep the slide going, countersteer to straighten out. |
-| 1–9, mouse wheel | Switch weapons (8 grenades, 9 molotovs, once you've picked some up) |
-| Q | Put the guns away: fists, then each melee weapon you own |
+| 1–0, mouse wheel | Switch weapons (8 grenades, 9 molotovs, 0 the laser rifle, once you've picked them up) |
+| Hold Q | Weapon wheel: the game slows down and the mouse points at a weapon. Melee weapons share the top slice and grenades and molotovs share another; point past one to pick from its outer ring, or scroll through it. Let go of Q (or click) to take it, right click to cancel. |
+| Tap Q | Put the guns away: fists, then each melee weapon you own |
 | R | Reload |
 | H | Siren and flashing lights on / off (police car, fire truck) |
 | M | Toggle the radio (Neon FM builds up with your wanted level: synths only at zero stars, drums from one star, more layers up to five) |
