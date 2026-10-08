@@ -20,7 +20,7 @@ import { lightRed } from './materials.js';
 // ================= HELICOPTER =================
 // The 4+ star chopper: circles the player, sweeps a searchlight and fires minigun bursts.
 // It takes about 20 rifle hits or one direct rocket, smokes as it weakens and spins down when killed.
-export const HELI_HP = 700;
+export const HELI_HP = 1400;
 // hit volumes in the chopper's own frame: the cabin, the tail boom and the rotor disc
 const BODY_R = 3, TAIL_BACK = 4.4, TAIL_R = 1.6, ROTOR_Y = 1, ROTOR_R = 4.5;
 // the searchlight hangs under the cabin and its cone widens by BEAM_SPREAD per metre
