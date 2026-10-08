@@ -1,5 +1,5 @@
-// Plays the MBP Games account flow against a local copy of the accounts service (mbp-games/, run with
-// wrangler dev and a throwaway database): guest title screen, sign in by email link, progress sync on death,
+// Plays the MBP Games account flow against a local copy of the accounts service (github.com/atlesque/mbp-games,
+// checked out next to this repo or at MBP_GAMES_DIR, run with wrangler dev and a throwaway database): guest title screen, sign in by email link, progress sync on death,
 // then the admin page resets the player's progress and bans them. Screenshots go to the folder given.
 // Run with `node tests/account-shots.mjs <folder>`. Set CHROMIUM_PATH to use a specific browser binary.
 import { spawn } from 'node:child_process';
@@ -13,7 +13,8 @@ import { serve } from './serve.mjs';
 const out = process.argv[2] || 'account-shots';
 mkdirSync(out, { recursive: true });
 const ACC = 'http://localhost:8788';
-const svc = new URL('../mbp-games/', import.meta.url).pathname, bin = new URL('../node_modules/.bin/wrangler', import.meta.url).pathname;
+const svc = process.env.MBP_GAMES_DIR || new URL('../../mbp-games/', import.meta.url).pathname, bin = join(svc, 'node_modules/.bin/wrangler');
+if (!existsSync(bin)) { console.error(`Needs the mbp-games repo with npm install done, at ${svc} (or set MBP_GAMES_DIR).`); process.exit(1); }
 const state = mkdtempSync(join(tmpdir(), 'mbpg-'));
 const run = (args, opts = {}) => spawn(bin, args, { cwd: svc, ...opts });
 await new Promise(r => run(['d1', 'migrations', 'apply', 'mbp-games', '--local', '--persist-to', state]).on('exit', r));

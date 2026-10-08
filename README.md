@@ -63,7 +63,7 @@ public/js/
 
 Everything in the world is an entity in `entities/registry.js`. Entities opt into traits (`update`, `raycast`, `onShot`, `blast`, `pushOut`, `blip`, `interaction`, `shouldDespawn`, `dispose`), so shooting, explosions, collisions, the radar and the E/F prompt work for anything new without touching those systems. Systems talk through `core/events.js` (`npc:killed`, `vehicle:wrecked`, `shop:purchase`, …); `game/rewards.js` turns those into cash, drops and heat.
 
-`mbp-games/` is a separate service: the MBP Games accounts Worker (sign-in, saved progress, admin page) at https://accounts.atlesque.dev, kept here until it gets its own repository. Its README covers the API and setup. The game's side is `core/account.js` (sign-in, sync) and `ui/account.js` (the title and pause menu lines).
+Accounts live in a separate service, [atlesque/mbp-games](https://github.com/atlesque/mbp-games): the MBP Games accounts Worker (sign-in, saved progress, admin page) at https://accounts.atlesque.dev. Its README covers the API and setup. With it checked out next to this repo, `node tests/account-shots.mjs <folder>` plays the account flow against a local copy and saves screenshots. The game's side is `core/account.js` (sign-in, sync) and `ui/account.js` (the title and pause menu lines).
 
 Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share image `og-image.jpg`, `robots.txt` and `sitemap.xml`.
 

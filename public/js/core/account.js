@@ -3,7 +3,7 @@ import { inv, stats } from './state.js';
 
 // ================= MBP GAMES ACCOUNT =================
 // Players can play as guests (progress stays in this browser) or sign in with an MBP Games account, the
-// sign-in shared by every MBP game (the service lives in mbp-games/). Signing in sends the player to the
+// sign-in shared by every MBP game (the service is github.com/atlesque/mbp-games). Signing in sends the player to the
 // hosted sign-in page and back with a one-time code, swapped here for a token (PKCE, so the code is
 // useless to anyone else). Signed in, money and inventory sync to the account every SYNC_EVERY, on every
 // death and when the page closes. Each save names the copy (rev) it builds on; when the account's copy

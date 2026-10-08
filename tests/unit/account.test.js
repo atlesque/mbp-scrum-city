@@ -1,43 +1,63 @@
-// The game's MBP Games account client against the real accounts Worker (mbp-games/), run in-process.
+// The game's MBP Games account client, against a small stand-in for the accounts service
+// (github.com/atlesque/mbp-games): the token swap and the rev-checked progress API.
+import { createHash } from 'node:crypto';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import worker from '../../mbp-games/src/index.js';
-import { makeD1 } from '../../mbp-games/test/d1.js';
 
-const GAME = 'https://mbp-scrum-city.atlesque.dev', APP = 'https://accounts.atlesque.dev';
-let env, mails, store, A, inv, stats;
+const GAME = 'https://mbp-scrum-city.atlesque.dev';
+let store, A, inv, stats, svc;
+
+// what the service does, as far as the game can tell
+function fakeService() {
+  const s = { codes: new Map(), tokens: new Map(), saves: new Map(), banned: null };
+  const res = (status, body) => ({ status, json: async () => body });
+  s.fetch = async (url, opts = {}) => {
+    const u = new URL(url), body = opts.body ? JSON.parse(opts.body) : null;
+    const auth = (opts.headers && opts.headers.authorization || '').replace('Bearer ', '');
+    if (u.pathname === '/api/token') {
+      const c = s.codes.get(body.code);
+      const challenge = createHash('sha256').update(body.code_verifier).digest('base64url');
+      if (!c || c.challenge !== challenge || c.redirect !== body.redirect_uri || body.client !== 'scrum-city') return res(400, { error: 'bad_code', message: 'That sign-in has expired.' });
+      s.codes.delete(body.code);
+      s.tokens.set('tok-' + c.email, c.email);
+      return res(200, { token: 'tok-' + c.email, user: { id: c.email, email: c.email } });
+    }
+    const email = s.tokens.get(auth);
+    if (!email) return res(401, { error: 'signed_out' });
+    if (s.banned === email) return res(403, { error: 'banned', message: 'This account is banned: cheating' });
+    if (u.pathname === '/api/logout') { s.tokens.delete(auth); return res(200, { ok: true }); }
+    const cur = s.saves.get(email) || { data: null, rev: 0 };
+    if (!opts.method || opts.method === 'GET') return res(200, cur);
+    if (body.rev !== cur.rev) return res(409, { error: 'conflict', ...cur });
+    s.saves.set(email, { data: body.data, rev: cur.rev + 1 });
+    return res(200, { rev: cur.rev + 1 });
+  };
+  return s;
+}
 
 beforeAll(() => {
   store = new Map();
   vi.stubGlobal('localStorage', { getItem: k => store.has(k) ? store.get(k) : null, setItem: (k, v) => store.set(k, String(v)), removeItem: k => store.delete(k) });
   vi.stubGlobal('location', { href: GAME + '/', search: '', origin: GAME, assign: vi.fn() });
   vi.stubGlobal('history', { replaceState: (s, t, url) => { const u = new URL(url); location.href = u.toString(); location.search = u.search; } });
-  // the game's requests go straight to the Worker, from the game's origin
-  vi.stubGlobal('fetch', async (url, opts = {}) => {
-    const headers = new Headers(opts.headers); headers.set('origin', GAME);
-    return worker.fetch(new Request(url, { method: opts.method || 'GET', headers, body: opts.body }), env, {});
-  });
+  vi.stubGlobal('fetch', (url, opts) => svc.fetch(url, opts));
 });
-beforeEach(async () => {
-  mails = []; store.clear();
-  env = { DB: makeD1(), ADMIN_EMAILS: '', MAIL_FROM: 'noreply@atlesque.dev', EMAIL: { send: async m => { mails.push(m); } } };
+async function freshGame() {
   vi.resetModules();
   A = await import('../../public/js/core/account.js');
   ({ inv, stats } = await import('../../public/js/core/state.js'));
-});
-const server = () => env.DB.prepare('SELECT data, rev FROM progress').first();
+}
+beforeEach(async () => { store.clear(); svc = fakeService(); await freshGame(); });
 
-// play through the hosted sign-in: the game sends us off, the player opens the emailed link, we come back
+// the game sends the player to the hosted sign-in page; they come back with a code
 async function signIn(email = 'player@example.com') {
   await A.beginSignIn();
   const out = new URL(location.assign.mock.calls.at(-1)[0]);
   expect(out.origin + out.pathname).toBe(`${A.ACCOUNTS_URL}/signin`);
   const q = Object.fromEntries(out.searchParams);
-  const post = (path, body, extra = {}) => worker.fetch(new Request(APP + path, { method: 'POST', headers: { origin: APP, 'content-type': 'application/json', ...extra }, body: JSON.stringify(body) }), env, {});
-  const { request, poll } = await (await post('/api/signin/start', { email, ...q })).json();
-  const t = new URL(mails.at(-1).text.match(/https:\/\/\S+/)[0]).searchParams.get('t');
-  await worker.fetch(new Request(APP + '/auth/link', { method: 'POST', headers: { origin: APP }, body: new URLSearchParams({ t }) }), env, {});
-  const { redirect } = await (await post('/api/signin/poll', { request, poll })).json();
-  const back = new URL(redirect);
+  expect(q.client).toBe('scrum-city');
+  svc.codes.set('code-1', { email, challenge: q.code_challenge, redirect: q.redirect_uri });
+  const back = new URL(q.redirect_uri);
+  back.searchParams.set('mbpg_code', 'code-1'); back.searchParams.set('mbpg_state', q.state);
   location.href = back.toString(); location.search = back.search;
   expect(await A.finishSignIn()).toBe(true);
   expect(location.search).toBe(''); // the code is gone from the address bar
@@ -49,19 +69,17 @@ describe('MBP Games account in the game', () => {
     await signIn();
     expect(A.account().user.email).toBe('player@example.com');
     expect(await A.connect()).toBe('uploaded');
-    expect(JSON.parse((await server()).data).money).toBe(900);
+    expect(svc.saves.get('player@example.com')).toMatchObject({ rev: 1, data: { money: 900 } });
     // nothing changed, nothing sent
     expect(await A.sync()).toBe('same');
     inv.money = 1500;
     expect(await A.sync()).toBe('saved');
-    expect(await server()).toMatchObject({ rev: 2 });
+    expect(svc.saves.get('player@example.com').rev).toBe(2);
   });
   it('takes the account\'s copy when it already has progress', async () => {
     inv.money = 900; await signIn(); await A.connect();
-    // a new browser: guest progress there, then the same account signs in
-    store.clear(); vi.resetModules();
-    A = await import('../../public/js/core/account.js');
-    ({ inv } = await import('../../public/js/core/state.js'));
+    // a new browser with its own guest progress, then the same account signs in
+    store.clear(); await freshGame();
     inv.money = 50;
     await signIn();
     expect(await A.connect()).toBe('loaded');
@@ -70,7 +88,7 @@ describe('MBP Games account in the game', () => {
   it('adopts an admin reset on the next save', async () => {
     inv.money = 4000; inv.owned.minigun = true; stats.kills = 12;
     await signIn(); await A.connect();
-    await env.DB.prepare('UPDATE progress SET data = NULL, rev = rev + 1').run();
+    svc.saves.set('player@example.com', { data: null, rev: 2 });
     inv.money = 4100;
     expect(await A.sync()).toBe('replaced');
     expect(inv.money).toBe(500);
@@ -82,7 +100,7 @@ describe('MBP Games account in the game', () => {
   });
   it('drops back to guest when banned', async () => {
     await signIn(); await A.connect();
-    await env.DB.prepare("UPDATE users SET banned_at = 1, ban_reason = 'cheating'").run();
+    svc.banned = 'player@example.com';
     inv.money = 777;
     expect(await A.sync()).toBe('offline');
     expect(A.account()).toBeNull();
