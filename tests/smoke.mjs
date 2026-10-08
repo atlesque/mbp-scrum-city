@@ -1,54 +1,65 @@
 // Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, shoot a chopper's pilot and fly the chopper off, get shelled by the army's tank and blow it up, hold five stars into the secret sixth and take a laser rifle off an alien, snipe through the scope, throw a car with a rocket,
 // shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, ride a bike over a car, pull a wheelie, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, change settings and remap keys. Fails on any page error or broken step.
-// Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
-import { existsSync, mkdirSync, readdirSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
-import { chromium } from 'playwright';
-import { serve } from './serve.mjs';
+// Run with `npm run test:smoke`, which splits the steps over a few browsers at once (tests/smoke-all.mjs). This file is one of
+// those browsers: `node tests/smoke.mjs` runs every step in one, in order.
+// SMOKE_ONLY=tank,reload runs only the steps whose names contain one of those words (case-insensitive), after the boot;
+// separate with | instead to match whole step names that have commas in them.
+// SMOKE_SHARD=1/3 runs every third step, starting with the first, after the boot. SMOKE_SHOTS=<folder> saves a screenshot per step.
+// Every step starts from the same place: on foot, alive, unhurt, unwanted, pistol in hand, nothing the last step spawned
+// still about (see reset below), so a step that fails fails alone instead of taking the steps after it down with it.
+import { mkdirSync } from 'node:fs';
+import { openGame } from './lib/browser.mjs';
 
 const shots = process.env.SMOKE_SHOTS; // optional folder for screenshots
 if (shots) mkdirSync(shots, { recursive: true });
-function chromiumPath() {
-  if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
-  const root = '/opt/pw-browsers'; if (!existsSync(root)) return undefined;
-  const dir = readdirSync(root).find(d => d.startsWith('chromium-'));
-  return dir && existsSync(`${root}/${dir}/chrome-linux/chrome`) ? `${root}/${dir}/chrome-linux/chrome` : undefined;
-}
+const ONLY = (process.env.SMOKE_ONLY || '').toLowerCase(), only = ONLY.split(ONLY.includes('|') ? '|' : ',').map(s => s.trim()).filter(Boolean);
+const [shard, shards] = (process.env.SMOKE_SHARD || '1/1').split('/').map(Number);
 
-const server = await serve();
-const browser = await chromium.launch({ executablePath: chromiumPath(), args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-const errors = [];
-page.on('pageerror', e => errors.push(e.message));
-page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-// serve Three.js from node_modules and skip web fonts, so the test needs no network
-// (the CDN's .min.js files are minified copies of the package's build files)
-const threeBuild = new URL('../node_modules/three/build/', import.meta.url);
-await page.route('https://cdn.jsdelivr.net/npm/three@*/build/*', async r => r.fulfill({ body: await readFile(new URL(r.request().url().split('/').pop().replace('.min.js', '.js'), threeBuild)), contentType: 'text/javascript' }));
-await page.route('https://cdn.jsdelivr.net/npm/three@*/examples/jsm/**', async r => r.fulfill({ body: await readFile(new URL('../node_modules/three/examples/jsm/' + r.request().url().split('/examples/jsm/')[1], import.meta.url)), contentType: 'text/javascript' }));
-await page.route('https://fonts.googleapis.com/**', r => r.fulfill({ body: '', contentType: 'text/css' }));
-await page.route('https://fonts.gstatic.com/**', r => r.fulfill({ body: '' }));
+const [w, h] = (process.env.SMOKE_SIZE || '960x540').split('x').map(Number);
+const { page, game, until, press, close, errors } = await openGame({ play: false, viewport: { width: w, height: h } });
 
-let failed = 0;
+let failed = 0, index = 0, booted = false;
+const results = [];
+// boot steps always run; the rest are picked by SMOKE_ONLY and SMOKE_SHARD
 async function step(name, fn) {
-  try { await fn(); console.log('ok  ', name); }
-  catch (e) {
-    failed++; console.log('FAIL', name, '\n     ', e.message);
-    // a step that fails part-way can leave the player at the wheel, and every step after it would then fail to get on
-    // anything: step off, so one failure doesn't cascade
-    await game(async () => { const { P } = window.__neonbay || {}; if (P && P.vehicle) (await import('/js/game/player.js')).exitVehicle(false); }).catch(() => {});
+  const t0 = Date.now(), e0 = errors.length;
+  if (booted) {
+    const i = index++;
+    if (only.length && !only.some(w => name.toLowerCase().includes(w))) return;
+    if (!only.length && i % shards !== shard - 1) return;
+    await reset();
   }
+  try {
+    await fn();
+    if (errors.length > e0) throw new Error('page error: ' + errors.slice(e0).join(' | '));
+    console.log('ok  ', name, `(${((Date.now() - t0) / 1000).toFixed(0)} s)`); results.push({ name, ok: true });
+  } catch (e) { failed++; console.log('FAIL', name, `(${((Date.now() - t0) / 1000).toFixed(0)} s)`, '\n     ', e.message); results.push({ name, ok: false }); }
   if (shots) await page.screenshot({ path: `${shots}/${name.replace(/\W+/g, '-')}.png` });
 }
-const game = (fn, arg) => page.evaluate(fn, arg);
-// software WebGL runs at a few frames a second, so wait on game state rather than on the clock
-async function until(fn, arg, ms = 15000) {
-  const end = Date.now() + ms;
-  while (Date.now() < end) { if (await game(fn, arg)) return true; await page.waitForTimeout(100); }
-  return false;
+// put the player back on their feet on an empty bit of street, with nothing left over from the step before
+const HELD = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyC', 'KeyQ', 'Space', 'ShiftLeft'];
+async function reset() {
+  for (const k of HELD) await page.keyboard.up(k);
+  await game(async () => {
+    const { G, P, I, cam, all, removeEntity } = __neonbay;
+    const { exitVehicle, respawn } = await import('/js/game/player.js'), { selectWeapon } = await import('/js/combat/combat.js'), { dropChute } = await import('/js/game/parachute.js');
+    for (const id of ['pause', 'settings', 'shop', 'wheel']) { const el = document.getElementById(id); if (el) el.hidden = true; }
+    // a step that failed part-way can leave the player at the wheel, and every step after it would fail to get on anything
+    if (P.vehicle) { P.vehicle.v = 0; P.vx = P.vz = 0; exitVehicle(false); }
+    dropChute();
+    P.tumble = null; P.bailFrom = null; P.alive = true; G.state = 'play'; G.shop = null;
+    // respawn clears the law, the army, the chopper, the tank and the UFO, and stands the player at the spawn point
+    respawn();
+    for (const k of Object.keys(window)) if (k.startsWith('__') && k !== '__neonbay') { const e = window[k]; if (e && e.kind && !e.removed) removeEntity(e); delete window[k]; }
+    for (const e of all()) if (e.kind === 'vehicle' && e.mode !== 'traffic' && !e.home && Math.hypot(e.x - P.x, e.z - P.z) < 30) removeEntity(e);
+    Object.assign(G, { scope: 0, rescope: 0, reloadT: 0, fireCd: 0, spawnT: 0 });
+    Object.assign(P, { hp: 100, armor: 0, swing: null, reload: null, aiming: false });
+    Object.assign(I, { mouseL: false, mouseR: false, clickQ: 0 });
+    selectWeapon('pistol'); cam.pitch = -0.08;
+  });
+  await page.waitForTimeout(300);
 }
-const press = async (key, ms = 80) => { await page.keyboard.down(key); await page.waitForTimeout(ms); await page.keyboard.up(key); };
-function check(cond, msg) { if (!cond) throw new Error(msg); }
+const check = (cond, msg) => { if (!cond) throw new Error(msg); };
 // clear parked and passing vehicles from around a spot, so F and E reach the one the step is about
 // passing traffic and pedestrians can shove the player or the target, or step into the line of fire
 const clearLane = () => game(() => {
@@ -59,7 +70,6 @@ const clearLane = () => game(() => {
 const clearVehicles = (x, z, keep) => game(([x, z, keep]) => { for (const v of __neonbay.all('vehicle')) if (!(keep && v[keep]) && Math.hypot(v.x - x, v.z - z) < 14) __neonbay.removeEntity(v); }, [x, z, keep]);
 
 try {
-  await page.goto(`http://127.0.0.1:${server.address().port}/?debug`);
   await step('shows the loading screen while it boots', async () => {
     check(await page.isVisible('#loading'), 'loading screen is not showing');
     await page.waitForSelector('#loading', { state: 'hidden', timeout: 60000 });
@@ -80,6 +90,7 @@ try {
   });
   await page.click('#playBtn');
   await page.waitForTimeout(1000);
+  booted = true;
 
   await step('walks', async () => {
     const from = await game(() => ({ x: __neonbay.P.x, z: __neonbay.P.z }));
@@ -822,6 +833,7 @@ try {
   });
 
   await step('a chopper crash wrecks the car and drops the bystander it comes down on', async () => {
+    await game(async () => { const { G } = __neonbay; G.heat = 100; G.wanted = 5; if (!G.heli) (await import('/js/vehicles/heli.js')).spawnHeli(); });
     check(await until(() => !!__neonbay.G.heli, undefined, 20000), 'no helicopter to shoot down');
     await clearVehicles(5, -85);
     await game(() => {
@@ -892,6 +904,7 @@ try {
   });
 
   await step('a tank goes down to rockets and leaves its wreck in the road', async () => {
+    await game(async () => { const { G } = __neonbay; G.heat = 100; G.wanted = 5; window.__tank = G.tank || (await import('/js/vehicles/tank.js')).spawnTank(); });
     const r = await game(() => {
       const { G, all } = __neonbay, t = __tank;
       for (let i = 0; i < 8 && !t.dead; i++) t.onRocket(420);
@@ -904,9 +917,10 @@ try {
 
   await step('glows the minimap red while wanted', async () => {
     const glow = () => game(() => { const w = document.getElementById('radarWrap'); return { heat: +w.style.getPropertyValue('--heat'), pulse: w.classList.contains('pulse') }; });
+    await game(() => { const { G } = __neonbay; G.heat = 100; G.wanted = 5; });
     check(await until(() => __neonbay.G.wanted >= 4), 'lost the wanted level too soon');
-    const hot = await glow();
-    check(hot.heat >= 0.8 && hot.pulse, 'no strong pulsing glow at high stars: ' + JSON.stringify(hot));
+    const lit = await until(() => { const w = document.getElementById('radarWrap'); return +w.style.getPropertyValue('--heat') >= 0.8 && w.classList.contains('pulse'); });
+    check(lit, 'no strong pulsing glow at high stars: ' + JSON.stringify(await glow()));
     await game(() => { const { G } = __neonbay; G.wanted = 0; G.heat = 0; });
     check(await until(() => +document.getElementById('radarWrap').style.getPropertyValue('--heat') === 0), 'the glow stayed on with no stars');
     check(!(await glow()).pulse, 'still pulsing with no stars');
@@ -987,8 +1001,10 @@ try {
     await game(guns => { const { inv } = __neonbay; for (const [, id] of guns) if (id !== 'pistol') { delete inv.owned[id]; delete inv.ammo[id]; delete inv.mag[id]; } }, guns);
   });
 } finally {
-  await browser.close(); server.close();
+  await close();
 }
-if (errors.length) { failed++; console.log('FAIL page errors:\n  ' + errors.join('\n  ')); }
+const bad = results.filter(r => !r.ok).map(r => r.name);
+console.log(`${results.length} step(s) run, ${bad.length} failed`);
+if (bad.length) console.log(`rerun just these: SMOKE_ONLY="${bad.join('|')}" node tests/smoke.mjs`);
 console.log(failed ? `${failed} smoke step(s) failed` : 'smoke test passed');
 process.exit(failed ? 1 : 0);
