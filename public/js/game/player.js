@@ -28,6 +28,7 @@ import { ceilingAt, collideRoofs, surfaceAt } from '../world/rooftops.js';
 import { BAIL, bailDamage, bailLaunch, tumbleStep } from './bailout.js';
 import { PITCH_MAX, PITCH_MIN, cameraRoof, stepArm, stepShoulder } from './camera.js';
 import { JET, jetFx, jetStep, refuel, takeOffJetpack } from './jetpack.js';
+import { PARA, chuteFx, chuteStep, dropChute, openChute, opensChute } from './parachute.js';
 import { updateInteraction } from './interact.js';
 
 // ================= PLAYER =================
@@ -71,7 +72,7 @@ export function updatePlayer(dt) {
     P.c.root.position.set(P.x, P.floor || 0, P.z); P.c.root.rotation.y = P.yaw;
     if (P.tumble) rollPose(-P.tumble.roll); // rolling out towards the body's +x side turns it the negative way round z
   }
-  jetFx();
+  jetFx(); chuteFx(dt);
   updateInteraction();
 }
 const JUMP_V = 7.6, GRAVITY = 18; // m/s, m/s²
@@ -92,7 +93,7 @@ function walk(dt, aimingNow) {
   let mx = fx * iz + rx * ix, mz = fz * iz + rz * ix; const ml = Math.hypot(mx, mz);
   const sprint = held('sprint') && !I.mouseR && iz >= 0;
   const flying = P.jetpack && !P.grounded;
-  const speed = flying ? JET.air : (sprint ? 8.2 : 5.0) * (P.swing ? 0.6 : 1); // a swing slows you down
+  const speed = P.chute && P.chute.open ? PARA.air : flying ? JET.air : (sprint ? 8.2 : 5.0) * (P.swing ? 0.6 : 1); // a swing slows you down
   if (ml > 0) { mx /= ml; mz /= ml; }
   P.vx = lerp(P.vx || 0, mx * speed, Math.min(1, dt * 12)); P.vz = lerp(P.vz || 0, mz * speed, Math.min(1, dt * 12));
   const ox = P.x, oz = P.z; P.x += P.vx * dt; P.z += P.vz * dt;
@@ -105,12 +106,15 @@ function walk(dt, aimingNow) {
     if (P.y > floor + 0.05) { P.grounded = false; P.vy = 0; P.jumps = 1; } // walked off an edge: one jump left in the air
     else P.y = floor; // stepped up or down a little
   }
-  // jump, and once more in the air (v²/2g puts the top of the first at about 1.6 m); with the jetpack, hold Space to fly
+  // jump, and once more in the air (v²/2g puts the top of the first at about 1.6 m); with the jetpack, hold Space to fly;
+  // with a parachute packed, Space in the air opens it once the jump can't do anything else (game/parachute.js)
   const space = held('jump') && !G.stairs, press = space && !P.spaceHeld; P.spaceHeld = space;
   if (press && P.grounded) { P.vy = JUMP_V; P.grounded = false; P.jumps = 1; }
+  else if (press && opensChute(P.chute, P.jumps || 0, P.vy, P.jetpack && P.jetpack.fuel > 0)) openChute();
   else if (press && (P.jumps || 0) < 2) { P.vy = Math.max(P.vy, AIR_JUMP_V); P.jumps = 2; }
   if (!P.grounded) {
-    if (P.jetpack) P.vy = jetStep(P.jetpack, P.vy, space && !press, dt, GRAVITY);
+    if (P.chute && P.chute.open) P.vy = chuteStep(P.vy, dt, GRAVITY);
+    else if (P.jetpack) P.vy = jetStep(P.jetpack, P.vy, space && !press, dt, GRAVITY);
     else P.vy -= GRAVITY * dt;
     const head = ceilingAt(P.x, P.z, P.y) - 1.8;
     P.y += P.vy * dt;
@@ -126,6 +130,7 @@ function walk(dt, aimingNow) {
 function land(floor) {
   const hurt = landDamage(P.vy);
   P.y = floor; P.vy = 0; P.grounded = true; P.jumps = 0;
+  if (P.chute && P.chute.open) dropChute(); // one jump only
   if (hurt > 0) { Sound.thud(0.6, beside(0, 0), HEAR.near); emitFx(P.x, floor + 0.15, P.z, 8, '#cfc8d8', 2.5, 0.45, 0.22, 1, 1); hurtPlayer(hurt); cam.shake = Math.max(cam.shake, 0.35); }
 }
 // a body falls the rest of the way down to whatever is under it
@@ -227,6 +232,7 @@ export function die() {
   if (P.tumble) { P.tumble = null; rollPose(0); }
   P.alive = false; P.deadT = 0; P.aiming = false; P.hp = 0; G.state = 'dead'; G.deadT = 0; I.mouseL = false; I.mouseR = false;
   if (P.vehicle) exitVehicle(true);
+  dropChute(); // a parachute, packed or open, goes with the paramedics too
   const fee = Math.min(inv.money, Math.round(inv.money * 0.1));
   // picked-up weapons go with the paramedics; only what was bought at the gun shop is still there
   const lost = loseFound(inv).map(id => WBY[id].name);
