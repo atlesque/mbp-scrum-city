@@ -21,13 +21,13 @@ export function gunGeo(id) {
   const melee = meleeModel(id); if (melee) return (GUN_DEF[id] = melee);
   if (id === 'fist') return null;
   const g = new GB(), dark = '#22212a', mid = '#4a4a55';
-  let muzzle = -0.3;
+  let muzzle = -0.3, muzzleZ = 0.08;
   if (id === 'pistol') { box(g, 0.06, 0.26, 0.09, 0, -0.11, 0.07, dark); box(g, 0.05, 0.08, 0.15, 0, 0.0, 0.0, '#3a2a22'); muzzle = -0.24; }
   if (id === 'smg') { box(g, 0.07, 0.36, 0.11, 0, -0.12, 0.07, dark); box(g, 0.045, 0.07, 0.2, 0, -0.05, -0.05, mid); box(g, 0.03, 0.12, 0.03, 0, -0.34, 0.09, mid); muzzle = -0.4; }
   if (id === 'shotgun') { box(g, 0.06, 0.72, 0.07, 0, -0.27, 0.09, dark); box(g, 0.07, 0.32, 0.12, 0, 0.17, 0.05, '#7a4a2a'); box(g, 0.08, 0.16, 0.08, 0, -0.33, 0.02, '#7a4a2a'); muzzle = -0.62; }
   if (id === 'rifle') { box(g, 0.07, 0.62, 0.1, 0, -0.18, 0.07, dark); box(g, 0.05, 0.08, 0.2, 0, -0.1, -0.06, mid); box(g, 0.06, 0.24, 0.12, 0, 0.2, 0.05, dark); box(g, 0.03, 0.2, 0.03, 0, -0.55, 0.08, mid); muzzle = -0.64; }
   if (id === 'minigun') { box(g, 0.22, 0.5, 0.22, 0, -0.12, 0.1, '#5b5d66'); for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; box(g, 0.04, 0.55, 0.04, Math.cos(a) * 0.06, -0.62, 0.1 + Math.sin(a) * 0.06, dark); } box(g, 0.06, 0.1, 0.18, 0, 0.05, 0.25, dark); muzzle = -0.9; }
-  if (id === 'rpg') { box(g, 0.15, 0.95, 0.15, 0, -0.15, 0.13, '#5b6a3a'); box(g, 0.2, 0.12, 0.2, 0, -0.64, 0.13, '#3f4a28'); box(g, 0.05, 0.1, 0.16, 0, 0.0, 0.0, dark); muzzle = -0.7; }
+  if (id === 'rpg') { box(g, 0.15, 0.95, 0.15, 0, -0.15, 0.13, '#5b6a3a'); box(g, 0.2, 0.12, 0.2, 0, -0.64, 0.13, '#3f4a28'); box(g, 0.05, 0.1, 0.16, 0, 0.0, 0.0, dark); muzzle = -0.7; muzzleZ = 0.13; }
   if (id === 'sniper') muzzle = sniperGeo(g, dark);
   // the aliens' laser rifle: a pale grey body with a glowing green power cell, a ribbed emitter and a green lens
   if (id === 'laser') {
@@ -42,7 +42,7 @@ export function gunGeo(id) {
   // thrown weapons sit in the hand: a ribbed olive grenade with its lever and ring, a bottle with a burning rag
   if (id === 'grenade') { box(g, 0.09, 0.12, 0.09, 0, -0.08, 0.06, '#4f5a32'); for (const y of [-0.12, -0.08, -0.04]) box(g, 0.1, 0.012, 0.1, 0, y, 0.06, '#3c4526'); box(g, 0.04, 0.04, 0.04, 0, -0.16, 0.06, '#8a8d94'); box(g, 0.012, 0.1, 0.02, 0, -0.1, 0.11, '#8a8d94'); muzzle = -0.16; }
   if (id === 'molotov') { box(g, 0.08, 0.16, 0.08, 0, -0.06, 0.06, '#3f7a3a'); box(g, 0.035, 0.08, 0.035, 0, -0.18, 0.06, '#3f7a3a'); box(g, 0.03, 0.07, 0.03, 0, -0.25, 0.06, '#e8dcc0'); box(g, 0.05, 0.05, 0.05, 0, -0.3, 0.06, '#ff8a2a'); muzzle = -0.3; }
-  return (GUN_DEF[id] = { geo: g.geometry(), muzzle: new THREE.Vector3(0, muzzle, 0.08) });
+  return (GUN_DEF[id] = { geo: g.geometry(), muzzle: new THREE.Vector3(0, muzzle, muzzleZ) });
 }
 // a long-range bolt-action in the style of the classic arctic-warfare sniper: olive thumbhole stock, long
 // fluted barrel with a muzzle brake, and a big scope on top. -y points down the barrel, +z is up.
@@ -155,9 +155,7 @@ export function animateChar(a, dt) {
     const p = READY[a.melee]; c.armR.rotation.set(...p.r);
     if (p.l) c.armL.rotation.set(...p.l); else c.armL.rotation.set(s * amp * 0.7, 0, 0);
   } else if (a.aiming) {
-    const p = a.aimPitch || 0;
-    c.armR.rotation.set(-Math.PI / 2 - p, 0, 0);
-    if (a.twoHand) c.armL.rotation.set(-Math.PI / 2 * 0.95 - p, 0, -0.62); else c.armL.rotation.set(s * amp * 0.7, 0, 0);
+    aimArms(a); if (!a.twoHand) c.armL.rotation.set(s * amp * 0.7, 0, 0);
   } else if (a.panic) {
     c.armR.rotation.set(-2.85 + Math.sin(a.phase * 1.7) * 0.25, 0, -0.3); c.armL.rotation.set(-2.85 - Math.sin(a.phase * 1.7) * 0.25, 0, 0.3);
   } else {
@@ -168,6 +166,14 @@ export function animateChar(a, dt) {
   // a.reload: { anim, u } while reloading (u runs 0 to 1)
   c.gunHolder.rotation.y = 0;
   if (a.reload) applyReload(c, a.reload.anim, a.reload.u);
+}
+// the gun arm (and the support arm on a two-handed gun) pointed down the aim, a.aimPitch up from level
+export function aimArms(a) {
+  const c = a.c, p = a.aimPitch || 0;
+  c.armR.rotation.set(-Math.PI / 2 - p, 0, 0);
+  if (a.twoHand) c.armL.rotation.set(-Math.PI / 2 * 0.95 - p, 0, -0.62);
+  if (c.gun) c.gun.rotation.x = 0;
+  c.gunHolder.rotation.y = 0;
 }
 // lay a melee swing (characters/swing.js) over the walking pose
 const _r = new THREE.Euler();
