@@ -758,6 +758,8 @@ try {
     await clearVehicles(0, -75);
     await game(() => {
       const { G, P, all, removeEntity } = __neonbay, t = window.__tank = G.tank;
+      G.spawnT = 999; // no police car or army truck rolling into the line of fire mid-step
+      for (const v of all('vehicle')) if ((v.model.police || v.model.army) && Math.abs(v.x) < 6 && v.z > -150 && v.z < -30) removeEntity(v);
       P.x = 0; P.z = -60; P.y = 0; P.hp = 100; P.armor = 0;
       for (const n of all('npc')) if (Math.hypot(n.x, n.z + 75) < 25) removeEntity(n);
       Object.assign(t, { x: 0, z: -90, yaw: 0, dirX: 0, dirZ: 1, toX: 0, toZ: -50, v: 0, turretYaw: 0, aimYaw: 0, reloadT: 0 });
