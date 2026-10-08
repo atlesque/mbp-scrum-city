@@ -18,18 +18,24 @@ export const JET = {
   fuel: 8, // seconds of climbing on a full tank
   refill: 2, // seconds of fuel back per second on the ground
   air: 10, // m/s across the ground while flying (on foot it's 5, sprinting 8.2)
+  soft: 0.6, // share of gravity at the start of a fall with the jets off: the pack's drag takes the edge off a short drop
+  ease: 10, // metres of falling over which gravity builds back to full, so a long drop still lands about as hard
 };
 
 // One frame of the pack for an airborne wearer: returns the new vertical speed. held: Space is down.
-// Only the climb is capped; with the jets off it is plain gravity, the same fall as without the pack.
+// Only the climb is capped. Falling with the jets off starts at JET.soft of gravity and builds to full over JET.ease
+// metres (jet.drop counts them), which loses (1 - soft) * ease / 2 = 2 m of drop: a 6.5 m fall lands unhurt, a 10 m one
+// costs about 14 instead of 22, and a fall from 30 m is within a few points of falling without the pack.
 export function jetStep(jet, vy, held, dt, gravity) {
   const burn = held && jet.fuel > 0;
   jet.on = burn;
-  if (burn) jet.fuel = Math.max(0, jet.fuel - dt);
-  vy += ((burn ? JET.thrust : 0) - gravity) * dt;
+  if (burn) { jet.fuel = Math.max(0, jet.fuel - dt); jet.drop = 0; }
+  const pull = burn || vy >= 0 ? 1 : JET.soft + (1 - JET.soft) * Math.min(1, (jet.drop || 0) / JET.ease);
+  if (!burn && vy < 0) jet.drop = (jet.drop || 0) - vy * dt;
+  vy += ((burn ? JET.thrust : 0) - gravity * pull) * dt;
   return Math.min(JET.climb, vy);
 }
-export function refuel(jet, dt) { jet.on = false; jet.fuel = Math.min(JET.fuel, jet.fuel + JET.refill * dt); }
+export function refuel(jet, dt) { jet.on = false; jet.drop = 0; jet.fuel = Math.min(JET.fuel, jet.fuel + JET.refill * dt); }
 
 // the pack: two tanks and nozzles on the back (the character faces +z)
 const tankMat = new THREE.MeshLambertMaterial({ color: '#c9ccd4' }), darkMat = new THREE.MeshLambertMaterial({ color: '#33343c' }), redMat = new THREE.MeshLambertMaterial({ color: '#d8323c' });
