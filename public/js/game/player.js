@@ -69,7 +69,6 @@ export function updatePlayer(dt) {
     animateChar(P, dt);
     P.c.root.position.set(P.x, P.floor || 0, P.z); P.c.root.rotation.y = P.yaw;
     if (P.tumble) rollPose(-P.tumble.roll); // rolling out towards the body's +x side turns it the negative way round z
-    flipPose(dt);
   }
   jetFx();
   updateInteraction();
@@ -108,7 +107,7 @@ function walk(dt, aimingNow) {
   // jump, and once more in the air (v²/2g puts the top of the first at about 1.6 m); with the jetpack, hold Space to fly
   const space = held('jump') && !G.stairs, press = space && !P.spaceHeld; P.spaceHeld = space;
   if (press && P.grounded) { P.vy = JUMP_V; P.grounded = false; P.jumps = 1; }
-  else if (press && (P.jumps || 0) < 2) { P.vy = Math.max(P.vy, AIR_JUMP_V); P.jumps = 2; P.flipT = FLIP; }
+  else if (press && (P.jumps || 0) < 2) { P.vy = Math.max(P.vy, AIR_JUMP_V); P.jumps = 2; }
   if (!P.grounded) {
     if (P.jetpack) P.vy = jetStep(P.jetpack, P.vy, space && !press, dt, GRAVITY);
     else P.vy -= GRAVITY * dt;
@@ -121,13 +120,6 @@ function walk(dt, aimingNow) {
   // facing and aim
   if (aimingNow) faceTo(P, cam.yaw, dt, 20);
   else if (ml > 0) faceTo(P, Math.atan2(mx, mz), dt, 10);
-}
-// the second jump tucks into a forward roll (after animateChar has posed the body)
-const FLIP = 0.45;
-function flipPose(dt) {
-  if (!P.flipT) return;
-  P.flipT = P.grounded || P.vehicle ? 0 : Math.max(0, P.flipT - dt);
-  P.c.body.rotation.x = P.flipT ? (1 - P.flipT / FLIP) * Math.PI * 2 : 0;
 }
 // feet down on a floor: a hard landing hurts
 function land(floor) {
@@ -168,7 +160,7 @@ const told = {};
 export function enterVehicle(v) {
   P.vehicle = v; v.driver = P; v.mode = 'player'; v.K.onPlayerEnter(v);
   if (v.model.siren) v.siren = sirenOn(v); // the siren is the player's to switch now, starting as it was
-  v.K.seat(v, P.c); P.x = v.x; P.z = v.z; P.y = 0; P.floor = 0; P.roof = null; P.vy = 0; P.grounded = true; P.flipT = 0; P.c.body.rotation.x = 0; P.lookT = -9;
+  v.K.seat(v, P.c); P.x = v.x; P.z = v.z; P.y = 0; P.floor = 0; P.roof = null; P.vy = 0; P.grounded = true; P.lookT = -9;
   $('prompt').hidden = true; G.hudCache = ''; $('vehName').textContent = v.model.short; $('vehSiren').hidden = !v.model.siren; $('vehWheelie').hidden = !v.K.wheelie;
   if (!told[v.model.id]) { told[v.model.id] = true; toast(v.K.tip(v.model), 7); }
   emit('vehicle:enter', { vehicle: v });
