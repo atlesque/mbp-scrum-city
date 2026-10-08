@@ -6,6 +6,7 @@ import { G, I, P, cam, inv } from '../core/state.js';
 import { $, clamp, rnd } from '../core/util.js';
 import { WBY, WEAPONS, wStat } from '../data/weapons.js';
 import { all, entities } from '../entities/registry.js';
+import { PITCH_MIN } from '../game/camera.js';
 import { camTarget, hurtPlayer } from '../game/player.js';
 import { addHeat } from '../game/wanted.js';
 import { alarm } from '../npcs/npc.js';
@@ -44,7 +45,7 @@ export function playerShoot() {
   const origin = camTarget.clone();
   const spreadMul = (P.moveSpeed > 6 ? 2 : P.moveSpeed > 1 ? 1.4 : 1) * (I.mouseR ? 0.55 : 1) * (P.grounded ? 1 : 1.6), spread = G.scope ? w.scopeSpread : w.spread;
   Sound.shot(w.id, 1, 0); muzzleFlash(muz, w.id === 'shotgun' || w.id === 'rpg');
-  cam.pitch = clamp(cam.pitch + w.recoil * (0.6 + Math.random() * 0.6), -1.1, 1.2); cam.yaw += (Math.random() - 0.5) * w.recoil * 0.6; cam.shake = Math.max(cam.shake, w.recoil * 2.2);
+  cam.pitch = clamp(cam.pitch + w.recoil * (0.6 + Math.random() * 0.6), PITCH_MIN, 1.2); cam.yaw += (Math.random() - 0.5) * w.recoil * 0.6; cam.shake = Math.max(cam.shake, w.recoil * 2.2);
   if (w.rocket) {
     const tgt = castShot(origin, dir, 300).p, rd = tgt.clone().sub(muz).normalize();
     fireRocket(muz, rd, st.dmg, st.blastMul);

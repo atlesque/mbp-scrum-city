@@ -21,7 +21,7 @@ export const FIRE = { tick: 0.25, afterburn: 3, afterDps: 0.5, playerMul: 0.5, c
 
 // the launch velocity for a throw toward where the camera looks, lobbed a little above the crosshair
 export function throwVelocity(yaw, pitch) {
-  const a = clamp(pitch + THROW.lift, -0.5, 1.2), s = THROW.speed;
+  const a = clamp(pitch + THROW.lift, -1.2, 1.2), s = THROW.speed;
   return { x: Math.sin(yaw) * Math.cos(a) * s, y: Math.sin(a) * s, z: Math.cos(yaw) * Math.cos(a) * s };
 }
 // bounce velocity v off a surface with normal n (unit): reflected, the part into the surface cut by the bounce
