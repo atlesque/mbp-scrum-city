@@ -20,9 +20,12 @@ const FACES = {
 export const ALL_FACES = ['front', 'back', 'left', 'right'];
 
 export class Kit {
-  constructor(seed) { this.gb = {}; this.rand = seeded(seed); this.colliders = []; for (const m of MATERIALS) this.gb[m] = new GB(); }
+  constructor(seed) { this.gb = {}; this.rand = seeded(seed); this.colliders = []; this.onRoof = []; for (const m of MATERIALS) this.gb[m] = new GB(); }
   // a solid volume for collision, [x0, x1, z0, z1] from the ground up to `top`
   solid(R, top) { this.colliders.push([R[0], R[1], R[2], R[3], top]); }
+  // something on a roof to walk round and stand on (a plant room, a railing, a pergola), [x0, x1, z0, z1, y0, y1];
+  // world/landmarks.js hands it to the roof it stands over
+  roofPart(x0, x1, z0, z1, y0, y1) { this.onRoof.push([x0, x1, z0, z1, y0, y1]); }
   // an axis-aligned box from its extents
   box(mat, x0, x1, y0, y1, z0, z1, col) {
     addGeo(this.gb[mat], UNIT, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, x1 - x0, y1 - y0, z1 - z0, 0, 0, 0, col);
