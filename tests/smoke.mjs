@@ -794,11 +794,18 @@ try {
     await game(() => __neonbay.lighting.set(null));
   });
 
+  await step('every gun fires a recording of a real one', async () => {
+    if (!(await game(() => __neonbay.Sound.ready))) return;
+    check(await until(() => import('/js/data/shots.js').then(m => m.ALL_SHOT_FILES.every(f => __neonbay.Sound.samplesLoaded.includes(f)))), 'the gunshot recordings did not load');
+    const played = await game(() => import('/js/data/shots.js').then(m => { const { Sound } = __neonbay, n0 = Sound.shotsPlayed, ids = Object.keys(m.SHOTS); for (const id of ids) Sound.shot(id); return { ids: ids.length, played: Sound.shotsPlayed - n0 }; }));
+    check(played.played === played.ids, `some guns played the synthesized shot instead ${JSON.stringify(played)}`);
+  });
+
   await step('every gun reloads with its own move and sound', async () => {
     // on keys 1, 2, 3, ...; grenades and molotovs are thrown one at a time and never reload
     const guns = await game(() => import('/js/data/weapons.js').then(m => m.GUNS.map((w, i) => [i, w.id, !!w.thrown])));
     await game(() => { const { G, P } = __neonbay; G.heat = 0; G.wanted = 0; P.hp = 100; });
-    if (await game(() => __neonbay.Sound.ready)) check(await until(() => import('/js/data/reloads.js').then(m => __neonbay.Sound.samplesLoaded.length === Object.keys(m.RELOADS).length)), 'the reload sounds did not load');
+    if (await game(() => __neonbay.Sound.ready)) check(await until(() => import('/js/data/reloads.js').then(m => Object.values(m.RELOADS).every(r => __neonbay.Sound.samplesLoaded.includes(r.sound)))), 'the reload sounds did not load');
     for (const [i, id, thrown] of guns) {
       if (thrown) continue;
       await game(id => { const { inv } = __neonbay; inv.owned[id] = true; if (id !== 'pistol') inv.ammo[id] = 50; inv.mag[id] = 0; }, id);
