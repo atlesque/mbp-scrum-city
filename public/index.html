@@ -110,6 +110,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 #scope i:nth-child(2){top:0;bottom:0;left:50%;width:2px;margin-left:-1px}
 .hud-tr{position:absolute;right:28px;top:22px;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
 .weapon-row{display:flex;align-items:center;gap:12px}
+#wheel{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:6}
 #wicon{width:120px;height:56px;border:2px solid rgba(255,255,255,.85);border-radius:6px;background:linear-gradient(160deg,rgba(255,79,163,.35),rgba(62,240,255,.18));box-shadow:0 0 0 2px #000}
 #ammo{font-family:var(--f-hud);font-size:28px;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums;min-width:92px;text-align:right}
 #ammo span{font-size:16px;color:var(--dim)}
@@ -305,7 +306,8 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
     <div id="prompt" hidden></div>
     <div id="bigText" class="outline"></div>
     <div id="speedo" hidden><b id="kmh" class="outline">000</b><span class="u" id="spdUnit">km/h</span><div class="bar bk"><b id="vehHp"></b></div><span class="u"><span id="vehName">R 1300 GS</span> · <kbd data-kb="ride">F</kbd> off<span id="vehWheelie" hidden> · <kbd data-kb="wheelie">C</kbd> wheelie</span><span id="vehSiren" hidden> · <kbd data-kb="siren">H</kbd> siren</span></span></div>
-    <div id="hint"><kbd data-kb="ride">F</kbd> ride / drive · <kbd>1</kbd>–<kbd>9</kbd> / wheel switch · <kbd data-kb="melee">Q</kbd> melee · <kbd data-kb="reload">R</kbd> reload · <kbd data-kb="radio">M</kbd> radio · <kbd>Esc</kbd> pause</div>
+    <canvas id="wheel" hidden></canvas>
+    <div id="hint"><kbd data-kb="ride">F</kbd> ride / drive · <kbd>1</kbd>–<kbd>0</kbd> / scroll switch · <kbd data-kb="melee">Q</kbd> weapon wheel · <kbd data-kb="reload">R</kbd> reload · <kbd data-kb="radio">M</kbd> radio · <kbd>Esc</kbd> pause</div>
   </div>
 
   <section id="title" class="overlay">
@@ -322,7 +324,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
         <div><kbd data-kb="use">E</kbd><span>Gun shop, roof doors</span></div>
         <div><kbd data-kb="ride">F</kbd><span>Ride, drive, get off</span></div>
         <div><kbd>1–7</kbd><span>Guns</span></div>
-        <div><kbd data-kb="melee">Q</kbd><span>Fists &amp; melee</span></div>
+        <div><kbd data-kb="melee">Q</kbd><span>Weapon wheel (hold)</span></div>
       </div>
       <p class="small">More heat, tougher squads: police, SWAT, federal agents, the army, and a chopper overhead. Lose a star by breaking line of sight.</p>
       <p class="mobile-note">Built for desktop with a mouse and keyboard.</p>

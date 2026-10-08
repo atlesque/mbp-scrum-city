@@ -27,6 +27,7 @@ import { camera, renderer, scene, sky } from './render/scene.js';
 import { spawnShop } from './shops/shop.js';
 import { finishSignIn, initAccount, playLabel } from './ui/account.js';
 import { updateHUD } from './ui/hud.js';
+import { WHEEL_SLOW, closeWheel, wheelOpen } from './ui/wheel.js';
 import { updateEngineSound } from './vehicles/engine.js';
 import './vehicles/firetruck.js'; // sends the fire brigade to crash fires
 import { spawnTrafficBike, spawnTrafficCar } from './vehicles/traffic.js';
@@ -43,8 +44,11 @@ import { buildMap, drawRadar } from './world/radar.js';
 let last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
-  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const real = Math.min(0.05, (now - last) / 1000); last = now;
   if (G.state === 'loading') return;
+  // the world slows down while the weapon wheel is open; the camera and the HUD timers keep real time
+  if (wheelOpen() && G.state !== 'play') closeWheel(false);
+  const dt = wheelOpen() ? real * WHEEL_SLOW : real;
   const live = G.state === 'play' || G.state === 'dead' || G.state === 'title';
   if (live) {
     G.time += dt;
@@ -73,12 +77,12 @@ function frame(now) {
     if (camera.fov !== 62) { camera.fov = 62; camera.updateProjectionMatrix(); }
     P.x = camera.position.x - 30; P.z = camera.position.z;
   } else if (G.state !== 'loading') {
-    updateCamera(dt);
+    updateCamera(real);
     updateHUD(); drawRadar();
   }
-  if (G.toastT > 0) { G.toastT -= dt; if (G.toastT <= 0) $('toast').classList.remove('show'); }
-  if (G.bigT > 0) { G.bigT -= dt; if (G.bigT <= 0) $('bigText').classList.remove('show'); }
-  if (G.radioT > 0) { G.radioT -= dt; if (G.radioT <= 0) $('radio').classList.remove('show'); }
+  if (G.toastT > 0) { G.toastT -= real; if (G.toastT <= 0) $('toast').classList.remove('show'); }
+  if (G.bigT > 0) { G.bigT -= real; if (G.bigT <= 0) $('bigText').classList.remove('show'); }
+  if (G.radioT > 0) { G.radioT -= real; if (G.radioT <= 0) $('radio').classList.remove('show'); }
   sky.position.copy(camera.position);
   renderer.render(scene, camera);
 }

@@ -16,7 +16,7 @@ export const ACTIONS = [
   { id: 'use', label: 'Gun shop, roof doors', group: 'Actions' },
   { id: 'ride', label: 'Ride, drive, get out', group: 'Actions' },
   { id: 'reload', label: 'Reload', group: 'Actions' },
-  { id: 'melee', label: 'Fists and melee weapons', group: 'Actions' },
+  { id: 'melee', label: 'Weapon wheel (hold), fists and melee (tap)', group: 'Actions' },
   { id: 'radio', label: 'Radio on / off', group: 'Actions' },
   { id: 'siren', label: 'Siren on / off (police car, fire truck)', group: 'Actions' },
   { id: 'pause', label: 'Pause', group: 'Actions' },
