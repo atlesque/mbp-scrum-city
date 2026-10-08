@@ -13,6 +13,7 @@ import { G, I, P, cam, inv, stats } from './core/state.js';
 import { $ } from './core/util.js';
 import { WBY, WEAPONS, wStat } from './data/weapons.js';
 import { all, count, entities, removeEntity } from './entities/registry.js';
+import { countPlayTime } from './game/hint.js';
 import { makeJetpackPickup } from './game/jetpack.js';
 import { makePickup, makeRoofGun, makeWeaponPickup } from './game/pickups.js';
 import { hurtPlayer, respawn, updateCamera, updatePlayer } from './game/player.js';
@@ -47,7 +48,7 @@ function frame(now) {
   const live = G.state === 'play' || G.state === 'dead' || G.state === 'title';
   if (live) {
     G.time += dt;
-    if (G.state === 'play') updatePlayer(dt);
+    if (G.state === 'play') { updatePlayer(dt); countPlayTime(dt); }
     else if (G.state === 'dead') { updatePlayer(dt); G.deadT += dt; if (G.deadT > 3.6) respawn(); }
     Sound.listen(); // the ears follow the player and the camera before this frame's sounds play
     G.shootersNow = count(e => e.kind === 'npc' && e.alive && e.burst > 0);

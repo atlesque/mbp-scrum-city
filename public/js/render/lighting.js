@@ -5,7 +5,8 @@ import { lamps, lightWindows, winMat } from '../world/city.js';
 import { lampsVersion } from '../world/props.js';
 import { setModelNight } from '../world/models.js';
 import { makeCanvas } from './textures.js';
-import { HORIZON, ambientLight, camera, hemiLight, scene, sky, sunLight } from './scene.js';
+import { HORIZON, SUN_DIR, ambientLight, camera, hemiLight, scene, sky, sunLight } from './scene.js';
+import { pinnedSunDir, sunDir } from './sunpath.js';
 
 // ================= LIGHTING =================
 // The city drifts from sunset into night and back. As it darkens, street lamps and headlights come on,
@@ -25,6 +26,9 @@ export const lighting = {
   get night() { return night; },
   // pin the time of day (0 sunset, 1 night) or pass null to let it run; for testing and the debug console
   set(n) { forced = n; },
+  // jump the clock to a point in the loop (0 to 1, see darkness below) and let it run from there
+  setTime(p) { forced = null; clock = (((p % 1) + 1) % 1) * CYCLE; },
+  get time() { return clock / CYCLE; },
   // how many real lamp lights are on and how many vehicles show headlight beams
   get lit() { return { lamps: lampSlots.filter(s => s.l.intensity > 0).length, beams: carPools.count }; },
 };
@@ -89,7 +93,13 @@ export function updateLighting(dt) {
   hemiLight.color.copy(DAY.sky).lerp(NIGHT.sky, n); hemiLight.groundColor.copy(DAY.gnd).lerp(NIGHT.gnd, n);
   hemiLight.intensity = lerp(0.85, 0.32, n) * Math.PI;
   ambientLight.color.copy(DAY.amb).lerp(NIGHT.amb, n); ambientLight.intensity = lerp(0.3, 0.2, n) * Math.PI;
-  sunLight.color.copy(DAY.sun).lerp(NIGHT.sun, n); sunLight.intensity = lerp(0.9, 0.22, n) * Math.PI;
+  // the sun rises and sets with the clock; once it is down the same light, tinted blue, comes from the moon
+  // opposite it. The light fades out as either one nears the horizon, so the swap between them never shows.
+  if (forced != null) pinnedSunDir(n, SUN_DIR); else sunDir(clock / CYCLE, SUN_DIR);
+  const up = SUN_DIR.y >= 0 ? 1 : -1;
+  sunLight.position.copy(SUN_DIR).multiplyScalar(100 * up);
+  sunLight.color.copy(DAY.sun).lerp(NIGHT.sun, n);
+  sunLight.intensity = lerp(0.9, 0.22, n) * Math.PI * clamp(Math.abs(SUN_DIR.y) / 0.08, 0, 1);
   winMat.emissiveIntensity = 1 + n * 0.5;
   lightWindows(0.22 + n * 0.4);
   setModelNight(n);
