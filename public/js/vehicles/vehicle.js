@@ -15,13 +15,14 @@ import { rayBox } from '../world/collision.js';
 import { smashProps } from '../world/props.js';
 import { bike } from './kinds/bike.js';
 import { car } from './kinds/car.js';
+import { heli } from './kinds/heli.js';
 import { truck } from './kinds/truck.js';
 import { blastThrow, knockImpulse, rideOver, shoveImpulse, touching } from './knock.js';
 import { burntMat } from './materials.js';
 import { VEHICLE_MODELS } from './models/index.js';
 
 // How each kind of vehicle drives, seats its rider and gets hit. See kinds/bike.js for the full list of fields.
-export const KINDS = { bike, car, truck };
+export const KINDS = { bike, car, truck, heli };
 
 // Crash fires. A vehicle set alight by a collision burns for its kind's fx.crashFuse seconds before it goes up, long
 // enough for the fire brigade to get there (vehicles/firetruck.js). Shooting it or a blast still sets it off sooner:
@@ -44,14 +45,14 @@ const Vehicle = {
   kind: 'vehicle',
   blipLayer: 2,
   update(dt) {
-    const K = this.K, fx = K.fx;
+    const K = this.K, fx = K.fx, up = K.flies ? this.y : 0; // a chopper burns and smokes up where it is
     // shoved by another car: skid and spin along, knocking into whatever else is in the way
     const sliding = K.slide && (this.kvx || this.kvz || this.kspin || this.air > 0) && this.driver !== P;
     if (sliding) { K.slide(this, dt); shoveAround(this); }
     if (this.dead) {
-      this.deadT += dt; if (Math.random() < dt * fx.smokeRate) emit(this.x, fx.smokeY, this.z, 1, '#3a3240', fx.smokeSpeed, fx.smokeLife, fx.smokeSize, 2, 1);
+      this.deadT += dt; if (Math.random() < dt * fx.smokeRate) emit(this.x, fx.smokeY + up, this.z, 1, '#3a3240', fx.smokeSpeed, fx.smokeLife, fx.smokeSize, 2, 1);
       // a wreck knocked or thrown by a blast still flies and skids to a stop (a car's slide already ran above)
-      if (!K.slide && (this.kvx || this.kvz || this.air > 0)) K.coast(this, dt);
+      if (!K.slide && (this.kvx || this.kvz || this.air > 0 || (K.flies && !this.landed))) K.coast(this, dt);
       K.pose(this, dt); return;
     }
     if (this.burnT > 0) {
@@ -60,10 +61,10 @@ const Vehicle = {
       if (!wet) this.burnT -= dt;
       if (this.crashFire) {
         // a crash fire burns big: a column of dark smoke and extra flames licking up out of the body
-        if (Math.random() < dt * 4 * flames) emit(this.x + rnd(-0.4, 0.4), fx.fireY + 0.5, this.z + rnd(-0.4, 0.4), 1, '#3a3440', 1, 2.2, fx.smokeSize * 0.55, 1.2, 1.4);
-        if (Math.random() < fx.fireRate * flames) emit(this.x + rnd(-fx.spread, fx.spread), fx.fireY - 0.1, this.z + rnd(-fx.spread, fx.spread), 1, Math.random() < 0.5 ? '#ff5a1a' : '#ffb02e', 1.2, 0.7, fx.fireSize * 1.5, 3, 1.6);
+        if (Math.random() < dt * 4 * flames) emit(this.x + rnd(-0.4, 0.4), fx.fireY + up + 0.5, this.z + rnd(-0.4, 0.4), 1, '#3a3440', 1, 2.2, fx.smokeSize * 0.55, 1.2, 1.4);
+        if (Math.random() < fx.fireRate * flames) emit(this.x + rnd(-fx.spread, fx.spread), fx.fireY + up - 0.1, this.z + rnd(-fx.spread, fx.spread), 1, Math.random() < 0.5 ? '#ff5a1a' : '#ffb02e', 1.2, 0.7, fx.fireSize * 1.5, 3, 1.6);
       }
-      if (Math.random() < fx.fireRate * flames) emit(this.x + rnd(-fx.spread, fx.spread), fx.fireY, this.z + rnd(-fx.spread, fx.spread), 1, Math.random() < 0.5 ? '#ff7a2a' : '#ffd23e', 1, 0.5, fx.fireSize, 4, 1);
+      if (Math.random() < fx.fireRate * flames) emit(this.x + rnd(-fx.spread, fx.spread), fx.fireY + up, this.z + rnd(-fx.spread, fx.spread), 1, Math.random() < 0.5 ? '#ff7a2a' : '#ffd23e', 1, 0.5, fx.fireSize, 4, 1);
       if (this.burnT <= 0) { this.explode(); K.pose(this, 0); return; }
       if (K.stopsWhileBurning) { K.pose(this, dt); return; }
     }
@@ -111,11 +112,12 @@ const Vehicle = {
     this.dead = true; this.burnT = 0; this.v = 0; this.crashFire = false;
     for (const m of this.mesh.solid) m.material = burntMat; for (const m of this.mesh.lit) m.visible = false;
     K.wreck(this);
-    explosion(this.x, K.blast.y, this.z, K.blast.r, K.blast.dmg, this.byPlayer);
+    explosion(this.x, K.blast.y + (K.flies ? this.y : 0), this.z, K.blast.r, K.blast.dmg, this.byPlayer);
     emitEvent('vehicle:wrecked', { vehicle: this, byPlayer: this.byPlayer });
   },
   raycast(o, d, maxT) {
     if (this.driver === P) return null;
+    if (this.K.raycast) return this.K.raycast(this, o, d, maxT); // a chopper, which may be up in the air
     const b = this.K.hitBox(this), t = rayBox(o.x, o.y, o.z, d.x, d.y, d.z, this.x - b.hx, 0, this.z - b.hz, this.x + b.hx, b.h, this.z + b.hz);
     if (!(t < maxT)) return null;
     // through the windows of a closed vehicle, the shot can find the driver instead of the bodywork
@@ -136,7 +138,8 @@ const Vehicle = {
     if (this.K.slide) { this.kvx = (this.kvx || 0) + t.vx; this.kvz = (this.kvz || 0) + t.vz; this.kspin = (this.kspin || 0) + t.spin; this.avy = Math.max(this.avy || 0, 0) + t.up; this.air = Math.max(this.air || 0, 0.01); this.v = 0; }
     else this.K.knock(this, (this.kvx || 0) + t.vx, (this.kvz || 0) + t.vz, t.up);
   },
-  blast(x, y, z, R, dmg, byPlayer, ordnance) { const d = Math.hypot(this.x - x, this.z - z); if (d < R && !this.dead) this.damage(blastDamage(this, d, R, dmg, 40, ordnance), byPlayer ? 'boom' : false); },
+  // (a chopper up in the air is only reached by a blast up there with it)
+  blast(x, y, z, R, dmg, byPlayer, ordnance) { const d = Math.hypot(this.x - x, this.z - z, this.K.flies ? Math.max(0, Math.abs(y - this.y - 1) - 1.5) : 0); if (d < R && !this.dead) this.damage(blastDamage(this, d, R, dmg, 40, ordnance), byPlayer ? 'boom' : false); },
   // a vehicle just rammed flies through whatever hit it, and one just bailed out of rolls on past the player
   pushOut(o, r) { return !(this.ghostT > G.time) && !(o === P && P.bailFrom === this && P.bailT > G.time) && this.K.pushOut(this, o, r); },
   blip(radar) { if (this.driver !== P && !this.dead) this.K.blip(this, radar); },
@@ -221,8 +224,18 @@ const controls = () => ({
   throttle: held('forward'), brake: held('back'), boost: held('sprint'), handbrake: held('jump'), wheelie: held('wheelie'),
   steer: (held('left') ? 1 : 0) - (held('right') ? 1 : 0),
 });
+// a chopper: the keys move it the way they walk you, Space and the wheelie key take it up and down, and it turns to the camera
+const flightControls = () => ({
+  fwd: (held('forward') ? 1 : 0) - (held('back') ? 1 : 0), side: (held('right') ? 1 : 0) - (held('left') ? 1 : 0),
+  up: held('jump'), down: held('wheelie'), boost: held('sprint'), yaw: cam.yaw,
+});
 export function driveByPlayer(v, dt) {
   const K = v.K;
+  if (K.flies) {
+    K.drive(v, dt, flightControls());
+    P.x = v.x; P.z = v.z; P.y = v.y; P.vy = 0; P.grounded = true; P.yaw = v.yaw; P.moveSpeed = v.v; P.vx = v.vx; P.vz = v.vz;
+    return;
+  }
   K.drive(v, dt, controls());
   // pulled a bike's wheelie up too far: it goes over backwards and throws the rider off
   if (v.looped) { v.looped = false; exitVehicle(true); toast('Looped it! Ease off the boost to hold a wheelie.', 2.5); return; }

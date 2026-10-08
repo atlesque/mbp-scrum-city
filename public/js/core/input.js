@@ -13,6 +13,7 @@ import { closeShop } from '../shops/shop.js';
 import { renderAccount } from '../ui/account.js';
 import { drawWeaponIcon, showRadio, toast } from '../ui/hud.js';
 import { closeSettings, settingsOpen } from '../ui/settings.js';
+import { cycleHeliGun, flyingHeli, HELI_GUN_ORDER, pickHeliGun, reloadHeliGun } from '../vehicles/heli-guns.js';
 import { toggleSiren } from '../vehicles/vehicle.js';
 import { SPAWN } from '../world/city.js';
 
@@ -39,7 +40,7 @@ canvasEl.addEventListener('mousedown', e => {
 });
 document.addEventListener('mouseup', e => { if (e.button === 0) I.mouseL = false; if (e.button === 2) I.mouseR = false; });
 canvasEl.addEventListener('contextmenu', e => e.preventDefault());
-document.addEventListener('wheel', e => { if (G.state === 'play') cycleWeapon(e.deltaY > 0 ? 1 : -1); }, { passive: true });
+document.addEventListener('wheel', e => { if (G.state !== 'play') return; const h = flyingHeli(), dir = e.deltaY > 0 ? 1 : -1; if (h) cycleHeliGun(h, dir); else cycleWeapon(dir); }, { passive: true });
 // keys go through the bindings in settings.binds (core/keymap.js); the number row goes by position, so it works unshifted on AZERTY too
 document.addEventListener('keydown', e => {
   const act = actionFor(e.code);
@@ -49,7 +50,8 @@ document.addEventListener('keydown', e => {
   if (G.state === 'paused') { if (e.code === 'Enter' || act === 'pause') resumeGame(); return; }
   if (G.state !== 'play') return;
   keys[e.code] = true;
-  if (act === 'reload') startReload();
+  const heli = flyingHeli(); // flying a chopper, the reload key and the number row work its guns (vehicles/heli-guns.js)
+  if (act === 'reload') { if (heli) reloadHeliGun(heli); else startReload(); }
   if ((act === 'ride' || act === 'use') && P.alive) interact(act);
   if (act === 'siren') toggleSiren();
   if (act === 'radio') { const on = Sound.toggleMusic(); showRadio(on ? 'Neon FM 86.0' : 'Radio off'); }
@@ -57,7 +59,8 @@ document.addEventListener('keydown', e => {
   if (act === 'melee') cycleMelee();
   // 1 to 9 pick a gun, 0 the tenth (the laser rifle)
   const d = /^(?:Digit|Numpad)([0-9])$/.exec(e.code), n = d ? +d[1] || 10 : 0;
-  if (n && n <= GUNS.length) selectWeapon(GUNS[n - 1].id);
+  if (heli) { if (n && n <= HELI_GUN_ORDER.length) pickHeliGun(heli, HELI_GUN_ORDER[n - 1]); }
+  else if (n && n <= GUNS.length) selectWeapon(GUNS[n - 1].id);
 });
 document.addEventListener('keyup', e => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; I.mouseL = false; I.mouseR = false; });
