@@ -4,12 +4,12 @@ import { all } from '../entities/registry.js';
 import { spawnNpc } from '../npcs/npc.js';
 import { ROADS } from '../world/collision.js';
 import { pickTrafficModel } from './models/index.js';
-import { spawnVehicle } from './vehicle.js';
+import { KINDS, spawnVehicle } from './vehicle.js';
 
-// drive on the right
-export function laneFor(roadPos, dirX, dirZ) {
-  if (dirZ) return { x: roadPos - 3 * dirZ, z: null };
-  return { x: null, z: roadPos + 3 * dirX };
+// drive on the right, `off` metres from the middle of the road (e-steps ride further out, by the kerb)
+export function laneFor(roadPos, dirX, dirZ, off = 3) {
+  if (dirZ) return { x: roadPos - off * dirZ, z: null };
+  return { x: null, z: roadPos + off * dirX };
 }
 export const nearestRoad = v => ROADS.reduce((a, b) => Math.abs(b - v) < Math.abs(a - v) ? b : a);
 const clear = (x, z) => !all('vehicle').some(o => Math.abs(o.x - x) < 8 && Math.abs(o.z - z) < 8);
@@ -28,17 +28,17 @@ export function spawnTrafficCar(far) {
   }
 }
 
-// a biker on a road near the player, but not right on top of them
-export function spawnTrafficBike() {
+// a biker (or another rider: an e-step and its stepper, kind 'step') on a road near the player, but not right on top of them
+export function spawnTrafficBike(kind = 'bike', rider = 'biker') {
   const roads = ROADS.slice(1, -1).concat([200]);
   for (let i = 0; i < 12; i++) {
     const vertical = Math.random() < 0.5, near = roads.filter(r => Math.abs(r - (vertical ? P.x : P.z)) < 130); if (!near.length) continue;
     const road = pick(near), s = Math.random() < 0.5 ? 1 : -1, along = clamp((vertical ? P.z : P.x) + rnd(-130, 130), -195, 195);
-    const dx = vertical ? 0 : s, dz = vertical ? s : 0, L = laneFor(road, dx, dz), x = vertical ? L.x : along, z = vertical ? along : L.z;
+    const off = KINDS[kind].lane, dx = vertical ? 0 : s, dz = vertical ? s : 0, L = laneFor(road, dx, dz, off), x = vertical ? L.x : along, z = vertical ? along : L.z;
     if (Math.hypot(x - P.x, z - P.z) < 55) continue;
     if (!clear(x, z)) continue;
-    const b = spawnVehicle(pickTrafficModel('bike'), x, z, Math.atan2(dx, dz), 'traffic'); b.v = b.top * 0.7; b.lean = 0;
-    b.seatDriver(spawnNpc('biker', x, z));
+    const b = spawnVehicle(pickTrafficModel(kind), x, z, Math.atan2(dx, dz), 'traffic'); b.v = b.top * 0.7; b.lean = 0;
+    b.seatDriver(spawnNpc(rider, x, z));
     return b;
   }
 }

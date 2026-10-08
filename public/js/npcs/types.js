@@ -21,6 +21,8 @@ export const NPC_TYPES = {
   civilian: { name: 'Civilian', faction: 'civilian', behaviour: 'wander', hp: 40, walkSpeed: 1.4, runSpeed: 6.3, look: randomLook, cash: [30, 120], heat: 3, screams: true, despawn: 115, fightBack: 0.3, punch: 5 },
   motorist: { name: 'Driver', faction: 'civilian', behaviour: 'ride', hp: 40, walkSpeed: 1.4, runSpeed: 6.3, look: randomLook, cash: [40, 140], heat: 3, screams: true, despawn: 115 },
   biker: { name: 'Biker', faction: 'civilian', behaviour: 'ride', hp: 50, walkSpeed: 1.4, runSpeed: 6.3, look: bikerLook, cash: [30, 120], heat: 3, screams: true, despawn: 115 },
+  // on an e-step (vehicles/kinds/step.js): commuters in everyday clothes, now and then a helmet
+  stepper: { name: 'Stepper', faction: 'civilian', behaviour: 'ride', hp: 40, walkSpeed: 1.4, runSpeed: 6.3, look: stepperLook, cash: [20, 100], heat: 3, screams: true, despawn: 115 },
   // off the fire truck (vehicles/firetruck.js) to put out crash fires; each carries a fire axe and drops it when taken down
   fireman: { name: 'Fireman', faction: 'civilian', behaviour: 'douse', hp: 90, walkSpeed: 1.8, runSpeed: 5.6, cash: [20, 90], heat: 4, weaponDrops: { fireaxe: 1 }, screams: true, despawn: 160,
     look: () => uniform({ shirt: '#b8995a', pants: '#b8995a', stripes: '#e8ff5a', hat: 'fire', hatColor: '#c8141e', longSleeve: true, gloves: '#2a241c', shoes: '#141316', shorts: false, glasses: false }) },
@@ -50,4 +52,9 @@ export function makeLook(def) {
 
 function bikerLook() {
   return Object.assign(randomLook(), { pa: null, pb: null, shirt: pick(['#1b1c22', '#2e323c', '#4a5260', '#5b4a3a', '#20283a']), pants: pick(['#1d1e24', '#2b2f38', '#3b3f45']), shorts: false, longSleeve: true, gloves: '#121214', hat: 'helmet', hatColor: pick(['#111114', '#f2f2f2', '#c8102e', '#1c69d4', '#ffd23e']), glasses: true, shoes: '#18171a' });
+}
+function stepperLook() {
+  const L = randomLook();
+  if (Math.random() < 0.25) Object.assign(L, { hat: 'helmet', hatColor: pick(['#f2f2f2', '#16b39a', '#1b1c21', '#ff6fae']) });
+  return L;
 }
