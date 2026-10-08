@@ -32,7 +32,12 @@ await page.route('https://fonts.gstatic.com/**', r => r.fulfill({ body: '' }));
 let failed = 0;
 async function step(name, fn) {
   try { await fn(); console.log('ok  ', name); }
-  catch (e) { failed++; console.log('FAIL', name, '\n     ', e.message); }
+  catch (e) {
+    failed++; console.log('FAIL', name, '\n     ', e.message);
+    // a step that fails part-way can leave the player at the wheel, and every step after it would then fail to get on
+    // anything: step off, so one failure doesn't cascade
+    await game(async () => { const { P } = window.__neonbay || {}; if (P && P.vehicle) (await import('/js/game/player.js')).exitVehicle(false); }).catch(() => {});
+  }
   if (shots) await page.screenshot({ path: `${shots}/${name.replace(/\W+/g, '-')}.png` });
 }
 const game = (fn, arg) => page.evaluate(fn, arg);
@@ -806,8 +811,11 @@ try {
   });
 
   await step('a tank rolls in with the army and shells the player', async () => {
+    // the soldiers from the steps before can have taken the player down, which clears the stars: wait out the respawn,
+    // then keep them topped up until the tank is here, so the five stars hold
+    check(await until(() => __neonbay.P.alive && __neonbay.G.state === 'play', undefined, 30000), 'the player never respawned');
     await game(() => { const { G, P } = __neonbay; G.heat = 100; G.wanted = 5; G.tankT = 0; P.hp = 100; });
-    check(await until(() => !!__neonbay.G.tank, undefined, 20000), 'no tank at five stars');
+    check(await until(() => { const { G, P } = __neonbay; P.hp = 100; P.armor = 100; G.wanted = 5; G.heat = 100; return !!G.tank; }, undefined, 20000), 'no tank at five stars');
     check(await until(() => __neonbay.Sound.voices().tank === 1), 'the tank makes no sound');
     // down an open stretch of road: the tank 30 m up it, rolling towards the player
     await clearVehicles(0, -75);
@@ -819,9 +827,16 @@ try {
       for (const n of all('npc')) if (Math.hypot(n.x, n.z + 75) < 25) removeEntity(n);
       Object.assign(t, { x: 0, z: -90, yaw: 0, dirX: 0, dirZ: 1, toX: 0, toZ: -50, v: 0, turretYaw: 0, aimYaw: 0, reloadT: 0 });
     });
-    const hurt = await until(() => __neonbay.P.hp < 100, undefined, 30000);
-    const r = await game(() => ({ hp: __neonbay.P.hp, tankHp: __tank.hp, d: Math.hypot(__tank.x - __neonbay.P.x, __tank.z - __neonbay.P.z) }));
-    check(hurt, `no tank shell hit the player (hp ${r.hp}, tank ${r.d.toFixed(1)} m away)`);
+    // a shell aimed a metre wide of the player flies on past and goes off far behind them, so one shot can miss; and at
+    // the few frames a second software WebGL manages, a 4 s reload would leave time for only one or two. Count the
+    // shots and cut each reload short, so the step waits for several shells rather than for the clock.
+    await game(() => { window.__shells = 0; });
+    const hurt = await until(() => {
+      const t = __tank; if (t.reloadT > 1) { __shells++; t.reloadT = 0.4; }
+      return __neonbay.P.hp < 100 || __shells >= 6;
+    }, undefined, 60000) && await game(() => __neonbay.P.hp < 100);
+    const r = await game(() => ({ hp: __neonbay.P.hp, tankHp: __tank.hp, d: Math.hypot(__tank.x - __neonbay.P.x, __tank.z - __neonbay.P.z), shells: __shells, los: __tank.los }));
+    check(hurt, `no tank shell hit the player (hp ${r.hp}, tank ${r.d.toFixed(1)} m away, ${r.shells} shells fired, in sight ${r.los})`);
     check(r.tankHp > 0, 'the tank was caught in its own blast');
     await game(() => { __neonbay.P.hp = 100; });
   });
