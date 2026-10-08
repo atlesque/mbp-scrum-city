@@ -36,6 +36,7 @@ These are the QWERTY defaults; the AZERTY preset uses ZQSD to move, A for melee 
 | E | Enter a gun shop, take the stairs to a roof and back down |
 | F | Get on or off a motorcycle, get in or out of a car, pull a driver out of their car |
 | On a bike: W / S, A / D, Shift, Space | Throttle / brake, lean, boost, rear brake. You can still shoot. |
+| On a bike: hold C with W | Wheelie. Off the gas or on the rear brake the front comes down; boost while up and it climbs until it loops over and throws you off. |
 | In a car: W / S, A / D, Shift, Space | Gas / brake, steer, boost, handbrake. Steer with the handbrake to drift; hold the gas to keep the slide going, countersteer to straighten out. |
 | 1–9, mouse wheel | Switch weapons (8 grenades, 9 molotovs, once you've picked some up) |
 | Q | Put the guns away: fists, then each melee weapon you own |

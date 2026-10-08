@@ -169,7 +169,7 @@ export function enterVehicle(v) {
   P.vehicle = v; v.driver = P; v.mode = 'player'; v.K.onPlayerEnter(v);
   if (v.model.siren) v.siren = sirenOn(v); // the siren is the player's to switch now, starting as it was
   v.K.seat(v, P.c); P.x = v.x; P.z = v.z; P.y = 0; P.floor = 0; P.roof = null; P.vy = 0; P.grounded = true; P.flipT = 0; P.c.body.rotation.x = 0; P.lookT = -9;
-  $('prompt').hidden = true; G.hudCache = ''; $('vehName').textContent = v.model.short; $('vehSiren').hidden = !v.model.siren;
+  $('prompt').hidden = true; G.hudCache = ''; $('vehName').textContent = v.model.short; $('vehSiren').hidden = !v.model.siren; $('vehWheelie').hidden = !v.K.wheelie;
   if (!told[v.model.id]) { told[v.model.id] = true; toast(v.K.tip(v.model), 7); }
   emit('vehicle:enter', { vehicle: v });
 }
