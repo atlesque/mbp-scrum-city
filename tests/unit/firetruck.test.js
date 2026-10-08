@@ -7,6 +7,8 @@ import { NPC_TYPES } from '../../public/js/npcs/types.js';
 import { SHOP_TYPES } from '../../public/js/shops/types.js';
 import { TRUCK, TRUCK_BLAST, spawnTruck, stopShort, takeTruck } from '../../public/js/vehicles/firetruck.js';
 import { CRASH_FIRE, KINDS, crashDriver, driveByPlayer, spawnVehicle } from '../../public/js/vehicles/vehicle.js';
+import { explosion } from '../../public/js/combat/combat.js';
+import { hurtPlayer } from '../../public/js/game/player.js';
 
 // getting in needs the page (the HUD); here it only takes the seat
 vi.mock('../../public/js/game/player.js', async orig => ({ ...await orig(), enterVehicle(v) { P.vehicle = v; v.driver = P; v.mode = 'player'; } }));
@@ -91,6 +93,21 @@ describe('driving the fire truck', () => {
       const v = spawnVehicle(model, 0, 40, 0); P.vehicle = v; P.hp = 100;
       crashDriver(v, 20);
       expect(P.hp < 100).toBe(hurt);
+      P.vehicle = null; v.damage(999, false, true);
+    }
+    globalThis.document = page;
+  });
+  it('shots and blasts that would hurt its driver hit the truck instead; a car driver still gets hurt', () => {
+    G.state = 'play'; P.alive = true; P.armor = 0;
+    const page = globalThis.document; globalThis.document = { getElementById: () => ({ style: {} }) };
+    for (const [model, hurt] of [['firetruck', false], ['sedan', true]]) {
+      const v = spawnVehicle(model, 0, 40, 0); P.vehicle = v; P.x = v.x; P.z = v.z; P.y = 0; P.hp = 100;
+      let hp = v.hp; hurtPlayer(12, 'torso');
+      expect(P.hp < 100).toBe(hurt);
+      if (!hurt) expect(v.hp).toBe(hp - 12);
+      P.hp = 100; hp = v.hp; explosion(v.x + 3, 0.5, v.z, 8, 60, false);
+      expect(P.hp < 100).toBe(hurt);
+      expect(v.hp).toBeLessThan(hp);
       P.vehicle = null; v.damage(999, false, true);
     }
     globalThis.document = page;

@@ -6,7 +6,7 @@ import { G, I, P, cam, inv } from '../core/state.js';
 import { $, clamp, rnd } from '../core/util.js';
 import { WBY, WEAPONS, wStat } from '../data/weapons.js';
 import { all, entities } from '../entities/registry.js';
-import { camTarget, hurtPlayer } from '../game/player.js';
+import { camTarget, hurtPlayer, shieldingCab } from '../game/player.js';
 import { addHeat } from '../game/wanted.js';
 import { alarm } from '../npcs/npc.js';
 import { PGEO, boomFx, emit, muzzleFlash, pmat, tracer } from '../render/effects.js';
@@ -114,7 +114,8 @@ export function explosion(x, y, z, R, dmg, byPlayer, power = 1) {
   for (const e of all()) if (e.blast && !e.removed) e.blast(x, y, z, R, dmg, byPlayer);
   for (const e of all()) if (e.fling && !e.removed) e.fling(x, y, z, R, power); // a second pass, so whoever the blast just killed flies too
   blastProps(x, y, z, R, power); // palms, lamps and beach props nearby go over
-  if (dP < R && P.alive) hurtPlayer((dmg * (1 - dP / R) + 10) * (byPlayer ? 0.35 : 0.6));
+  // a shielding cab already took the blast above, as a vehicle; its driver doesn't feel it a second time
+  if (dP < R && P.alive && !shieldingCab()) hurtPlayer((dmg * (1 - dP / R) + 10) * (byPlayer ? 0.35 : 0.6));
   alarm(x, z, 50);
 }
 export function startReload() {

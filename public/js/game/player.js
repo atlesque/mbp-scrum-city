@@ -191,9 +191,14 @@ export function exitVehicle(crash) {
   emit('vehicle:exit', { vehicle: v, crash });
 }
 
-// zone: where a bullet landed (combat/hitzones.js); a shot to the head rocks the camera harder
+// the vehicle whose cab keeps the player at the wheel from harm (the fire engine: its kind has shieldsDriver), or null
+export const shieldingCab = () => P.vehicle?.K.shieldsDriver ? P.vehicle : null;
+
+// zone: where a bullet landed (combat/hitzones.js); a shot to the head rocks the camera harder.
+// Behind the wheel of a shielding cab nothing reaches the player: the hit lands on the vehicle instead.
 export function hurtPlayer(d, zone) {
   if (!P.alive || G.state !== 'play') return;
+  const cab = shieldingCab(); if (cab) { if (d > 0) cab.damage(d, false); return; }
   if (P.armor > 0) { const a = Math.min(P.armor, d * 0.7); P.armor -= a; d -= a; }
   P.hp -= d; Sound.hurt(); cam.shake = Math.max(cam.shake, zone === 'head' ? 0.4 : 0.15);
   const vg = $('vignette'); vg.style.opacity = '1'; clearTimeout(hurtPlayer.t); hurtPlayer.t = setTimeout(() => { vg.style.opacity = '0'; }, 140);
