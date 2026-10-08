@@ -8,8 +8,8 @@ architecture and how to add vehicles, NPCs, shops and buildings; read the part y
 - `npm test` is the Vitest unit suite (seconds). CI runs only this.
 
 ## Smoke test routine
-`npm run test:smoke` plays the game in headless Chromium on software WebGL, split over three browsers at once (about 3 to 5
-minutes). It must pass locally before a PR is merged, because CI does not run it. Every step starts from a reset player, so a
+`npm run test:smoke` plays the game in headless Chromium on software WebGL, split over two browsers at once (about 5 minutes,
+against 8 for one). It must pass locally before a PR is merged, because CI does not run it. Every step starts from a reset player, so a
 failing step fails alone. Keep the run count low:
 1. Write the change and its unit tests first. Check your own smoke step alone: `npm run test:smoke -- <word from its name>`.
 2. Run the full `npm run test:smoke` once, in the background, and do other work (screenshots aside, see below) until it ends.

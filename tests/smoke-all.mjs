@@ -1,11 +1,11 @@
-// `npm run test:smoke`: runs the smoke test (tests/smoke.mjs) split over SMOKE_SHARDS browsers at once (3 by default),
+// `npm run test:smoke`: runs the smoke test (tests/smoke.mjs) split over SMOKE_SHARDS browsers at once (2 by default; more starve each other of CPU),
 // then lists what failed and how to rerun just that.
 // `npm run test:smoke -- tank reload` runs only the steps whose names contain one of those words, in one browser.
 import { spawn } from 'node:child_process';
 import { availableParallelism } from 'node:os';
 
 const words = process.argv.slice(2);
-const shards = words.length || process.env.SMOKE_ONLY ? 1 : Math.max(1, +process.env.SMOKE_SHARDS || Math.min(3, availableParallelism() - 1));
+const shards = words.length || process.env.SMOKE_ONLY ? 1 : Math.max(1, +process.env.SMOKE_SHARDS || Math.min(2, availableParallelism() - 1));
 const t0 = Date.now(), failed = [];
 let steps = 0;
 
