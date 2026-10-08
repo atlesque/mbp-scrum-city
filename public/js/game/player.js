@@ -20,6 +20,7 @@ import { camera, canvasEl } from '../render/scene.js';
 import { showBig, toast } from '../ui/hud.js';
 import { removeHeli } from '../vehicles/heli.js';
 import { removeTank } from '../vehicles/tank.js';
+import { removeUfo } from '../vehicles/ufo.js';
 import { answersHeat, driveByPlayer, sirenOn } from '../vehicles/vehicle.js';
 import { SPAWN } from '../world/city.js';
 import { collide, wallHit } from '../world/collision.js';
@@ -232,7 +233,7 @@ export function die() {
   if (!inv.owned[inv.cur]) selectWeapon('pistol');
   inv.money -= fee; save();
   $('wastedInfo').textContent = (fee > 0 ? `Hospital bill: $${fee.toLocaleString()}` : 'Patched up for free. Lucky you.') + (lost.length ? ` Lost: ${lost.join(', ')}.` : '')
-    + (G.wanted === 5 ? `\nFive star heat: ${clock(G.fiveRun)} this time, ${clock(stats.fiveStar)} all told.` : '');
+    + (G.wanted >= 5 ? `\nFive star heat: ${clock(G.fiveRun)} this time, ${clock(stats.fiveStar)} all told.` : '');
   $('wasted').hidden = false; canvasEl.style.filter = 'grayscale(0.85) contrast(1.1)';
   $('prompt').hidden = true;
   Sound.hush();
@@ -240,8 +241,8 @@ export function die() {
 }
 export function respawn() {
   for (const e of all()) if ((e.kind === 'npc' && e.faction === 'law') || answersHeat(e) || (e.kind === 'vehicle' && e.dead)) removeEntity(e);
-  removeHeli(); removeTank(null, true);
-  G.wanted = 0; G.heat = 0; G.lostT = 0; G.heliT = 15; G.tankT = 6;
+  removeHeli(); removeTank(null, true); removeUfo(null);
+  G.wanted = 0; G.heat = 0; G.lostT = 0; G.heliT = 15; G.tankT = 6; G.fiveT = 0; G.ufoT = 2;
   P.x = SPAWN.x; P.z = SPAWN.z; P.y = 0; P.floor = 0; P.vy = 0; P.grounded = true; P.roof = null; P.hp = 100; P.alive = true; P.deadT = 0; P.yaw = SPAWN.yaw; cam.yaw = SPAWN.yaw; cam.pitch = -0.08;
   P.c.body.rotation.x = 0; P.c.body.position.y = 0; P.swing = null;
   loadAll(inv); G.reloadT = 0;

@@ -36,6 +36,9 @@ export const WEAPONS = [
   //   molotov  bursts where it lands and leaves a pool of fire of radius fire that burns for burn seconds, dmg per second
   thrown({ id: 'grenade', name: 'Grenade', dmg: 260, rate: 0.9, ammoPack: 3, fuse: 2.4, blast: 7 }),
   thrown({ id: 'molotov', name: 'Molotov', dmg: 30, rate: 0.9, ammoPack: 3, fire: 3.6, burn: 7 }),
+  // dropped by the aliens of the secret sixth star (npcs/types.js), never sold: a quick, accurate beam that fires
+  // green laser bolts (laser: true) and hums instead of banging. Key 0, after the thrown weapons.
+  { id: 'laser', name: 'Laser Rifle', price: 0, dmg: 44, rate: 0.14, mag: 32, spread: 0.006, range: 220, auto: true, pellets: 1, ammoPrice: 0, ammoPack: 64, recoil: 0.004, reload: 1.6, up: 0, twoHand: true, laser: true, dropOnly: true },
 ];
 export const WBY = Object.fromEntries(WEAPONS.map(w => [w.id, w]));
 export const MELEE = WEAPONS.filter(w => w.melee), GUNS = WEAPONS.filter(w => !w.melee);

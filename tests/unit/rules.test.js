@@ -11,6 +11,11 @@ describe('wanted level', () => {
     expect(heatToLevel(HEAT[5])).toBe(5);
     expect(heatToLevel(1e6)).toBe(5);
   });
+  it('never reaches the secret sixth star with heat alone', () => {
+    expect(HEAT).toHaveLength(7);
+    expect(heatToLevel(Number.MAX_VALUE)).toBe(5);
+    expect(WANTED[6].ufo).toBe(true);
+  });
   it('has a spawn table for every star', () => {
     for (let i = 1; i < HEAT.length; i++) {
       expect(WANTED[i].max).toBeGreaterThan(0);
@@ -23,10 +28,11 @@ describe('wanted level', () => {
     expect(mixPick(mix, 0.5)).toBe('swat');
     expect(mixPick(mix, 1)).toBe('swat');
   });
-  it('glows the minimap red, stronger with every star', () => {
+  it('glows the minimap red, stronger with every star up to five, and at full strength for the sixth', () => {
     expect(RADAR_GLOW).toHaveLength(HEAT.length);
     expect(RADAR_GLOW[0]).toBe(0);
-    for (let i = 1; i < RADAR_GLOW.length; i++) expect(RADAR_GLOW[i]).toBeGreaterThan(RADAR_GLOW[i - 1]);
+    for (let i = 1; i <= 5; i++) expect(RADAR_GLOW[i]).toBeGreaterThan(RADAR_GLOW[i - 1]);
+    expect(RADAR_GLOW[5]).toBe(1);
     expect(RADAR_GLOW.at(-1)).toBe(1);
     expect(RADAR_PULSE_FROM).toBeLessThan(HEAT.length);
   });

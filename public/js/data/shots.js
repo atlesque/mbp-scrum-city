@@ -11,6 +11,7 @@ export const SHOTS = {
   minigun: { takes: 4, vol: 0.6 }, // PPSh-41, slowed a little and cut short
   rpg: { takes: 2, vol: 0.9 }, // a 12 gauge slowed right down for the backblast, then the rocket motor
   sniper: { takes: 3, vol: 1.2 }, // Mosin-Nagant, then the bolt
+  laser: { takes: 3, vol: 0.7 }, // the aliens' laser rifle: no real gun sounds like it, so it is synthesized (public/sfx/CREDITS.md)
   cannon: { takes: 1, vol: 1.4 },
 };
 // every recording a gun can play, by file name (without .mp3)

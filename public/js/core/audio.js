@@ -89,10 +89,11 @@ export const Sound = (() => {
     siren: { max: 3, prof: HEAR.siren, make: makeSiren },
     rotor: { max: 2, prof: HEAR.rotor, make: makeRotor },
     tank: { max: 1, prof: HEAR.tank, make: makeTank },
+    ufo: { max: 1, prof: HEAR.ufo, make: makeUfo },
     engine: { max: 3, prof: null, make: makeEngine },
     ev: { max: 3, prof: null, make: makeEv },
   };
-  const live = { siren: new Map(), rotor: new Map(), engine: new Map(), ev: new Map(), tank: new Map() };
+  const live = { siren: new Map(), rotor: new Map(), engine: new Map(), ev: new Map(), tank: new Map(), ufo: new Map() };
   function loops(kind, list, prof) {
     if (!ctx) return;
     const def = LOOPS[kind], p = prof || def.prof, map = live[kind], t = ctx.currentTime; L = L || listenerPose();
@@ -149,6 +150,14 @@ export const Sound = (() => {
       o.frequency.setTargetAtTime((30 + sp * 16) * k, t, 0.2); f.frequency.setTargetAtTime(140 + sp * 120, t, 0.2);
       clfo.frequency.setTargetAtTime((3 + sp * 9) * k, t, 0.1); cg.gain.setTargetAtTime(sp * 0.18, t, 0.1); clack.gain.setTargetAtTime(sp * 0.18, t, 0.1);
     }, stop() { o.stop(); tn.stop(); clfo.stop(); } };
+  }
+  // UFO: a low beating hum of two close sines under a high warble that rises and falls
+  function makeUfo() {
+    const a = ctx.createOscillator(), b = ctx.createOscillator(), w = ctx.createOscillator(); a.frequency.value = 96; b.frequency.value = 99; w.frequency.value = 760;
+    const wg = ctx.createGain(); wg.gain.value = 0.12; const lfo = ctx.createOscillator(); lfo.frequency.value = 0.7; const lg = ctx.createGain(); lg.gain.value = 260; lfo.connect(lg); lg.connect(w.frequency);
+    const mix = ctx.createGain(); mix.gain.value = 0.6; a.connect(mix); b.connect(mix); w.connect(wg); wg.connect(mix);
+    a.start(); b.start(); w.start(); lfo.start();
+    return { out: mix, set(s, k, t) { a.frequency.setTargetAtTime(96 * k, t, 0.1); b.frequency.setTargetAtTime(99 * k, t, 0.1); }, stop() { a.stop(); b.stop(); w.stop(); lfo.stop(); } };
   }
   // boxer twin: low saw at the firing rate plus a soft triangle octave, through a gentle tracking lowpass and a
   // fixed one that keeps the buzzy highs out (the same voice as the player's own, below)
@@ -218,7 +227,7 @@ export const Sound = (() => {
   }
   function stopReload() { if (reloadSrc) { try { reloadSrc.stop(); } catch (e) { /* already ended */ } reloadSrc = null; } }
   const PROG = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]];
-  const GUN = { pistol: [3600, .22, 150, .9], smg: [5200, .1, 210, .6], shotgun: [2300, .55, 80, 1.35], rifle: [5600, .17, 130, .85], minigun: [6200, .07, 240, .5], rpg: [1400, .7, 60, .9], sniper: [3800, .5, 70, 1.45], cannon: [700, 1.1, 40, 1.8] };
+  const GUN = { pistol: [3600, .22, 150, .9], smg: [5200, .1, 210, .6], shotgun: [2300, .55, 80, 1.35], rifle: [5600, .17, 130, .85], minigun: [6200, .07, 240, .5], rpg: [1400, .7, 60, .9], sniper: [3800, .5, 70, 1.45], laser: [4000, .12, 900, .7], cannon: [700, 1.1, 40, 1.8] };
   // `at` is where it was fired (a world point), or nothing for the player's own gun. A gun with recordings
   // (data/shots.js) plays one of its takes, a touch faster or slower each time; until they have loaded (or for a
   // gun without any) the synthesized shot below stands in.
@@ -228,6 +237,8 @@ export const Sound = (() => {
     const takes = shotFiles(kind), name = takes[Math.floor(Math.random() * takes.length)];
     if (name && sample(name, SHOTS[kind].vol * vol, at, HEAR.shot, 0.95 + Math.random() * 0.1) !== false) { shotsPlayed++; return; }
     const o = out(vol, at, HEAR.shot); if (!o) return; const p = GUN[kind] || GUN.pistol, t = ctx.currentTime;
+    // a laser has no bang: a falling sci-fi zap and a little fizz
+    if (kind === 'laser') { tone(o, t, 'square', 2400, 220, 0.14, 0.32); tone(o, t, 'sine', 1300, 180, 0.18, 0.5); nz(o, t, 0.06, 'highpass', 5000, 0.5, 0.2); return; }
     nz(o, t, p[1], 'lowpass', p[0], 0.8, p[3], 0.85 + Math.random() * 0.3);
     tone(o, t, 'sine', p[2] * 2, p[2] * 0.5, p[1] * 0.8, p[3] * 0.8);
     nz(o, t, 0.03, 'highpass', 6000, 0.5, p[3] * 0.4);
@@ -360,6 +371,12 @@ export const Sound = (() => {
       const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.028, t + 0.5); g.gain.setValueAtTime(0.028, t + SPB * 14); g.gain.exponentialRampToValueAtTime(0.0001, t + SPB * 16);
       o.connect(f); f.connect(g); g.connect(mus); g.connect(reverbIn); o.start(t); o.stop(t + SPB * 16 + 0.05);
     }));
+    // a theremin out of an old flying-saucer film: one long sine per half bar, sliding up to its note with a wide vibrato
+    if (L.theremin && st % 8 === 0) {
+      const n = ch[(st / 8 + bar) % 3] + 24, dur = SPB * 8, o = synth('sine', mtof(n - 5), 0, t, dur, 0.05, 6000, true);
+      o.frequency.setValueAtTime(mtof(n - 5), t); o.frequency.exponentialRampToValueAtTime(mtof(n), t + SPB * 2);
+      const v = ctx.createOscillator(); v.frequency.value = 6.5; const vg = ctx.createGain(); vg.gain.value = mtof(n) * 0.025; v.connect(vg); vg.connect(o.frequency); v.start(t); v.stop(t + dur + 0.05);
+    }
     if (L.arp && st % 2 === 0) synth('square', mtof(ch[(st / 2) % 3] + 12 + (st >= 8 ? 12 : 0)), 0, t, 0.16, 0.05, 2400, true);
     if (L.lead) for (const [at, tn, oct, len] of LEAD) if (at === st) {
       const n = ch[tn] + 12 * oct, dur = SPB * len;

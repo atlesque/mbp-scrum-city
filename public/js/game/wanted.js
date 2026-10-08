@@ -3,17 +3,18 @@ import { emit } from '../core/events.js';
 import { at } from '../core/spatial.js';
 import { G, P, stats } from '../core/state.js';
 import { $ } from '../core/util.js';
-import { HEAT, WANTED, footMix, heatToLevel, mixPick, pickRide } from '../data/wanted.js';
+import { HEAT, SIX_STAR_AFTER, WANTED, footMix, heatToLevel, mixPick, pickRide } from '../data/wanted.js';
 import { all, count, removeEntity } from '../entities/registry.js';
 import { findSpot, spawnNpc } from '../npcs/npc.js';
 import { showBig } from '../ui/hud.js';
 import { spawnHeli } from '../vehicles/heli.js';
 import { spawnTank } from '../vehicles/tank.js';
+import { spawnUfo } from '../vehicles/ufo.js';
 import { spawnResponder } from '../vehicles/traffic.js';
 import { answersHeat, sirenOn } from '../vehicles/vehicle.js';
 
 // ================= WANTED =================
-const LEVEL_TEXT = ['', 'The cops noticed', 'Police are rolling', 'SWAT has been called', 'The Feds are here', 'They sent the army'];
+const LEVEL_TEXT = ['', 'The cops noticed', 'Police are rolling', 'SWAT has been called', 'The Feds are here', 'They sent the army', 'They are not from here'];
 
 const isLaw = e => e.kind === 'npc' && e.faction === 'law';
 // at most this many police cars and army trucks on their way at once, and around at all (parked ones included)
@@ -44,10 +45,21 @@ export function addHeat(v) {
     emit('wanted:up', { level: G.wanted });
   }
 }
+// The secret sixth star: no amount of heat reaches it. Keep five stars for SIX_STAR_AFTER seconds straight and the
+// aliens come for you; losing the fifth star starts the count over.
+export function holdFive(dt) {
+  if (G.wanted !== 5) { if (G.wanted < 5) G.fiveT = 0; return; }
+  G.fiveT += dt;
+  if (G.fiveT < SIX_STAR_AFTER) return;
+  G.wanted = 6; G.lostT = 0; G.ufoT = Math.min(G.ufoT, 2); Sound.star(); stats.best = Math.max(stats.best, 6);
+  showBig(LEVEL_TEXT[6]);
+  emit('wanted:up', { level: 6 });
+}
 export function updateWanted(dt) {
   const starsEl = $('stars');
-  // the five star heat highscore: every second alive at five stars counts, for good
-  if (G.wanted === 5 && G.state === 'play') { stats.fiveStar = (stats.fiveStar || 0) + dt; G.fiveRun += dt; }
+  // the five star heat highscore: every second alive at five stars (or the secret sixth) counts, for good
+  if (G.wanted >= 5 && G.state === 'play') { stats.fiveStar = (stats.fiveStar || 0) + dt; G.fiveRun += dt; }
+  holdFive(dt);
   if (G.wanted > 0) {
     if (!G.seenNow) {
       G.lostT += dt; starsEl.classList.add('flash');
@@ -68,11 +80,13 @@ export function updateWanted(dt) {
     }
     if (L && L.heli && !G.heli) { G.heliT -= dt; if (G.heliT <= 0) spawnHeli(); }
     if (L && L.tank && !G.tank) { G.tankT -= dt; if (G.tankT <= 0) spawnTank(); }
+    if (L && L.ufo && !G.ufo) { G.ufoT -= dt; if (G.ufoT <= 0) spawnUfo(); }
   } else starsEl.classList.remove('flash');
   G.seenNow = false;
   Sound.loops('siren', sirenSources());
   Sound.loops('rotor', rotorSources());
   Sound.loops('tank', tankSources());
+  Sound.loops('ufo', ufoSources());
   Sound.setIntensity(G.wanted);
 }
 
@@ -95,4 +109,9 @@ export function rotorSources() {
 export const TANK_VOL = 0.45;
 export function tankSources() {
   return G.state === 'play' ? all('tank').filter(t => !t.dead).map(t => ({ key: t, ...at(t, 1), vol: TANK_VOL, speed: t.v })) : [];
+}
+// the UFO's hum, from the saucer
+export const UFO_VOL = 0.5;
+export function ufoSources() {
+  return G.state === 'play' ? all('ufo').filter(u => !u.falling).map(u => ({ key: u, ...at(u, 0), vol: UFO_VOL })) : [];
 }
