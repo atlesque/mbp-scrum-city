@@ -50,7 +50,8 @@ export function evSources() {
 
 // the player's ride is heard as their own (unplaced); every bike and electric car passing by plays from where it is
 export function updateEngineSound() {
-  const V = G.state === 'play' && P.vehicle, thr = held('forward'), ev = isElectric(V);
+  // a chopper has no engine note of its own: its rotor is heard instead (rotorSources in game/wanted.js)
+  const V = G.state === 'play' && P.vehicle && !P.vehicle.K.flies && P.vehicle, thr = held('forward'), ev = isElectric(V);
   Sound.setEngine(V && !ev ? 0.08 + (thr ? 0.03 : 0) : 0, V && !ev ? rpmFor(V.model, Math.abs(V.v), thr) : 1050);
   Sound.setElectric(ev ? 0.09 : 0, evMix(ev ? V.v : 0));
   Sound.loops('engine', engineSources(), ENGINE_HEAR);

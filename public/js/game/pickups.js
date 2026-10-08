@@ -105,7 +105,7 @@ const WeaponPickup = {
     p.m.rotation.y += dt * 1.8; p.m.position.y = 1.0 + Math.sin(G.time * 2.4 + p.x) * 0.1;
     if (!P.alive || P.vehicle || P.y > 2 || Math.hypot(P.x - p.x, P.z - p.z) > 1.3 || !takeWeapon(inv, p.id)) return;
     Sound.pickup(); feed(WBY[p.id].name, false, '#ffd23e');
-    if (!toldMelee) { toldMelee = true; toast(`Got a <em>${WBY[p.id].name}</em>. Press <em>${kb('melee')}</em> to switch between your fists and melee weapons.`, 6); }
+    if (!toldMelee) { toldMelee = true; toast(`Got a <em>${WBY[p.id].name}</em>. Hold <em>${kb('melee')}</em> for the weapon wheel, or tap it to switch between your fists and melee weapons.`, 6); }
     p.onTaken && p.onTaken(p.id);
     p.active = false; p.m.visible = p.glow.visible = false; p.respawnT = WEAPON_PICKUP_RESPAWN;
   },
@@ -134,7 +134,7 @@ const RoofGun = {
     if (!P.alive || P.vehicle || Math.abs(P.y - p.y) > 2 || Math.hypot(P.x - p.x, P.z - p.z) > 1.3) return;
     const had = !!inv.owned[p.id], label = pickUpWeapon(inv, p.id); if (!label) return;
     Sound.pickup(); feed(label, false, '#ffd23e');
-    const w = WBY[p.id], key = w.melee ? 'Q' : String((GUNS.indexOf(w) + 1) % 10);
+    const w = WBY[p.id], key = w.melee ? kb('melee') : String((GUNS.indexOf(w) + 1) % 10);
     if (!had) { toast(`Got a <em>${w.name}</em>. Press <em>${key}</em> to use it. Picked-up weapons are lost when you get wasted.`, 6); p.onTaken && p.onTaken(p.id); }
     p.active = false; p.m.visible = p.glow.visible = false; p.respawnT = ROOF_GUN_RESPAWN;
   },
@@ -153,7 +153,7 @@ const DroppedWeapon = {
     if (!P.alive || P.vehicle || P.y > 2 || Math.hypot(P.x - p.x, P.z - p.z) > 1.3) return;
     const label = pickUpWeapon(inv, p.id); if (!label) return;
     Sound.pickup(); feed(label, false, '#ffd23e');
-    const w = WBY[p.id], key = w.melee ? 'Q' : String((GUNS.indexOf(w) + 1) % 10);
+    const w = WBY[p.id], key = w.melee ? kb('melee') : String((GUNS.indexOf(w) + 1) % 10);
     if (!toldFound) { toldFound = true; toast(`Got ${w.thrown ? '' : 'a '}<em>${w.name}</em>${key ? `. Press <em>${key}</em> to ${w.thrown ? 'pull one out' : 'use it'}` : ''}. Picked-up weapons are lost when you get wasted; only bought ones stay.`, 6); }
     removeEntity(p);
   },

@@ -122,7 +122,7 @@ export function updateLighting(dt) {
 
   // headlights on everything with someone at the wheel
   const cars = [];
-  if (on > 0) for (const v of all('vehicle')) if (v.driver && !v.dead && Math.abs(v.x - P.x) < 160 && Math.abs(v.z - P.z) < 160) cars.push(v);
+  if (on > 0) for (const v of all('vehicle')) if (v.driver && !v.dead && !v.K.flies && Math.abs(v.x - P.x) < 160 && Math.abs(v.z - P.z) < 160) cars.push(v);
   carPools.material.opacity = 0.35 * on; carFlares.material.opacity = 0.9 * on;
   let pi = 0, fi = 0;
   for (const v of cars) {

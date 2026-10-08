@@ -101,9 +101,12 @@ export function sirenSources() {
   return out;
 }
 export const SIREN_VOL = 0.09, ROTOR_VOL = 0.5;
-// the chopper's rotor, from the chopper, up in the air
+// the chopper's rotor, from the chopper, up in the air; a chopper the player has flown is heard while its rotor turns
 export function rotorSources() {
-  return G.state === 'play' ? all('heli').map(h => ({ key: h, ...at(h, 1), vol: ROTOR_VOL })) : [];
+  if (G.state !== 'play') return [];
+  const out = all('heli').map(h => ({ key: h, ...at(h, 1), vol: ROTOR_VOL * (h.spin ?? 1) }));
+  for (const v of all('vehicle')) if (v.K.flies && !v.dead && v.rotor > 0.05) out.push({ key: v, x: v.x, y: v.y + 2, z: v.z, vol: ROTOR_VOL * v.rotor });
+  return out;
 }
 // the tank's engine and tracks, louder as it gets going; wrecks are silent
 export const TANK_VOL = 0.45;

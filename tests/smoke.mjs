@@ -1,4 +1,4 @@
-// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, get shelled by the army's tank and blow it up, hold five stars into the secret sixth and take a laser rifle off an alien, snipe through the scope, throw a car with a rocket,
+// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, shoot a chopper's pilot and fly the chopper off, get shelled by the army's tank and blow it up, hold five stars into the secret sixth and take a laser rifle off an alien, snipe through the scope, throw a car with a rocket,
 // shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, ride a bike over a car, pull a wheelie, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, change settings and remap keys. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
@@ -169,6 +169,33 @@ try {
     check(!r.alive && r.kills === before.kills + 1, 'the bat did not take the civilian down');
     // back to the pistol, at the heat the step started with, so the next steps meet the same squad
     await game(async ({ heat, wanted }) => { const { G } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js'); selectWeapon('pistol'); G.heat = heat; G.wanted = wanted; }, before);
+  });
+
+  await step('holding Q opens the weapon wheel, the mouse picks a weapon and a tap still goes to melee', async () => {
+    await game(() => { const { inv } = __neonbay; inv.owned.rifle = true; inv.owned.bat = true; inv.owned.katana = true; });
+    const point = (x, y) => game(async ([x, y]) => (await import('/js/ui/wheel.js')).wheelMove(x, y), [x, y]);
+    await page.keyboard.down('KeyQ');
+    check(await game(() => !document.getElementById('wheel').hidden), 'the wheel did not open');
+    // the rifle is the fifth slice of ten, pointing down and to the right
+    await point(240 * 0.6 * Math.sin(Math.PI * 0.8), -240 * 0.6 * Math.cos(Math.PI * 0.8));
+    await page.keyboard.up('KeyQ');
+    const r = await game(() => ({ cur: __neonbay.inv.cur, shut: document.getElementById('wheel').hidden }));
+    check(r.shut, 'the wheel stayed open after letting go of Q');
+    check(r.cur === 'rifle', `pointing at the rifle gave ${r.cur}`);
+    // straight up onto the melee slice, then out into its ring to the katana
+    await page.keyboard.down('KeyQ');
+    await point(0, -120);
+    await game(async () => {
+      const { ringOf, RING_ARC } = await import('/js/game/wheel.js'), { wheelMove } = await import('/js/ui/wheel.js');
+      const g = ringOf(0, __neonbay.inv.owned), a = g.start + (g.items.indexOf('katana') + 0.5) * RING_ARC;
+      wheelMove(240 * 0.95 * Math.sin(a), -240 * 0.95 * Math.cos(a) + 120);
+    });
+    await page.keyboard.up('KeyQ');
+    check(await game(() => __neonbay.inv.cur) === 'katana', 'the melee ring did not give the katana');
+    await game(async () => (await import('/js/combat/combat.js')).selectWeapon('pistol'));
+    await press('KeyQ', 40);
+    check(await game(() => __neonbay.inv.cur) === 'katana', 'a tap on Q did not go back to the melee weapon used last');
+    await game(async () => (await import('/js/combat/combat.js')).selectWeapon('pistol'));
   });
 
   await step('a downed juggernaut drops armor and ammo the player can pick up', async () => {
@@ -808,6 +835,29 @@ try {
     } finally {
       await game(() => { __neonbay.removeEntity(__ccar); __neonbay.removeEntity(__cnpc); });
     }
+  });
+
+  await step('shoots the chopper\'s pilot, flies the chopper it leaves, and jumps out under the chute', async () => {
+    await clearVehicles(0, -75);
+    await game(async () => {
+      const { G, P } = __neonbay, H = await import('/js/vehicles/heli.js'); P.x = 0; P.z = -60; P.y = 0; P.hp = 100;
+      H.removeHeli(); H.spawnHeli(); const h = G.heli; h.x = 0; h.z = -80; h.y = 20; h.fireT = 1e9;
+      h.onShot({ occupant: true, head: true }, 999);
+    });
+    check(await until(() => __neonbay.all('vehicle').some(v => v.model.id === 'heli' && !v.dead), undefined, 60000), 'the chopper did not come down in one piece');
+    await game(() => { const { P } = __neonbay, v = __neonbay.all('vehicle').find(v => v.model.id === 'heli'); window.__heli = v; P.x = v.x + Math.cos(v.yaw) * 2.6; P.z = v.z - Math.sin(v.yaw) * 2.6; });
+    check(await until(() => /fly/.test(document.getElementById('prompt').textContent) && !document.getElementById('prompt').hidden, undefined, 8000), 'no prompt to fly the chopper');
+    await press('KeyF');
+    check(await until(() => __neonbay.P.vehicle === window.__heli), 'did not get into the chopper');
+    await page.keyboard.down('Space');
+    const up = await until(() => window.__heli.y > 8, undefined, 60000);
+    await page.keyboard.up('Space');
+    check(up, 'the chopper did not lift off');
+    await press('KeyF');
+    check(await until(() => !__neonbay.P.vehicle), 'did not jump out');
+    check(await game(() => __neonbay.P.chute && __neonbay.P.chute.open && !__neonbay.P.tumble), 'the parachute did not open by itself');
+    check(await until(() => __neonbay.P.grounded && !__neonbay.P.chute, undefined, 60000), 'never landed under the chute');
+    await game(() => __neonbay.removeEntity(window.__heli));
   });
 
   await step('a tank rolls in with the army and shells the player', async () => {

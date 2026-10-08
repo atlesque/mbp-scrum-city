@@ -1,5 +1,6 @@
 import army from './army.js';
 import gs from './gs.js';
+import heli from './heli.js';
 import bmw5 from './bmw5.js';
 import eqa from './eqa.js';
 import { estep, sharestep } from './estep.js';
@@ -11,7 +12,7 @@ import sedan from './sedan.js';
 import t7 from './t7.js';
 
 // Every vehicle model in the game. To add one, write a model file next to these and list it here.
-// A model names its `kind` ('bike', 'step', 'car' or 'truck', see vehicles/kinds/), which supplies the physics, seating
+// A model names its `kind` ('bike', 'step', 'car', 'truck' or 'heli', see vehicles/kinds/), which supplies the physics, seating
 // and hit box; the model supplies the looks and can override any of the kind's numbers:
 //   id, kind, name, short (HUD), tag (toasts), hp
 //   handling   overrides for the kind's handling (top speed, accel, brakes, steering)
@@ -23,7 +24,7 @@ import t7 from './t7.js';
 //   crew       how many officers or soldiers get out when it arrives (default 2)
 //   siren      true when the player can switch a siren and flashing lights on (core/keymap.js 'siren'); sirenY: how high it sounds
 // Bikes also give spec / geos / wheel / decal / decalAt (see models/gs.js), e-steps spec / geos / wheel (models/estep.js); cars give mesh().
-export const VEHICLE_MODELS = Object.fromEntries([gs, t7, estep, sharestep, sedan, modely, police, modelyblue, eqa, bmw5, firetruck, army].map(m => [m.id, m]));
+export const VEHICLE_MODELS = Object.fromEntries([gs, t7, estep, sharestep, sedan, modely, police, modelyblue, eqa, bmw5, firetruck, army, heli].map(m => [m.id, m]));
 
 // pick a model of a kind for traffic, weighted by traffic.weight
 export function pickTrafficModel(kind) {

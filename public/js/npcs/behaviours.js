@@ -169,7 +169,7 @@ export const BEHAVIOURS = {
   // sitting on a vehicle that steers itself; a wounded rider guns it
   ride: {
     update() {},
-    onHurt(n) { if (n.vehicle) n.vehicle.top = Math.min(24, n.vehicle.H.boostTop); },
+    onHurt(n) { if (n.vehicle) n.vehicle.top = Math.min(24, n.vehicle.H.boostTop ?? 24); },
   },
 };
 
