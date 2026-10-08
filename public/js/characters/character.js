@@ -29,6 +29,14 @@ export function gunGeo(id) {
   if (id === 'minigun') { box(g, 0.22, 0.5, 0.22, 0, -0.12, 0.1, '#5b5d66'); for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; box(g, 0.04, 0.55, 0.04, Math.cos(a) * 0.06, -0.62, 0.1 + Math.sin(a) * 0.06, dark); } box(g, 0.06, 0.1, 0.18, 0, 0.05, 0.25, dark); muzzle = -0.9; }
   if (id === 'rpg') { box(g, 0.15, 0.95, 0.15, 0, -0.15, 0.13, '#5b6a3a'); box(g, 0.2, 0.12, 0.2, 0, -0.64, 0.13, '#3f4a28'); box(g, 0.05, 0.1, 0.16, 0, 0.0, 0.0, dark); muzzle = -0.7; }
   if (id === 'sniper') muzzle = sniperGeo(g, dark);
+  // the aliens' laser rifle: a pale grey body with a glowing green power cell, a ribbed emitter and a green lens
+  if (id === 'laser') {
+    const shell = '#c9ced8', glow = '#6dff8a';
+    box(g, 0.08, 0.46, 0.11, 0, -0.12, 0.07, shell); box(g, 0.065, 0.24, 0.13, 0, 0.21, 0.04, shell); box(g, 0.05, 0.08, 0.16, 0, 0.0, -0.03, '#3a3f4a');
+    box(g, 0.05, 0.16, 0.04, 0, -0.08, 0.14, glow);
+    for (const y of [-0.38, -0.44, -0.5]) box(g, 0.1, 0.025, 0.1, 0, y, 0.08, '#8a90a0');
+    box(g, 0.05, 0.16, 0.05, 0, -0.47, 0.08, '#3a3f4a'); box(g, 0.06, 0.02, 0.06, 0, -0.56, 0.08, glow); muzzle = -0.57;
+  }
   // a fireman's hose nozzle: a red coupling at the hose end, the brass pipe with its pistol grip and the tip
   if (id === 'nozzle') { box(g, 0.09, 0.09, 0.09, 0, 0.03, 0.07, '#c8141e'); box(g, 0.065, 0.24, 0.065, 0, -0.12, 0.07, '#c9a24a'); box(g, 0.045, 0.08, 0.045, 0, -0.27, 0.07, '#e0bf6a'); box(g, 0.035, 0.1, 0.1, 0, -0.06, 0.0, '#2a2a30'); muzzle = -0.31; }
   // thrown weapons sit in the hand: a ribbed olive grenade with its lever and ring, a bottle with a burning rag
@@ -103,7 +111,8 @@ export function makeCharacter(L) {
   box(hg, 0.14, 0.12, 0.14, 0, 0.04, 0, skin);
   box(hg, 0.3, 0.32, 0.29, 0, 0.24, 0, skin);
   box(hg, 0.06, 0.05, 0.05, 0, 0.21, 0.16, skin);
-  if (L.glasses) box(hg, 0.27, 0.06, 0.03, 0, 0.27, 0.15, '#0c0c12');
+  if (L.alienEyes) { box(hg, 0.11, 0.1, 0.03, 0.075, 0.28, 0.15, '#050508'); box(hg, 0.11, 0.1, 0.03, -0.075, 0.28, 0.15, '#050508'); }
+  else if (L.glasses) box(hg, 0.27, 0.06, 0.03, 0, 0.27, 0.15, '#0c0c12');
   else { box(hg, 0.05, 0.04, 0.02, 0.07, 0.27, 0.148, '#1a1222'); box(hg, 0.05, 0.04, 0.02, -0.07, 0.27, 0.148, '#1a1222'); }
   box(hg, 0.1, 0.025, 0.02, 0, 0.14, 0.148, '#8a3a3a');
   const hs = L.hairStyle;
@@ -117,6 +126,8 @@ export function makeCharacter(L) {
   // a fire helmet: a dome with a wide brim, longer at the back, and a white shield on the front
   if (L.hat === 'fire') { box(hg, 0.36, 0.2, 0.36, 0, 0.43, -0.01, L.hatColor); box(hg, 0.44, 0.03, 0.52, 0, 0.33, -0.05, L.hatColor); box(hg, 0.14, 0.13, 0.03, 0, 0.47, 0.19, '#f2efe6'); }
   if (L.hat === 'helmet') { box(hg, 0.36, 0.2, 0.36, 0, 0.42, -0.01, L.hatColor); box(hg, 0.37, 0.06, 0.04, 0, 0.33, 0.17, L.hatColor); }
+  // two stalks with glowing green tips (the aliens)
+  if (L.antennae) for (const s of [1, -1]) { box(hg, 0.03, 0.2, 0.03, s * 0.08, 0.5, -0.02, L.skin); box(hg, 0.06, 0.06, 0.06, s * 0.08, 0.62, -0.02, '#6dff8a'); }
   const head = new THREE.Mesh(hg.geometry(), charMat); head.position.y = 1.5; body.add(head);
   if (L.scale) root.scale.setScalar(L.scale);
   return { root, body, legL, legR, armL, armR, head, gunHolder, gun: null, gunId: null, shadow: sh, legGeo, look: L };

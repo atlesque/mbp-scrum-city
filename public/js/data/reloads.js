@@ -10,6 +10,7 @@ export const RELOADS = {
   minigun: { anim: 'box', sound: 'reload-minigun' },
   rpg: { anim: 'tube', sound: 'reload-rpg' },
   sniper: { anim: 'bolt', sound: 'reload-sniper' },
+  laser: { anim: 'mag', sound: 'reload-smg' }, // a power cell slapped in like a magazine
 };
 export const SFX_DIR = '/sfx/';
 export const reloadOf = id => RELOADS[id] || { anim: 'mag', sound: null };

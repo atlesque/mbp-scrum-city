@@ -9,6 +9,7 @@ export const MUSIC_LAYERS = {
   lead: 3,   // the hook melody
   drive: 4,  // sixteenth hats, open hats, claps and an octave-jumping bass
   chase: 5,  // crash, tom fills, stabs and the lead doubled an octave up
+  theremin: 6, // the secret sixth star: a warbling sci-fi sine gliding over the chords
 };
 export const MAX_INTENSITY = Math.max(...Object.values(MUSIC_LAYERS));
 // the set of layers playing at a wanted level

@@ -27,6 +27,7 @@ export function drawWeaponIcon() {
     katana: [[-112, -7, 64, 15], [-48, -16, 8, 32], [-40, -5, 150, 11], [110, -3, 6, 7]],
     chainsaw: [[-100, -24, 70, 44], [-96, -36, 46, 12], [-30, -12, 140, 20], [-104, 20, 30, 10]],
     grenade: [[-30, -24, 60, 64], [-36, -12, 72, 10], [-36, 10, 72, 10], [-12, -40, 24, 18], [12, -36, 14, 50], [-30, -52, 16, 14]],
+    laser: [[-96, -16, 150, 24], [-20, 8, 16, 34], [-104, -10, 30, 28], [54, -12, 40, 16], [94, -8, 14, 8], [-50, -26, 50, 10]],
     molotov: [[-28, -10, 56, 60], [-12, -36, 24, 28], [-8, -50, 16, 16], [-4, -64, 14, 16]],
   };
   for (const s of shapes[id]) { x.strokeRect(s[0], s[1], s[2], s[3]); }
@@ -44,7 +45,7 @@ export function updateHUD() {
     $('arNum').textContent = Math.ceil(P.armor); $('arFill').style.width = clamp(P.armor, 0, 100) + '%';
     $('money').textContent = '$' + String(Math.max(0, inv.money)).padStart(8, '0');
     [...$('stars').children].forEach((s, i) => s.classList.toggle('on', i < G.wanted));
-    const radar = $('radarWrap'); radar.style.setProperty('--heat', RADAR_GLOW[G.wanted] || 0); radar.classList.toggle('pulse', G.wanted >= RADAR_PULSE_FROM);
+    const radar = $('radarWrap'); radar.style.setProperty('--heat', RADAR_GLOW[G.wanted] || 0); radar.classList.toggle('pulse', G.wanted >= RADAR_PULSE_FROM); radar.classList.toggle('alien', G.wanted >= 6);
   }
   const v = P.vehicle, mph = settings.units === 'mph', spd = v ? Math.round(Math.abs(v.v) * (mph ? 2.237 : 3.6)) : -1, sk = spd + settings.units;
   const shown = hintShown() && $('settings').hidden, paused = G.state === 'paused', hk = `${shown}${!!v}${paused}`;

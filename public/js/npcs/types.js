@@ -12,6 +12,7 @@ import { HAIR, SKIN, randomLook } from '../characters/character.js';
 //   radar      blip colour, or 'siren' for flashing red and blue; omit to stay off the radar
 //   despawn    distance from the player at which they are cleared away
 //   boss       too tough to go down to one blow from a weapon that kills outright (the fire axe)
+//   leaveBelow  walk off once the wanted level drops under this many stars (the aliens only stay for the sixth)
 //   fightBack  chance that someone the player punches (and doesn't knock down) squares up and punches back, for punch damage
 // Armed types also set gun, dmg, rate (seconds between bursts), burst, gap (seconds within a burst),
 // acc (hit chance), range and speed. rocket: true fires slow rockets instead (dmg is the blast's), and
@@ -33,6 +34,9 @@ export const NPC_TYPES = {
     look: { shirt: '#5d6b3c', pants: '#4c5732', hat: 'helmet', hatColor: '#4a5530', vest: '#3e4728', longSleeve: true, shoes: '#2a2418' } },
   jugg: { name: 'Juggernaut', faction: 'law', boss: true, behaviour: 'hunt', hp: 1600, speed: 3.0, gun: 'rpg', rocket: true, dmg: 60, rate: 3.4, burst: 1, gap: 0.2, acc: 0.45, range: 50, minRange: 14, cash: 3000, drops: { armor: 1, ammo: 1 }, weaponDrops: { minigun: 1 }, heat: 12, scale: 1.32, bigFlash: true, radar: '#ff3b4e', despawn: 130,
     look: { shirt: '#2b302b', pants: '#222622', hat: 'helmet', hatColor: '#1a1d1a', vest: '#3a403a', glasses: true, longSleeve: true, gloves: '#111' } },
+  // the secret sixth star: beamed down from the UFO (vehicles/ufo.js), they hunt with laser rifles and often drop one
+  alien: { name: 'Alien', faction: 'law', behaviour: 'hunt', hp: 280, speed: 5.4, gun: 'laser', dmg: 8, rate: 1.3, burst: 3, gap: 0.16, acc: 0.42, range: 52, cash: 1200, drops: { armor: 0.6, ammo: 0.8 }, weaponDrops: { laser: 0.5 }, heat: 10, radar: '#6dff8a', despawn: 140, leaveBelow: 6,
+    look: { skin: '#8fdc6e', shirt: '#c9ced8', pants: '#aab1be', hairStyle: 'bald', alienEyes: true, antennae: true, longSleeve: true, gloves: '#3a3f4a', shoes: '#3a3f4a' } },
 };
 
 // a plain base that uniforms are laid over

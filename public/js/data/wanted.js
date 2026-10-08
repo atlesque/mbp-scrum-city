@@ -4,10 +4,14 @@ export const WANTED = [null,
   { max: 7, every: 3.2, mix: [['cop', 0.45], ['swat', 0.55]], cars: true },
   { max: 9, every: 2.6, mix: [['swat', 0.45], ['fbi', 0.55]], cars: true, heli: true },
   { max: 10, every: 2.2, mix: [['fbi', 0.3], ['army', 0.55], ['jugg', 0.15]], cars: true, heli: true, tank: true },
+  // the secret sixth star: everything five stars sends, plus a UFO that beams down aliens (vehicles/ufo.js)
+  { max: 10, every: 2.2, mix: [['fbi', 0.3], ['army', 0.55], ['jugg', 0.15]], cars: true, heli: true, tank: true, ufo: true },
 ];
-export const HEAT = [0, 1, 10, 25, 50, 90];
-// strength (0..1) of the red inner glow on the minimap at each star level; none at zero stars
-export const RADAR_GLOW = [0, 0.3, 0.45, 0.62, 0.8, 1];
+// heat needed for each star; no amount of heat reaches the sixth, only holding five for SIX_STAR_AFTER seconds does
+export const HEAT = [0, 1, 10, 25, 50, 90, Infinity];
+export const SIX_STAR_AFTER = 300;
+// strength (0..1) of the red inner glow on the minimap at each star level; none at zero stars. The sixth turns it green.
+export const RADAR_GLOW = [0, 0.3, 0.45, 0.62, 0.8, 1, 1];
 // the glow pulses from this star level up
 export const RADAR_PULSE_FROM = 4;
 // highest star level whose heat threshold has been reached

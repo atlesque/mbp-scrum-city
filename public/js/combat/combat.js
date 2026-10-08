@@ -44,7 +44,7 @@ export function playerShoot() {
   const dir = new THREE.Vector3(Math.sin(cam.yaw) * Math.cos(cam.pitch), Math.sin(cam.pitch), Math.cos(cam.yaw) * Math.cos(cam.pitch));
   const origin = camTarget.clone();
   const spreadMul = (P.moveSpeed > 6 ? 2 : P.moveSpeed > 1 ? 1.4 : 1) * (I.mouseR ? 0.55 : 1) * (P.grounded ? 1 : 1.6), spread = G.scope ? w.scopeSpread : w.spread;
-  Sound.shot(w.id, 1, 0); muzzleFlash(muz, w.id === 'shotgun' || w.id === 'rpg');
+  Sound.shot(w.id, 1, 0); if (w.laser) emit(muz.x, muz.y, muz.z, 3, '#6dff8a', 2, 0.15, 0.06); else muzzleFlash(muz, w.id === 'shotgun' || w.id === 'rpg');
   cam.pitch = clamp(cam.pitch + w.recoil * (0.6 + Math.random() * 0.6), PITCH_MIN, 1.2); cam.yaw += (Math.random() - 0.5) * w.recoil * 0.6; cam.shake = Math.max(cam.shake, w.recoil * 2.2);
   if (w.rocket) {
     const tgt = castShot(origin, dir, 300).p, rd = tgt.clone().sub(muz).normalize();
@@ -55,7 +55,7 @@ export function playerShoot() {
       const sp = spread * spreadMul;
       _d.copy(dir).add(new THREE.Vector3(rnd(-sp, sp), rnd(-sp, sp), rnd(-sp, sp))).normalize();
       const h = castShot(origin, _d, w.range);
-      tracer(muz, h.p, false);
+      tracer(muz, h.p, false, w.laser);
       if (h.kind === 'entity') { const r = h.entity.onShot(h, st.dmg, _d); hitAny = true; if (r && r.head) headAny = true; }
       else if (h.kind !== 'none') emit(h.p.x, h.p.y, h.p.z, 3, h.kind === 'ground' ? '#c8b8a8' : '#f4e8f0', 3, 0.35, 0.07);
     }
