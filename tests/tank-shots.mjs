@@ -21,7 +21,7 @@ const stage = (x, z, yaw, ahead, side = 4, look = 0.3) => game(async ([x, z, yaw
   removeTank(null, true); G.heat = 100; G.wanted = 5; G.spawnT = 99; G.heliT = 999;
   const fx = Math.sin(yaw), fz = Math.cos(yaw);
   P.x = x + fx * ahead + fz * side; P.z = z + fz * ahead - fx * side; P.hp = 100; P.armor = 100;
-  for (const e of all()) if ((e.kind === 'npc' && e.faction === 'law') || (e.kind === 'vehicle' && e.model.police)) removeEntity(e);
+  for (const e of all()) if ((e.kind === 'npc' && e.faction === 'law') || (e.kind === 'vehicle' && (e.model.police || e.model.army))) removeEntity(e);
   const t = window.__tank = spawnTank();
   Object.assign(t, { x, z, yaw, dirX: Math.round(fx), dirZ: Math.round(fz), toX: x + Math.round(fx) * 50, toZ: z + Math.round(fz) * 50, turretYaw: yaw, aimYaw: yaw });
   cam.yaw = P.yaw = Math.atan2(t.x - P.x, t.z - P.z) + look; cam.pitch = 0.02; G.bigT = 0;

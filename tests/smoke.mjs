@@ -334,7 +334,7 @@ try {
     check(await until(() => !__neonbay.P.vehicle), 'F did not get the player off');
     await game(() => { // and call off the police the jacking brought
       const { G, all, removeEntity } = __neonbay; removeEntity(__jack); removeEntity(__jacked); G.heat = 0; G.wanted = 0;
-      for (const e of all()) if ((e.kind === 'npc' && e.def.faction === 'law') || (e.kind === 'vehicle' && e.model.police)) removeEntity(e);
+      for (const e of all()) if ((e.kind === 'npc' && e.def.faction === 'law') || (e.kind === 'vehicle' && (e.model.police || e.model.army))) removeEntity(e);
     });
   });
 
@@ -755,7 +755,9 @@ try {
 
   await step('survives a five-star chase', async () => {
     await game(() => { const { G, P } = __neonbay; G.heat = 100; G.wanted = 5; G.spawnT = 0; G.heliT = 0; P.hp = 100; });
-    check(await until(() => __neonbay.all('npc').some(n => n.faction === 'law' && n.alive) && __neonbay.all('vehicle').some(v => v.model.police), undefined, 40000), 'the law never showed up');
+    check(await until(() => __neonbay.all('npc').some(n => n.faction === 'law' && n.alive) && __neonbay.all('vehicle').some(v => v.model.police || v.model.army), undefined, 40000), 'the law never showed up');
+    // the army comes in its own trucks, and soldiers get out of them
+    check(await until(() => __neonbay.all('npc').some(n => (n.type === 'army' || n.type === 'jugg') && __neonbay.all('vehicle').some(v => v.model.army && v.mode === 'parked' && Math.hypot(v.x - n.x, v.z - n.z) < 7)), undefined, 40000), 'no soldiers got out of an army truck');
     check(await until(() => !!__neonbay.G.heli, undefined, 20000), 'no helicopter at five stars');
     check(await until(() => !__neonbay.Sound.ready || __neonbay.Sound.intensity === 5), 'the music never reached five-star intensity');
     check(await until(() => __neonbay.Sound.voices().rotor === 1), 'the chopper makes no sound');
@@ -786,6 +788,8 @@ try {
     await clearVehicles(0, -75);
     await game(() => {
       const { G, P, all, removeEntity } = __neonbay, t = window.__tank = G.tank;
+      G.spawnT = 999; // no police car or army truck rolling into the line of fire mid-step
+      for (const v of all('vehicle')) if ((v.model.police || v.model.army) && Math.abs(v.x) < 6 && v.z > -150 && v.z < -30) removeEntity(v);
       P.x = 0; P.z = -60; P.y = 0; P.hp = 100; P.armor = 0;
       for (const n of all('npc')) if (Math.hypot(n.x, n.z + 75) < 25) removeEntity(n);
       Object.assign(t, { x: 0, z: -90, yaw: 0, dirX: 0, dirZ: 1, toX: 0, toZ: -50, v: 0, turretYaw: 0, aimYaw: 0, reloadT: 0 });

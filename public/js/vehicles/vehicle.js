@@ -160,7 +160,7 @@ const Vehicle = {
     if (this.driver === P) return false;
     const d = Math.hypot(this.x - P.x, this.z - P.z);
     if (this.dead) return (this.deadT > 30 && d > 40) || d > 150;
-    if (this.model.police && d > 150) return true;
+    if (answersHeat(this) && d > 150) return true;
     if (this.mode === 'traffic') return d > this.K.trafficDespawn;
     return !this.home && d > 260;
   },
@@ -200,6 +200,8 @@ export function spawnVehicle(model, x, z, yaw, mode = 'parked') {
 }
 
 export const vehicles = () => all('vehicle');
+// a police car or army truck sent after the player: it leaves with the heat
+export const answersHeat = v => v.kind === 'vehicle' && !!(v.model.police || v.model.army);
 
 // ---- sirens ----
 // Police cars and the fire truck (models with `siren`) have a siren and flashing lights. A police car out on its own

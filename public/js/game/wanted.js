@@ -1,23 +1,38 @@
 import { Sound } from '../core/audio.js';
 import { emit } from '../core/events.js';
 import { at } from '../core/spatial.js';
-import { G, stats } from '../core/state.js';
+import { G, P, stats } from '../core/state.js';
 import { $ } from '../core/util.js';
-import { HEAT, SIX_STAR_AFTER, WANTED, heatToLevel, mixPick } from '../data/wanted.js';
-import { all, count } from '../entities/registry.js';
+import { HEAT, SIX_STAR_AFTER, WANTED, footMix, heatToLevel, mixPick, pickRide } from '../data/wanted.js';
+import { all, count, removeEntity } from '../entities/registry.js';
 import { findSpot, spawnNpc } from '../npcs/npc.js';
 import { showBig } from '../ui/hud.js';
 import { spawnHeli } from '../vehicles/heli.js';
 import { spawnTank } from '../vehicles/tank.js';
 import { spawnUfo } from '../vehicles/ufo.js';
-import { spawnPoliceCar } from '../vehicles/traffic.js';
-import { sirenOn } from '../vehicles/vehicle.js';
+import { spawnResponder } from '../vehicles/traffic.js';
+import { answersHeat, sirenOn } from '../vehicles/vehicle.js';
 
 // ================= WANTED =================
 const LEVEL_TEXT = ['', 'The cops noticed', 'Police are rolling', 'SWAT has been called', 'The Feds are here', 'They sent the army', 'They are not from here'];
 
 const isLaw = e => e.kind === 'npc' && e.faction === 'law';
-const isPolice = e => e.kind === 'vehicle' && e.model.police;
+// at most this many police cars and army trucks on their way at once, and around at all (parked ones included)
+export const RESPONDERS = { enRoute: 2, max: 5 };
+
+// send the next police car or army truck, depending on who the level calls in (see RIDES in data/wanted.js). When there
+// are too many about already, an empty one parked well away from the player makes room; without that, nothing comes.
+export function sendResponder(L) {
+  const live = all('vehicle').filter(v => answersHeat(v) && !v.dead);
+  if (live.filter(v => v.mode === 'respond').length >= RESPONDERS.enRoute) return null;
+  if (live.length >= RESPONDERS.max) {
+    const spare = live.filter(v => v.mode === 'parked' && !v.driver && Math.hypot(v.x - P.x, v.z - P.z) > 40)
+      .sort((a, b) => Math.hypot(b.x - P.x, b.z - P.z) - Math.hypot(a.x - P.x, a.z - P.z))[0];
+    if (!spare) return null;
+    removeEntity(spare);
+  }
+  return spawnResponder(pickRide(L.mix)) || null;
+}
 
 export function addHeat(v) {
   G.heat = Math.min(140, G.heat + v); G.lostT = 0;
@@ -56,8 +71,9 @@ export function updateWanted(dt) {
     if (L && G.spawnT <= 0 && alive < L.max) {
       G.spawnT = L.every;
       G.copCarT -= L.every;
-      if (L.cars && G.copCarT <= 0 && count(e => isPolice(e) && !e.dead) < 3) { spawnPoliceCar(); G.copCarT = 10; }
-      else { const s = findSpot(48, 78, true, true); if (s) spawnNpc(mixPick(L.mix), s.x, s.z); }
+      // a police car or army truck when one is due; otherwise someone walks in, never a soldier (they only come by truck)
+      if (L.cars && G.copCarT <= 0 && sendResponder(L)) G.copCarT = L.carEvery || 10;
+      else { const mix = footMix(L.mix), s = mix && findSpot(48, 78, true, true); if (s) spawnNpc(mixPick(mix), s.x, s.z); }
     }
     if (L && L.heli && !G.heli) { G.heliT -= dt; if (G.heliT <= 0) spawnHeli(); }
     if (L && L.tank && !G.tank) { G.tankT -= dt; if (G.tankT <= 0) spawnTank(); }
