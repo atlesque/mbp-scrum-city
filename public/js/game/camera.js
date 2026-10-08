@@ -8,7 +8,9 @@ import { sweepHit } from '../world/collision.js';
 // lifting only as far as it takes to get minArm of room.
 export const CAM_R = 0.3;
 export const LIFTS = [0, 0.3, 0.6, 0.9, 1.2, 1.4]; // radians the arm may swing up, tried in order
-const MAX_LIFTED = -1.4; // the steepest the arm may hang, looking down on the player
+// how far the view tilts: down to nearly straight at the player's feet (to shoot what's below, say from the jetpack), and up
+export const PITCH_MIN = -1.45, PITCH_MAX = 1.15;
+const MAX_LIFTED = PITCH_MIN; // the steepest the arm may hang, looking down on the player; as steep as the aim, so the crosshair stays on the shot line
 let extra = null; // a rooftop's hut and air-con units while the player is up there
 export function cameraRoof(roof) { extra = roof ? roof.blocks : null; }
 const EASE_OUT = 5, EASE_LIFT = 4, EASE_SIDE = 5; // per second

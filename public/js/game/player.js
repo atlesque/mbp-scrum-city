@@ -25,7 +25,7 @@ import { SPAWN } from '../world/city.js';
 import { collide, wallHit } from '../world/collision.js';
 import { collideRoofs, surfaceAt } from '../world/rooftops.js';
 import { BAIL, bailDamage, bailLaunch, tumbleStep } from './bailout.js';
-import { cameraRoof, stepArm, stepShoulder } from './camera.js';
+import { PITCH_MAX, PITCH_MIN, cameraRoof, stepArm, stepShoulder } from './camera.js';
 import { JET, jetFx, jetStep, refuel, takeOffJetpack } from './jetpack.js';
 import { updateInteraction } from './interact.js';
 
@@ -37,7 +37,7 @@ export function updatePlayer(dt) {
   // through the scope the mouse slows with the zoom, so the crosshair moves as far on screen as it does unzoomed
   const sens = (G.scope ? 0.0022 * scopeFov(1, G.scope) : I.mouseR ? 0.0013 : 0.0022) * settings.sensitivity, sensY = settings.invertY ? -sens : sens;
   if (I.mouseDX || I.mouseDY) P.lookT = G.time;
-  cam.yaw -= I.mouseDX * sens; cam.pitch = clamp(cam.pitch - I.mouseDY * sensY, -1.0, 1.15); I.mouseDX = I.mouseDY = 0;
+  cam.yaw -= I.mouseDX * sens; cam.pitch = clamp(cam.pitch - I.mouseDY * sensY, PITCH_MIN, PITCH_MAX); I.mouseDX = I.mouseDY = 0;
   const aimingNow = I.mouseR || G.scope > 0 || I.mouseL || I.clickQ > 0 || G.time - P.lastShot < 0.7;
   P.aiming = aimingNow;
   P.aimPitch = cam.pitch;
