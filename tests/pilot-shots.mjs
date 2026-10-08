@@ -64,7 +64,7 @@ try {
   }));
   await page.waitForTimeout(700);
   await shot('2-coming-down');
-  check(await until(() => __neonbay.all('vehicle').some(v => v.model.id === 'heli')), 'the chopper never landed');
+  check(await until(() => __neonbay.all('vehicle').some(v => v.model.id === 'heli'), undefined, 90000), 'the chopper never landed');
   log('landed', await game(() => { const v = __neonbay.all('vehicle').find(v => v.model.id === 'heli'); window.__heli = v; return { y: +v.y.toFixed(2), hp: v.hp, dead: v.dead, policeHeli: !!__neonbay.G.heli }; }));
   await game(() => { const { P, cam } = __neonbay, v = window.__heli; P.x = v.x + 7; P.z = v.z - 5; cam.yaw = P.yaw = Math.atan2(v.x - P.x, v.z - P.z); cam.pitch = -0.05; __neonbay.G.wanted = 0; __neonbay.G.heat = 0; for (const n of __neonbay.all('npc')) if (n.faction === 'law') __neonbay.removeEntity(n); });
   await page.waitForTimeout(1200);

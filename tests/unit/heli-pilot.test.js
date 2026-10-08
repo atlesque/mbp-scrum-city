@@ -132,11 +132,13 @@ describe('flying it', () => {
     for (let t = 0; t < 5; t += DT) w.update(DT);
     expect(w.dead).toBe(false); expect(w.y).toBe(0);
   });
-  it('can only be got into from close by and on the same level', () => {
+  it('can only be got into from close by, on the same level, standing on its skids', () => {
     P.x = 2.5; P.z = 0; P.y = 0;
     expect(v.interaction(P)).not.toBeNull();
     P.y = 6; expect(v.interaction(P)).toBeNull();
     P.y = 0; P.x = 8; expect(v.interaction(P)).toBeNull();
+    // not in mid-air, from a parachute drifting past it
+    v.y = P.y = 40; v.landed = false; P.x = 2.5; expect(v.interaction(P)).toBeNull();
   });
   it('shots and blasts land on the chopper, not on the player flying it', () => {
     P.hp = 100; enterVehicle(v);

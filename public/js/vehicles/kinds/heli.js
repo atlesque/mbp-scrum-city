@@ -171,7 +171,8 @@ export const heli = {
   },
   // people and cars walk round a chopper standing in the street; one in the air or up on a roof is out of their way
   pushOut(v, o, r) { return v.y < 1 && pushOutSeg(o, r + 0.9, v.x, v.z, v.yaw, -5.2, 2.4); },
-  reach(v, p) { return Math.abs((p.y || 0) - v.y) > 2 ? Infinity : Math.max(0, Math.hypot(p.x - v.x, p.z - v.z) - 1.6); },
+  // only boarded standing on its skids: not in mid-air, say from under a parachute next to it
+  reach(v, p) { return !v.landed || Math.abs((p.y || 0) - v.y) > 2 ? Infinity : Math.max(0, Math.hypot(p.x - v.x, p.z - v.z) - 1.6); },
   knock(v, vx, vz, up) { v.vx = (v.vx || 0) + vx * 0.3; v.vz = (v.vz || 0) + vz * 0.3; if (!v.landed || up > 2) { v.vy = (v.vy || 0) + up * 0.3; v.landed = false; } },
   onDriverGone(v) { v.mode = 'parked'; },
   // taking the seat: the dead pilot is pulled out, the guns are loaded, and a parachute comes with the job
