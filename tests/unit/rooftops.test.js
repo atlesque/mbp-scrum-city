@@ -79,13 +79,16 @@ describe('standing on roofs', () => {
 });
 
 describe('jetpack', () => {
-  it('climbs on fuel, then lets the wearer down gently', () => {
+  it('climbs on fuel, then falls at plain gravity with the jets off', () => {
     const jet = { fuel: JET.fuel };
     let vy = 0; for (let i = 0; i < 60; i++) vy = jetStep(jet, vy, true, 1 / 60, 18);
     expect(vy).toBeGreaterThan(0); expect(vy).toBeLessThanOrEqual(JET.climb);
     expect(jet.fuel).toBeCloseTo(JET.fuel - 1);
-    for (let i = 0; i < 300; i++) vy = jetStep(jet, vy, false, 1 / 60, 18);
-    expect(vy).toBe(-JET.sink); expect(landDamage(vy)).toBe(0);
+    const top = vy; for (let i = 0; i < 120; i++) vy = jetStep(jet, vy, false, 1 / 60, 18);
+    expect(vy).toBeCloseTo(top - 36); // 2 s of 18 m/s², no gentle sink
+    expect(landDamage(vy)).toBeGreaterThan(0);
+    const falling = vy; for (let i = 0; i < 60; i++) vy = jetStep(jet, vy, true, 1 / 60, 18);
+    expect(vy).toBeCloseTo(falling + 12); // jets on brake the fall at thrust minus gravity
     jet.fuel = 0; vy = jetStep(jet, 0, true, 1 / 60, 18);
     expect(vy).toBeLessThan(0); // empty: no climb
     refuel(jet, 100); expect(jet.fuel).toBe(JET.fuel);
