@@ -819,7 +819,12 @@ try {
   });
 
   await step('six stars after five minutes at five: a UFO beams down aliens with laser rifles', async () => {
-    await game(() => { const { G, P } = __neonbay; G.heat = 100; G.wanted = 5; G.fiveT = 299; G.ufoT = 0; P.hp = 100; P.armor = 100; });
+    await game(async () => {
+      const { G, P } = __neonbay, { exitVehicle } = await import('/js/game/player.js');
+      if (P.vehicle) exitVehicle(false);
+      Object.assign(P, { x: 0, z: 70, y: 0, floor: 0, roof: null, vy: 0, hp: 100, armor: 100 });
+      G.heat = 100; G.wanted = 5; G.fiveT = 299; G.ufoT = 0;
+    });
     check(await until(() => __neonbay.G.wanted === 6), 'no sixth star after five minutes at five');
     check(await game(() => document.querySelector('#stars .six').classList.contains('on') && document.getElementById('radarWrap').classList.contains('alien')), 'the HUD shows no green sixth star');
     check(await until(() => !!__neonbay.G.ufo, undefined, 20000), 'no UFO at six stars');
@@ -827,7 +832,9 @@ try {
     // bring it in over the player so it starts lowering its crew
     await game(() => { const { G, P } = __neonbay, u = G.ufo; Object.assign(u, { x: P.x + Math.cos(u.ang) * 20, z: P.z + Math.sin(u.ang) * 20, y: 24, dropT: 0 }); });
     check(await until(() => __neonbay.G.ufo.beamT > 0 && __neonbay.all('npc').some(n => n.type === 'alien'), undefined, 30000), 'the UFO beamed nobody down');
-    check(await until(() => __neonbay.all('npc').some(n => n.type === 'alien' && n.alive && n.behaviour === 'hunt' && !n.y), undefined, 40000), 'no alien landed');
+    // frames are slow here: skip most of the way down the beam
+    await game(() => { for (const n of __neonbay.all('npc')) if (n.type === 'alien' && n.y > 1) n.y = 1; });
+    check(await until(() => __neonbay.all('npc').some(n => n.type === 'alien' && n.alive && n.behaviour === 'hunt' && !n.y), undefined, 30000), 'no alien landed');
     // take one down: it drops its laser rifle, and walking over it picks it up for key 0
     await game(() => {
       const { P } = __neonbay, n = __neonbay.all('npc').find(n => n.type === 'alien' && n.alive && n.behaviour === 'hunt');
