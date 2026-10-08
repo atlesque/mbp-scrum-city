@@ -46,6 +46,8 @@ export const THROWN = { v: 8, down: 2.6, carry: 0.4 };
 //   wheelie                  how a bike lifts its front wheel with the wheelie key (see wheelie() below)
 //   camera                   chase distance, aiming distance and eye height
 //   verb, tip(M)             'ride' or 'drive', and the first-time help toast
+//   sideLift                 how far a bike lying on its side is held up by what sticks out (the GS's cylinder heads)
+//   lane, lamp               traffic lane offset; a single headlight's height and pool (cars have two)
 //   laneHalf, trafficDespawn, ambientEngine, stopsWhileBurning
 //   enclosed, occupantHit    riders sit inside (cars): bullets through the windows reach them via occupantHit(v, o, d, maxT)
 
@@ -69,6 +71,9 @@ export const bike = {
   // and a wheelie held for `brag` seconds gets a toast with its time and distance when the front comes down.
   wheelie: { min: 4, pop: 0.3, ride: 0.6, boost: 1.4, max: 1.15, rate: 1.6, fall: 9, brake: 3, steer: 0.6, brag: 2 },
   camera: { dist: 6.2, aimDist: 3.4, height: 1.95, fovPerSpeed: 0.35, minArm: 2.2 }, // minArm: see game/camera.js
+  lane: 3, // how far right of the road's middle it rides in traffic (vehicles/traffic.js laneFor)
+  lamp: { y: 1.05, pool: 0.7 }, // one headlight this high, its pool on the road this wide (render/lighting.js)
+  sideLift: 0.6, // lying on its side it rests up on the engine, this far out
   laneHalf: 1.4, trafficDespawn: 170, reachMax: 2.8, ambientEngine: true, jack: 'shove the rider off',
   tip: M => `${M.name}. <em>${kb('forward')}</em>/<em>${kb('back')}</em> throttle and brake, <em>${kb('left')}</em>/<em>${kb('right')}</em> lean, <em>${kb('sprint')}</em> boost, <em>${kb('jump')}</em> rear brake, <em>${kb('wheelie')}</em> wheelie, <em>${kb('ride')}</em> to get off. Guns still work.`,
 
@@ -96,7 +101,7 @@ export const bike = {
     m.grp.position.set(b.x + fx * d, y, b.z + fz * d); m.grp.rotation.set(a, b.yaw, 0, 'YXZ');
     // the shadow stays flat on the road under the middle of the bike, whatever the wheelie
     const sy = b.hR + 0.03 - y, sz = -d; m.shadow.position.set(0, sy * ca + sz * sa, -sy * sa + sz * ca); m.shadow.rotation.x = b.pop || 0;
-    m.lean.rotation.z = b.lean; m.lean.position.y = clamp(Math.abs(b.lean) - 0.75, 0, 0.6) * 0.75; // rest on the cylinder head when down
+    m.lean.rotation.z = b.lean; m.lean.position.y = clamp(Math.abs(b.lean) - 0.75, 0, b.K.sideLift) * 0.75; // rest on the cylinder head when down
     m.steer.rotation.y = b.steer;
     spinWheels(m.wheels, rolling(b) * dt);
     m.stand.visible = b.mode === 'parked' && !b.fallen && !b.dead;
@@ -116,11 +121,12 @@ export const bike = {
     traffic(b, dt) {
       b.turnCd -= dt;
       const ox = b.x, oz = b.z;
-      followLane(b, dt, bike.traffic);
+      followLane(b, dt, b.K.traffic);
       // at a junction, sometimes swing onto the crossing road's lane
       if (b.turnCd <= 0 && b.v > 3) turn: {
-        if (b.dirZ) { for (const r of TURN_Z) for (const t of [1, -1]) { const lz = r + 3 * t; if ((oz - lz) * (b.z - lz) < 0 && Math.random() < 0.28) { b.dirX = t; b.dirZ = 0; b.z = lz; b.turnCd = 1.5; b.v *= 0.75; break turn; } } }
-        else for (const r of TURN_X) for (const t of [1, -1]) { const lx = r - 3 * t; if ((ox - lx) * (b.x - lx) < 0 && Math.random() < 0.28) { b.dirX = 0; b.dirZ = t; b.x = lx; b.turnCd = 1.5; b.v *= 0.75; break turn; } }
+        const L = b.K.lane;
+        if (b.dirZ) { for (const r of TURN_Z) for (const t of [1, -1]) { const lz = r + L * t; if ((oz - lz) * (b.z - lz) < 0 && Math.random() < 0.28) { b.dirX = t; b.dirZ = 0; b.z = lz; b.turnCd = 1.5; b.v *= 0.75; break turn; } } }
+        else for (const r of TURN_X) for (const t of [1, -1]) { const lx = r - L * t; if ((ox - lx) * (b.x - lx) < 0 && Math.random() < 0.28) { b.dirX = 0; b.dirZ = t; b.x = lx; b.turnCd = 1.5; b.v *= 0.75; break turn; } }
       }
       keepOnGrid(b, dt);
       const ty = Math.atan2(b.dirX, b.dirZ), dyaw = Math.atan2(Math.sin(ty - b.yaw), Math.cos(ty - b.yaw));
@@ -150,12 +156,12 @@ export const bike = {
       if (!b.air && sp <= dec + 0.3) b.kvx = b.kvz = 0;
       else { const k = 1 - dec / sp; b.kvx *= k; b.kvz *= k; }
       b.x += b.kvx * dt; b.z += b.kvz * dt;
-      if (bike.collideSelf(b)) { b.kvx *= 0.4; b.kvz *= 0.4; }
+      if (b.K.collideSelf(b)) { b.kvx *= 0.4; b.kvz *= 0.4; }
       if (!b.air && sp > 2 && Math.random() < 0.7) emit(b.x + rnd(-0.5, 0.5), 0.1, b.z + rnd(-0.5, 0.5), 1, '#ffd23e', 3, 0.25, 0.05, -12, 1.5);
       if (b.air > 0) return;
     } else if (Math.abs(b.v) > 0) {
       const dec = (b.fallen ? 9 : 5) * dt; b.v = Math.abs(b.v) <= dec ? 0 : b.v - Math.sign(b.v) * dec;
-      b.x += Math.sin(b.yaw) * b.v * dt; b.z += Math.cos(b.yaw) * b.v * dt; if (bike.collideSelf(b)) b.v *= 0.5;
+      b.x += Math.sin(b.yaw) * b.v * dt; b.z += Math.cos(b.yaw) * b.v * dt; if (b.K.collideSelf(b)) b.v *= 0.5;
       if (b.fallen && Math.abs(b.v) > 2 && Math.random() < 0.7) emit(b.x + rnd(-0.5, 0.5), 0.1, b.z + rnd(-0.5, 0.5), 1, '#ffd23e', 3, 0.25, 0.05, -12, 1.5);
     } else if (b.mode === 'fallen') b.mode = 'parked';
     if (b.pop) wheelie(b, dt, {});
@@ -197,7 +203,7 @@ export const bike = {
   onDriverGone(b) { b.mode = 'fallen'; b.fallen = true; b.fallSide = Math.random() < 0.5 ? 1 : -1; },
   // side: which side the player got off (1 the exitAt side); a bike dropped at speed falls away from them
   onPlayerExit(b, crash, speed, side = 1) {
-    if (crash || speed > bike.crash.exitSpeed) { b.mode = 'fallen'; b.fallen = true; b.fallSide = -side; }
+    if (crash || speed > b.K.crash.exitSpeed) { b.mode = 'fallen'; b.fallen = true; b.fallSide = -side; }
     else { b.mode = 'parked'; b.v = 0; }
   },
   onPlayerEnter(b) { b.fallen = false; b.v = 0; b.steer = 0; b.kvx = b.kvz = 0; b.air = 0; b.pop = b.popW = 0; b.looped = false; },

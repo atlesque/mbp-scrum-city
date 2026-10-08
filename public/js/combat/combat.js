@@ -65,7 +65,10 @@ export function playerShoot() {
     if (hitAny) { G.hitT = 0.12; const ch = $('crosshair'); ch.className = headAny ? 'head' : 'hit'; headAny ? Sound.head() : Sound.hit(); }
   }
   boltOut();
-  // gunfire is a crime when people are around
+  crimeNoise();
+}
+// gunfire is a crime when people are around
+export function crimeNoise() {
   alarm(P.x, P.z, 32);
   if (G.wanted === 0 && all('npc').some(n => n.faction === 'civilian' && n.alive && !n.vehicle && Math.hypot(n.x - P.x, n.z - P.z) < 22)) addHeat(0.12);
 }

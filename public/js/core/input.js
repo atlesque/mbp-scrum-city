@@ -13,6 +13,7 @@ import { closeShop } from '../shops/shop.js';
 import { renderAccount } from '../ui/account.js';
 import { drawWeaponIcon, showRadio, toast } from '../ui/hud.js';
 import { closeSettings, settingsOpen } from '../ui/settings.js';
+import { cycleHeliGun, flyingHeli, HELI_GUN_ORDER, pickHeliGun, reloadHeliGun } from '../vehicles/heli-guns.js';
 import { closeWheel, openWheel, wheelMove, wheelOpen, wheelScroll } from '../ui/wheel.js';
 import { toggleSiren } from '../vehicles/vehicle.js';
 import { SPAWN } from '../world/city.js';
@@ -44,7 +45,7 @@ canvasEl.addEventListener('mousedown', e => {
 });
 document.addEventListener('mouseup', e => { if (e.button === 0) I.mouseL = false; if (e.button === 2) I.mouseR = false; });
 canvasEl.addEventListener('contextmenu', e => e.preventDefault());
-document.addEventListener('wheel', e => { if (G.state !== 'play') return; if (wheelOpen()) wheelScroll(e.deltaY > 0 ? 1 : -1); else cycleWeapon(e.deltaY > 0 ? 1 : -1); }, { passive: true });
+document.addEventListener('wheel', e => { if (G.state !== 'play') return; const dir = e.deltaY > 0 ? 1 : -1, h = flyingHeli(); if (wheelOpen()) wheelScroll(dir); else if (h) cycleHeliGun(h, dir); else cycleWeapon(dir); }, { passive: true });
 // keys go through the bindings in settings.binds (core/keymap.js); the number row goes by position, so it works unshifted on AZERTY too
 document.addEventListener('keydown', e => {
   const act = actionFor(e.code);
@@ -54,16 +55,18 @@ document.addEventListener('keydown', e => {
   if (G.state === 'paused') { if (e.code === 'Enter' || act === 'pause') resumeGame(); return; }
   if (G.state !== 'play') return;
   keys[e.code] = true;
-  if (act === 'reload') startReload();
+  const heli = flyingHeli(); // flying a chopper, the reload key and the number row work its guns (vehicles/heli-guns.js)
+  if (act === 'reload') { if (heli) reloadHeliGun(heli); else startReload(); }
   if ((act === 'ride' || act === 'use') && P.alive) interact(act);
   if (act === 'siren') toggleSiren();
   if (act === 'radio') { const on = Sound.toggleMusic(); showRadio(on ? 'Neon FM 86.0' : 'Radio off'); }
   if (act === 'pause' || (e.code === 'Escape' && I.noLock)) pauseGame();
   // hold for the weapon wheel (ui/wheel.js); a quick tap steps through the fists and melee weapons
-  if (act === 'melee' && !e.repeat) openWheel();
+  if (act === 'melee' && !e.repeat && !heli) openWheel();
   // 1 to 9 pick a gun, 0 the tenth (the laser rifle)
   const d = /^(?:Digit|Numpad)([0-9])$/.exec(e.code), n = d ? +d[1] || 10 : 0;
-  if (n && n <= GUNS.length) { closeWheel(false); selectWeapon(GUNS[n - 1].id); }
+  if (heli) { if (n && n <= HELI_GUN_ORDER.length) pickHeliGun(heli, HELI_GUN_ORDER[n - 1]); }
+  else if (n && n <= GUNS.length) { closeWheel(false); selectWeapon(GUNS[n - 1].id); }
 });
 document.addEventListener('keyup', e => { keys[e.code] = false; if (actionFor(e.code) === 'melee') closeWheel(true); });
 window.addEventListener('blur', () => { closeWheel(false); for (const k in keys) keys[k] = false; I.mouseL = false; I.mouseR = false; });
@@ -88,7 +91,7 @@ $('playBtn').addEventListener('click', () => {
   setTimeout(() => showRadio('Neon FM 86.0'), 600);
   if (G.firstPlay) {
     G.firstPlay = false;
-    const tips = ['Welcome to <em>Scrum City</em>. Click to grab the mouse, then <em>' + kbMove() + '</em> and aim.', 'Taking people down drops cash, and raises your <em>wanted level</em>.', 'Break line of sight with the law to make the stars flash and fade.', '<em>BMW R 1300 GS</em> and <em>Yamaha Ténéré 700 Rally</em> riders cruise the city (white dots on the radar). Knock one off and press <em>' + kb('ride') + '</em> to ride it.', 'Parked and passing cars are yours too. Walk up to one and press <em>' + kb('ride') + '</em> to drive.', 'Spend your cash at <em>Bullet Bros. Guns</em>. Follow the pink <em>$</em> on the radar.', 'Hold <em>' + kb('melee') + '</em> for the weapon wheel and point with the mouse. A quick tap puts the guns away: punch, kick, or swing whatever bat or blade you picked up.'];
+    const tips = ['Welcome to <em>Scrum City</em>. Click to grab the mouse, then <em>' + kbMove() + '</em> and aim.', 'Taking people down drops cash, and raises your <em>wanted level</em>.', 'Break line of sight with the law to make the stars flash and fade.', '<em>BMW R 1300 GS</em> and <em>Yamaha Ténéré 700 Rally</em> riders cruise the city (white dots on the radar). Knock one off and press <em>' + kb('ride') + '</em> to ride it.', 'Commuters on <em>e-steps</em> hum along by the kerb. Walk up to a slow one and press <em>' + kb('ride') + '</em> to shove the rider off and take it.', 'Parked and passing cars are yours too. Walk up to one and press <em>' + kb('ride') + '</em> to drive.', 'Spend your cash at <em>Bullet Bros. Guns</em>. Follow the pink <em>$</em> on the radar.', 'Hold <em>' + kb('melee') + '</em> for the weapon wheel and point with the mouse. A quick tap puts the guns away: punch, kick, or swing whatever bat or blade you picked up.'];
     tips.forEach((t, i) => setTimeout(() => G.state === 'play' && toast(t, 5), 400 + i * 6000));
   }
 });

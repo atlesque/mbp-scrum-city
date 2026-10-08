@@ -1,4 +1,4 @@
-// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, get shelled by the army's tank and blow it up, hold five stars into the secret sixth and take a laser rifle off an alien, snipe through the scope, throw a car with a rocket,
+// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, shoot a chopper's pilot and fly the chopper off, get shelled by the army's tank and blow it up, hold five stars into the secret sixth and take a laser rifle off an alien, snipe through the scope, throw a car with a rocket,
 // shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, ride a bike over a car, pull a wheelie, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, change settings and remap keys. Fails on any page error or broken step.
 // Run with `npm run test:smoke`, which splits the steps over a few browsers at once (tests/smoke-all.mjs). This file is one of
 // those browsers: `node tests/smoke.mjs` runs every step in one, in order.
@@ -42,9 +42,11 @@ async function reset() {
   for (const k of HELD) await page.keyboard.up(k);
   await game(async () => {
     const { G, P, I, cam, all, removeEntity } = __neonbay;
-    const { exitVehicle, respawn } = await import('/js/game/player.js'), { selectWeapon } = await import('/js/combat/combat.js');
+    const { exitVehicle, respawn } = await import('/js/game/player.js'), { selectWeapon } = await import('/js/combat/combat.js'), { dropChute } = await import('/js/game/parachute.js');
     for (const id of ['pause', 'settings', 'shop', 'wheel']) { const el = document.getElementById(id); if (el) el.hidden = true; }
+    // a step that failed part-way can leave the player at the wheel, and every step after it would fail to get on anything
     if (P.vehicle) { P.vehicle.v = 0; P.vx = P.vz = 0; exitVehicle(false); }
+    dropChute();
     P.tumble = null; P.bailFrom = null; P.alive = true; G.state = 'play'; G.shop = null;
     // respawn clears the law, the army, the chopper, the tank and the UFO, and stands the player at the spawn point
     respawn();
@@ -847,9 +849,35 @@ try {
     }
   });
 
+  await step('shoots the chopper\'s pilot, flies the chopper it leaves, and jumps out under the chute', async () => {
+    await clearVehicles(0, -75);
+    await game(async () => {
+      const { G, P } = __neonbay, H = await import('/js/vehicles/heli.js'); P.x = 0; P.z = -60; P.y = 0; P.hp = 100;
+      H.removeHeli(); H.spawnHeli(); const h = G.heli; h.x = 0; h.z = -80; h.y = 20; h.fireT = 1e9;
+      h.onShot({ occupant: true, head: true }, 999);
+    });
+    check(await until(() => __neonbay.all('vehicle').some(v => v.model.id === 'heli' && !v.dead), undefined, 60000), 'the chopper did not come down in one piece');
+    await game(() => { const { P } = __neonbay, v = __neonbay.all('vehicle').find(v => v.model.id === 'heli'); window.__heli = v; P.x = v.x + Math.cos(v.yaw) * 2.6; P.z = v.z - Math.sin(v.yaw) * 2.6; });
+    check(await until(() => /fly/.test(document.getElementById('prompt').textContent) && !document.getElementById('prompt').hidden, undefined, 8000), 'no prompt to fly the chopper');
+    await press('KeyF');
+    check(await until(() => __neonbay.P.vehicle === window.__heli), 'did not get into the chopper');
+    await page.keyboard.down('Space');
+    const up = await until(() => window.__heli.y > 8, undefined, 60000);
+    await page.keyboard.up('Space');
+    check(up, 'the chopper did not lift off');
+    await press('KeyF');
+    check(await until(() => !__neonbay.P.vehicle), 'did not jump out');
+    check(await game(() => __neonbay.P.chute && __neonbay.P.chute.open && !__neonbay.P.tumble), 'the parachute did not open by itself');
+    check(await until(() => __neonbay.P.grounded && !__neonbay.P.chute, undefined, 60000), 'never landed under the chute');
+    await game(() => __neonbay.removeEntity(window.__heli));
+  });
+
   await step('a tank rolls in with the army and shells the player', async () => {
+    // the soldiers from the steps before can have taken the player down, which clears the stars: wait out the respawn,
+    // then keep them topped up until the tank is here, so the five stars hold
+    check(await until(() => __neonbay.P.alive && __neonbay.G.state === 'play', undefined, 30000), 'the player never respawned');
     await game(() => { const { G, P } = __neonbay; G.heat = 100; G.wanted = 5; G.tankT = 0; P.hp = 100; });
-    check(await until(() => !!__neonbay.G.tank, undefined, 20000), 'no tank at five stars');
+    check(await until(() => { const { G, P } = __neonbay; P.hp = 100; P.armor = 100; G.wanted = 5; G.heat = 100; return !!G.tank; }, undefined, 20000), 'no tank at five stars');
     check(await until(() => __neonbay.Sound.voices().tank === 1), 'the tank makes no sound');
     // down an open stretch of road: the tank 30 m up it, rolling towards the player
     await clearVehicles(0, -75);
@@ -861,9 +889,16 @@ try {
       for (const n of all('npc')) if (Math.hypot(n.x, n.z + 75) < 25) removeEntity(n);
       Object.assign(t, { x: 0, z: -90, yaw: 0, dirX: 0, dirZ: 1, toX: 0, toZ: -50, v: 0, turretYaw: 0, aimYaw: 0, reloadT: 0 });
     });
-    const hurt = await until(() => __neonbay.P.hp < 100, undefined, 30000);
-    const r = await game(() => ({ hp: __neonbay.P.hp, tankHp: __tank.hp, d: Math.hypot(__tank.x - __neonbay.P.x, __tank.z - __neonbay.P.z) }));
-    check(hurt, `no tank shell hit the player (hp ${r.hp}, tank ${r.d.toFixed(1)} m away)`);
+    // a shell aimed a metre wide of the player flies on past and goes off far behind them, so one shot can miss; and at
+    // the few frames a second software WebGL manages, a 4 s reload would leave time for only one or two. Count the
+    // shots and cut each reload short, so the step waits for several shells rather than for the clock.
+    await game(() => { window.__shells = 0; });
+    const hurt = await until(() => {
+      const t = __tank; if (t.reloadT > 1) { __shells++; t.reloadT = 0.4; }
+      return __neonbay.P.hp < 100 || __shells >= 6;
+    }, undefined, 60000) && await game(() => __neonbay.P.hp < 100);
+    const r = await game(() => ({ hp: __neonbay.P.hp, tankHp: __tank.hp, d: Math.hypot(__tank.x - __neonbay.P.x, __tank.z - __neonbay.P.z), shells: __shells, los: __tank.los }));
+    check(hurt, `no tank shell hit the player (hp ${r.hp}, tank ${r.d.toFixed(1)} m away, ${r.shells} shells fired, in sight ${r.los})`);
     check(r.tankHp > 0, 'the tank was caught in its own blast');
     await game(() => { __neonbay.P.hp = 100; });
   });

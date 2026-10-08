@@ -1,21 +1,21 @@
-import { charMat } from '../characters/character.js';
 import { explosion } from '../combat/combat.js';
 import { SIGHT_EVERY, aimFalloff, newSight, reactTo } from '../combat/sight.js';
 import { Sound } from '../core/audio.js';
 import { at } from '../core/spatial.js';
-import { G, P } from '../core/state.js';
+import { G, P, cam } from '../core/state.js';
 import { angDiff, clamp, rnd } from '../core/util.js';
-import { addEntity, removeEntity } from '../entities/registry.js';
+import { addEntity, all, removeEntity } from '../entities/registry.js';
 import { reward } from '../game/pickups.js';
 import { hurtPlayer } from '../game/player.js';
 import { addHeat } from '../game/wanted.js';
-import { PGEO, emit, muzzleFlash, pmat, tracer } from '../render/effects.js';
-import { GB, box } from '../render/geometry.js';
+import { emit, muzzleFlash, tracer } from '../render/effects.js';
 import { scene } from '../render/scene.js';
 import { showBig } from '../ui/hud.js';
 import { groundAt } from '../world/city.js';
-import { blocked, raySphere, tallBoxes, wallHitFace } from '../world/collision.js';
-import { lightRed } from './materials.js';
+import { blocked, raySphere, tallBoxes } from '../world/collision.js';
+import { SKID, buildHeliMesh, makePilot, seatPilot, slump } from './heli-mesh.js';
+import { makeSearchlight, newShade, removeSearchlight, shineAt, showSearchlight } from './searchlight.js';
+import { spawnVehicle } from './vehicle.js';
 
 // ================= HELICOPTER =================
 // The 4+ star chopper: circles the player, sweeps a searchlight and fires minigun bursts.
@@ -23,8 +23,8 @@ import { lightRed } from './materials.js';
 export const HELI_HP = 1400;
 // hit volumes in the chopper's own frame: the cabin, the tail boom and the rotor disc
 const BODY_R = 3, TAIL_BACK = 4.4, TAIL_R = 1.6, ROTOR_Y = 1, ROTOR_R = 4.5;
-// the searchlight hangs under the cabin and its cone widens by BEAM_SPREAD per metre
-const BEAM_Y = -0.8, BEAM_SPREAD = 0.06;
+// the searchlight hangs under the cabin
+export const BEAM_Y = -0.8;
 // the crash goes off like a vehicle explosion, only bigger than a car's (r 9, dmg 240): it wrecks the cars and drops the people
 // it comes down among, and throws the dead and the wrecks harder
 export const CRASH_BLAST = { y: 1, r: 12, dmg: 300, power: 1.4 };
@@ -36,21 +36,19 @@ export const CRUISE_Y = 28;
 const ABOVE = 10, CLEAR = 8, PAD = 7, LOOK = 2, CLIMB = 14, SINK = 6, SPEED = 16;
 // the minigun keeps its full hit chance out to this range (about its cruising height), then misses more (combat/sight.js)
 export const HELI_AIM_CLOSE = 32;
-// up to SHADOW_BOXES buildings near the beam cast shadows in it (see lightMaterial)
-const SHADOW_BOXES = 16;
-const shade = {
-  origin: { value: new THREE.Vector3() }, tip: { value: new THREE.Vector3() }, radius: { value: 1 }, nBox: { value: 0 },
-  bMin: { value: Array.from({ length: SHADOW_BOXES }, () => new THREE.Vector3()) },
-  bMax: { value: Array.from({ length: SHADOW_BOXES }, () => new THREE.Vector3()) },
-};
-const _near = [];
-const _o = new THREE.Vector3(), _d = new THREE.Vector3(), _e = new THREE.Vector3(), _n = new THREE.Vector3(), _z = new THREE.Vector3(0, 0, 1);
+// the pilot can be shot through the canopy: head and chest, as spheres round the seated body
+export const PILOT = { hp: 70, head: 2.5, headR: 0.24, chestR: 0.36 };
+// With the pilot dead the rotors wind down and it drops, the blades still slowing the fall to at most DOWN.fall m/s.
+// It comes down hard but in one piece, crushing what it lands on, and stays there for the player to fly (kinds/heli.js).
+export const DOWN = { gravity: 12, fall: 14, spinDown: 0.6, crush: 3.2, crushDmg: 200, cash: 1000, heat: 4 };
+const searchlightShadeOf = newShade();
+const _o = new THREE.Vector3(), _p = new THREE.Vector3();
 const Heli = {
   kind: 'heli',
   blipLayer: 4,
   update(dt) {
     const h = this;
-    h.rotor.rotation.y += dt * 30; h.rotor2.rotation.y = h.rotor.rotation.y;
+    h.rotor.rotation.y += dt * 30 * h.spin; h.rotor2.rotation.y = h.rotor.rotation.y;
     // damage shows: grey smoke below 60%, thick black smoke and sparks below 30%
     const hpF = h.hp / HELI_HP;
     if (!h.falling && hpF < 0.6 && Math.random() < (hpF < 0.3 ? 0.9 : 0.4)) {
@@ -65,6 +63,7 @@ const Heli = {
       if (h.y <= floor) { explosion(h.x, floor, h.z, CRASH_BLAST.r, CRASH_BLAST.dmg, true, CRASH_BLAST.power); removeHeli(40); return; }
       h.grp.position.set(h.x, h.y, h.z); return;
     }
+    if (h.downed) { comeDown(h, dt); return; }
     if (G.wanted < 4) {
       const ux = Math.sin(h.yaw), uz = Math.cos(h.yaw);
       h.y += Math.max(8, Math.min(CLIMB, safeY(h.x, h.z, ux, uz, 20 * LOOK) - h.y)) * dt; fly(h, ux, uz, 20 * dt);
@@ -108,6 +107,8 @@ const Heli = {
   raycast(o, d, maxT) {
     const h = this; if (h.falling) return null;
     let t = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, h.x, h.y, h.z, BODY_R);
+    // through the canopy, a shot can find the pilot instead of the bodywork
+    if (t < maxT && !h.downed) { const p = pilotHit(h, o, d, maxT); if (p) return p; }
     const tx = h.x - Math.sin(h.yaw) * TAIL_BACK, tz = h.z - Math.cos(h.yaw) * TAIL_BACK;
     t = Math.min(t, raySphere(o.x, o.y, o.z, d.x, d.y, d.z, tx, h.y + 0.3, tz, TAIL_R));
     // the spinning blades read as a solid disc
@@ -117,16 +118,69 @@ const Heli = {
     }
     return t < maxT ? { t } : null;
   },
-  onShot(hit, dmg) { this.damage(dmg); return { head: false }; },
+  onShot(hit, dmg) {
+    if (!hit.occupant) { this.damage(dmg); return { head: false }; }
+    const h = this; h.pilotHp -= dmg * (hit.head ? PILOT.head : 1);
+    if (hit.p) emit(hit.p.x, hit.p.y, hit.p.z, 4, '#cfe6ff', 4, 0.3, 0.05); // the canopy cracks
+    if (h.pilotHp <= 0) pilotDown(h);
+    return { head: hit.head };
+  },
   onRocket(dmg) { this.damage(dmg * 2); },
   blast(x, y, z, R, dmg) { if (Math.hypot(this.x - x, this.y - y, this.z - z) < R + 3) this.damage(dmg); },
   damage(dmg) {
     const h = this; if (h.falling) return; h.hp -= dmg; emit(h.x, h.y, h.z, 4, '#ffd23e', 7, 0.3, 0.16);
-    if (h.hp <= 0) { h.falling = true; h.vy = 0; h.beam.visible = h.spot.visible = false; reward(h.x, h.z, 2000, 'Chopper down'); addHeat(10); }
+    if (h.hp <= 0) { h.falling = true; h.vy = Math.min(h.vy, 0); showSearchlight(h.light, false); reward(h.x, h.z, 2000, 'Chopper down'); addHeat(10); }
   },
   blip(radar) { radar.dot(this.x, this.z, radar.flash ? '#ffd23e' : '#ff3b4e', 11, true, 'sq'); },
-  dispose() { scene.remove(this.grp, this.beam, this.spot); },
+  dispose() { scene.remove(this.grp); removeSearchlight(this.light); },
 };
+
+// the pilot's head and chest along a ray, or null: { t, head, zone, occupant }
+function pilotHit(h, o, d, maxT) {
+  h.grp.updateMatrixWorld(true);
+  let best = null;
+  for (const [y, r, head] of [[1.74, PILOT.headR, true], [1.2, PILOT.chestR, false]]) {
+    h.seat.localToWorld(_p.set(0, y, 0));
+    const t = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, _p.x, _p.y, _p.z, r);
+    if (t < maxT && (!best || t < best.t)) best = { t, head, zone: head ? 'head' : 'torso', occupant: true };
+  }
+  return best;
+}
+// The pilot is dead: the searchlight and the guns go quiet, the rotors start winding down and the chopper drops.
+function pilotDown(h) {
+  if (h.downed || h.falling) return;
+  h.downed = true; h.vy = 0; h.burst = 0; slump(h.pilot); showSearchlight(h.light, false);
+  reward(h.x, h.z, DOWN.cash, 'Pilot down'); addHeat(DOWN.heat);
+}
+// The pilotless chopper comes down, spinning a little as the tail rotor slows, and lands hard on whatever is under it:
+// the street or a roof. It crushes anyone and dents anything it lands on, then stays there as a chopper the player
+// can fly (a vehicle of kind 'heli', kinds/heli.js); the next police chopper may come a while later.
+function comeDown(h, dt) {
+  h.spin = Math.max(0.15, h.spin - dt * DOWN.spinDown);
+  h.vy = Math.max(-DOWN.fall, h.vy - DOWN.gravity * dt); h.y += h.vy * dt;
+  h.yaw += dt * 1.4 * (1 - h.spin);
+  if (Math.random() < 0.5) emit(h.x, h.y + 0.6, h.z, 1, '#8a8490', 1.5, 1.4, 0.6, 1.5, 1);
+  const floor = Math.max(roofTop(h.x, h.z, 0), groundAt(h.x, h.z));
+  h.grp.position.set(h.x, h.y, h.z); h.grp.rotation.set(0.12 * h.spin, h.yaw, 0);
+  if (h.y - SKID > floor) return;
+  const impact = -h.vy;
+  touchDown(h.x, floor, h.z, impact);
+  const v = spawnVehicle('heli', h.x, h.z, h.yaw);
+  v.y = floor; v.hp = Math.max(1, h.hp); v.rotor = h.spin; v.pilotDead = true; v.K.pose(v, 0);
+  removeHeli(40);
+}
+// the thump of a chopper landing hard: dust, a shudder, and whoever is under it is crushed
+function touchDown(x, y, z, impact) {
+  emit(x, y + 0.3, z, 18, '#cfc8d8', 5, 0.9, 0.5, 1, 1.5);
+  Sound.thud(1, { x, y, z });
+  cam.shake = Math.max(cam.shake, clamp(1 - Math.hypot(P.x - x, P.z - z, P.y - y) / 40, 0, 1) * 0.6);
+  for (const e of all()) {
+    if (e.removed || Math.hypot(e.x - x, e.z - z) > DOWN.crush) continue;
+    if (e.kind === 'npc' && e.alive && !e.vehicle) e.hurt(DOWN.crushDmg, new THREE.Vector3(0, -1, 0), true);
+    else if (e.kind === 'vehicle' && !e.dead) e.damage(impact * 8, true, true);
+  }
+  if (P.alive && !P.vehicle && Math.hypot(P.x - x, P.z - z) < DOWN.crush && Math.abs(P.y - y) < 2) hurtPlayer(DOWN.crushDmg);
+}
 
 // the highest building top within `pad` of (x, z), 0 over open street
 export function roofTop(x, z, pad = PAD) {
@@ -153,99 +207,17 @@ function fly(h, ux, uz, step) {
 // the beam ends there and the spot of light lands on that wall or roof instead of the street.
 export function aimLight(h) {
   const p = h.grp.position;
-  _o.set(p.x, p.y + BEAM_Y, p.z); _d.set(P.x, groundAt(P.x, P.z), P.z).sub(_o);
-  const L = _d.length(); if (L < 0.01) return;
-  _d.divideScalar(L);
-  const t = wallHitFace(_o.x, _o.y, _o.z, _d.x, _d.y, _d.z, L, _n), r = Math.max(0.8, t * BEAM_SPREAD);
-  _e.copy(_d).multiplyScalar(t).add(_o);
-  h.beam.position.copy(_o).lerp(_e, 0.5); h.beam.scale.set(r, t, r); h.beam.lookAt(_e); h.beam.rotateX(-Math.PI / 2);
-  h.spot.position.copy(_n).multiplyScalar(0.05).add(_e); h.spot.quaternion.setFromUnitVectors(_z, _n); h.spot.scale.setScalar(r * 2);
-  shadeFrom(_o, _e, r);
-  return t;
+  _o.set(p.x, p.y + BEAM_Y, p.z);
+  return shineAt(h.light, _o, P.x, groundAt(P.x, P.z), P.z);
 }
-// The cone is wider than the line down its middle, so in an alley its sides would still cut through the walls.
-// Hand the shader the buildings near the beam, nearest the chopper first; it drops any bit of the cone or
-// the spot that the light could not reach in a straight line.
-function shadeFrom(o, e, r) {
-  const pad = r + 1, x0 = Math.min(o.x, e.x) - pad, x1 = Math.max(o.x, e.x) + pad, z0 = Math.min(o.z, e.z) - pad, z1 = Math.max(o.z, e.z) + pad;
-  _near.length = 0;
-  for (const b of tallBoxes) if (b.x1 > x0 && b.x0 < x1 && b.z1 > z0 && b.z0 < z1) _near.push(b);
-  const d2 = b => (Math.max(b.x0 - o.x, 0, o.x - b.x1) ** 2) + (Math.max(b.z0 - o.z, 0, o.z - b.z1) ** 2);
-  if (_near.length > SHADOW_BOXES) _near.sort((a, b) => d2(a) - d2(b));
-  const n = Math.min(_near.length, SHADOW_BOXES);
-  for (let i = 0; i < n; i++) { const b = _near[i]; shade.bMin.value[i].set(b.x0, -1, b.z0); shade.bMax.value[i].set(b.x1, b.h, b.z1); }
-  shade.nBox.value = n; shade.origin.value.copy(o); shade.tip.value.copy(e); shade.radius.value = r;
-}
-export const searchlightShade = shade;
-// Additive light that is dropped wherever a building stands between the lamp and the fragment.
-// The beam (BEAM) glows by how close the line of sight passes to the middle of the cone, so it reads as a
-// soft shaft of lit air from any side, even looking up it from the street, instead of hard-edged panels
-// that seem to cut across the walls of a narrow street.
-function lightMaterial(opacity, extra, defines = {}) {
-  return new THREE.ShaderMaterial({
-    uniforms: { ...shade, color: { value: new THREE.Color('#fff4c8') }, opacity: { value: opacity } },
-    defines,
-    vertexShader: `varying vec3 vW; varying vec3 vV; varying vec3 vC;
-      void main() {
-        vec4 w = modelMatrix * vec4(position, 1.0), v = viewMatrix * w; vW = w.xyz; vV = v.xyz;
-        #ifdef USE_COLOR
-          vC = color;
-        #else
-          vC = vec3(1.0);
-        #endif
-        gl_Position = projectionMatrix * v;
-      }`,
-    fragmentShader: `#define N ${SHADOW_BOXES}
-      uniform vec3 color; uniform float opacity; uniform vec3 origin; uniform vec3 tip; uniform float radius; uniform int nBox; uniform vec3 bMin[N]; uniform vec3 bMax[N];
-      varying vec3 vW; varying vec3 vV; varying vec3 vC;
-      void main() {
-        float f = 1.0;
-        #ifdef BEAM
-          // in view space: the eye is at 0 and looks along u; find where that line passes the cone's middle line
-          vec3 o = (viewMatrix * vec4(origin, 1.0)).xyz, a = (viewMatrix * vec4(tip, 1.0)).xyz - o, u = normalize(vV);
-          float len = length(a); a /= len;
-          float b = dot(u, a), du = dot(u, -o), da = dot(a, -o), den = max(1.0 - b * b, 1e-4);
-          float s = (b * da - du) / den, t = (da - b * du) / den;
-          float along = clamp(t / len, 0.0, 1.0), miss = length(-o + u * s - a * t) / max(radius * along, 0.05);
-          f = (1.0 - smoothstep(0.35, 1.0, miss)) * (1.0 - smoothstep(0.8, 1.0, along)) * smoothstep(2.0, 10.0, length(vV));
-        #endif
-        vec3 d = vW - origin;
-        d = mix(d, vec3(1e-4), vec3(lessThan(abs(d), vec3(1e-4))));
-        vec3 inv = 1.0 / d;
-        for (int i = 0; i < N; i++) {
-          if (i >= nBox) break;
-          vec3 a = (bMin[i] - origin) * inv, b = (bMax[i] - origin) * inv, lo = min(a, b), hi = max(a, b);
-          float tIn = max(max(lo.x, lo.y), lo.z), tOut = min(min(hi.x, hi.y), hi.z);
-          if (tIn < tOut && tOut > 0.0 && tIn < 0.999) discard;
-        }
-        gl_FragColor = vec4(color * vC, opacity * f);
-      }`,
-    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, ...extra,
-  });
-}
-// a soft disc of light, bright in the middle and fading to nothing at the rim (black adds nothing)
-function spotGeometry() {
-  const g = new THREE.RingGeometry(0, 1, 24, 4), pos = g.attributes.position, col = new Float32Array(pos.count * 3);
-  for (let i = 0; i < pos.count; i++) { const q = Math.min(1, Math.hypot(pos.getX(i), pos.getY(i))), f = (1 - q * q) ** 2; col.fill(f, i * 3, i * 3 + 3); }
-  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  return g;
-}
+export const searchlightShade = searchlightShadeOf;
 
 export function spawnHeli() {
-  const g = new GB();
-  box(g, 1.8, 1.6, 4, 0, 0, 0, '#1b2a4a'); box(g, 1.6, 1.0, 1.4, 0, 0.1, 1.9, '#3a5a7a'); box(g, 0.4, 0.4, 4, 0, 0.3, -3.8, '#1b2a4a');
-  box(g, 0.1, 1.2, 0.8, 0, 0.8, -5.6, '#1b2a4a'); box(g, 2.06, 0.3, 1.2, 0, 0.1, -0.3, '#f4f4f4');
-  box(g, 0.1, 0.1, 3.4, 0.9, -1.1, 0, '#222'); box(g, 0.1, 0.1, 3.4, -0.9, -1.1, 0, '#222'); box(g, 0.1, 0.5, 0.1, 0.9, -0.85, 0.8, '#222'); box(g, 0.1, 0.5, 0.1, -0.9, -0.85, 0.8, '#222');
-  const grp = new THREE.Group(); grp.add(new THREE.Mesh(g.geometry(), charMat));
-  const rotor = new THREE.Mesh(PGEO, pmat('#141418')); rotor.scale.set(9, 0.06, 0.35); rotor.position.y = 1.0; grp.add(rotor);
-  const rotor2 = new THREE.Mesh(PGEO, pmat('#141418')); rotor2.scale.set(0.35, 0.06, 9); rotor2.position.y = 1.0; grp.add(rotor2);
-  const lr = new THREE.Mesh(PGEO, lightRed); lr.scale.setScalar(0.25); lr.position.set(0, -0.85, 1); grp.add(lr);
-  const beam = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 16, 1, true), lightMaterial(0.2, { side: THREE.DoubleSide }, { BEAM: '' }));
-  const spot = new THREE.Mesh(spotGeometry(), lightMaterial(0.45, { vertexColors: true, polygonOffset: true, polygonOffsetFactor: -4 }));
-  scene.add(beam, spot);
+  const m = buildHeliMesh(), light = makeSearchlight(searchlightShadeOf), pilot = makePilot();
+  seatPilot(m.seat, pilot);
   const a = rnd(0, 6.28), x = P.x + Math.cos(a) * 120, z = P.z + Math.sin(a) * 120;
-  const h = Object.assign(Object.create(Heli), { grp, rotor, rotor2, lr, beam, spot, x, z, y: Math.max(34, heliTarget(), roofTop(x, z) + CLEAR), hp: HELI_HP, alive: true, ang: a, fireT: 3, burst: 0, burstT: 0, los: false, losT: 0, sight: newSight(), vy: 0, falling: false, yaw: 0 });
-  grp.position.set(h.x, h.y, h.z); scene.add(grp);
+  const h = Object.assign(Object.create(Heli), { grp: m.grp, rotor: m.rotor, rotor2: m.rotor2, lr: m.lr, seat: m.seat, pilot, light, beam: light.beam, spot: light.spot, x, z, y: Math.max(34, heliTarget(), roofTop(x, z) + CLEAR), hp: HELI_HP, pilotHp: PILOT.hp, alive: true, ang: a, fireT: 3, burst: 0, burstT: 0, los: false, losT: 0, sight: newSight(), vy: 0, falling: false, downed: false, spin: 1, yaw: 0 });
+  m.grp.position.set(h.x, h.y, h.z); scene.add(m.grp);
   G.heli = addEntity(h);
   showBig('Chopper inbound');
 }

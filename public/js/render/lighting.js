@@ -122,16 +122,16 @@ export function updateLighting(dt) {
 
   // headlights on everything with someone at the wheel
   const cars = [];
-  if (on > 0) for (const v of all('vehicle')) if (v.driver && !v.dead && Math.abs(v.x - P.x) < 160 && Math.abs(v.z - P.z) < 160) cars.push(v);
+  if (on > 0) for (const v of all('vehicle')) if (v.driver && !v.dead && !v.K.flies && Math.abs(v.x - P.x) < 160 && Math.abs(v.z - P.z) < 160) cars.push(v);
   carPools.material.opacity = 0.35 * on; carFlares.material.opacity = 0.9 * on;
   let pi = 0, fi = 0;
   for (const v of cars) {
     if (pi >= MAX_CARS) break;
-    const bike = v.model.kind === 'bike', sy = Math.sin(v.yaw), cy = Math.cos(v.yaw), front = v.K.front;
+    const lamp = v.K.lamp, sy = Math.sin(v.yaw), cy = Math.cos(v.yaw), front = v.K.front;
     _q.setFromAxisAngle(_e.set(0, 1, 0), v.yaw);
-    _m.compose(_p.set(v.x + sy * (front + 7), 0.18, v.z + cy * (front + 7)), _q, _s.set(bike ? 0.7 : 1, 1, 1)); carPools.setMatrixAt(pi++, _m);
-    for (const side of bike ? [0] : [-0.62, 0.62]) {
-      _m.compose(_p.set(v.x + sy * (front + 0.05) + cy * side, bike ? 1.05 : 0.72, v.z + cy * (front + 0.05) - sy * side), _q, _s.set(1, 1, 1)); carFlares.setMatrixAt(fi++, _m);
+    _m.compose(_p.set(v.x + sy * (front + 7), 0.18, v.z + cy * (front + 7)), _q, _s.set(lamp ? lamp.pool : 1, 1, 1)); carPools.setMatrixAt(pi++, _m);
+    for (const side of lamp ? [0] : [-0.62, 0.62]) {
+      _m.compose(_p.set(v.x + sy * (front + 0.05) + cy * side, lamp ? lamp.y : 0.72, v.z + cy * (front + 0.05) - sy * side), _q, _s.set(1, 1, 1)); carFlares.setMatrixAt(fi++, _m);
     }
   }
   carPools.count = pi; carFlares.count = fi;

@@ -69,11 +69,12 @@ function canopyMesh() {
   return g;
 }
 
-export function strapOnChute() {
+// quiet: no toast (the one that comes with flying a chopper, kinds/heli.js, which opens by itself on bailing out)
+export function strapOnChute(quiet) {
   if (P.chute) return;
   P.chute = { open: false, t: 0, mesh: packMesh(), canopy: null };
   P.chute.mesh.position.set(0, 1.1, -0.24); P.c.body.add(P.chute.mesh);
-  toast(`Got a <em>paraglider</em>. Jump off, then press <em>${kb('jump')}</em> again in the air to open it. One jump only.`, 7);
+  if (!quiet) toast(`Got a <em>paraglider</em>. Jump off, then press <em>${kb('jump')}</em> again in the air to open it. One jump only.`, 7);
 }
 // pull the cord: the pack empties and the wing opens over the head
 export function openChute() {
