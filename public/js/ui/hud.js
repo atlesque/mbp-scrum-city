@@ -1,8 +1,8 @@
 import { curWeapon } from '../combat/combat.js';
 import { settings } from '../core/settings.js';
 import { RADAR_GLOW, RADAR_PULSE_FROM } from '../data/wanted.js';
-import { G, I, P, inv } from '../core/state.js';
-import { $, clamp } from '../core/util.js';
+import { G, I, P, inv, stats } from '../core/state.js';
+import { $, clamp, clock } from '../core/util.js';
 
 // ================= HUD =================
 export function drawWeaponIcon() {
@@ -45,6 +45,9 @@ export function updateHUD() {
     [...$('stars').children].forEach((s, i) => s.classList.toggle('on', i < G.wanted));
     const radar = $('radarWrap'); radar.style.setProperty('--heat', RADAR_GLOW[G.wanted] || 0); radar.classList.toggle('pulse', G.wanted >= RADAR_PULSE_FROM);
   }
+  // at five stars the five star heat highscore ticks up under the stars
+  const five = G.wanted === 5 ? clock(stats.fiveStar || 0) : '';
+  if (five !== updateHUD.five) { updateHUD.five = five; $('heatClock').hidden = !five; if (five) $('heatClockNum').textContent = five; }
   const v = P.vehicle, mph = settings.units === 'mph', spd = v ? Math.round(Math.abs(v.v) * (mph ? 2.237 : 3.6)) : -1, sk = spd + settings.units;
   if (sk !== updateHUD.spd) {
     updateHUD.spd = sk; $('speedo').hidden = spd < 0; $('hint').hidden = spd >= 0;

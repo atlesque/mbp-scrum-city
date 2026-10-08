@@ -23,6 +23,7 @@ export function addHeat(v) {
   const lvl = heatToLevel(G.heat);
   if (lvl > G.wanted) {
     G.wanted = lvl; Sound.star(); stats.best = Math.max(stats.best, G.wanted);
+    if (G.wanted === 5) G.fiveRun = 0;
     showBig(LEVEL_TEXT[G.wanted]);
     G.spawnT = Math.min(G.spawnT, 1.2);
     emit('wanted:up', { level: G.wanted });
@@ -30,6 +31,8 @@ export function addHeat(v) {
 }
 export function updateWanted(dt) {
   const starsEl = $('stars');
+  // the five star heat highscore: every second alive at five stars counts, for good
+  if (G.wanted === 5 && G.state === 'play') { stats.fiveStar = (stats.fiveStar || 0) + dt; G.fiveRun += dt; }
   if (G.wanted > 0) {
     if (!G.seenNow) {
       G.lostT += dt; starsEl.classList.add('flash');
