@@ -166,6 +166,33 @@ try {
     await game(async ({ heat, wanted }) => { const { G } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js'); selectWeapon('pistol'); G.heat = heat; G.wanted = wanted; }, before);
   });
 
+  await step('holding Q opens the weapon wheel, the mouse picks a weapon and a tap still goes to melee', async () => {
+    await game(() => { const { inv } = __neonbay; inv.owned.rifle = true; inv.owned.bat = true; inv.owned.katana = true; });
+    const point = (x, y) => game(async ([x, y]) => (await import('/js/ui/wheel.js')).wheelMove(x, y), [x, y]);
+    await page.keyboard.down('KeyQ');
+    check(await game(() => !document.getElementById('wheel').hidden), 'the wheel did not open');
+    // the rifle is the fifth slice of ten, pointing down and to the right
+    await point(240 * 0.6 * Math.sin(Math.PI * 0.8), -240 * 0.6 * Math.cos(Math.PI * 0.8));
+    await page.keyboard.up('KeyQ');
+    const r = await game(() => ({ cur: __neonbay.inv.cur, shut: document.getElementById('wheel').hidden }));
+    check(r.shut, 'the wheel stayed open after letting go of Q');
+    check(r.cur === 'rifle', `pointing at the rifle gave ${r.cur}`);
+    // straight up onto the melee slice, then out into its ring to the katana
+    await page.keyboard.down('KeyQ');
+    await point(0, -120);
+    await game(async () => {
+      const { ringOf, RING_ARC } = await import('/js/game/wheel.js'), { wheelMove } = await import('/js/ui/wheel.js');
+      const g = ringOf(0, __neonbay.inv.owned), a = g.start + (g.items.indexOf('katana') + 0.5) * RING_ARC;
+      wheelMove(240 * 0.95 * Math.sin(a), -240 * 0.95 * Math.cos(a) + 120);
+    });
+    await page.keyboard.up('KeyQ');
+    check(await game(() => __neonbay.inv.cur) === 'katana', 'the melee ring did not give the katana');
+    await game(async () => (await import('/js/combat/combat.js')).selectWeapon('pistol'));
+    await press('KeyQ', 40);
+    check(await game(() => __neonbay.inv.cur) === 'katana', 'a tap on Q did not go back to the melee weapon used last');
+    await game(async () => (await import('/js/combat/combat.js')).selectWeapon('pistol'));
+  });
+
   await step('a downed juggernaut drops armor and ammo the player can pick up', async () => {
     for (let i = 0; i < 12; i++) {
       const done = await game(() => {
@@ -336,6 +363,28 @@ try {
       const { G, all, removeEntity } = __neonbay; removeEntity(__jack); removeEntity(__jacked); G.heat = 0; G.wanted = 0;
       for (const e of all()) if ((e.kind === 'npc' && e.def.faction === 'law') || (e.kind === 'vehicle' && (e.model.police || e.model.army))) removeEntity(e);
     });
+  });
+
+  await step('a bat on a car scares the driver out, and on a bike throws the rider off', async () => {
+    const swing = async () => { await game(() => { __neonbay.P.yaw = __neonbay.cam.yaw; __neonbay.I.clickQ = 0.3; }); await until(() => !__neonbay.P.swing && __neonbay.I.clickQ === 0, undefined, 4000); };
+    for (const [model, type, ahead] of [['sedan', 'motorist', 2.1], ['gs', 'biker', 1.2]]) {
+      await game(async ({ model, type, ahead }) => {
+        const { G, P, cam, inv, all, removeEntity, spawnVehicle, spawnNpc } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js');
+        G.heat = 0; G.wanted = 0; inv.owned.bat = true; selectWeapon('bat'); cam.pitch = -0.05; P.yaw = cam.yaw;
+        for (const e of all()) if ((e.kind === 'vehicle' || (e.kind === 'npc' && e !== P)) && Math.hypot(e.x - P.x, e.z - P.z) < 14) removeEntity(e);
+        // side on, just ahead of the player
+        const v = window.__scared = spawnVehicle(model, P.x + Math.sin(P.yaw) * ahead, P.z + Math.cos(P.yaw) * ahead, P.yaw + Math.PI / 2);
+        v.seatDriver(window.__scaredDriver = spawnNpc(type, v.x, v.z));
+      }, { model, type, ahead });
+      for (let i = 0; i < 3 && await game(() => !!__scared.driver); i++) await swing();
+      const r = await game(() => ({ out: !__scared.driver && !__scaredDriver.vehicle && __scaredDriver.alive, flee: __scaredDriver.state === 'flee', down: __scaredDriver.downT > 0, fallen: !!__scared.fallen, heat: __neonbay.G.heat }));
+      check(r.out, `the ${type} is still in the ${model}`);
+      check(r.flee, `the ${type} did not run`);
+      check(r.heat > 0, `hitting the ${type}'s vehicle added no heat`);
+      if (model === 'gs') { check(r.down, 'the rider was not knocked down'); check(r.fallen, 'the bike did not fall over'); }
+      await game(() => { const { removeEntity } = __neonbay; removeEntity(__scared); removeEntity(__scaredDriver); });
+    }
+    await game(async () => { const { G } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js'); selectWeapon('pistol'); G.heat = 0; G.wanted = 0; });
   });
 
   await step('buys armor at the gun shop', async () => {

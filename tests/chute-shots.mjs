@@ -50,6 +50,8 @@ try {
   await page.screenshot({ path: `${out}/floating.png` });
   await game(() => { __neonbay.cam.pitch = 0.45; });
   await page.waitForTimeout(1000); await page.screenshot({ path: `${out}/floating-down.png` });
+  await game(() => { const { cam } = __neonbay; cam.yaw += 1.3; cam.pitch = 0.1; });
+  await page.waitForTimeout(1000); await page.screenshot({ path: `${out}/floating-side.png` });
   await page.waitForFunction(() => __neonbay.P.grounded, null, { timeout: 120000 });
   console.log('landed', await state(), 'hp', await game(() => __neonbay.P.hp));
   await page.waitForTimeout(800); await page.screenshot({ path: `${out}/landed.png` });
