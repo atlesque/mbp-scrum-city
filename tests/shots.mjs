@@ -77,8 +77,8 @@ try {
     renderer.render = (s, c) => {
       const k = window.__shotCam;
       if (k && c === camera) {
-        const t = P.vehicle || P, y = (P.y || 0) + 1, a = (t.yaw || 0) + k[2] * Math.PI / 180;
-        camera.position.set(t.x + Math.sin(a) * k[0], (P.y || 0) + k[1], t.z + Math.cos(a) * k[0]); camera.lookAt(t.x, y, t.z);
+        const t = P.vehicle || P, y = (P.y || 0) + 1, a = (t.yaw || 0) + k[2] * Math.PI / 180, d = k[0] * (P.vehicle ? 1.8 : 1); // step back for a vehicle
+        camera.position.set(t.x + Math.sin(a) * d, (P.y || 0) + k[1], t.z + Math.cos(a) * d); camera.lookAt(t.x, y, t.z);
       }
       return draw(s, c);
     };
