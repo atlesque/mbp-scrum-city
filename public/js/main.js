@@ -15,7 +15,7 @@ import { WBY, WEAPONS, wStat } from './data/weapons.js';
 import { all, count, entities, removeEntity } from './entities/registry.js';
 import { makeJetpackPickup } from './game/jetpack.js';
 import { makePickup, makeRoofGun, makeWeaponPickup } from './game/pickups.js';
-import { respawn, updateCamera, updatePlayer } from './game/player.js';
+import { hurtPlayer, respawn, updateCamera, updatePlayer } from './game/player.js';
 import { managePopulation } from './game/population.js';
 import { spawnRoofDoor } from './game/rooftop.js';
 import { updateWanted } from './game/wanted.js';
@@ -24,6 +24,7 @@ import { updateFx, updateParts } from './render/effects.js';
 import { buildLighting, lighting, updateLighting } from './render/lighting.js';
 import { camera, renderer, scene, sky } from './render/scene.js';
 import { spawnShop } from './shops/shop.js';
+import { finishSignIn, initAccount, playLabel } from './ui/account.js';
 import { updateHUD } from './ui/hud.js';
 import { updateEngineSound } from './vehicles/engine.js';
 import './vehicles/firetruck.js'; // sends the fire brigade to crash fires
@@ -101,6 +102,7 @@ function placeMeleePickups() {
 // (rAF stalls in background tabs, so a timeout backs it up)
 const loadStep = (p, label) => { window.loadingScreen?.step(p, label); return new Promise(r => { requestAnimationFrame(() => setTimeout(r, 0)); setTimeout(r, 60); }); };
 async function start(data) {
+  const signingIn = finishSignIn(); // back from the MBP Games sign-in page? swap the code while the city loads
   await loadStep(0.35, 'Tuning Neon FM');
   try { await Promise.race([Promise.all([document.fonts.load('80px "Yellowtail"'), document.fonts.load('80px "Bowlby One"')]), new Promise(r => setTimeout(r, 2500))]); } catch (e) {}
   await loadLandmarkModels();
@@ -127,8 +129,10 @@ async function start(data) {
   for (let i = 0; i < 4; i++) spawnTrafficBike();
   await loadStep(0.9, 'Waking up the neighbourhood');
   for (let i = 0; i < 30; i++) { const s = findSpot(5, 80, false, false); if (s) spawnNpc('civilian', s.x, s.z); }
+  await loadStep(0.95, 'Checking your MBP Games account');
+  await initAccount(signingIn); // may swap the local save for the account's copy
   G.state = 'title';
-  const b = $('playBtn'); b.disabled = false; b.textContent = inv.money > 500 || stats.kills ? `Back to the city ($${inv.money.toLocaleString()})` : 'Hit the streets';
+  const b = $('playBtn'); b.disabled = false; b.textContent = playLabel();
   setInterval(() => { if (G.state === 'play') save(); }, 5000);
   // hold on the full bar until the title camera has drawn the city once
   await loadStep(1, 'Ready');
@@ -136,7 +140,7 @@ async function start(data) {
 }
 try { window.claude && window.claude.hot && window.claude.hot.snapshot && window.claude.hot.snapshot(() => ({ inv: serialize(inv, stats), cur: inv.cur })); } catch (e) {}
 // ?debug exposes the game state to the console and to the smoke test
-if (/[?&]debug\b/.test(location.search)) window.__neonbay = { G, I, P, Sound, cam, inv, stats, entities, all, removeEntity, spawnVehicle, spawnNpc, spawnShop, lighting, ROOFS };
+if (/[?&]debug\b/.test(location.search)) window.__neonbay = { G, I, P, Sound, hurtPlayer, cam, inv, stats, entities, all, removeEntity, spawnVehicle, spawnNpc, spawnShop, lighting, ROOFS };
 requestAnimationFrame(frame);
 const hot = window.claude && window.claude.hot;
 if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});

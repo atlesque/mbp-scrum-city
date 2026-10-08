@@ -10,6 +10,7 @@ import { all, removeEntity } from '../entities/registry.js';
 import { interact } from '../game/interact.js';
 import { camera, canvasEl, renderer } from '../render/scene.js';
 import { closeShop } from '../shops/shop.js';
+import { renderAccount } from '../ui/account.js';
 import { drawWeaponIcon, showRadio, toast } from '../ui/hud.js';
 import { closeSettings, settingsOpen } from '../ui/settings.js';
 import { toggleSiren } from '../vehicles/vehicle.js';
@@ -65,7 +66,7 @@ function pauseGame() {
   if (G.state !== 'play') return;
   G.state = 'paused'; I.mouseL = false; I.mouseR = false; for (const k in keys) keys[k] = false;
   $('pause').hidden = false; $('pauseStats').textContent = `${stats.kills} takedowns · ${stats.cops} law enforcement · best heat ${'★'.repeat(stats.best) || 'none'} · $${stats.earned.toLocaleString()} earned`;
-  Sound.hush(); Sound.dim(true); save();
+  Sound.hush(); Sound.dim(true); save(); renderAccount();
   // free the mouse (P keeps it captured) so the menu can be clicked
   if (document.pointerLockElement) document.exitPointerLock();
   setTimeout(() => $('resumeBtn').focus(), 20);
