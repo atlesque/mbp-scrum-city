@@ -15,6 +15,7 @@ import { WBY, WEAPONS, wStat } from './data/weapons.js';
 import { all, count, entities, removeEntity } from './entities/registry.js';
 import { countPlayTime } from './game/hint.js';
 import { makeJetpackPickup } from './game/jetpack.js';
+import { makeParachutePickup } from './game/parachute.js';
 import { makePickup, makeRoofGun, makeWeaponPickup } from './game/pickups.js';
 import { hurtPlayer, respawn, updateCamera, updatePlayer } from './game/player.js';
 import { managePopulation } from './game/population.js';
@@ -121,9 +122,11 @@ async function start(data) {
   placeMeleePickups();
   for (const s of shopSpots) spawnShop(s.type, s.x, s.z);
   for (const r of ROOFS) spawnRoofDoor(r);
-  // up on the roofs: a sniper rifle on each (the rocket launcher on the Herman Teirlinck), the jetpack on the Belpaire
+  // up on the roofs: a sniper rifle on each (the rocket launcher on the Herman Teirlinck), the jetpack on the Belpaire,
+  // and a parachute on each of the three high ones
   for (const r of ROOFS) if (r.gunAt) makeRoofGun(r.gun, r.gunAt.x, r.floor, r.gunAt.z, got => { selectWeapon(got); save(); });
   for (const r of ROOFS) if (r.jetpackAt) makeJetpackPickup(r.jetpackAt.x, r.floor, r.jetpackAt.z);
+  for (const r of ROOFS) if (r.chuteAt) makeParachutePickup(r.chuteAt.x, r.floor, r.chuteAt.z);
   lotSpots.forEach((s, i) => { spawnVehicle(i % 3 ? 'sedan' : 'modely', s.x, s.z, s.yaw).home = true; });
   P.x = 230; P.z = -40;
   for (let i = 0; i < 26; i++) spawnTrafficCar(false);

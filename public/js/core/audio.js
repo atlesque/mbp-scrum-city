@@ -292,6 +292,8 @@ export const Sound = (() => {
     saw(vol = 1, at = null) { if (!ctx) return; const t = ctx.currentTime, o = out(vol * 0.22, at, HEAR.shot); if (!o) return; tone(o, t, 'sawtooth', 118 + Math.random() * 12, 0, 0.11, 0.7, 0.003); nz(o, t, 0.1, 'bandpass', 2200, 1.5, 0.35); },
     // a puff of the jetpack's roar; played back to back while it burns (game/jetpack.js)
     jet(vol = 1) { if (!ctx) return; const t = ctx.currentTime, o = out(vol * 0.3); nz(o, t, 0.14, 'lowpass', 700, 0.7, 0.9, 1); nz(o, t, 0.1, 'bandpass', 2600, 1.2, 0.25); },
+    // a parachute opening: the cord's rip, the rustle of cloth, then the canopy snapping full (game/parachute.js)
+    chute(vol = 1) { if (!ctx) return; const t = ctx.currentTime, o = out(vol * 0.4); nz(o, t, 0.08, 'highpass', 3000, 0.8, 0.5); nz(o, t + 0.05, 0.35, 'bandpass', 1400, 0.6, 0.4, 0.8); nz(o, t + 0.38, 0.16, 'lowpass', 500, 1, 1.2, 0.6); },
     thud(vol, at, prof = HEAR.thud) { if (!ctx) return; const t = ctx.currentTime, o = out(vol, at, prof); if (!o) return; nz(o, t, 0.22, 'lowpass', 420, 1, 1.1, 0.7); tone(o, t, 'sine', 140, 45, 0.2, 0.9); },
     // the player's own ride (the engine under you isn't placed)
     setEngine(vol, rpm) { if (!ctx) return; const t = ctx.currentTime, f = rpm / 60; engO1.frequency.setTargetAtTime(f, t, 0.06); engO2.frequency.setTargetAtTime(f * 2.02, t, 0.06); engF.frequency.setTargetAtTime(Math.min(140 + f * 3.5, 600), t, 0.08); engG.gain.setTargetAtTime(vol, t, 0.12); },

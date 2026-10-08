@@ -105,6 +105,7 @@ describe('landmark roofs', () => {
     expect(doors).toHaveLength(3);
     expect(doors.map(d => d.gun).sort()).toEqual(['rpg', 'sniper', 'sniper']);
     expect(doors.filter(d => d.jetpackAt)).toHaveLength(1);
+    expect(doors.filter(d => d.chuteAt)).toHaveLength(3); // and a parachute on each
     expect(Math.max(...doors.map(d => d.floor))).toBeGreaterThan(100); // the Belpaire's
   });
   const belpaire = doors.find(d => d.jetpackAt), parts = landmarkRoofs.flatMap(L => L.blocks || []);
@@ -137,7 +138,7 @@ describe('landmark roofs', () => {
     for (const d of doors) {
       expect(solid(d.street.x, d.street.z)).toBe(false);
       expect(solid(d.door.x - d.fn[0] * 0.3, d.door.z - d.fn[1] * 0.3)).toBe(true); // just behind the door is the building
-      for (const p of [d.hutOut, d.gunAt, d.jetpackAt].filter(Boolean)) {
+      for (const p of [d.hutOut, d.gunAt, d.jetpackAt, d.chuteAt].filter(Boolean)) {
         const o = { ...p }; expect(collideRoof(o, 0.38, d)).toBe(false);
         expect(p.x > d.walk.x0 && p.x < d.walk.x1 && p.z > d.walk.z0 && p.z < d.walk.z1).toBe(true);
       }
