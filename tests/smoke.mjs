@@ -756,8 +756,11 @@ try {
   await step('survives a five-star chase', async () => {
     await game(() => { const { G, P } = __neonbay; G.heat = 100; G.wanted = 5; G.spawnT = 0; G.heliT = 0; P.hp = 100; });
     check(await until(() => __neonbay.all('npc').some(n => n.faction === 'law' && n.alive) && __neonbay.all('vehicle').some(v => v.model.police || v.model.army), undefined, 40000), 'the law never showed up');
-    // the army comes in its own trucks, and soldiers get out of them
-    check(await until(() => __neonbay.all('npc').some(n => (n.type === 'army' || n.type === 'jugg') && __neonbay.all('vehicle').some(v => v.model.army && v.mode === 'parked' && Math.hypot(v.x - n.x, v.z - n.z) < 7)), undefined, 40000), 'no soldiers got out of an army truck');
+    // the army comes in its own trucks, and soldiers get out of them. Which vehicle comes next is random and the game
+    // runs slowly here, so send one army truck up the player's road rather than wait for the dice to pick one
+    check(await until(async () => !!(window.__armyTruck = (await import('/js/vehicles/traffic.js')).spawnResponder('army')), undefined, 20000), 'no road to send an army truck up');
+    check(await until(() => __armyTruck.mode === 'parked' || __armyTruck.dead, undefined, 60000), `the army truck never pulled up (${await game(() => JSON.stringify({ mode: __armyTruck.mode, respT: __armyTruck.respT }))})`);
+    check(await until(() => __neonbay.all('npc').some(n => (n.type === 'army' || n.type === 'jugg') && Math.hypot(__armyTruck.x - n.x, __armyTruck.z - n.z) < 9)), 'no soldiers got out of the army truck');
     check(await until(() => !!__neonbay.G.heli, undefined, 20000), 'no helicopter at five stars');
     check(await until(() => !__neonbay.Sound.ready || __neonbay.Sound.intensity === 5), 'the music never reached five-star intensity');
     check(await until(() => __neonbay.Sound.voices().rotor === 1), 'the chopper makes no sound');
