@@ -43,8 +43,8 @@ export function spawnTrafficBike() {
   }
 }
 
-// a cruiser racing up the player's road from 75 m away
-export function spawnPoliceCar() {
+// a police cruiser (or another model that answers the heat, like the army truck) racing up the player's road from 75 m away
+export function spawnResponder(model = 'police') {
   const vertical = Math.abs(P.x - nearestRoad(P.x)) < Math.abs(P.z - nearestRoad(P.z));
   const road = vertical ? nearestRoad(P.x) : nearestRoad(P.z);
   if (road >= 200 && vertical === true && P.x > 206) return;
@@ -53,5 +53,5 @@ export function spawnPoliceCar() {
   const dir = Math.sign(pAlong - start) || 1, dx = vertical ? 0 : dir, dz = vertical ? dir : 0, L = laneFor(road, dx, dz);
   const x = vertical ? L.x : start, z = vertical ? start : L.z;
   if (Math.abs(x) > 205 || Math.abs(z) > 205) return;
-  const c = spawnVehicle('police', x, z, Math.atan2(dx, dz), 'respond'); c.respT = 0; c.v = 18;
+  const c = spawnVehicle(model, x, z, Math.atan2(dx, dz), 'respond'); c.respT = 0; c.v = 18; return c;
 }

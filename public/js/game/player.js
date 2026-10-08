@@ -20,7 +20,7 @@ import { camera, canvasEl } from '../render/scene.js';
 import { showBig, toast } from '../ui/hud.js';
 import { removeHeli } from '../vehicles/heli.js';
 import { removeTank } from '../vehicles/tank.js';
-import { driveByPlayer, sirenOn } from '../vehicles/vehicle.js';
+import { answersHeat, driveByPlayer, sirenOn } from '../vehicles/vehicle.js';
 import { SPAWN } from '../world/city.js';
 import { collide, wallHit } from '../world/collision.js';
 import { ceilingAt, collideRoofs, surfaceAt } from '../world/rooftops.js';
@@ -246,7 +246,7 @@ export function die() {
   emit('player:died', { fee });
 }
 export function respawn() {
-  for (const e of all()) if ((e.kind === 'npc' && e.faction === 'law') || (e.kind === 'vehicle' && (e.model.police || e.dead))) removeEntity(e);
+  for (const e of all()) if ((e.kind === 'npc' && e.faction === 'law') || answersHeat(e) || (e.kind === 'vehicle' && e.dead)) removeEntity(e);
   removeHeli(); removeTank(null, true);
   G.wanted = 0; G.heat = 0; G.lostT = 0; G.heliT = 15; G.tankT = 6;
   P.x = SPAWN.x; P.z = SPAWN.z; P.y = 0; P.floor = 0; P.vy = 0; P.grounded = true; P.roof = null; P.hp = 100; P.alive = true; P.deadT = 0; P.yaw = SPAWN.yaw; cam.yaw = SPAWN.yaw; cam.pitch = -0.08;
