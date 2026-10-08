@@ -17,6 +17,10 @@ const bikeGlassMat = new THREE.MeshPhongMaterial({ color: '#b5cce0', transparent
 const surfaceAt = (b, x, z) => Math.max(groundAt(x, z), b.over ? b.over.K.topAt(b.over, x, z) : -Infinity);
 const TURN_X = [-150, -100, -50, 0, 50, 100, 150, 200], TURN_Z = [-150, -100, -50, 0, 50, 100, 150];
 
+// how hard a rider leaves the bike: shoved off by a carjacker, or thrown off by a melee blow
+export const SHOVE = { v: 5, down: 1.8, carry: 0 };
+export const THROWN = { v: 8, down: 2.6, carry: 0.4 };
+
 // A vehicle kind: everything about how bikes behave, whatever the model.
 //   handling                 defaults for arcadeDrive (a model's `handling` overrides them)
 //   build(v) / pose(v, dt)   make the mesh { grp, seat, solid, lit } and place it each frame
@@ -29,7 +33,8 @@ const TURN_X = [-150, -100, -50, 0, 50, 100, 150, 200], TURN_Z = [-150, -100, -5
 //   hitBox(v)                axis-aligned box for bullets { hx, hz, h }
 //   pushOut(v, o, r)         keep people and other vehicles out
 //   reach(v, p), reachMax    how close the player must be to get on
-//   jack, shoveOff(v, a, p)  carjacking: the prompt's verb, and optionally where the ejected rider `a` lands
+//   jack, shoveOff(v, a, p, push)  carjacking: the prompt's verb, and optionally where the ejected rider `a` lands
+//                            (push: how hard, THROWN when a melee blow knocks them off, see scareDriver in vehicle.js)
 //   onDriverGone(v), wreck(v), blip(v, radar), dispose(v)
 //   fx, blast, wreckReward   fire and smoke, explosion size, heat and cash for wrecking one
 //                            (fx.fuse: seconds alight before it goes up; crashFuse when a collision set it alight)
@@ -43,6 +48,7 @@ const TURN_X = [-150, -100, -50, 0, 50, 100, 150, 200], TURN_Z = [-150, -100, -5
 //   verb, tip(M)             'ride' or 'drive', and the first-time help toast
 //   laneHalf, trafficDespawn, ambientEngine, stopsWhileBurning
 //   enclosed, occupantHit    riders sit inside (cars): bullets through the windows reach them via occupantHit(v, o, d, maxT)
+
 export const bike = {
   hull: { half: 0.62, r: 0.42 },
   front: 1.1, // how far ahead of the middle the headlight is (render/lighting.js)
@@ -178,11 +184,15 @@ export const bike = {
   hitBox(b) { const sy = Math.abs(Math.sin(b.yaw)), cy = Math.abs(Math.cos(b.yaw)); return { hx: sy * 1.05 + cy * 0.32, hz: cy * 1.05 + sy * 0.32, h: b.fallen ? 0.6 : 0.98 }; },
   pushOut(b, o, r) { return Math.abs(b.x - o.x) <= 3 && Math.abs(b.z - o.z) <= 3 && pushOutSeg(o, r + 0.3, b.x, b.z, b.yaw, -0.8, 0.85); },
   reach: (b, p) => Math.hypot(b.x - p.x, b.z - p.z),
-  // carjacked: the rider is shoved off the side away from the player, goes down on the road and gets up again
-  shoveOff(b, a, p) {
+  // carjacked: the rider is shoved off the side away from the player, goes down on the road and gets up again;
+  // a melee blow throws them off harder (push THROWN), keeping some of the bike's speed, and down for longer
+  shoveOff(b, a, p, push = SHOVE) {
     const sx = Math.cos(b.yaw), sz = -Math.sin(b.yaw), side = (p.x - b.x) * sx + (p.z - b.z) * sz > 0 ? -1 : 1;
-    a.x = b.x + sx * side * 0.7; a.z = b.z + sz * side * 0.7; a.svx = sx * side * 5; a.svz = sz * side * 5;
-    a.yaw = Math.atan2(-a.svx, -a.svz); a.downT = 1.8; a.stagT = 0; a.place();
+    const fx = Math.sin(b.yaw), fz = Math.cos(b.yaw), carry = push.carry * (b.v || 0);
+    a.x = b.x + sx * side * 0.7; a.z = b.z + sz * side * 0.7;
+    const kx = sx * side * push.v, kz = sz * side * push.v;
+    a.yaw = Math.atan2(-kx, -kz); a.svx = kx + fx * carry; a.svz = kz + fz * carry;
+    a.downT = push.down; a.stagT = 0; a.place();
   },
   onDriverGone(b) { b.mode = 'fallen'; b.fallen = true; b.fallSide = Math.random() < 0.5 ? 1 : -1; },
   // side: which side the player got off (1 the exitAt side); a bike dropped at speed falls away from them
