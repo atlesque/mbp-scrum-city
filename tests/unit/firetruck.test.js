@@ -4,6 +4,7 @@ import { G, P } from '../../public/js/core/state.js';
 import { WBY } from '../../public/js/data/weapons.js';
 import { all, removeEntity } from '../../public/js/entities/registry.js';
 import { NPC_TYPES } from '../../public/js/npcs/types.js';
+import { blowDamage } from '../../public/js/combat/melee.js';
 import { SHOP_TYPES } from '../../public/js/shops/types.js';
 import { TRUCK, TRUCK_BLAST, spawnTruck, stopShort, takeTruck } from '../../public/js/vehicles/firetruck.js';
 import { CRASH_FIRE, KINDS, crashDriver, driveByPlayer, spawnVehicle } from '../../public/js/vehicles/vehicle.js';
@@ -132,5 +133,13 @@ describe('fire axe', () => {
     expect(NPC_TYPES.fireman.weaponDrops.fireaxe).toBe(1);
     expect(WBY.fireaxe.melee).toBe(true);
     expect(SHOP_TYPES.gunshop.catalogue.map(i => i.id)).not.toContain('fireaxe');
+  });
+  it('kills anyone with one blow, except the Juggernaut', () => {
+    for (const [type, def] of Object.entries(NPC_TYPES)) {
+      const n = { def, hp: def.hp }, d = blowDamage(WBY.fireaxe, n, WBY.fireaxe.dmg, 'leg');
+      if (type === 'jugg') expect(d).toBeLessThan(def.hp / 10);
+      else expect(d, type).toBeGreaterThan(def.hp);
+    }
+    expect(blowDamage(WBY.bat, { def: NPC_TYPES.army, hp: 330 }, WBY.bat.dmg, 'torso')).toBeLessThan(330);
   });
 });
