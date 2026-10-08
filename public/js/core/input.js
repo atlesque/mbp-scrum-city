@@ -55,7 +55,8 @@ document.addEventListener('keydown', e => {
   if (act === 'radio') { const on = Sound.toggleMusic(); showRadio(on ? 'Neon FM 86.0' : 'Radio off'); }
   if (act === 'pause' || (e.code === 'Escape' && I.noLock)) pauseGame();
   if (act === 'melee') cycleMelee();
-  const d = /^(?:Digit|Numpad)([1-9])$/.exec(e.code), n = d ? +d[1] : 0;
+  // 1 to 9 pick a gun, 0 the tenth (the laser rifle)
+  const d = /^(?:Digit|Numpad)([0-9])$/.exec(e.code), n = d ? +d[1] || 10 : 0;
   if (n && n <= GUNS.length) selectWeapon(GUNS[n - 1].id);
 });
 document.addEventListener('keyup', e => { keys[e.code] = false; });

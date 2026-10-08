@@ -1,4 +1,4 @@
-// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, get shelled by the army's tank and blow it up, snipe through the scope, throw a car with a rocket,
+// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, get shelled by the army's tank and blow it up, hold five stars into the secret sixth and take a laser rifle off an alien, snipe through the scope, throw a car with a rocket,
 // shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, ride a bike over a car, pull a wheelie, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, change settings and remap keys. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
@@ -822,6 +822,42 @@ try {
     check(!(await glow()).pulse, 'still pulsing with no stars');
   });
 
+  await step('six stars after five minutes at five: a UFO beams down aliens with laser rifles', async () => {
+    await game(async () => {
+      const { G, P } = __neonbay, { exitVehicle } = await import('/js/game/player.js');
+      if (P.vehicle) exitVehicle(false);
+      Object.assign(P, { x: 0, z: 70, y: 0, floor: 0, roof: null, vy: 0, hp: 100, armor: 100 });
+      G.heat = 100; G.wanted = 5; G.fiveT = 299; G.ufoT = 0;
+    });
+    check(await until(() => __neonbay.G.wanted === 6), 'no sixth star after five minutes at five');
+    check(await game(() => document.querySelector('#stars .six').classList.contains('on') && document.getElementById('radarWrap').classList.contains('alien')), 'the HUD shows no green sixth star');
+    check(await until(() => !!__neonbay.G.ufo, undefined, 20000), 'no UFO at six stars');
+    check(await until(() => __neonbay.Sound.voices().ufo === 1), 'the UFO makes no sound');
+    // bring it in over the player so it starts lowering its crew
+    await game(() => { const { G, P } = __neonbay, u = G.ufo; u.ang = -Math.PI / 2; Object.assign(u, { x: P.x, z: P.z - 20, y: 24, dropT: 0 }); }); // over the road
+    check(await until(() => __neonbay.G.ufo.beamT > 0 && __neonbay.all('npc').some(n => n.type === 'alien'), undefined, 30000), 'the UFO beamed nobody down');
+    // frames are slow here: skip most of the way down the beam
+    await game(() => { for (const n of __neonbay.all('npc')) if (n.type === 'alien' && n.y > 1) n.y = 1; });
+    check(await until(() => __neonbay.all('npc').some(n => n.type === 'alien' && n.alive && n.behaviour === 'hunt' && !n.y), undefined, 30000), 'no alien landed');
+    // take one down: it drops its laser rifle, and walking over it picks it up for key 0
+    await game(() => {
+      const { P } = __neonbay, n = __neonbay.all('npc').find(n => n.type === 'alien' && n.alive && n.behaviour === 'hunt');
+      const r = Math.random; Math.random = () => 0.01; try { n.hurt(1e6, null, true); } finally { Math.random = r; }
+      window.__laser = __neonbay.all('pickup').find(p => p.id === 'laser'); P.hp = 100;
+    });
+    check(await game(() => !!window.__laser), 'the alien dropped no laser rifle');
+    await game(() => { const { P } = __neonbay; P.x = __laser.x; P.z = __laser.z; });
+    check(await until(() => !!__neonbay.inv.owned.laser), 'could not pick up the laser rifle');
+    await press('Digit0');
+    check(await until(() => __neonbay.inv.cur === 'laser'), 'key 0 did not pull out the laser rifle');
+    await game(async () => {
+      const { G, P, inv } = __neonbay, { removeUfo } = await import('/js/vehicles/ufo.js'), { selectWeapon } = await import('/js/combat/combat.js');
+      removeUfo(null); G.wanted = 0; G.heat = 0; G.fiveT = 0; P.hp = 100; selectWeapon('pistol');
+      for (const n of __neonbay.all('npc')) if (n.type === 'alien') __neonbay.removeEntity(n);
+      delete inv.owned.laser; delete inv.found.laser;
+    });
+  });
+
   await step('lights the streets at night', async () => {
     await game(() => __neonbay.lighting.set(1));
     check(await until(() => __neonbay.lighting.lit.lamps > 0 && __neonbay.lighting.lit.beams > 0), 'no street lamps or headlights came on');
@@ -836,14 +872,14 @@ try {
   });
 
   await step('every gun reloads with its own move and sound', async () => {
-    // on keys 1, 2, 3, ...; grenades and molotovs are thrown one at a time and never reload
+    // on keys 1, 2, 3, ... 0; grenades and molotovs are thrown one at a time and never reload
     const guns = await game(() => import('/js/data/weapons.js').then(m => m.GUNS.map((w, i) => [i, w.id, !!w.thrown])));
     await game(() => { const { G, P } = __neonbay; G.heat = 0; G.wanted = 0; P.hp = 100; });
     if (await game(() => __neonbay.Sound.ready)) check(await until(() => import('/js/data/reloads.js').then(m => Object.values(m.RELOADS).every(r => __neonbay.Sound.samplesLoaded.includes(r.sound)))), 'the reload sounds did not load');
     for (const [i, id, thrown] of guns) {
       if (thrown) continue;
       await game(id => { const { inv } = __neonbay; inv.owned[id] = true; if (id !== 'pistol') inv.ammo[id] = 50; inv.mag[id] = 0; }, id);
-      await press(`Digit${i + 1}`);
+      await press(`Digit${(i + 1) % 10}`); // the tenth gun is on 0
       check(await until(id => __neonbay.inv.cur === id, id, 3000), `could not switch to the ${id}`);
       // frames are slow under software WebGL, so watch every frame from inside the page
       await game(() => { const { P } = __neonbay, w = window.__rl = { anims: new Set(), move: 0, x0: P.c.armL.rotation.x }; w.timer = setInterval(() => { if (P.reload) { w.anims.add(P.reload.anim); w.move = Math.max(w.move, Math.abs(P.c.armL.rotation.x - w.x0)); } }, 10); });

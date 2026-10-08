@@ -32,11 +32,14 @@ export function updateParts(dt) {
 }
 const tracerMat = new THREE.MeshBasicMaterial({ color: '#ffe9a8', transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
 const tracerMatE = new THREE.MeshBasicMaterial({ color: '#ff9a7a', transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });
+// a laser bolt (the aliens' rifles) is a fat green beam that hangs in the air a moment longer
+const laserMat = new THREE.MeshBasicMaterial({ color: '#6dff8a', transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
 const tracers = [], tracerPool = [];
-export function tracer(a, b, enemy) {
+export function tracer(a, b, enemy, laser = false) {
   const len = a.distanceTo(b); if (len < 0.3) return;
-  const m = tracerPool.pop() || new THREE.Mesh(PGEO, tracerMat); m.material = enemy ? tracerMatE : tracerMat;
-  m.position.copy(a).add(b).multiplyScalar(0.5); m.lookAt(b); m.scale.set(0.05, 0.05, len); scene.add(m); tracers.push({ m, life: 0.06 });
+  const m = tracerPool.pop() || new THREE.Mesh(PGEO, tracerMat); m.material = laser ? laserMat : enemy ? tracerMatE : tracerMat;
+  const w = laser ? 0.11 : 0.05, life = laser ? 0.14 : 0.06;
+  m.position.copy(a).add(b).multiplyScalar(0.5); m.lookAt(b); m.scale.set(w, w, len); scene.add(m); tracers.push({ m, life, life0: life, w });
 }
 // point lights fall off with the square of distance since r155; these scale them back to their r128
 // brightness at a typical distance (2 m from the gun, 8 m from a blast)
@@ -64,7 +67,7 @@ export function boomFx(x, y, z, r) {
   boomLight.position.set(x, y + 2, z); boomLight.intensity = 6 * BOOM_I;
 }
 export function updateFx(dt) {
-  for (let i = tracers.length - 1; i >= 0; i--) { const t = tracers[i]; t.life -= dt; t.m.scale.x = t.m.scale.y = 0.05 * Math.max(0.2, t.life / 0.06); if (t.life <= 0) { scene.remove(t.m); tracerPool.push(t.m); tracers.splice(i, 1); } }
+  for (let i = tracers.length - 1; i >= 0; i--) { const t = tracers[i]; t.life -= dt; t.m.scale.x = t.m.scale.y = t.w * Math.max(0.2, t.life / t.life0); if (t.life <= 0) { scene.remove(t.m); tracerPool.push(t.m); tracers.splice(i, 1); } }
   for (let i = flashes.length - 1; i >= 0; i--) { const f = flashes[i]; f.life -= dt; if (f.life <= 0) { scene.remove(f.m); flashes.splice(i, 1); } }
   for (const p of pools) if (p.t < 1) { p.t += dt * 0.5; p.m.scale.setScalar(p.max * Math.min(1, p.t * 1.5)); }
   for (let i = booms.length - 1; i >= 0; i--) { const b = booms[i]; b.t += dt; const k = b.t / 0.5; b.m.scale.setScalar(b.r * (0.3 + k * 0.9)); b.m.material.opacity = Math.max(0, 1 - k); b.m.material.color.setHSL(0.08 - k * 0.06, 1, 0.6 - k * 0.3); if (k >= 1) { scene.remove(b.m); b.m.geometry.dispose(); b.m.material.dispose(); booms.splice(i, 1); } }

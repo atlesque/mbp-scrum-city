@@ -134,7 +134,7 @@ const RoofGun = {
     if (!P.alive || P.vehicle || Math.abs(P.y - p.y) > 2 || Math.hypot(P.x - p.x, P.z - p.z) > 1.3) return;
     const had = !!inv.owned[p.id], label = pickUpWeapon(inv, p.id); if (!label) return;
     Sound.pickup(); feed(label, false, '#ffd23e');
-    const w = WBY[p.id], key = w.melee ? 'Q' : GUNS.indexOf(w) + 1;
+    const w = WBY[p.id], key = w.melee ? 'Q' : String((GUNS.indexOf(w) + 1) % 10);
     if (!had) { toast(`Got a <em>${w.name}</em>. Press <em>${key}</em> to use it. Picked-up weapons are lost when you get wasted.`, 6); p.onTaken && p.onTaken(p.id); }
     p.active = false; p.m.visible = p.glow.visible = false; p.respawnT = ROOF_GUN_RESPAWN;
   },
@@ -153,7 +153,7 @@ const DroppedWeapon = {
     if (!P.alive || P.vehicle || P.y > 2 || Math.hypot(P.x - p.x, P.z - p.z) > 1.3) return;
     const label = pickUpWeapon(inv, p.id); if (!label) return;
     Sound.pickup(); feed(label, false, '#ffd23e');
-    const w = WBY[p.id], key = w.melee ? 'Q' : GUNS.indexOf(w) + 1;
+    const w = WBY[p.id], key = w.melee ? 'Q' : String((GUNS.indexOf(w) + 1) % 10);
     if (!toldFound) { toldFound = true; toast(`Got ${w.thrown ? '' : 'a '}<em>${w.name}</em>${key ? `. Press <em>${key}</em> to ${w.thrown ? 'pull one out' : 'use it'}` : ''}. Picked-up weapons are lost when you get wasted; only bought ones stay.`, 6); }
     removeEntity(p);
   },

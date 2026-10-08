@@ -18,6 +18,9 @@ export const G = {
   heli: null,
   tankT: 6, // seconds until the army's tank rolls in at five stars (vehicles/tank.js)
   tank: null,
+  fiveT: 0, // seconds at five stars in a row; SIX_STAR_AFTER of them bring the secret sixth (game/wanted.js)
+  ufoT: 2, // seconds until the UFO comes at six stars (vehicles/ufo.js)
+  ufo: null,
   shootersNow: 0,
   reloadT: 0,
   fireCd: 0,

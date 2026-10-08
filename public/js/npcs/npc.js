@@ -68,7 +68,7 @@ const Npc = {
   place() { this.c.root.position.set(this.x, this.y || 0, this.z); this.c.root.rotation.set(this.flip || 0, this.yaw, 0, 'YXZ'); },
   raycast(o, d, maxT) {
     if (!this.alive || (this.vehicle && this.vehicle.K.enclosed)) return null; // inside a car, the car decides what a shot hits
-    const s = this.def.scale || 1, yo = this.vehicle ? 0.15 : 0;
+    const s = this.def.scale || 1, yo = (this.vehicle ? 0.15 : 0) + (this.y || 0); // y: still coming down a UFO's beam
     let best = null;
     const test = (y, r, head) => { const t = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, this.x, y * s + yo, this.z, r * s); if (t < maxT && (!best || t < best.t)) best = { t, head }; };
     test(1.05, 0.44, false); test(0.5, 0.32, false); test(1.74, 0.2, true);

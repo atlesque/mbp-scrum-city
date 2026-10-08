@@ -11,7 +11,8 @@ import { removeEntity } from '../entities/registry.js';
 import { hurtPlayer } from '../game/player.js';
 import { setGun } from '../characters/character.js';
 import { TRUCK, spray } from '../vehicles/firetruck.js';
-import { muzzleFlash, tracer } from '../render/effects.js';
+import { emit, muzzleFlash, tracer } from '../render/effects.js';
+import { WBY } from '../data/weapons.js';
 import { blocked, isFree, onRoad } from '../world/collision.js';
 import { faceTo, moveActor } from './npc.js';
 
@@ -77,6 +78,7 @@ export const BEHAVIOURS = {
     init(e) { Object.assign(e, { los: false, losT: 0, sight: newSight(), fireT: rnd(0.8, 1.6), burst: 0, burstT: 0, strafe: Math.random() < 0.5 ? 1 : -1, strafeT: rnd(1, 3), stuck: 0, detourT: 0, dx: 0, dz: 0, leaving: false }); },
     update(e, dt) {
       const def = e.def, dx = P.x - e.x, dz = P.z - e.z, dist = Math.hypot(dx, dz) || 1;
+      if (def.leaveBelow && G.wanted < def.leaveBelow) e.leaving = true;
       e.losT -= dt;
       if (e.losT <= 0) { e.los = P.alive && dist < 90 && !blocked(e.x, 1.5, e.z, P.x, P.y + 1.3, P.z); e.losT = SIGHT_EVERY; }
       if (e.leaving) {
@@ -154,6 +156,16 @@ export const BEHAVIOURS = {
     },
   },
 
+  // coming down a UFO's tractor beam (vehicles/ufo.js): sinks slowly, turning, then lands and does what its type does
+  beamdown: {
+    init(n) { n.aiming = false; n.panic = false; n.svx = n.svz = 0; n.vy = 0; },
+    update(n, dt) {
+      n.y = Math.max(0, (n.y || 0) - BEAM_SINK * dt); n.yaw += dt * 2.5; n.moveSpeed = 0;
+      animateChar(n, dt); n.place();
+      if (n.y === 0) n.become(n.def.behaviour);
+    },
+  },
+
   // sitting on a vehicle that steers itself; a wounded rider guns it
   ride: {
     update() {},
@@ -163,6 +175,8 @@ export const BEHAVIOURS = {
 
 // how far off a burning vehicle a fireman stands to hose it
 const DOUSE_AT = 4;
+// how fast someone sinks down a UFO's beam, m/s
+export const BEAM_SINK = 5;
 
 function shootAtPlayer(e, dist) {
   if (!P.alive) return;
@@ -172,10 +186,12 @@ function shootAtPlayer(e, dist) {
   const target = new THREE.Vector3(P.x, P.y + 1.2, P.z);
   const hit = Math.random() < chance && !blocked(from.x, from.y, from.z, target.x, target.y, target.z);
   if (!hit) target.add(new THREE.Vector3(rnd(-1.6, 1.6), rnd(-0.9, 1.2), rnd(-1.6, 1.6)));
-  muzzleFlash(from, !!e.def.bigFlash); Sound.shot(e.def.gun, 0.7, at(e, 1.3));
+  const laser = WBY[e.def.gun].laser;
+  if (laser) emit(from.x, from.y, from.z, 3, '#6dff8a', 2, 0.15, 0.06); else muzzleFlash(from, !!e.def.bigFlash);
+  Sound.shot(e.def.gun, 0.7, at(e, 1.3));
   // a rocket flies at where they aim, on target or off; the blast does the damage
   if (e.def.rocket) { fireRocket(from, target.sub(from).normalize(), e.def.dmg, 1, e); return; }
-  tracer(from, target, true);
+  tracer(from, target, true, laser);
   if (hit) { const zone = rollZone(); hurtPlayer(zoneDamage(e.def.dmg, zone), zone); }
   else if (dist < 12) Sound.ting(0.5, at(target, 1.3));
 }

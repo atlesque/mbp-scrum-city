@@ -41,6 +41,7 @@ export const HEAR = {
   siren: { ref: 10, max: 160 },
   rotor: { ref: 18, max: 200 },
   tank: { ref: 12, max: 170 },
+  ufo: { ref: 16, max: 180 },
 };
 export function falloff(d, p) {
   if (p.curve) return d >= p.max ? 0 : clamp(p.curve(d), 0, 1);
