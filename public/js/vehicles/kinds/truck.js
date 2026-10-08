@@ -2,7 +2,7 @@ import { kb } from '../../core/controls.js';
 import { BODY } from '../firetruck-mesh.js';
 import { carKind } from './car.js';
 
-// Trucks: a car, only much bigger and heavier (the fire engine, models/firetruck.js). It drives like a car with a long
+// Trucks: a car, only much bigger and heavier (the fire engine, models/firetruck.js, and the army truck, models/army.js). It drives like a car with a long
 // wheelbase, slower to get going and to turn; it shoves cars aside instead of bouncing off them, bikes don't ride over
 // it, and it goes up with a bigger bang. Crashes dent the truck but never hurt whoever is driving it. See kinds/bike.js for what each field means.
 export const truck = carKind({
@@ -19,5 +19,5 @@ export const truck = carKind({
   camera: { dist: 11.5, aimDist: 6.5, height: 3.6, fovPerSpeed: 0.3, minArm: 5 },
   laneHalf: 2.2, reachMax: 1.8,
   topAt: undefined, // far too tall to ride a bike over
-  tip: M => `The ${M.name}. <em>${kb('forward')}</em>/<em>${kb('back')}</em> gas and brake, <em>${kb('left')}</em>/<em>${kb('right')}</em> steer, <em>${kb('sprint')}</em> boost, <em>${kb('siren')}</em> siren, <em>${kb('ride')}</em> to get out. It's heavy: cars get shoved out of its way.`,
+  tip: M => `The ${M.name}. <em>${kb('forward')}</em>/<em>${kb('back')}</em> gas and brake, <em>${kb('left')}</em>/<em>${kb('right')}</em> steer, <em>${kb('sprint')}</em> boost, ${M.siren ? `<em>${kb('siren')}</em> siren, ` : ''}<em>${kb('ride')}</em> to get out. It's heavy: cars get shoved out of its way.`,
 }));

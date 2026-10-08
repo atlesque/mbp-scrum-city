@@ -110,7 +110,7 @@ const K = {
       if (keepApart(c)) c.v *= 0.9;
       const a = c.driver; if (a) { a.x = c.x; a.z = c.z; a.yaw = c.yaw; }
     },
-    // a police car racing up the player's road; it parks and lets the officers out when close
+    // a police car or army truck racing up the player's road; it parks and lets its crew out when close
     respond(c, dt) {
       c.respT += dt;
       const along = c.dirZ ? c.z : c.x, pAlong = c.dirZ ? P.z : P.x, rem = (pAlong - along) * (c.dirZ || c.dirX);

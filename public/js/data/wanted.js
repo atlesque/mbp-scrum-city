@@ -3,7 +3,7 @@ export const WANTED = [null,
   { max: 5, every: 4, mix: [['cop', 1]], cars: true },
   { max: 7, every: 3.2, mix: [['cop', 0.45], ['swat', 0.55]], cars: true },
   { max: 9, every: 2.6, mix: [['swat', 0.45], ['fbi', 0.55]], cars: true, heli: true },
-  { max: 10, every: 2.2, mix: [['fbi', 0.3], ['army', 0.55], ['jugg', 0.15]], cars: true, heli: true, tank: true },
+  { max: 10, every: 2.2, mix: [['fbi', 0.3], ['army', 0.55], ['jugg', 0.15]], cars: true, carEvery: 6, heli: true, tank: true },
 ];
 export const HEAT = [0, 1, 10, 25, 50, 90];
 // strength (0..1) of the red inner glow on the minimap at each star level; none at zero stars
@@ -14,3 +14,13 @@ export const RADAR_PULSE_FROM = 4;
 export function heatToLevel(heat, table = HEAT) { for (let i = table.length - 1; i >= 1; i--) if (heat >= table[i]) return i; return 0; }
 // pick an NPC type from a level's [[type, weight], ...] mix
 export function mixPick(mix, r = Math.random()) { for (const [t, w] of mix) { r -= w; if (r <= 0) return t; } return mix[0][0]; }
+// what each unit arrives in: soldiers and the Juggernaut only ever come in army trucks (never on foot, never in a police
+// car); everyone else comes in a police cruiser or walks in
+export const RIDES = { cop: 'police', swat: 'police', fbi: 'police', army: 'army', jugg: 'army' };
+const ONLY_RIDE = new Set(['army', 'jugg']);
+const rideOf = t => RIDES[t] || 'police';
+// the part of a level's mix that rides in a vehicle model, or walks in on foot; null when nobody does
+export function crewMix(mix, model) { const m = mix.filter(([t]) => rideOf(t) === model); return m.length ? m : null; }
+export function footMix(mix) { const m = mix.filter(([t]) => !ONLY_RIDE.has(t)); return m.length ? m : null; }
+// the response vehicle to send next, weighted by how much of the level's mix rides in each
+export const pickRide = (mix, r) => rideOf(mixPick(mix, r));
