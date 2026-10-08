@@ -1,4 +1,4 @@
-import { setGun, muzzleOf } from '../characters/character.js';
+import { aimArms, setGun, muzzleOf } from '../characters/character.js';
 import { Sound } from '../core/audio.js';
 import { HEAR } from '../core/spatial.js';
 import { blastShake, stackShake } from './shake.js';
@@ -40,6 +40,9 @@ export function playerShoot() {
   if (G.reloadT > 0) return;
   if ((inv.mag[w.id] || 0) <= 0) { startReload(); if ((inv.mag[w.id] || 0) <= 0) { Sound.empty(); G.fireCd = 0.3; } return; }
   inv.mag[w.id]--; G.fireCd = st.rate; P.lastShot = G.time;
+  // a shot from rest comes out of the gun already raised (the arms catch up when the character is next
+  // posed), so a rocket leaves the launcher's tip at shoulder height rather than the street at the feet
+  if (!P.vehicle && !P.tumble) { aimArms(P); P.c.root.position.set(P.x, P.floor || 0, P.z); P.c.root.rotation.y = P.yaw; P.c.root.updateMatrixWorld(true); }
   const muz = muzzleOf(P.c).clone();
   const dir = new THREE.Vector3(Math.sin(cam.yaw) * Math.cos(cam.pitch), Math.sin(cam.pitch), Math.cos(cam.yaw) * Math.cos(cam.pitch));
   const origin = camTarget.clone();
