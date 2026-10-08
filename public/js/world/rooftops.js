@@ -68,7 +68,7 @@ export function doorRoof(o) {
     door: o.door, street: at(o.door, fn, 1.1),
     walk: { x0: A.x0 + RAIL, x1: A.x1 - RAIL, z0: A.z0 + RAIL, z1: A.z1 - RAIL }, area: A,
     hut, hutOut: at(o.hut, hfn, HUT.d / 2 + 1.1),
-    gun: o.gun, gunAt: o.gunAt, jetpackAt: o.jetpackAt,
+    gun: o.gun, gunAt: o.gunAt, jetpackAt: o.jetpackAt, chuteAt: o.chuteAt,
     ac: [],
     blocks: [{ x0: hut.x0, x1: hut.x1, z0: hut.z0, z1: hut.z1, y0: floor, y1: floor + HUT.h + 0.25 }, ...(o.blocks || [])],
     rails: railsFor(A.x0, A.x1, A.z0, A.z1, floor),

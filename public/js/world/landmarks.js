@@ -73,11 +73,11 @@ const SIGNS = {
 // hut stands on the roof and which way its door faces, and what waits up there. Every other solid top of a landmark
 // can be stood on too, without railings; what stands on the roofs (Kit.roofPart) comes with the model.
 const ROOFTOPS = {
-  vac: { rect: [-9, 4, -15, 11], door: [-6, -15], dir: [0, -1], hut: [-2.5, 5], hutDir: [0, -1], gun: 'sniper', gunAt: [0, -10] },
+  vac: { rect: [-9, 4, -15, 11], door: [-6, -15], dir: [0, -1], hut: [-2.5, 5], hutDir: [0, -1], gun: 'sniper', gunAt: [0, -10], chuteAt: [2, 3] },
   // the tower, 59 m up, with its plant room; the rocket launcher waits here instead of a sniper rifle
-  teirlinck: { rect: [-16, 0, 0, 16], door: [ROOF_DOOR_X, -16], dir: [0, -1], hut: [-12, 3], hutDir: [1, 0], gun: 'rpg', gunAt: [-3, 12] },
-  // the new middle block's roof garden round the red pavilion, with the jetpack
-  belpaire: { rect: [-7, 7, -9, 12], door: [3, -9], dir: [0, -1], hut: [-3, 9], hutDir: [1, 0], gun: 'sniper', gunAt: [-4, -7.6], jetpackAt: [3.5, 9] },
+  teirlinck: { rect: [-16, 0, 0, 16], door: [ROOF_DOOR_X, -16], dir: [0, -1], hut: [-12, 3], hutDir: [1, 0], gun: 'rpg', gunAt: [-3, 12], chuteAt: [-13, 13] },
+  // the new middle block's roof garden round the red pavilion, with the jetpack (and on all three, a parachute at chuteAt)
+  belpaire: { rect: [-7, 7, -9, 12], door: [3, -9], dir: [0, -1], hut: [-3, 9], hutDir: [1, 0], gun: 'sniper', gunAt: [-4, -7.6], jetpackAt: [3.5, 9], chuteAt: [0.5, 10] },
 };
 const ROOF_COLS = { vac: ['#cfcbc6', '#a9a59f'], teirlinck: ['#dcc08a', '#8f8e88'], belpaire: ['#eef0ee', '#c8322f'] };
 // hand a placed model's tops to world/rooftops.js: colliders are [x0, x1, z0, z1, top] and onRoof the things standing
@@ -100,7 +100,7 @@ function addRoofs(colliders, cx, cz, face, type, spec, onRoof = []) {
     if (spec && flip(spec.rect).every((v, i) => Math.abs(v - C[i]) < 1e-6)) {
       Object.assign(r, {
         door: at(spec.door), fn: dir(spec.dir), hut: at(spec.hut), hfn: dir(spec.hutDir), col: ROOF_COLS[type][0], trim: ROOF_COLS[type][1],
-        gun: spec.gun, gunAt: at(spec.gunAt), jetpackAt: spec.jetpackAt && at(spec.jetpackAt),
+        gun: spec.gun, gunAt: at(spec.gunAt), jetpackAt: spec.jetpackAt && at(spec.jetpackAt), chuteAt: at(spec.chuteAt),
       });
     }
     landmarkRoofs.push(r);
