@@ -206,12 +206,14 @@ export function toggleSiren() {
 
 // ---- the player at the controls ----
 const controls = () => ({
-  throttle: held('forward'), brake: held('back'), boost: held('sprint'), handbrake: held('jump'),
+  throttle: held('forward'), brake: held('back'), boost: held('sprint'), handbrake: held('jump'), wheelie: held('wheelie'),
   steer: (held('left') ? 1 : 0) - (held('right') ? 1 : 0),
 });
 export function driveByPlayer(v, dt) {
   const K = v.K;
   K.drive(v, dt, controls());
+  // pulled a bike's wheelie up too far: it goes over backwards and throws the rider off
+  if (v.looped) { v.looped = false; exitVehicle(true); toast('Looped it! Ease off the boost to hold a wheelie.', 2.5); return; }
   if (K.ridesOver) mount(v);
   if (ram(v)) v.shoveT = G.time + 0.3;
   const fx = Math.sin(v.yaw), fz = Math.cos(v.yaw), nx = v.x, nz = v.z;

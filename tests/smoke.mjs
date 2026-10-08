@@ -1,5 +1,5 @@
 // Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, get shelled by the army's tank and blow it up, snipe through the scope, throw a car with a rocket,
-// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, ride a bike over a car, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, change settings and remap keys. Fails on any page error or broken step.
+// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, ride a bike over a car, pull a wheelie, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, change settings and remap keys. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -404,6 +404,36 @@ try {
     await press('KeyF');
     check(await until(() => !__neonbay.P.vehicle), 'F did not get the player off');
     await game(() => { __neonbay.removeEntity(__ram); __neonbay.removeEntity(__hit); });
+  });
+
+  await step('pulls a wheelie on a bike, sets it down, and loops one over on the boost', async () => {
+    await until(() => !__neonbay.P.tumble);
+    await clearVehicles(4, -60); await clearVehicles(4, -40); await clearVehicles(4, -20);
+    await game(() => { const { P, spawnVehicle } = __neonbay; P.x = 4.5; P.z = -70; window.__ram = spawnVehicle('t7', 3, -70, 0); });
+    check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes(__ram.model.name)), 'no prompt to get on');
+    await press('KeyF');
+    check(await until(() => __neonbay.P.vehicle === window.__ram), 'F did not put the player on the bike');
+    // the speedo shows up on the next HUD update
+    const shown = await until(() => !document.getElementById('speedo').hidden && !document.getElementById('vehWheelie').hidden);
+    if (!shown) { await press('KeyF'); await game(() => __neonbay.removeEntity(__ram)); }
+    check(shown, 'the speedo does not show the wheelie key');
+    await game(() => { __ram.x = 3; __ram.z = -70; __ram.yaw = 0; __ram.v = 12; __ram.peak = 0; });
+    await page.keyboard.down('KeyW'); await page.keyboard.down('KeyC');
+    const up = await until(() => { __ram.peak = Math.max(__ram.peak, __ram.pop); return __ram.pop > 0.45; }, null, 30000);
+    const r = await game(() => ({ peak: __ram.peak, on: __neonbay.P.vehicle === __ram, y: __ram.mesh.grp.rotation.x }));
+    check(up, `the front did not come up (peak ${r.peak.toFixed(2)} rad)`);
+    check(r.on && r.y < -0.4, `the bike did not tip back with the rider on (pitch ${r.y.toFixed(2)})`);
+    await page.keyboard.up('KeyC');
+    check(await until(() => !__ram.pop, null, 30000), 'the front did not come back down');
+    // boost while up: it climbs past the balance point and goes over backwards
+    await game(() => { __ram.x = 3; __ram.z = -70; __ram.yaw = 0; __ram.v = 12; });
+    await page.keyboard.down('ShiftLeft'); await page.keyboard.down('KeyC');
+    const looped = await until(() => !__neonbay.P.vehicle, null, 40000);
+    for (const k of ['KeyC', 'ShiftLeft', 'KeyW']) await page.keyboard.up(k);
+    check(looped, 'boosting the wheelie never looped it over');
+    check(await game(() => __ram.fallen), 'the looped bike is still upright');
+    await until(() => !__neonbay.P.tumble, null, 30000);
+    await game(() => __neonbay.removeEntity(__ram));
   });
 
   await step('a car explosion throws the dead, and whoever it kills, through the air', async () => {
