@@ -20,17 +20,22 @@ function ray(tx, ty, tz) {
 }
 
 describe('police helicopter', () => {
-  it('goes down to a magazine or two of rifle fire', () => {
+  it('goes down to two magazines of rifle fire', () => {
     const h = chopper(), dmg = wStat(WBY.rifle, 0).dmg;
     let hits = 0;
     while (!h.falling && hits < 100) { h.onShot({}, dmg); hits++; }
     expect(h.falling).toBe(true);
-    expect(hits).toBeLessThanOrEqual(30);
+    expect(hits).toBeLessThanOrEqual(60);
   });
-  it('goes down to one direct rocket', () => {
+  it('goes down to two direct rockets, or one from an upgraded launcher', () => {
     const h = chopper(), dmg = wStat(WBY.rpg, 0).dmg;
     h.onRocket(dmg); h.blast(h.x, h.y, h.z, 7, dmg, true);
+    expect(h.falling).toBe(false);
+    h.onRocket(dmg); h.blast(h.x, h.y, h.z, 7, dmg, true);
     expect(h.falling).toBe(true);
+    const u = chopper(), up = wStat(WBY.rpg, 1).dmg;
+    u.onRocket(up); u.blast(u.x, u.y, u.z, 7, up, true);
+    expect(u.falling).toBe(true);
   });
   it('can be hit on the cabin, the tail and the rotor', () => {
     const h = chopper();

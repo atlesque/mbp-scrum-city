@@ -54,7 +54,7 @@ export function updateThrown(dt) {
   for (let i = items.length - 1; i >= 0; i--) {
     const it = items[i];
     it.fuse -= dt;
-    if (it.w.fuse && it.fuse <= 0) { explosion(it.p.x, Math.max(0.3, it.p.y), it.p.z, it.w.blast, it.w.dmg, true, 1.2); scene.remove(it.m); items.splice(i, 1); continue; }
+    if (it.w.fuse && it.fuse <= 0) { explosion(it.p.x, Math.max(0.3, it.p.y), it.p.z, it.w.blast, it.w.dmg, true, 1.2, true); scene.remove(it.m); items.splice(i, 1); continue; }
     if (it.w.fire && it.fuse <= 0) { scene.remove(it.m); items.splice(i, 1); continue; } // flew off the map
     if (it.rest) continue;
     it.v.y += THROW.gravity * dt;

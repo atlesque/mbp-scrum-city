@@ -95,7 +95,7 @@ export function updateRockets(dt) {
     emit(r.p.x, r.p.y, r.p.z, 1, '#c8c0c8', 0.5, 0.8, 0.25, 1.5, 0.3);
     if (h.kind !== 'none' || r.life <= 0) {
       if (h.kind === 'entity' && h.entity.onRocket && !r.shooter) h.entity.onRocket(r.dmg);
-      explosion(h.p.x, Math.max(0.3, h.p.y), h.p.z, ROCKET_BLAST_R * r.blastMul, r.dmg, !r.shooter, ROCKET_POWER);
+      explosion(h.p.x, Math.max(0.3, h.p.y), h.p.z, ROCKET_BLAST_R * r.blastMul, r.dmg, !r.shooter, ROCKET_POWER, true);
       scene.remove(r.m); rockets.splice(i, 1); continue;
     }
     r.p.copy(h.p); r.m.position.copy(r.p);
@@ -107,12 +107,13 @@ function hitsPlayer(o, d, maxT) {
   const t = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, P.x, y, P.z, r);
   return t < maxT ? Math.max(0, t) : Infinity;
 }
-export function explosion(x, y, z, R, dmg, byPlayer, power = 1) {
+// ordnance: a rocket or grenade (not a vehicle going up), which wrecks vehicles close to it outright
+export function explosion(x, y, z, R, dmg, byPlayer, power = 1, ordnance = false) {
   boomFx(x, y, z, R * 0.7);
   const dP = Math.hypot(x - P.x, z - P.z, Math.max(0, Math.abs(y - P.y) - 2)); // a blast in the street doesn't reach a roof
   Sound.boom(1.2, { x, y, z }, HEAR.boom);
   cam.shake = stackShake(cam.shake, blastShake(R, Math.hypot(x - P.x, z - P.z, y - P.y)));
-  for (const e of all()) if (e.blast && !e.removed) e.blast(x, y, z, R, dmg, byPlayer);
+  for (const e of all()) if (e.blast && !e.removed) e.blast(x, y, z, R, dmg, byPlayer, ordnance);
   for (const e of all()) if (e.fling && !e.removed) e.fling(x, y, z, R, power); // a second pass, so whoever the blast just killed flies too
   blastProps(x, y, z, R, power); // palms, lamps and beach props nearby go over
   if (dP < R && P.alive) hurtPlayer((dmg * (1 - dP / R) + 10) * (byPlayer ? 0.35 : 0.6));
