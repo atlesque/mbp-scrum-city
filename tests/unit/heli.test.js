@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { G, P } from '../../public/js/core/state.js';
 import { WBY, wStat } from '../../public/js/data/weapons.js';
 import { spawnNpc } from '../../public/js/npcs/npc.js';
-import { HELI_HP, aimLight, removeHeli, searchlightShade, spawnHeli } from '../../public/js/vehicles/heli.js';
+import { CRUISE_Y, HELI_HP, aimLight, removeHeli, searchlightShade, spawnHeli } from '../../public/js/vehicles/heli.js';
 import { spawnVehicle } from '../../public/js/vehicles/vehicle.js';
 import { addCollider, colliders, tallBoxes } from '../../public/js/world/collision.js';
 
@@ -105,5 +105,57 @@ describe('police helicopter', () => {
       expect(searchlightShade.nBox.value).toBe(2);
       expect(searchlightShade.origin.value.y).toBeCloseTo(27.2, 3);
     } finally { colliders.splice(-2); tallBoxes.splice(-2); }
+  });
+
+  describe('altitude', () => {
+    const fly = (h, s) => { for (let i = 0; i < s / 0.05; i++) h.update(0.05); };
+    const tower = (x0, x1, z0, z1, top) => addCollider(x0, x1, z0, z1, top, true);
+    const drop = n => { colliders.splice(-n); tallBoxes.splice(-n); };
+    it('climbs over a player up on a roof to keep them in sight', () => {
+      const h = chopper(); G.wanted = 5; P.alive = true; P.y = 45;
+      try {
+        fly(h, 8);
+        expect(h.y).toBeGreaterThan(P.y + 5);
+      } finally { P.y = 0; G.wanted = 0; }
+    });
+    it('never comes down below its cruising height', () => {
+      const h = chopper(); G.wanted = 5; P.alive = true; P.y = 0; h.y = 60;
+      try {
+        fly(h, 20);
+        expect(h.y).toBeCloseTo(CRUISE_Y, 1);
+        let low = Infinity; for (let i = 0; i < 200; i++) { h.update(0.05); low = Math.min(low, h.y); }
+        expect(low).toBeGreaterThanOrEqual(CRUISE_Y - 0.01);
+      } finally { G.wanted = 0; }
+    });
+    it('rises over a tower in its orbit instead of flying into it', () => {
+      const h = chopper(); G.wanted = 5; P.alive = true; P.y = 0;
+      // a 60 m tower block across the orbit, just ahead of the chopper (it circles from +z towards -x)
+      tower(-30, -8, 8, 40, 60);
+      try {
+        for (let i = 0; i < 600; i++) {
+          h.update(0.05);
+          const inside = h.x > -30 - 5 && h.x < -8 + 5 && h.z > 8 - 5 && h.z < 40 + 5;
+          if (inside) expect(h.y - 2).toBeGreaterThan(60);
+        }
+        expect(h.ang).toBeGreaterThan(Math.PI); // it got past
+      } finally { drop(1); G.wanted = 0; }
+    });
+    it('spawns above whatever building it comes in over', () => {
+      tower(-500, 500, -500, 500, 80);
+      try {
+        removeHeli(); P.x = 0; P.z = 0; spawnHeli();
+        expect(G.heli.y).toBeGreaterThan(80);
+      } finally { drop(1); }
+    });
+    it('crashes onto the roof it comes down over', () => {
+      const h = chopper(); tower(-10, 10, 16, 36, 30);
+      try {
+        h.y = 45; h.damage(HELI_HP);
+        let y = Infinity;
+        for (let i = 0; i < 200 && G.heli; i++) { y = h.y; h.update(0.05); }
+        expect(G.heli).toBeNull();
+        expect(y).toBeGreaterThan(30);
+      } finally { drop(1); }
+    });
   });
 });

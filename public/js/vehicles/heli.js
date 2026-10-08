@@ -4,7 +4,7 @@ import { SIGHT_EVERY, newSight, reactTo } from '../combat/sight.js';
 import { Sound } from '../core/audio.js';
 import { at } from '../core/spatial.js';
 import { G, P } from '../core/state.js';
-import { angDiff, lerp, rnd } from '../core/util.js';
+import { angDiff, clamp, rnd } from '../core/util.js';
 import { addEntity, removeEntity } from '../entities/registry.js';
 import { reward } from '../game/pickups.js';
 import { hurtPlayer } from '../game/player.js';
@@ -28,6 +28,12 @@ const BEAM_Y = -0.8, BEAM_SPREAD = 0.06;
 // the crash goes off like a vehicle explosion, only bigger than a car's (r 9, dmg 240): it wrecks the cars and drops the people
 // it comes down among, and throws the dead and the wrecks harder
 export const CRASH_BLAST = { y: 1, r: 12, dmg: 300, power: 1.4 };
+// Altitude: it cruises at CRUISE_Y and never comes lower; a player up on a roof (or a jetpack) pulls it up to ABOVE metres
+// over their feet so it can still look down on them. Wherever it flies it keeps CLEAR metres over every roof within PAD
+// of the cabin (the rotor and tail reach out ~5 m), looking LOOK seconds ahead along its path so it climbs before a
+// tower rather than into it, and it holds its ground while still too low to pass one.
+export const CRUISE_Y = 28;
+const ABOVE = 10, CLEAR = 8, PAD = 7, LOOK = 2, CLIMB = 14, SINK = 6, SPEED = 16;
 // up to SHADOW_BOXES buildings near the beam cast shadows in it (see lightMaterial)
 const SHADOW_BOXES = 16;
 const shade = {
@@ -52,21 +58,27 @@ const Heli = {
     if (h.falling) {
       h.vy -= 14 * dt; h.y += h.vy * dt; h.grp.rotation.y += dt * 5; h.grp.rotation.z += dt * 0.6;
       if (Math.random() < 0.8) emit(h.x, h.y, h.z, 1, '#3a3240', 2, 1.5, 0.8, 2, 1);
-      if (h.y <= CRASH_BLAST.y) { explosion(h.x, CRASH_BLAST.y, h.z, CRASH_BLAST.r, CRASH_BLAST.dmg, true, CRASH_BLAST.power); removeHeli(40); return; }
+      // it comes down on whatever is under it, the street or a roof
+      const floor = roofTop(h.x, h.z, 0) + CRASH_BLAST.y;
+      if (h.y <= floor) { explosion(h.x, floor, h.z, CRASH_BLAST.r, CRASH_BLAST.dmg, true, CRASH_BLAST.power); removeHeli(40); return; }
       h.grp.position.set(h.x, h.y, h.z); return;
     }
     if (G.wanted < 4) {
-      h.y += dt * 8; h.x += Math.sin(h.yaw) * dt * 20; h.z += Math.cos(h.yaw) * dt * 20; h.beam.visible = h.spot.visible = false;
+      const ux = Math.sin(h.yaw), uz = Math.cos(h.yaw);
+      h.y += Math.max(8, Math.min(CLIMB, safeY(h.x, h.z, ux, uz, 20 * LOOK) - h.y)) * dt; fly(h, ux, uz, 20 * dt);
+      h.beam.visible = h.spot.visible = false;
       h.grp.position.set(h.x, h.y, h.z);
       if (h.y > 70) removeHeli(20);
       return;
     }
     h.beam.visible = h.spot.visible = true;
     h.ang += dt * 0.22;
-    const tx = P.x + Math.cos(h.ang) * 26, tz = P.z + Math.sin(h.ang) * 26, ty = 28;
-    const dx = tx - h.x, dz = tz - h.z, d = Math.hypot(dx, dz), sp = Math.min(d, 16 * dt);
-    if (d > 0.01) { h.x += dx / d * sp; h.z += dz / d * sp; }
-    h.y = lerp(h.y, ty, dt * 0.5);
+    const tx = P.x + Math.cos(h.ang) * 26, tz = P.z + Math.sin(h.ang) * 26;
+    const dx = tx - h.x, dz = tz - h.z, d = Math.hypot(dx, dz);
+    const ux = d > 0.01 ? dx / d : 0, uz = d > 0.01 ? dz / d : 0;
+    const want = Math.max(heliTarget(), safeY(h.x, h.z, ux, uz, Math.min(d, SPEED * LOOK)));
+    h.y += clamp(want - h.y, -SINK, CLIMB) * dt;
+    fly(h, ux, uz, Math.min(d, SPEED * dt));
     h.yaw += angDiff(h.yaw, Math.atan2(P.x - h.x, P.z - h.z)) * dt * 2;
     h.grp.position.set(h.x, h.y + Math.sin(G.time * 1.3) * 0.3, h.z); h.grp.rotation.set(0.12, h.yaw, 0);
     h.lr.visible = (G.time * 2 | 0) % 2 === 0;
@@ -113,6 +125,27 @@ const Heli = {
   blip(radar) { radar.dot(this.x, this.z, radar.flash ? '#ffd23e' : '#ff3b4e', 11, true, 'sq'); },
   dispose() { scene.remove(this.grp, this.beam, this.spot); },
 };
+
+// the highest building top within `pad` of (x, z), 0 over open street
+export function roofTop(x, z, pad = PAD) {
+  let top = 0;
+  for (const b of tallBoxes) if (b.h > top && x > b.x0 - pad && x < b.x1 + pad && z > b.z0 - pad && z < b.z1 + pad) top = b.h;
+  return top;
+}
+// the lowest it may fly here and over the next `ahead` metres along (ux, uz)
+export function safeY(x, z, ux, uz, ahead) {
+  let y = 0;
+  for (let s = 0; s <= ahead; s += PAD) y = Math.max(y, roofTop(x + ux * s, z + uz * s) + CLEAR);
+  return Math.max(y, roofTop(x + ux * ahead, z + uz * ahead) + CLEAR);
+}
+// the height it chases: CRUISE_Y, or higher over a player who is up high
+export function heliTarget() { return Math.max(CRUISE_Y, P.y + ABOVE); }
+// move `step` metres along (ux, uz), unless that would put the cabin into a building: then it hovers and climbs first
+function fly(h, ux, uz, step) {
+  const nx = h.x + ux * step, nz = h.z + uz * step;
+  if (h.y - 3 < roofTop(nx, nz)) return;
+  h.x = nx; h.z = nz;
+}
 
 // The searchlight points at the street under the player and stops at the first building in the way:
 // the beam ends there and the spot of light lands on that wall or roof instead of the street.
@@ -208,8 +241,8 @@ export function spawnHeli() {
   const beam = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 16, 1, true), lightMaterial(0.2, { side: THREE.DoubleSide }, { BEAM: '' }));
   const spot = new THREE.Mesh(spotGeometry(), lightMaterial(0.45, { vertexColors: true, polygonOffset: true, polygonOffsetFactor: -4 }));
   scene.add(beam, spot);
-  const a = rnd(0, 6.28);
-  const h = Object.assign(Object.create(Heli), { grp, rotor, rotor2, lr, beam, spot, x: P.x + Math.cos(a) * 120, z: P.z + Math.sin(a) * 120, y: 34, hp: HELI_HP, alive: true, ang: a, fireT: 3, burst: 0, burstT: 0, los: false, losT: 0, sight: newSight(), vy: 0, falling: false, yaw: 0 });
+  const a = rnd(0, 6.28), x = P.x + Math.cos(a) * 120, z = P.z + Math.sin(a) * 120;
+  const h = Object.assign(Object.create(Heli), { grp, rotor, rotor2, lr, beam, spot, x, z, y: Math.max(34, heliTarget(), roofTop(x, z) + CLEAR), hp: HELI_HP, alive: true, ang: a, fireT: 3, burst: 0, burstT: 0, los: false, losT: 0, sight: newSight(), vy: 0, falling: false, yaw: 0 });
   grp.position.set(h.x, h.y, h.z); scene.add(grp);
   G.heli = addEntity(h);
   showBig('Chopper inbound');
