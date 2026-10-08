@@ -4,7 +4,7 @@ import { Sound } from './audio.js';
 import { actionFor, kb, kbMove } from './controls.js';
 import { save } from './save.js';
 import { G, I, P, cam, keys, stats } from './state.js';
-import { $, clamp } from './util.js';
+import { $, clamp, clock } from './util.js';
 import { GUNS } from '../data/weapons.js';
 import { all, removeEntity } from '../entities/registry.js';
 import { interact } from '../game/interact.js';
@@ -66,7 +66,7 @@ window.addEventListener('resize', () => { camera.aspect = innerWidth / innerHeig
 function pauseGame() {
   if (G.state !== 'play') return;
   G.state = 'paused'; I.mouseL = false; I.mouseR = false; for (const k in keys) keys[k] = false;
-  $('pause').hidden = false; $('pauseStats').textContent = `${stats.kills} takedowns · ${stats.cops} law enforcement · best heat ${'★'.repeat(stats.best) || 'none'} · $${stats.earned.toLocaleString()} earned`;
+  $('pause').hidden = false; $('pauseStats').textContent = `${stats.kills} takedowns · ${stats.cops} law enforcement · best heat ${'★'.repeat(stats.best) || 'none'} · five star heat ${clock(stats.fiveStar || 0)} · $${stats.earned.toLocaleString()} earned`;
   Sound.hush(); Sound.dim(true); save(); renderAccount();
   // free the mouse (P keeps it captured) so the menu can be clicked
   if (document.pointerLockElement) document.exitPointerLock();
