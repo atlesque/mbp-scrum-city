@@ -15,13 +15,14 @@ import { rayBox } from '../world/collision.js';
 import { smashProps } from '../world/props.js';
 import { bike } from './kinds/bike.js';
 import { car } from './kinds/car.js';
+import { step } from './kinds/step.js';
 import { truck } from './kinds/truck.js';
 import { blastThrow, knockImpulse, rideOver, shoveImpulse, touching } from './knock.js';
 import { burntMat } from './materials.js';
 import { VEHICLE_MODELS } from './models/index.js';
 
 // How each kind of vehicle drives, seats its rider and gets hit. See kinds/bike.js for the full list of fields.
-export const KINDS = { bike, car, truck };
+export const KINDS = { bike, step, car, truck };
 
 // Crash fires. A vehicle set alight by a collision burns for its kind's fx.crashFuse seconds before it goes up, long
 // enough for the fire brigade to get there (vehicles/firetruck.js). Shooting it or a blast still sets it off sooner:
@@ -84,7 +85,7 @@ const Vehicle = {
       return;
     }
     this.hp -= dmg; if (byPlayer) this.byPlayer = true;
-    if (this.driver && this.driver !== P) this.top = 24; // a shot-at rider guns it
+    if (this.driver && this.driver !== P) gunIt(this); // a shot-at rider guns it
     if (this.hp > 0) return;
     const fx = this.K.fx;
     this.crashFire = !!crash && !!fx.crashFuse;
@@ -200,6 +201,8 @@ export function spawnVehicle(model, x, z, yaw, mode = 'parked') {
 }
 
 export const vehicles = () => all('vehicle');
+// someone at the wheel in traffic floors it: up to 24 m/s, or as fast as it goes (an e-step tops out far lower)
+export const gunIt = v => { v.top = Math.min(24, v.H.boostTop); };
 // a police car or army truck sent after the player: it leaves with the heat
 export const answersHeat = v => v.kind === 'vehicle' && !!(v.model.police || v.model.army);
 

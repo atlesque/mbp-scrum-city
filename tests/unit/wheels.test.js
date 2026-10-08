@@ -7,13 +7,13 @@ import { rolling, spinWheels, wheelAt } from '../../public/js/vehicles/wheels.js
 describe('spinning wheels', () => {
   for (const [id, m] of Object.entries(VEHICLE_MODELS)) it(`${id} names its wheels`, () => {
     const mesh = KINDS[m.kind].build({ model: { ...m, decal: () => new THREE.MeshBasicMaterial() } }); // decals need a canvas
-    expect(mesh.wheels.length).toBe({ bike: 2, car: 4, truck: 6 }[m.kind]);
+    expect(mesh.wheels.length).toBe({ bike: 2, step: 2, car: 4, truck: 6 }[m.kind]);
     for (const w of mesh.wheels) {
-      expect(w.userData.r).toBeGreaterThan(0.2);
+      expect(w.userData.r).toBeGreaterThan(m.kind === 'step' ? 0.08 : 0.2);
       expect(w.userData.r).toBeLessThan(m.kind === 'truck' ? 0.6 : 0.5);
       // sits on the ground, its axle at its radius
       const p = w.getWorldPosition(new THREE.Vector3());
-      if (m.kind !== 'bike') expect(Math.abs(p.y - w.userData.r)).toBeLessThan(0.02);
+      if (m.kind !== 'bike' && m.kind !== 'step') expect(Math.abs(p.y - w.userData.r)).toBeLessThan(0.02);
     }
   });
   it('turns a wheel one radian per radius rolled, backwards in reverse', () => {

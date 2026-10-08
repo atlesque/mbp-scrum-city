@@ -76,8 +76,8 @@ const RING = 200, IN_ROADS = [-150, -100, -50, 0, 50, 100, 150];
 const nearRoad = p => IN_ROADS.concat([-RING, RING]).reduce((a, b) => Math.abs(b - p) < Math.abs(a - p) ? b : a);
 export function keepOnGrid(v, dt) {
   const alongX = v.dirX !== 0, pos = alongX ? v.x : v.z, dir = alongX ? v.dirX : v.dirZ, road = nearRoad(alongX ? v.z : v.x);
-  // the lane of a crossing road r when turning towards t
-  const lane = (r, t) => alongX ? r - 3 * t : r + 3 * t;
+  // the lane of a crossing road r when turning towards t (e-steps keep further right, by the kerb: their kind's lane)
+  const L = v.K && v.K.lane || 3, lane = (r, t) => alongX ? r - L * t : r + L * t;
   const turn = (t, at) => { if (alongX) { v.x = at; v.dirX = 0; v.dirZ = t; } else { v.z = at; v.dirZ = 0; v.dirX = t; } v.edgeT = 0; };
   // nearing the edge: pick a way once (always inwards on the ring), then turn on reaching that lane
   if (Math.abs(road) === RING) v.edgeT = -Math.sign(road);

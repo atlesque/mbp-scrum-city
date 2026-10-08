@@ -48,8 +48,8 @@ describe('electric cars', async () => {
     expect(evMix(ms(120)).road).toBeGreaterThan(evMix(ms(60)).road);
     expect(evMix(-ms(60)).road).toBe(evMix(ms(60)).road);
   });
-  it('is only the EQA for now', () => {
-    expect(Object.values(VEHICLE_MODELS).filter(m => m.electric).map(m => m.id)).toEqual(['eqa']);
+  it('is the EQA and the e-steps', () => {
+    expect(Object.values(VEHICLE_MODELS).filter(m => m.electric).map(m => m.id)).toEqual(['estep', 'sharestep', 'eqa']);
   });
   it('play from electric cars in traffic, not from combustion ones', async () => {
     const { G, P } = await import('../../public/js/core/state.js');

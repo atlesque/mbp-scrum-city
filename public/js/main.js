@@ -128,6 +128,7 @@ async function start(data) {
   P.x = 230; P.z = -40;
   for (let i = 0; i < 26; i++) spawnTrafficCar(false);
   for (let i = 0; i < 4; i++) spawnTrafficBike();
+  for (let i = 0; i < 4; i++) spawnTrafficBike('step', 'stepper');
   await loadStep(0.9, 'Waking up the neighbourhood');
   for (let i = 0; i < 30; i++) { const s = findSpot(5, 80, false, false); if (s) spawnNpc('civilian', s.x, s.z); }
   await loadStep(0.95, 'Checking your MBP Games account');
