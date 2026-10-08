@@ -28,7 +28,7 @@ import { ceilingAt, collideRoofs, surfaceAt } from '../world/rooftops.js';
 import { BAIL, bailDamage, bailLaunch, tumbleStep } from './bailout.js';
 import { PITCH_MAX, PITCH_MIN, cameraRoof, stepArm, stepShoulder } from './camera.js';
 import { JET, jetFx, jetStep, refuel, takeOffJetpack } from './jetpack.js';
-import { PARA, chuteFx, chuteStep, dropChute, openChute, opensChute } from './parachute.js';
+import { PARA, chuteFx, chuteStep, dropChute, openChute, opensChute, strapOnChute } from './parachute.js';
 import { updateInteraction } from './interact.js';
 
 // ================= PLAYER =================
@@ -48,7 +48,19 @@ export function updatePlayer(dt) {
     driveByPlayer(v, dt);
     if (P.vehicle) v.K.aim(v, P.c, aimingNow ? clamp(angDiff(v.yaw, cam.yaw), -2.4, 2.4) : null, cam.pitch);
   } else if (P.tumble) tumble(dt); else walk(dt, aimingNow);
-  // weapon
+  // weapon: a chopper fires its own guns (vehicles/heli-guns.js), and what's in hand waits until the player is out
+  if (P.vehicle && P.vehicle.K.guns) { P.reload = null; P.vehicle.K.guns(P.vehicle, dt); } else handWeapon(dt);
+  if (!P.vehicle) {
+    // separation from people
+    for (const a of all('npc')) { if (!onFoot(a) || P.y > 1) continue; const dx = a.x - P.x, dz = a.z - P.z, d = Math.hypot(dx, dz); if (d < 0.75 && d > 0.001) { const k = (0.75 - d) * 0.5; a.x += dx / d * k; a.z += dz / d * k; P.x -= dx / d * k; P.z -= dz / d * k; } }
+    animateChar(P, dt);
+    P.c.root.position.set(P.x, P.floor || 0, P.z); P.c.root.rotation.y = P.yaw;
+    if (P.tumble) rollPose(-P.tumble.roll); // rolling out towards the body's +x side turns it the negative way round z
+  }
+  jetFx(); chuteFx(dt);
+  updateInteraction();
+}
+function handWeapon(dt) {
   const w = curWeapon(), st = wStat(w, inv.lvl[w.id] || 0);
   if (G.reloadT > 0) { G.reloadT -= dt; if (G.reloadT <= 0) { G.reloadT = 0; finishReload(); } }
   P.reload = G.reloadT > 0 ? { anim: reloadOf(w.id).anim, u: 1 - G.reloadT / w.reload } : null;
@@ -65,15 +77,6 @@ export function updatePlayer(dt) {
     if (w.auto ? (I.mouseL || I.clickQ > 0) : I.clickQ > 0) { if (!w.spin || G.spin >= 1) { playerShoot(); I.clickQ = 0; } else G.fireCd = 0.05; }
   }
   if (P.c.gun && w.spin && G.spin > 0) P.c.gun.rotation.y += dt * G.spin * 40;
-  if (!P.vehicle) {
-    // separation from people
-    for (const a of all('npc')) { if (!onFoot(a) || P.y > 1) continue; const dx = a.x - P.x, dz = a.z - P.z, d = Math.hypot(dx, dz); if (d < 0.75 && d > 0.001) { const k = (0.75 - d) * 0.5; a.x += dx / d * k; a.z += dz / d * k; P.x -= dx / d * k; P.z -= dz / d * k; } }
-    animateChar(P, dt);
-    P.c.root.position.set(P.x, P.floor || 0, P.z); P.c.root.rotation.y = P.yaw;
-    if (P.tumble) rollPose(-P.tumble.roll); // rolling out towards the body's +x side turns it the negative way round z
-  }
-  jetFx(); chuteFx(dt);
-  updateInteraction();
 }
 const JUMP_V = 7.6, GRAVITY = 18; // m/s, m/s²
 const AIR_JUMP_V = 7; // the second jump, pushed off thin air
@@ -174,12 +177,15 @@ export function enterVehicle(v) {
 export function exitVehicle(crash) {
   const v = P.vehicle; if (!v) return;
   P.vehicle = null; v.driver = null; v.K.unseat(v, P.c);
+  if (v.K.airborne && v.K.airborne(v)) { jumpOut(v, crash); return; }
   // still moving fast: bail out sideways, away from the vehicle and clear of its path, and take a few knocks
   const vx = P.vx || 0, vz = P.vz || 0, sp = Math.max(Math.abs(v.v), Math.hypot(vx, vz)), fast = sp > v.K.crash.exitSpeed && P.alive;
   const door = v.K.exitAt(v), dx = door.x - v.x, dz = door.z - v.z, side = fast ? bailSide(v, Math.hypot(dx, dz) + 1.2) : 1;
   P.x = v.x + dx * side; P.z = v.z + dz * side; collide(P, 0.38, v);
-  P.y = 0; P.floor = 0; P.vy = 0; P.grounded = true; P.yaw = v.yaw; P.vx = P.vz = 0; P.moveSpeed = 0;
-  P.c.root.position.set(P.x, 0, P.z); P.c.root.rotation.y = P.yaw;
+  // a chopper may stand on a roof: step out onto that
+  const base = v.K.flies ? surfaceAt(P.x, P.z, v.y + 0.3) : { floor: 0, roof: null };
+  P.y = base.floor; P.floor = base.floor; P.roof = base.roof; P.vy = 0; P.grounded = true; P.yaw = v.yaw; P.vx = P.vz = 0; P.moveSpeed = 0;
+  P.c.root.position.set(P.x, base.floor, P.z); P.c.root.rotation.y = P.yaw;
   v.K.onPlayerExit(v, crash, sp, side);
   if (fast) {
     const T = P.tumble = bailLaunch(v.yaw, vx, vz, side);
@@ -187,6 +193,21 @@ export function exitVehicle(crash) {
     P.bailFrom = v; P.bailT = G.time + BAIL.ghost; // the vehicle rolls on past without running into them
     hurtPlayer(bailDamage(sp, v.K.crash.exitSpeed)); cam.shake = Math.max(cam.shake, 0.3);
   }
+  G.hudCache = '';
+  emit('vehicle:exit', { vehicle: v, crash });
+}
+
+// Out of a chopper up in the air: straight out of the door, no tumble, and the parachute that comes with flying it
+// (kinds/heli.js) opens at once. The chopper drops away without them (see coast in kinds/heli.js).
+function jumpOut(v, crash) {
+  const door = v.K.exitAt(v);
+  P.x = door.x; P.z = door.z; P.y = v.y + 0.2; P.vx = (v.vx || 0) * 0.6; P.vz = (v.vz || 0) * 0.6; P.vy = Math.min(0, v.vy || 0);
+  P.grounded = false; P.jumps = 2; P.yaw = v.yaw; P.moveSpeed = 0; P.tumble = null;
+  const { floor, roof } = surfaceAt(P.x, P.z, P.y); P.floor = floor; P.roof = roof; P.jumpY = P.y - floor;
+  P.c.root.position.set(P.x, floor, P.z); P.c.root.rotation.y = P.yaw;
+  v.K.onPlayerExit(v, crash, 0, 1);
+  P.bailFrom = v; P.bailT = G.time + BAIL.ghost;
+  if (P.alive) { strapOnChute(true); openChute(); }
   G.hudCache = '';
   emit('vehicle:exit', { vehicle: v, crash });
 }

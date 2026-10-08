@@ -4,20 +4,25 @@ import { RADAR_GLOW, RADAR_PULSE_FROM } from '../data/wanted.js';
 import { G, I, P, inv, stats } from '../core/state.js';
 import { $, clamp, clock } from '../core/util.js';
 import { hintShown } from '../game/hint.js';
+import { flyingHeli, heliGunHud } from '../vehicles/heli-guns.js';
 import { drawIcon } from './weapon-icons.js';
 
 // ================= HUD =================
-export function drawWeaponIcon() {
-  const c = $('wicon'), x = c.getContext('2d'), id = inv.cur; x.clearRect(0, 0, 240, 112);
+export function drawWeaponIcon(id = inv.cur) {
+  const c = $('wicon'), x = c.getContext('2d'); x.clearRect(0, 0, 240, 112); updateHUD.icon = id;
   drawIcon(x, id, 120, 56);
 }
 export function updateHUD() {
+  // flying a chopper, its own guns are shown instead of the one in hand
+  const heli = flyingHeli(), hg = heli && heliGunHud(heli);
   const w = curWeapon(), mag = inv.mag[w.id] || 0;
-  const ammoStr = w.melee ? '' : w.thrown ? `${inv.ammo[w.id] || 0}` : G.reloadT > 0 ? 'Reloading' : `${mag}<span>/${w.infinite ? '∞' : (inv.ammo[w.id] || 0)}</span>`;
-  const key = [ammoStr, w.name, Math.ceil(P.hp), Math.ceil(P.armor), inv.money, G.wanted].join('|');
+  const ammoStr = hg ? hg.ammo : w.melee ? '' : w.thrown ? `${inv.ammo[w.id] || 0}` : G.reloadT > 0 ? 'Reloading' : `${mag}<span>/${w.infinite ? '∞' : (inv.ammo[w.id] || 0)}</span>`;
+  const name = hg ? hg.name : w.name, icon = hg ? hg.icon : inv.cur;
+  if (icon !== updateHUD.icon) drawWeaponIcon(icon);
+  const key = [ammoStr, name, Math.ceil(P.hp), Math.ceil(P.armor), inv.money, G.wanted].join('|');
   if (key !== G.hudCache) {
     G.hudCache = key;
-    $('ammo').innerHTML = ammoStr; $('wname').textContent = w.name; $('crosshair').style.opacity = w.melee ? '0.45' : '';
+    $('ammo').innerHTML = ammoStr; $('wname').textContent = name; $('crosshair').style.opacity = w.melee && !hg ? '0.45' : '';
     $('hpNum').textContent = Math.max(0, Math.ceil(P.hp)); $('hpFill').style.width = clamp(P.hp, 0, 100) + '%';
     $('arNum').textContent = Math.ceil(P.armor); $('arFill').style.width = clamp(P.armor, 0, 100) + '%';
     $('money').textContent = '$' + String(Math.max(0, inv.money)).padStart(8, '0');

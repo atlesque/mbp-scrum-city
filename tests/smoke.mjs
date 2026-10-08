@@ -1,4 +1,4 @@
-// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, get shelled by the army's tank and blow it up, hold five stars into the secret sixth and take a laser rifle off an alien, snipe through the scope, throw a car with a rocket,
+// Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, shoot a chopper's pilot and fly the chopper off, get shelled by the army's tank and blow it up, hold five stars into the secret sixth and take a laser rifle off an alien, snipe through the scope, throw a car with a rocket,
 // shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, ride a bike over a car, pull a wheelie, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, change settings and remap keys. Fails on any page error or broken step.
 // Run with `npm run test:smoke`. Set CHROMIUM_PATH to use a specific browser binary.
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
@@ -830,6 +830,29 @@ try {
     } finally {
       await game(() => { __neonbay.removeEntity(__ccar); __neonbay.removeEntity(__cnpc); });
     }
+  });
+
+  await step('shoots the chopper\'s pilot, flies the chopper it leaves, and jumps out under the chute', async () => {
+    await clearVehicles(0, -75);
+    await game(async () => {
+      const { G, P } = __neonbay, H = await import('/js/vehicles/heli.js'); P.x = 0; P.z = -60; P.y = 0; P.hp = 100;
+      H.removeHeli(); H.spawnHeli(); const h = G.heli; h.x = 0; h.z = -80; h.y = 20; h.fireT = 1e9;
+      h.onShot({ occupant: true, head: true }, 999);
+    });
+    check(await until(() => __neonbay.all('vehicle').some(v => v.model.id === 'heli' && !v.dead), undefined, 60000), 'the chopper did not come down in one piece');
+    await game(() => { const { P } = __neonbay, v = __neonbay.all('vehicle').find(v => v.model.id === 'heli'); window.__heli = v; P.x = v.x + Math.cos(v.yaw) * 2.6; P.z = v.z - Math.sin(v.yaw) * 2.6; });
+    check(await until(() => /fly/.test(document.getElementById('prompt').textContent) && !document.getElementById('prompt').hidden, undefined, 8000), 'no prompt to fly the chopper');
+    await press('KeyF');
+    check(await until(() => __neonbay.P.vehicle === window.__heli), 'did not get into the chopper');
+    await page.keyboard.down('Space');
+    const up = await until(() => window.__heli.y > 8, undefined, 60000);
+    await page.keyboard.up('Space');
+    check(up, 'the chopper did not lift off');
+    await press('KeyF');
+    check(await until(() => !__neonbay.P.vehicle), 'did not jump out');
+    check(await game(() => __neonbay.P.chute && __neonbay.P.chute.open && !__neonbay.P.tumble), 'the parachute did not open by itself');
+    check(await until(() => __neonbay.P.grounded && !__neonbay.P.chute, undefined, 60000), 'never landed under the chute');
+    await game(() => __neonbay.removeEntity(window.__heli));
   });
 
   await step('a tank rolls in with the army and shells the player', async () => {
