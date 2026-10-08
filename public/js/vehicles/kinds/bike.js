@@ -33,7 +33,7 @@ const TURN_X = [-150, -100, -50, 0, 50, 100, 150, 200], TURN_Z = [-150, -100, -5
 //   fx, blast, wreckReward   fire and smoke, explosion size, heat and cash for wrecking one
 //                            (fx.fuse: seconds alight before it goes up; crashFuse when a collision set it alight)
 //   bumper                   zone ahead that runs people over: back, front, half width, speed kept
-//   crash                    exitSpeed above which getting off is a crash, hurt multiplier on big hits
+//   crash                    exitSpeed above which getting off is a crash, hurt multiplier on big hits (0: the driver is never hurt)
 //   ram, knock(v, vx, vz, up) mass and body for ramming, and how it flies when rammed (see vehicles/knock.js)
 //   ridesOver, topAt(v, x, z) the closing speed up to which it rides over a car, and the top of a kind ridden over
 //   camera                   chase distance, aiming distance and eye height

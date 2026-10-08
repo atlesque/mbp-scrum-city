@@ -6,7 +6,7 @@ import { all, removeEntity } from '../../public/js/entities/registry.js';
 import { NPC_TYPES } from '../../public/js/npcs/types.js';
 import { SHOP_TYPES } from '../../public/js/shops/types.js';
 import { TRUCK, TRUCK_BLAST, spawnTruck, stopShort, takeTruck } from '../../public/js/vehicles/firetruck.js';
-import { CRASH_FIRE, KINDS, driveByPlayer, spawnVehicle } from '../../public/js/vehicles/vehicle.js';
+import { CRASH_FIRE, KINDS, crashDriver, driveByPlayer, spawnVehicle } from '../../public/js/vehicles/vehicle.js';
 
 // getting in needs the page (the HUD); here it only takes the seat
 vi.mock('../../public/js/game/player.js', async orig => ({ ...await orig(), enterVehicle(v) { P.vehicle = v; v.driver = P; v.mode = 'player'; } }));
@@ -83,6 +83,17 @@ describe('driving the fire truck', () => {
     expect([K.body.hw, K.body.hl]).toEqual([TRUCK.hw, TRUCK.hl]);
     expect(K.blast.r).toBe(TRUCK_BLAST.r);
     expect(K.ram.mass).toBeGreaterThan(KINDS.car.ram.mass);
+  });
+  it('a crash dents the truck but leaves its driver unhurt, unlike a car', () => {
+    G.state = 'play'; P.alive = true; P.armor = 0;
+    const page = globalThis.document; globalThis.document = { getElementById: () => ({ style: {} }) }; // the hurt vignette
+    for (const [model, hurt] of [['firetruck', false], ['sedan', true]]) {
+      const v = spawnVehicle(model, 0, 40, 0); P.vehicle = v; P.hp = 100;
+      crashDriver(v, 20);
+      expect(P.hp < 100).toBe(hurt);
+      P.vehicle = null; v.damage(999, false, true);
+    }
+    globalThis.document = page;
   });
   it('the player can take one parked at a fire: they drive off in it and the crew runs', () => {
     const c = parked(); c.damage(999, false, true);
