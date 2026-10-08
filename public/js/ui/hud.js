@@ -1,8 +1,8 @@
 import { curWeapon } from '../combat/combat.js';
 import { settings } from '../core/settings.js';
 import { RADAR_GLOW, RADAR_PULSE_FROM } from '../data/wanted.js';
-import { G, I, P, inv } from '../core/state.js';
-import { $, clamp } from '../core/util.js';
+import { G, I, P, inv, stats } from '../core/state.js';
+import { $, clamp, clock } from '../core/util.js';
 import { hintShown } from '../game/hint.js';
 
 // ================= HUD =================
@@ -47,6 +47,9 @@ export function updateHUD() {
     [...$('stars').children].forEach((s, i) => s.classList.toggle('on', i < G.wanted));
     const radar = $('radarWrap'); radar.style.setProperty('--heat', RADAR_GLOW[G.wanted] || 0); radar.classList.toggle('pulse', G.wanted >= RADAR_PULSE_FROM); radar.classList.toggle('alien', G.wanted >= 6);
   }
+  // at five stars (and six) the five star heat highscore ticks up under the stars
+  const five = G.wanted >= 5 ? clock(stats.fiveStar || 0) : '';
+  if (five !== updateHUD.five) { updateHUD.five = five; $('heatClock').hidden = !five; if (five) $('heatClockNum').textContent = five; }
   const v = P.vehicle, mph = settings.units === 'mph', spd = v ? Math.round(Math.abs(v.v) * (mph ? 2.237 : 3.6)) : -1, sk = spd + settings.units;
   const shown = hintShown() && $('settings').hidden, paused = G.state === 'paused', hk = `${shown}${!!v}${paused}`;
   if (hk !== updateHUD.hint) { updateHUD.hint = hk; const h = $('hint'); h.hidden = !shown; h.classList.toggle('up', !!v); h.classList.toggle('top', paused); }

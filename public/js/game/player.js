@@ -8,8 +8,8 @@ import { emit } from '../core/events.js';
 import { save } from '../core/save.js';
 import { held } from '../core/controls.js';
 import { settings } from '../core/settings.js';
-import { G, I, P, cam, inv } from '../core/state.js';
-import { $, angDiff, clamp, lerp, rnd } from '../core/util.js';
+import { G, I, P, cam, inv, stats } from '../core/state.js';
+import { $, angDiff, clamp, clock, lerp, rnd } from '../core/util.js';
 import { HEAR, beside } from '../core/spatial.js';
 import { reloadOf } from '../data/reloads.js';
 import { WBY, loadAll, loseFound, wStat } from '../data/weapons.js';
@@ -238,7 +238,8 @@ export function die() {
   const lost = loseFound(inv).map(id => WBY[id].name);
   if (!inv.owned[inv.cur]) selectWeapon('pistol');
   inv.money -= fee; save();
-  $('wastedInfo').textContent = (fee > 0 ? `Hospital bill: $${fee.toLocaleString()}` : 'Patched up for free. Lucky you.') + (lost.length ? ` Lost: ${lost.join(', ')}.` : '');
+  $('wastedInfo').textContent = (fee > 0 ? `Hospital bill: $${fee.toLocaleString()}` : 'Patched up for free. Lucky you.') + (lost.length ? ` Lost: ${lost.join(', ')}.` : '')
+    + (G.wanted >= 5 ? `\nFive star heat: ${clock(G.fiveRun)} this time, ${clock(stats.fiveStar)} all told.` : '');
   $('wasted').hidden = false; canvasEl.style.filter = 'grayscale(0.85) contrast(1.1)';
   $('prompt').hidden = true;
   Sound.hush();

@@ -79,19 +79,26 @@ describe('standing on roofs', () => {
 });
 
 describe('jetpack', () => {
-  it('climbs on fuel, then falls at plain gravity with the jets off', () => {
+  // landing speed after dropping h metres from a standstill with the jets off
+  const drop = h => { const jet = { fuel: JET.fuel }; let vy = 0, y = h; while (y > 0) { vy = jetStep(jet, vy, false, 1 / 240, 18); y += vy / 240; } return vy; };
+  const plain = h => -Math.sqrt(2 * 18 * h);
+  it('climbs on fuel and brakes a fall while Space is held', () => {
     const jet = { fuel: JET.fuel };
     let vy = 0; for (let i = 0; i < 60; i++) vy = jetStep(jet, vy, true, 1 / 60, 18);
     expect(vy).toBeGreaterThan(0); expect(vy).toBeLessThanOrEqual(JET.climb);
     expect(jet.fuel).toBeCloseTo(JET.fuel - 1);
-    const top = vy; for (let i = 0; i < 120; i++) vy = jetStep(jet, vy, false, 1 / 60, 18);
-    expect(vy).toBeCloseTo(top - 36); // 2 s of 18 m/s², no gentle sink
-    expect(landDamage(vy)).toBeGreaterThan(0);
-    const falling = vy; for (let i = 0; i < 60; i++) vy = jetStep(jet, vy, true, 1 / 60, 18);
-    expect(vy).toBeCloseTo(falling + 12); // jets on brake the fall at thrust minus gravity
+    vy = -20; for (let i = 0; i < 60; i++) vy = jetStep(jet, vy, true, 1 / 60, 18);
+    expect(vy).toBeCloseTo(-8); // thrust minus gravity
     jet.fuel = 0; vy = jetStep(jet, 0, true, 1 / 60, 18);
     expect(vy).toBeLessThan(0); // empty: no climb
-    refuel(jet, 100); expect(jet.fuel).toBe(JET.fuel);
+    refuel(jet, 100); expect(jet.fuel).toBe(JET.fuel); expect(jet.drop).toBe(0);
+  });
+  it('softens a short fall with the jets off but lands a long one nearly as hard as without it', () => {
+    expect(landDamage(drop(6.5))).toBe(0); expect(landDamage(plain(6.5))).toBeGreaterThan(0);
+    expect(landDamage(drop(10))).toBeLessThan(landDamage(plain(10)) * 0.75);
+    expect(landDamage(drop(10))).toBeGreaterThan(0);
+    expect(landDamage(drop(30))).toBeGreaterThan(landDamage(plain(30)) * 0.9);
+    expect(drop(30)).toBeCloseTo(-Math.sqrt(2 * 18 * 28), 0); // full gravity again, 2 m of drop lost
   });
 });
 

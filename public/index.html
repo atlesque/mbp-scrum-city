@@ -131,6 +131,8 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 /* the secret sixth star only shows once it's earned, in alien green */
 #stars span.six{display:none}
 #stars span.six.on{display:inline;color:#6dff8a;text-shadow:0 0 12px rgba(80,255,120,.9),2px 2px 0 #000}
+#heatClock{font-family:var(--f-hud);font-size:18px;color:#ffd23e;letter-spacing:.04em;font-variant-numeric:tabular-nums}
+#heatClock[hidden]{display:none}
 @keyframes flash{50%{opacity:.25}}
 #radarWrap{position:absolute;left:26px;bottom:26px;width:200px;height:200px;border-radius:50%;box-shadow:0 0 0 3px #000,0 0 0 6px rgba(255,79,163,.85),0 0 24px rgba(255,79,163,.5)}
 #radar{width:200px;height:200px;border-radius:50%;display:block}
@@ -193,7 +195,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 #wasted{background:rgba(60,0,10,.25);pointer-events:none}
 #wasted h2{font-family:var(--f-script);font-size:clamp(90px,16vw,170px);margin:0;color:#e8222f;text-shadow:0 0 30px rgba(232,34,47,.6),5px 5px 0 #000;transform:rotate(-4deg);animation:wasted 1.2s ease-out}
 @keyframes wasted{0%{opacity:0;transform:scale(1.6) rotate(-4deg)}100%{opacity:1;transform:scale(1) rotate(-4deg)}}
-#wastedInfo{font-weight:700;font-size:18px}
+#wastedInfo{font-weight:700;font-size:18px;white-space:pre-line}
 
 /* Settings */
 .menu-btn{flex:0 0 auto;font-size:15px;letter-spacing:.08em;text-transform:uppercase;padding:9px 26px}
@@ -295,6 +297,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
       </div>
       <div id="money" class="outline">$00000500</div>
       <div id="stars"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span><span class="six">★</span></div>
+      <div id="heatClock" class="outline" title="Total time you have spent at five stars or more" hidden>5★ heat <span id="heatClockNum">0:00</span></div>
     </div>
     <div id="radarWrap"><canvas id="radar" width="400" height="400"></canvas></div>
     <div id="cashFeed"></div>
