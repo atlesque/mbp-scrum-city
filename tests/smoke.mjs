@@ -830,7 +830,7 @@ try {
     check(await until(() => !!__neonbay.G.ufo, undefined, 20000), 'no UFO at six stars');
     check(await until(() => __neonbay.Sound.voices().ufo === 1), 'the UFO makes no sound');
     // bring it in over the player so it starts lowering its crew
-    await game(() => { const { G, P } = __neonbay, u = G.ufo; Object.assign(u, { x: P.x + Math.cos(u.ang) * 20, z: P.z + Math.sin(u.ang) * 20, y: 24, dropT: 0 }); });
+    await game(() => { const { G, P } = __neonbay, u = G.ufo; u.ang = -Math.PI / 2; Object.assign(u, { x: P.x, z: P.z - 20, y: 24, dropT: 0 }); }); // over the road
     check(await until(() => __neonbay.G.ufo.beamT > 0 && __neonbay.all('npc').some(n => n.type === 'alien'), undefined, 30000), 'the UFO beamed nobody down');
     // frames are slow here: skip most of the way down the beam
     await game(() => { for (const n of __neonbay.all('npc')) if (n.type === 'alien' && n.y > 1) n.y = 1; });

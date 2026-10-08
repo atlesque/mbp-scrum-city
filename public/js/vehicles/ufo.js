@@ -104,8 +104,8 @@ function place(u) {
 }
 // a free spot on the street right under the saucer, or near it
 function groundUnder(u) {
-  for (let i = 0; i < 8; i++) {
-    const r = i ? rnd(1, 4) : 0, a = rnd(0, Math.PI * 2), x = u.x + Math.cos(a) * r, z = u.z + Math.sin(a) * r;
+  for (let i = 0; i < 16; i++) {
+    const r = i ? rnd(1, DISC_R - 1) : 0, a = rnd(0, Math.PI * 2), x = u.x + Math.cos(a) * r, z = u.z + Math.sin(a) * r;
     if (isFree(x, z, 0.8)) return { x, z };
   }
   return null;
