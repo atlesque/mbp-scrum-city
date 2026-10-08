@@ -1,5 +1,6 @@
 import { LEAD, musicLayers } from '../data/music.js';
 import { RELOADS, SFX_DIR, reloadOf } from '../data/reloads.js';
+import { ALL_SHOT_FILES, SHOTS, shotFiles } from '../data/shots.js';
 import { clamp } from './util.js';
 import { HEAR, airCutoff, distToEar, doppler, falloff, listenerPose } from './spatial.js';
 
@@ -203,24 +204,30 @@ export const Sound = (() => {
   const buffers = {};
   let reloadSrc = null;
   function loadSamples() {
-    for (const { sound } of Object.values(RELOADS)) {
+    for (const sound of [...ALL_SHOT_FILES, ...Object.values(RELOADS).map(r => r.sound)]) {
       if (!sound || sound in buffers) continue;
       buffers[sound] = null;
       fetch(`${SFX_DIR}${sound}.mp3`).then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status)).then(b => ctx.decodeAudioData(b)).then(buf => { buffers[sound] = buf; }).catch(() => {});
     }
   }
   // a loaded sound played once: its source node, null when it is too far off to hear, false when not loaded
-  function sample(name, vol, at, prof = HEAR.reload) {
+  function sample(name, vol, at, prof = HEAR.reload, rate = 1) {
     const buf = buffers[name]; if (!buf) return false;
     const o = out(vol, at, prof); if (!o) return null;
-    const s = ctx.createBufferSource(); s.buffer = buf; s.connect(o); s.start(); return s;
+    const s = ctx.createBufferSource(); s.buffer = buf; s.playbackRate.value = rate; s.connect(o); s.start(); return s;
   }
   function stopReload() { if (reloadSrc) { try { reloadSrc.stop(); } catch (e) { /* already ended */ } reloadSrc = null; } }
   const PROG = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]];
   const GUN = { pistol: [3600, .22, 150, .9], smg: [5200, .1, 210, .6], shotgun: [2300, .55, 80, 1.35], rifle: [5600, .17, 130, .85], minigun: [6200, .07, 240, .5], rpg: [1400, .7, 60, .9], sniper: [3800, .5, 70, 1.45], cannon: [700, 1.1, 40, 1.8] };
-  // `at` is where it was fired (a world point), or nothing for the player's own gun
+  // `at` is where it was fired (a world point), or nothing for the player's own gun. A gun with recordings
+  // (data/shots.js) plays one of its takes, a touch faster or slower each time; until they have loaded (or for a
+  // gun without any) the synthesized shot below stands in.
+  let shotsPlayed = 0;
   function shot(kind, vol = 1, at = null) {
-    if (!ctx) return; const o = out(vol, at, HEAR.shot); if (!o) return; const p = GUN[kind] || GUN.pistol, t = ctx.currentTime;
+    if (!ctx) return;
+    const takes = shotFiles(kind), name = takes[Math.floor(Math.random() * takes.length)];
+    if (name && sample(name, SHOTS[kind].vol * vol, at, HEAR.shot, 0.95 + Math.random() * 0.1) !== false) { shotsPlayed++; return; }
+    const o = out(vol, at, HEAR.shot); if (!o) return; const p = GUN[kind] || GUN.pistol, t = ctx.currentTime;
     nz(o, t, p[1], 'lowpass', p[0], 0.8, p[3], 0.85 + Math.random() * 0.3);
     tone(o, t, 'sine', p[2] * 2, p[2] * 0.5, p[1] * 0.8, p[3] * 0.8);
     nz(o, t, 0.03, 'highpass', 6000, 0.5, p[3] * 0.4);
@@ -253,6 +260,8 @@ export const Sound = (() => {
     },
     stopReload() { if (ctx) stopReload(); },
     get samplesLoaded() { return Object.keys(buffers).filter(k => buffers[k]); },
+    // how many shots have played a recording rather than the synthesized stand-in (for tests)
+    get shotsPlayed() { return shotsPlayed; },
     empty() { if (!ctx) return; nz(out(0.4), ctx.currentTime, 0.03, 'highpass', 4000, 2, 0.7); },
     horn(vol, at) { if (!ctx) return; const t = ctx.currentTime, o = out(vol * 0.25, at, HEAR.horn); if (!o) return; tone(o, t, 'square', 392, 0, 0.45, 0.5, 0.01); tone(o, t, 'square', 494, 0, 0.45, 0.4, 0.01); },
     star() { if (!ctx) return; const t = ctx.currentTime, o = out(0.4); tone(o, t, 'triangle', 880, 0, 0.15, 0.6); tone(o, t + 0.12, 'triangle', 660, 0, 0.3, 0.6); },

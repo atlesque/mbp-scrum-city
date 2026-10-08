@@ -15,10 +15,11 @@ export function landmarkModel(type) {
   mats = mats || landmarkMaterials();
   return LANDMARK_MODELS[type].build().group(type, mats);
 }
-// the model plus its collision volumes ([x0, x1, z0, z1, top] in model metres, front at -z)
+// the model plus its collision volumes ([x0, x1, z0, z1, top] in model metres, front at -z) and the things on its
+// roofs ([x0, x1, z0, z1, y0, y1], see Kit.roofPart)
 export function landmarkParts(type) {
   mats = mats || landmarkMaterials();
   const k = LANDMARK_MODELS[type].build();
-  return { group: k.group(type, mats), colliders: k.colliders };
+  return { group: k.group(type, mats), colliders: k.colliders, onRoof: k.onRoof };
 }
 export const landmarkMats = () => (mats = mats || landmarkMaterials());
