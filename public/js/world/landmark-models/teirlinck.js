@@ -26,6 +26,7 @@ export function buildTeirlinck() {
   }
   k.box('wall', tower[0], tower[1], 0, towerTop + 0.9, tower[2], tower[3], BRICK);
   k.box('dark', -11, -5, towerTop + 0.9, towerTop + 2.6, 6, 12, '#77736c');
+  k.roofPart(-11, -5, 6, 12, towerTop + 0.9, towerTop + 2.6); // the plant room on the tower
 
   // the entrance: the ground floor steps back 3 m under the brick, and a dark steel X carries the corner
   for (const [x0, x1, z0] of [[front[0], E[0], front[2]], [E[1], front[1], front[2]], [E[0], E[1], front[2] + 3]]) k.box('wall', x0, x1, 0, GROUND - 0.25, z0, front[3], BRICK);

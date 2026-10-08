@@ -23,7 +23,7 @@ import { removeTank } from '../vehicles/tank.js';
 import { driveByPlayer, sirenOn } from '../vehicles/vehicle.js';
 import { SPAWN } from '../world/city.js';
 import { collide, wallHit } from '../world/collision.js';
-import { collideRoofs, surfaceAt } from '../world/rooftops.js';
+import { ceilingAt, collideRoofs, surfaceAt } from '../world/rooftops.js';
 import { BAIL, bailDamage, bailLaunch, tumbleStep } from './bailout.js';
 import { cameraRoof, stepArm, stepShoulder } from './camera.js';
 import { JET, jetFx, jetStep, refuel, takeOffJetpack } from './jetpack.js';
@@ -112,7 +112,9 @@ function walk(dt, aimingNow) {
   if (!P.grounded) {
     if (P.jetpack) P.vy = jetStep(P.jetpack, P.vy, space && !press, dt, GRAVITY);
     else P.vy -= GRAVITY * dt;
+    const head = ceilingAt(P.x, P.z, P.y) - 1.8;
     P.y += P.vy * dt;
+    if (P.vy > 0 && P.y > head) { P.y = Math.max(floor, head); P.vy = 0; } // bumped the head on something overhead
     if (P.y <= floor) land(floor);
   } else if (P.jetpack) refuel(P.jetpack, dt);
   P.jumpY = P.y - floor;
