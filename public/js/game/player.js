@@ -20,12 +20,12 @@ import { camera, canvasEl } from '../render/scene.js';
 import { showBig, toast } from '../ui/hud.js';
 import { removeHeli } from '../vehicles/heli.js';
 import { removeTank } from '../vehicles/tank.js';
-import { driveByPlayer, sirenOn } from '../vehicles/vehicle.js';
+import { answersHeat, driveByPlayer, sirenOn } from '../vehicles/vehicle.js';
 import { SPAWN } from '../world/city.js';
 import { collide, wallHit } from '../world/collision.js';
-import { collideRoofs, surfaceAt } from '../world/rooftops.js';
+import { ceilingAt, collideRoofs, surfaceAt } from '../world/rooftops.js';
 import { BAIL, bailDamage, bailLaunch, tumbleStep } from './bailout.js';
-import { cameraRoof, stepArm, stepShoulder } from './camera.js';
+import { PITCH_MAX, PITCH_MIN, cameraRoof, stepArm, stepShoulder } from './camera.js';
 import { JET, jetFx, jetStep, refuel, takeOffJetpack } from './jetpack.js';
 import { updateInteraction } from './interact.js';
 
@@ -37,7 +37,7 @@ export function updatePlayer(dt) {
   // through the scope the mouse slows with the zoom, so the crosshair moves as far on screen as it does unzoomed
   const sens = (G.scope ? 0.0022 * scopeFov(1, G.scope) : I.mouseR ? 0.0013 : 0.0022) * settings.sensitivity, sensY = settings.invertY ? -sens : sens;
   if (I.mouseDX || I.mouseDY) P.lookT = G.time;
-  cam.yaw -= I.mouseDX * sens; cam.pitch = clamp(cam.pitch - I.mouseDY * sensY, -1.0, 1.15); I.mouseDX = I.mouseDY = 0;
+  cam.yaw -= I.mouseDX * sens; cam.pitch = clamp(cam.pitch - I.mouseDY * sensY, PITCH_MIN, PITCH_MAX); I.mouseDX = I.mouseDY = 0;
   const aimingNow = I.mouseR || G.scope > 0 || I.mouseL || I.clickQ > 0 || G.time - P.lastShot < 0.7;
   P.aiming = aimingNow;
   P.aimPitch = cam.pitch;
@@ -69,7 +69,6 @@ export function updatePlayer(dt) {
     animateChar(P, dt);
     P.c.root.position.set(P.x, P.floor || 0, P.z); P.c.root.rotation.y = P.yaw;
     if (P.tumble) rollPose(-P.tumble.roll); // rolling out towards the body's +x side turns it the negative way round z
-    flipPose(dt);
   }
   jetFx();
   updateInteraction();
@@ -108,24 +107,19 @@ function walk(dt, aimingNow) {
   // jump, and once more in the air (v²/2g puts the top of the first at about 1.6 m); with the jetpack, hold Space to fly
   const space = held('jump') && !G.stairs, press = space && !P.spaceHeld; P.spaceHeld = space;
   if (press && P.grounded) { P.vy = JUMP_V; P.grounded = false; P.jumps = 1; }
-  else if (press && (P.jumps || 0) < 2) { P.vy = Math.max(P.vy, AIR_JUMP_V); P.jumps = 2; P.flipT = FLIP; }
+  else if (press && (P.jumps || 0) < 2) { P.vy = Math.max(P.vy, AIR_JUMP_V); P.jumps = 2; }
   if (!P.grounded) {
     if (P.jetpack) P.vy = jetStep(P.jetpack, P.vy, space && !press, dt, GRAVITY);
     else P.vy -= GRAVITY * dt;
+    const head = ceilingAt(P.x, P.z, P.y) - 1.8;
     P.y += P.vy * dt;
+    if (P.vy > 0 && P.y > head) { P.y = Math.max(floor, head); P.vy = 0; } // bumped the head on something overhead
     if (P.y <= floor) land(floor);
   } else if (P.jetpack) refuel(P.jetpack, dt);
   P.jumpY = P.y - floor;
   // facing and aim
   if (aimingNow) faceTo(P, cam.yaw, dt, 20);
   else if (ml > 0) faceTo(P, Math.atan2(mx, mz), dt, 10);
-}
-// the second jump tucks into a forward roll (after animateChar has posed the body)
-const FLIP = 0.45;
-function flipPose(dt) {
-  if (!P.flipT) return;
-  P.flipT = P.grounded || P.vehicle ? 0 : Math.max(0, P.flipT - dt);
-  P.c.body.rotation.x = P.flipT ? (1 - P.flipT / FLIP) * Math.PI * 2 : 0;
 }
 // feet down on a floor: a hard landing hurts
 function land(floor) {
@@ -166,8 +160,8 @@ const told = {};
 export function enterVehicle(v) {
   P.vehicle = v; v.driver = P; v.mode = 'player'; v.K.onPlayerEnter(v);
   if (v.model.siren) v.siren = sirenOn(v); // the siren is the player's to switch now, starting as it was
-  v.K.seat(v, P.c); P.x = v.x; P.z = v.z; P.y = 0; P.floor = 0; P.roof = null; P.vy = 0; P.grounded = true; P.flipT = 0; P.c.body.rotation.x = 0; P.lookT = -9;
-  $('prompt').hidden = true; G.hudCache = ''; $('vehName').textContent = v.model.short; $('vehSiren').hidden = !v.model.siren;
+  v.K.seat(v, P.c); P.x = v.x; P.z = v.z; P.y = 0; P.floor = 0; P.roof = null; P.vy = 0; P.grounded = true; P.lookT = -9;
+  $('prompt').hidden = true; G.hudCache = ''; $('vehName').textContent = v.model.short; $('vehSiren').hidden = !v.model.siren; $('vehWheelie').hidden = !v.K.wheelie;
   if (!told[v.model.id]) { told[v.model.id] = true; toast(v.K.tip(v.model), 7); }
   emit('vehicle:enter', { vehicle: v });
 }
@@ -191,9 +185,14 @@ export function exitVehicle(crash) {
   emit('vehicle:exit', { vehicle: v, crash });
 }
 
-// zone: where a bullet landed (combat/hitzones.js); a shot to the head rocks the camera harder
+// the vehicle whose cab keeps the player at the wheel from harm (the fire engine: its kind has shieldsDriver), or null
+export const shieldingCab = () => P.vehicle?.K.shieldsDriver ? P.vehicle : null;
+
+// zone: where a bullet landed (combat/hitzones.js); a shot to the head rocks the camera harder.
+// Behind the wheel of a shielding cab nothing reaches the player: the hit lands on the vehicle instead.
 export function hurtPlayer(d, zone) {
   if (!P.alive || G.state !== 'play') return;
+  const cab = shieldingCab(); if (cab) { if (d > 0) cab.damage(d, false); return; }
   if (P.armor > 0) { const a = Math.min(P.armor, d * 0.7); P.armor -= a; d -= a; }
   P.hp -= d; Sound.hurt(); cam.shake = Math.max(cam.shake, zone === 'head' ? 0.4 : 0.15);
   const vg = $('vignette'); vg.style.opacity = '1'; clearTimeout(hurtPlayer.t); hurtPlayer.t = setTimeout(() => { vg.style.opacity = '0'; }, 140);
@@ -240,7 +239,7 @@ export function die() {
   emit('player:died', { fee });
 }
 export function respawn() {
-  for (const e of all()) if ((e.kind === 'npc' && e.faction === 'law') || (e.kind === 'vehicle' && (e.model.police || e.dead))) removeEntity(e);
+  for (const e of all()) if ((e.kind === 'npc' && e.faction === 'law') || answersHeat(e) || (e.kind === 'vehicle' && e.dead)) removeEntity(e);
   removeHeli(); removeTank(null, true);
   G.wanted = 0; G.heat = 0; G.lostT = 0; G.heliT = 15; G.tankT = 6;
   P.x = SPAWN.x; P.z = SPAWN.z; P.y = 0; P.floor = 0; P.vy = 0; P.grounded = true; P.roof = null; P.hp = 100; P.alive = true; P.deadT = 0; P.yaw = SPAWN.yaw; cam.yaw = SPAWN.yaw; cam.pitch = -0.08;

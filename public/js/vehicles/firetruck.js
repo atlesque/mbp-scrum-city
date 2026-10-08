@@ -16,7 +16,7 @@ import { scene } from '../render/scene.js';
 import { ROADS, blocked, pushOutOBB, rayBox } from '../world/collision.js';
 import { burntMat } from './materials.js';
 import { nextDir } from './tank.js';
-import { KINDS, spawnVehicle } from './vehicle.js';
+import { KINDS, TOUGH, blastDamage, spawnVehicle } from './vehicle.js';
 import { BODY, PUMP, buildTruck } from './firetruck-mesh.js';
 import { spinWheels } from './wheels.js';
 
@@ -99,9 +99,9 @@ const Truck = {
     const hit = rayLocalBox(o, d, this.x, this.z, this.yaw, -TRUCK.hw, 0.3, -TRUCK.hl, TRUCK.hw, 3.0, TRUCK.hl);
     return hit < maxT ? { t: hit } : null;
   },
-  onShot(hit, dmg) { emit(hit.p.x, hit.p.y, hit.p.z, 3, '#ffe9a8', 5, 0.25, 0.06); this.damage(dmg, true); return { head: false }; },
+  onShot(hit, dmg) { emit(hit.p.x, hit.p.y, hit.p.z, 3, '#ffe9a8', 5, 0.25, 0.06); this.damage(dmg * TOUGH.shot, true); return { head: false }; },
   onRocket(dmg) { this.damage(dmg * 2, true); },
-  blast(x, y, z, R, dmg, byPlayer) { const d = Math.hypot(this.x - x, this.z - z), r = R + TRUCK.hw; if (d < r) this.damage(dmg * (1 - d / r) + 30, byPlayer); },
+  blast(x, y, z, R, dmg, byPlayer, ordnance) { const d = Math.hypot(this.x - x, this.z - z), r = R + TRUCK.hw; if (d < r) this.damage(blastDamage(this, d, r, dmg, 30, ordnance), byPlayer); },
   damage(dmg, byPlayer) {
     const t = this; if (t.dead) return;
     t.hp -= dmg; if (byPlayer) t.byPlayer = true;

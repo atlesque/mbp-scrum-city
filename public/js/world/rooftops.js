@@ -10,7 +10,7 @@ import { pushOut, rayBox } from './collision.js';
 // Every other flat roof can be stood on as well: jump (twice, in the air) or vault over a railing to get across.
 export const ROOF_COUNT = 8;
 const RAIL = 0.35; // the walkable area stops this far in from the wall line
-const RAIL_H = 1.15; // railings stop anyone whose feet are lower than this over the roof; higher, they pass over
+const RAIL_H = 1.15; // railings stop anyone whose feet are lower than this over the roof; higher, they pass over or stand on them
 const HUT = { w: 3, h: 2.7, d: 3 };
 const FACES = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };
 export const STAND = 0.06; // feet sit this far over a solid top (a hut, an air-con unit, a landmark's roof)
@@ -92,30 +92,47 @@ export function pickRoofs(spots, n, near) {
   return out;
 }
 
-// The highest top under (x, z) that feet at height y can be on: a roof, or a hut or air-con unit on one, no more
-// than STEP above them; the street (0) when there is none. roof is the roof it belongs to.
+const GRIP = 0.6; // something narrower than this (a railing, a post) is this wide to the feet, so it can be stood on
+const under = (x, z, b, g = 0) => {
+  const ex = g && Math.max(0, (g - (b.x1 - b.x0)) / 2), ez = g && Math.max(0, (g - (b.z1 - b.z0)) / 2);
+  return x >= b.x0 - ex && x <= b.x1 + ex && z >= b.z0 - ez && z <= b.z1 + ez;
+};
+const near = (x, z, A, m) => x >= A.x0 - m && x <= A.x1 + m && z >= A.z0 - m && z <= A.z1 + m;
+// The highest top under (x, z) that feet at height y can be on: a roof, or a hut, air-con unit or railing on one
+// (anything a landmark has on its roof too), no more than STEP above them; the street (0) when there is none.
+// roof is the roof it belongs to.
 export function surfaceAt(x, z, y, list = SURFACES) {
   let floor = 0, roof = null;
   for (const s of list) {
-    const A = s.area;
-    if (x < A.x0 || x > A.x1 || z < A.z0 || z > A.z1 || s.floor > y + STEP) continue;
-    if (s.floor > floor) { floor = s.floor; roof = s; }
+    if (s.floor > y + STEP || !near(x, z, s.area, 1)) continue; // what stands on a roof can stick out a little past it
+    if (s.floor > floor && near(x, z, s.area, 0)) { floor = s.floor; roof = s; }
     for (const b of s.blocks) {
       const top = b.y1 + STAND;
-      if (top > floor && top <= y + STEP && x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1) { floor = top; roof = s; }
+      if (top > floor && top <= y + STEP && under(x, z, b, GRIP)) { floor = top; roof = s; }
     }
+    for (const b of s.rails) if (b.y1 > floor && b.y1 <= y + STEP && under(x, z, b, GRIP)) { floor = b.y1; roof = s; }
   }
   return { floor, roof };
 }
+// The lowest underside over (x, z) above the waist of someone with their feet at y (the Belpaire's pergola),
+// Infinity when there is none: jumping, their head stops there.
+export function ceilingAt(x, z, y, list = SURFACES) {
+  let c = Infinity;
+  for (const s of list) {
+    if (!near(x, z, s.area, 1)) continue;
+    for (const b of s.blocks) if (b.y0 > y + 1 && b.y0 < c && under(x, z, b)) c = b.y0;
+  }
+  return c;
+}
 // Keep a circle with its feet at height y out of the huts, air-con units and railings on the roofs round it
-// that reach above its feet (and not over its head).
+// that reach above its feet (and not over its head). Standing under something overhead, only its posts stop it.
 export function collideRoofs(o, r, y, list = SURFACES) {
   let hit = false;
   for (const s of list) {
     const A = s.area;
     if (o.x < A.x0 - 2 || o.x > A.x1 + 2 || o.z < A.z0 - 2 || o.z > A.z1 + 2 || y + 1.8 < s.floor || y > s.floor + 8) continue;
-    for (const b of s.blocks) if (y < b.y1 + STAND - 0.01 && y + 1.8 > b.y0 && pushOut(o, r, b.x0, b.x1, b.z0, b.z1)) hit = true;
-    for (const b of s.rails) if (y < b.y1 && y + 1.8 > b.y0 && pushOut(o, r, b.x0, b.x1, b.z0, b.z1)) hit = true;
+    for (const b of s.blocks) if (y < b.y1 + STAND - 0.01 && y + 1.8 > b.y0 && !(b.y0 > y + 1 && under(o.x, o.z, b)) && pushOut(o, r, b.x0, b.x1, b.z0, b.z1)) hit = true;
+    for (const b of s.rails) if (y < b.y1 - 0.01 && y + 1.8 > b.y0 && pushOut(o, r, b.x0, b.x1, b.z0, b.z1)) hit = true;
   }
   return hit;
 }

@@ -1,3 +1,4 @@
+import army from './army.js';
 import gs from './gs.js';
 import bmw5 from './bmw5.js';
 import eqa from './eqa.js';
@@ -17,9 +18,11 @@ import t7 from './t7.js';
 //   electric   true: no engine note, a pedestrian-warning hum below 30 km/h and road noise above it
 //   traffic    { weight, speed: [min, max] }; weight 0 keeps it out of random traffic
 //   police     true for cop cars: flashing lights, and they leave with the heat
+//   army       true for the army's troop truck: it answers the heat like a cop car, without lights or siren
+//   crew       how many officers or soldiers get out when it arrives (default 2)
 //   siren      true when the player can switch a siren and flashing lights on (core/keymap.js 'siren'); sirenY: how high it sounds
 // Bikes also give spec / geos / wheel / decal / decalAt (see models/gs.js); cars give mesh().
-export const VEHICLE_MODELS = Object.fromEntries([gs, t7, sedan, modely, police, modelyblue, eqa, bmw5, firetruck].map(m => [m.id, m]));
+export const VEHICLE_MODELS = Object.fromEntries([gs, t7, sedan, modely, police, modelyblue, eqa, bmw5, firetruck, army].map(m => [m.id, m]));
 
 // pick a model of a kind for traffic, weighted by traffic.weight
 export function pickTrafficModel(kind) {

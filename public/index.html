@@ -156,6 +156,8 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 .bar.bk b{background:linear-gradient(90deg,#8d93a3,#eef1f7)}
 #speedo kbd{font-family:var(--f-hud);color:var(--pink);padding:0 2px}
 #hint{position:absolute;right:28px;bottom:22px;font-size:12px;color:var(--dim);letter-spacing:.06em;text-align:right;line-height:1.6}
+#hint.up{bottom:78px} /* above the speedo when paused on a vehicle */
+#hint.top{z-index:1;color:var(--ink)} /* in front of the pause menu's dimming */
 #hint kbd{font-family:var(--f-ui);font-weight:700;color:var(--ink);background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.3);border-radius:3px;padding:0 5px}
 
 /* Overlays */
@@ -298,7 +300,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
     <div id="radio">Neon FM 86.0</div>
     <div id="prompt" hidden></div>
     <div id="bigText" class="outline"></div>
-    <div id="speedo" hidden><b id="kmh" class="outline">000</b><span class="u" id="spdUnit">km/h</span><div class="bar bk"><b id="vehHp"></b></div><span class="u"><span id="vehName">R 1300 GS</span> · <kbd data-kb="ride">F</kbd> off<span id="vehSiren" hidden> · <kbd data-kb="siren">H</kbd> siren</span></span></div>
+    <div id="speedo" hidden><b id="kmh" class="outline">000</b><span class="u" id="spdUnit">km/h</span><div class="bar bk"><b id="vehHp"></b></div><span class="u"><span id="vehName">R 1300 GS</span> · <kbd data-kb="ride">F</kbd> off<span id="vehWheelie" hidden> · <kbd data-kb="wheelie">C</kbd> wheelie</span><span id="vehSiren" hidden> · <kbd data-kb="siren">H</kbd> siren</span></span></div>
     <div id="hint"><kbd data-kb="ride">F</kbd> ride / drive · <kbd>1</kbd>–<kbd>9</kbd> / wheel switch · <kbd data-kb="melee">Q</kbd> melee · <kbd data-kb="reload">R</kbd> reload · <kbd data-kb="radio">M</kbd> radio · <kbd>Esc</kbd> pause</div>
   </div>
 

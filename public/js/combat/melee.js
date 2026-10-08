@@ -63,7 +63,7 @@ export function landPlayerSwing(sw) {
     _o.set(P.x, P.y + 1.3, P.z); _d.set(dx * Math.cos(pitch), Math.sin(pitch), dz * Math.cos(pitch)).normalize();
     const h = b.kick ? null : n.raycast(_o, _d, b.reach + 2), zone = (h && h.zone) || 'torso';
     const copNear = n.faction !== 'law' && all('npc').some(c => c.faction === 'law' && c.alive && Math.hypot(c.x - P.x, c.z - P.z) < 30);
-    n.meleeHit({ dmg: zoneDamage(b.dmg, zone), zone, dir: new THREE.Vector3(dx, 0, dz), knock: b.knock, down: b.down, blade: !!w.blade, weapon: w.id });
+    n.meleeHit({ dmg: blowDamage(w, n, b.dmg, zone), zone, dir: new THREE.Vector3(dx, 0, dz), knock: b.knock, down: b.down, blade: !!w.blade, weapon: w.id });
     addHeat(meleeHeat(n, copNear));
     landed++; if (zone === 'head') head = true;
   }
@@ -86,6 +86,10 @@ export function landPlayerSwing(sw) {
     return;
   }
 }
+
+// what a blow from weapon w lands on n for: its damage in that zone, or all n has left for a one-hit weapon (the fire axe)
+// against anyone but a boss
+export const blowDamage = (w, n, dmg, zone) => w.oneHit && !n.def.boss ? n.hp + 1 : zoneDamage(dmg, zone);
 
 // Q: from a gun to the melee weapon used last, then on through the melee weapons the player owns
 export function nextMelee(cur, owned, last) {

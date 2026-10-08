@@ -3,7 +3,7 @@ import { JET, jetStep, refuel } from '../../public/js/game/jetpack.js';
 import { landDamage } from '../../public/js/game/player.js';
 import { colliders } from '../../public/js/world/collision.js';
 import { LANDMARK_SITES, buildLandmark } from '../../public/js/world/landmarks.js';
-import { collideRoof, collideRoofs, doorRoof, landmarkRoofs, makeRoof, pickRoofs, plainRoof, surfaceAt } from '../../public/js/world/rooftops.js';
+import { ceilingAt, collideRoof, collideRoofs, doorRoof, landmarkRoofs, makeRoof, pickRoofs, plainRoof, surfaceAt } from '../../public/js/world/rooftops.js';
 
 const building = (x0, z0, h = 14, face = 'n') => ({ x0, x1: x0 + 14, z0, z1: z0 + 14, h, face, col: '#fff', trim: '#fff' });
 
@@ -55,6 +55,15 @@ describe('standing on roofs', () => {
     expect(surfaceAt(ax, az, r.floor, list).floor).toBe(r.floor); // too high to step up onto from the roof
     expect(surfaceAt(ax, az, r.floor + 0.8, list).floor).toBeCloseTo(ac.y1 + 0.06); // jumped up onto it
   });
+  it('lets the feet stand on a railing once they are over it, and push off it when they are not', () => {
+    const top = r.rails[0].y1; // the front railing, along x at z 0.03..0.13
+    expect(surfaceAt(7, 0.08, top + 0.3, list)).toEqual({ floor: top, roof: r }); // came down on it
+    expect(surfaceAt(7, 0.3, top + 0.3, list).floor).toBe(top); // not quite over the thin bar: the feet still find it
+    expect(surfaceAt(7, 0.6, top + 0.3, list).floor).toBe(r.floor); // clearly inside: down onto the roof
+    expect(surfaceAt(7, 0.08, r.floor, list).floor).toBe(r.floor); // walking on the roof, it is no step up
+    const o = { x: 7, z: 0.08 }; collideRoof(o, 0.38, r, top);
+    expect(o).toEqual({ x: 7, z: 0.08 }); // standing on it, it does not push
+  });
   it('only lets things in the way of the feet stop them', () => {
     const o = { x: 0.45, z: 7 }; collideRoofs(o, 0.38, 0, list);
     expect(o.x).toBe(0.45); // in the street the roof's railings are far overhead
@@ -70,13 +79,16 @@ describe('standing on roofs', () => {
 });
 
 describe('jetpack', () => {
-  it('climbs on fuel, then lets the wearer down gently', () => {
+  it('climbs on fuel, then falls at plain gravity with the jets off', () => {
     const jet = { fuel: JET.fuel };
     let vy = 0; for (let i = 0; i < 60; i++) vy = jetStep(jet, vy, true, 1 / 60, 18);
     expect(vy).toBeGreaterThan(0); expect(vy).toBeLessThanOrEqual(JET.climb);
     expect(jet.fuel).toBeCloseTo(JET.fuel - 1);
-    for (let i = 0; i < 300; i++) vy = jetStep(jet, vy, false, 1 / 60, 18);
-    expect(vy).toBe(-JET.sink); expect(landDamage(vy)).toBe(0);
+    const top = vy; for (let i = 0; i < 120; i++) vy = jetStep(jet, vy, false, 1 / 60, 18);
+    expect(vy).toBeCloseTo(top - 36); // 2 s of 18 m/s², no gentle sink
+    expect(landDamage(vy)).toBeGreaterThan(0);
+    const falling = vy; for (let i = 0; i < 60; i++) vy = jetStep(jet, vy, true, 1 / 60, 18);
+    expect(vy).toBeCloseTo(falling + 12); // jets on brake the fall at thrust minus gravity
     jet.fuel = 0; vy = jetStep(jet, 0, true, 1 / 60, 18);
     expect(vy).toBeLessThan(0); // empty: no climb
     refuel(jet, 100); expect(jet.fuel).toBe(JET.fuel);
@@ -94,6 +106,32 @@ describe('landmark roofs', () => {
     expect(doors.map(d => d.gun).sort()).toEqual(['rpg', 'sniper', 'sniper']);
     expect(doors.filter(d => d.jetpackAt)).toHaveLength(1);
     expect(Math.max(...doors.map(d => d.floor))).toBeGreaterThan(100); // the Belpaire's
+  });
+  const belpaire = doors.find(d => d.jetpackAt), parts = landmarkRoofs.flatMap(L => L.blocks || []);
+  const pergola = belpaire.blocks.reduce((a, b) => (b.x1 - b.x0) * (b.z1 - b.z0) > (a.x1 - a.x0) * (a.z1 - a.z0) ? b : a);
+  it('puts the Belpaire pergola over the roof garden: walk under it, stand on it, bump your head on it, not through its posts', () => {
+    const x = (pergola.x0 + pergola.x1) / 2, z = (pergola.z0 + pergola.z1) / 2, list = [belpaire];
+    expect(pergola.y0).toBeGreaterThan(belpaire.floor + 5);
+    const o = { x: belpaire.hutOut.x, z: belpaire.hutOut.z }; expect(collideRoof(o, 0.38, belpaire)).toBe(false); // under it
+    expect(surfaceAt(x, z, pergola.y1 + 1, list).floor).toBeCloseTo(pergola.y1 + 0.06); // landed on the slats
+    expect(ceilingAt(x, z, belpaire.floor, list)).toBe(pergola.y0);
+    expect(ceilingAt(x, z, pergola.y1 + 0.06, list)).toBe(Infinity); // on top: nothing overhead
+    const posts = belpaire.blocks.filter(b => b.x1 - b.x0 < 0.5 && b.z1 - b.z0 < 0.5 && b.y1 >= pergola.y0);
+    expect(posts.length).toBeGreaterThanOrEqual(12);
+    const p = posts[0], q = { x: p.x0 - 0.2, z: (p.z0 + p.z1) / 2 }; // a post, from the rail beside it
+    expect(collideRoofs(q, 0.38, belpaire.floor + 1.15, list)).toBe(true);
+  });
+  it('lets the feet stand on what the landmarks have on their roofs: the Teirlinck plant room, the VAC plant and balustrade', () => {
+    const roofOf = b => landmarkRoofs.find(L => L.blocks?.includes(b)), others = parts.filter(b => roofOf(b) !== roofOf(pergola));
+    expect(others).toHaveLength(3);
+    for (const b of others) {
+      const L = roofOf(b), x = (b.x0 + b.x1) / 2, z = (b.z0 + b.z1) / 2;
+      expect(b.y0).toBeLessThanOrEqual(L.floor + 1); // stands on its roof
+      expect(surfaceAt(x, z, b.y1 + 0.5, [plainRoof(L.area, L.floor, L.blocks)]).floor).toBeCloseTo(b.y1 + 0.06);
+    }
+    // the VAC courtyard's glass balustrade: thin, so it stops the walker rather than lifting the whole roof to its top
+    const glass = others.find(b => b.y1 - b.y0 < 1.2 && Math.min(b.x1 - b.x0, b.z1 - b.z0) < 0.3), L = roofOf(glass);
+    expect(glass.y0).toBeCloseTo(L.floor - 0.06);
   });
   it('puts the street doors in the wall facing the street, and everything on the roof clear of the hut and what else stands there', () => {
     for (const d of doors) {

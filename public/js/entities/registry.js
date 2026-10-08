@@ -8,7 +8,7 @@
 //   raycast(o, d, maxT)            -> { t, head?, zone? } | null   bullets and rockets test against this
 //   onShot(hit, dmg, dir)          a player bullet landed; returns { head } for the hit marker
 //   onRocket(dmg)                  a rocket struck it directly (the blast is handled separately)
-//   blast(x, y, z, R, dmg, byPlayer)  caught in an explosion centred at x, y, z
+//   blast(x, y, z, R, dmg, byPlayer, ordnance)  caught in an explosion centred at x, y, z (ordnance: a rocket or grenade)
 //   fling(x, y, z, R, power)       thrown by that explosion, after every blast() has run (power > 1 throws further)
 //   pushOut(o, r, self)            push a moving circle {x, z} of radius r out of it; true on contact
 //   blip(radar), blipLayer         draw on the radar; higher layers draw on top

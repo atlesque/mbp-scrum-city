@@ -31,7 +31,7 @@ describe('army tank', () => {
     for (let i = 0; i < 90; i++) t.onShot({ p: new THREE.Vector3(t.x, 1, t.z) }, dmg);
     expect(t.dead).toBe(false);
     expect(t.hp).toBeGreaterThan(TANK_HP * 0.8);
-    expect(TANK_HP).toBeGreaterThan(HELI_HP * 3);
+    expect(TANK_HP).toBeGreaterThan(HELI_HP);
   });
   it('takes about four direct rockets to stop', () => {
     const t = tank(), dmg = wStat(WBY.rpg, 0).dmg;

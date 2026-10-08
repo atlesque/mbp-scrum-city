@@ -2,7 +2,7 @@ import { kb } from '../core/controls.js';
 import { on } from '../core/events.js';
 import { G, stats } from '../core/state.js';
 import { rnd } from '../core/util.js';
-import { WANTED, mixPick } from '../data/wanted.js';
+import { WANTED, crewMix, mixPick } from '../data/wanted.js';
 import { spawnNpc } from '../npcs/npc.js';
 import { toast } from '../ui/hud.js';
 import { isFree } from '../world/collision.js';
@@ -36,12 +36,20 @@ on('vehicle:wrecked', ({ vehicle, byPlayer }) => {
 // dragging someone out of their car is a crime
 on('vehicle:jacked', () => addHeat(2));
 
-// a police car that reaches the player lets two officers out, one on each side
+// a police car or army truck that reaches the player lets its crew out: two officers from a cruiser, one each side; soldiers
+// from a truck, two from the cab and the rest jumping off the back. Each brings only who rides in it (RIDES in data/wanted.js).
 on('police:arrived', ({ vehicle: c }) => {
   if (G.wanted <= 0) return;
-  const lvl = WANTED[Math.max(1, G.wanted)];
-  for (let k = 0; k < 2; k++) {
-    const side = k ? 1 : -1, x = c.x + (c.dirZ ? side * 2.2 : side * 0.8), z = c.z + (c.dirX ? side * 2.2 : side * 0.8);
-    if (isFree(x, z, 0.5)) spawnNpc(mixPick(lvl.mix), x, z);
+  const mix = crewMix(WANTED[Math.max(1, G.wanted)].mix, c.model.id) || crewMix(WANTED[5].mix, c.model.id);
+  if (!mix) return;
+  for (const [side, back] of crewSpots(c)) {
+    const fx = c.dirX, fz = c.dirZ, x = c.x + fz * side + fx * back, z = c.z - fx * side + fz * back;
+    if (isFree(x, z, 0.5)) spawnNpc(mixPick(mix), x, z);
   }
 });
+// where each of a vehicle's crew gets out, as [sideways, along] from its middle
+export function crewSpots(c) {
+  const n = c.model.crew || 2, w = c.K.body.hw + 1, back = -c.K.body.hl - 1, out = [[-w, 0], [w, 0]];
+  for (let k = 2; k < n; k++) out.push([(k % 2 ? 1 : -1) * 0.8, back - Math.floor((k - 2) / 2) * 1.2]);
+  return out.slice(0, n);
+}

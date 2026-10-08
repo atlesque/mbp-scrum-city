@@ -8,25 +8,26 @@ import { scene } from '../render/scene.js';
 import { toast } from '../ui/hud.js';
 
 // ================= JETPACK =================
-// One waits on the roof of the Belpaire. Wear it and hold Space in the air to climb; let go and it lets you
-// down gently instead of dropping you. Climbing burns fuel, which comes back once you are on your feet.
+// One waits on the roof of the Belpaire. Wear it and hold Space in the air to climb; let go and you fall like anyone
+// else, so a long drop with the jets off hurts. Holding Space on the way down brakes the fall (thrust beats gravity).
+// Climbing burns fuel, which comes back once you are on your feet.
 // It is a found item, so it is gone when you die (respawn() calls takeOffJetpack) and the roof has it again.
 export const JET = {
   thrust: 30, // m/s² up while Space is held, against gravity's 18
   climb: 8, // fastest climb, m/s
-  sink: 6, // fastest fall while wearing it and not climbing, m/s: slow enough to land without a scratch
   fuel: 8, // seconds of climbing on a full tank
   refill: 2, // seconds of fuel back per second on the ground
   air: 10, // m/s across the ground while flying (on foot it's 5, sprinting 8.2)
 };
 
 // One frame of the pack for an airborne wearer: returns the new vertical speed. held: Space is down.
+// Only the climb is capped; with the jets off it is plain gravity, the same fall as without the pack.
 export function jetStep(jet, vy, held, dt, gravity) {
   const burn = held && jet.fuel > 0;
   jet.on = burn;
   if (burn) jet.fuel = Math.max(0, jet.fuel - dt);
   vy += ((burn ? JET.thrust : 0) - gravity) * dt;
-  return Math.max(-JET.sink, Math.min(JET.climb, vy));
+  return Math.min(JET.climb, vy);
 }
 export function refuel(jet, dt) { jet.on = false; jet.fuel = Math.min(JET.fuel, jet.fuel + JET.refill * dt); }
 
@@ -48,7 +49,7 @@ export function putOnJetpack() {
   if (P.jetpack) return;
   P.jetpack = { fuel: JET.fuel, on: false, mesh: packMesh() };
   P.jetpack.mesh.position.set(0, 1.2, -0.25); P.c.body.add(P.jetpack.mesh);
-  toast(`Got the <em>jetpack</em>. Hold <em>${kb('jump')}</em> in the air to fly; let go to float down.`, 7);
+  toast(`Got the <em>jetpack</em>. Hold <em>${kb('jump')}</em> in the air to fly; let go and you drop, so brake before you land.`, 7);
 }
 export function takeOffJetpack() {
   if (!P.jetpack) return;

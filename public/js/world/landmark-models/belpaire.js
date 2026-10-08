@@ -53,11 +53,18 @@ export function buildBelpaire() {
   const P = [M[0] - 0.4, M[1] + 0.4, M[2] - 0.4, M[3] + 0.4], py = TOP + 6;
   k.box('green', M[0] + 0.6, M[1] - 0.6, TOP, TOP + 0.6, M[2] + 0.6, M[3] - 0.6, '#5d9150');
   k.box('trim', M[0] + 2, M[1] - 2, TOP, TOP + 4, M[2] + 3, M[3] - 6, RED); // the red rooftop pavilion
-  for (const x of [P[0], P[1]]) for (let z = P[2]; z <= P[3] + 0.01; z += (P[3] - P[2]) / 5) k.box('trim', x - 0.15, x + 0.15, TOP, py, z - 0.15, z + 0.15, WHITE);
-  for (const [x0, x1, z0, z1] of [[P[0], P[1], P[2] - 0.2, P[2] + 0.2], [P[0], P[1], P[3] - 0.2, P[3] + 0.2], [P[0] - 0.2, P[0] + 0.2, P[2], P[3]], [P[1] - 0.2, P[1] + 0.2, P[2], P[3]]])
+  k.roofPart(M[0] + 2, M[1] - 2, M[2] + 3, M[3] - 6, TOP, TOP + 4);
+  for (const x of [P[0], P[1]]) for (let z = P[2]; z <= P[3] + 0.01; z += (P[3] - P[2]) / 5) {
+    k.box('trim', x - 0.15, x + 0.15, TOP, py, z - 0.15, z + 0.15, WHITE);
+    k.roofPart(x - 0.15, x + 0.15, z - 0.15, z + 0.15, TOP, py);
+  }
+  for (const [x0, x1, z0, z1] of [[P[0], P[1], P[2] - 0.2, P[2] + 0.2], [P[0], P[1], P[3] - 0.2, P[3] + 0.2], [P[0] - 0.2, P[0] + 0.2, P[2], P[3]], [P[1] - 0.2, P[1] + 0.2, P[2], P[3]]]) {
     k.box('trim', x0, x1, py, py + 0.6, z0, z1, RED);
+    k.roofPart(x0, x1, z0, z1, py, py + 0.6);
+  }
   k.box('trim', P[0], P[1], py - 0.05, py + 0.05, P[2], P[3], RED); // the frame's red underside
   for (let z = P[2] + 1.5; z < P[3]; z += 1.5) k.box('trim', P[0], P[1], py + 0.1, py + 0.3, z - 0.3, z + 0.3, '#d9554c'); // the red-faced pergola slats
+  k.roofPart(P[0], P[1], P[2], P[3], py - 0.05, py + 0.3); // the slats as one deck: walk across the top, bump your head under it
 
   // the green glass pavilion on the square, in front of WTC II
   const G = [-13, 1, -16, -9], gh = 9;
