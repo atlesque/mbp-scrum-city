@@ -37,6 +37,9 @@ describe('the pimped e-step', () => {
     for (let i = 0; i < 30; i++) arcadeDrive(v, 1 / 30, { throttle: true, steer: 1 }, M.spec.wb);
     expect(Math.abs(v.yawRate * v.v)).toBeLessThan(40); // sideways pull at full lock, m/s²
   });
+  it('bails out with the full roll at speed, unlike a plain step\'s hop off', () => {
+    expect(VEHICLE_MODELS.estep.hopOff).toBe(true); expect(M.hopOff).toBeFalsy();
+  });
   it('builds a step rig with a seat to stand on', () => {
     const mesh = K.build({ model: M });
     expect(mesh.wheels).toHaveLength(2); expect(mesh.lit).toHaveLength(2);
