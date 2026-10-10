@@ -30,6 +30,7 @@ import { PITCH_MAX, PITCH_MIN, cameraRoof, stepArm, stepShoulder } from './camer
 import { JET, jetFx, jetStep, refuel, takeOffJetpack } from './jetpack.js';
 import { PARA, chuteFx, chuteStep, dropChute, openChute, opensChute, strapOnChute } from './parachute.js';
 import { updateInteraction } from './interact.js';
+import { resetTool, updateTool } from './repair.js';
 
 // ================= PLAYER =================
 export const camTarget = new THREE.Vector3();
@@ -57,7 +58,7 @@ export function updatePlayer(dt) {
     P.c.root.position.set(P.x, P.floor || 0, P.z); P.c.root.rotation.y = P.yaw;
     if (P.tumble) rollPose(-P.tumble.roll); // rolling out towards the body's +x side turns it the negative way round z
   }
-  jetFx(); chuteFx(dt);
+  jetFx(); chuteFx(dt); updateTool(dt);
   updateInteraction();
 }
 function handWeapon(dt) {
@@ -68,6 +69,7 @@ function handWeapon(dt) {
   if (w.spin) G.spin = (I.mouseL || I.clickQ > 0) ? Math.min(1, G.spin + dt * 2.5) : Math.max(0, G.spin - dt * 2);
   I.clickQ = Math.max(0, I.clickQ - dt);
   if (P.tumble) P.swing = null; // no fighting while rolling down the road
+  else if (w.tool) {} // the repair tool works from updateTool (game/repair.js)
   else if (w.melee) {
     // hold or click to keep swinging; nothing to swing at from the saddle
     if (P.vehicle) P.swing = null;
@@ -272,7 +274,7 @@ export function respawn() {
   G.wanted = 0; G.heat = 0; G.lostT = 0; G.heliT = 15; G.tankT = 6; G.fiveT = 0; G.ufoT = 2;
   P.x = SPAWN.x; P.z = SPAWN.z; P.y = 0; P.floor = 0; P.vy = 0; P.grounded = true; P.roof = null; P.hp = 100; P.alive = true; P.deadT = 0; P.yaw = SPAWN.yaw; cam.yaw = SPAWN.yaw; cam.pitch = -0.08;
   P.c.body.rotation.x = 0; P.c.body.position.y = 0; P.swing = null;
-  loadAll(inv); G.reloadT = 0;
+  loadAll(inv); resetTool(); G.reloadT = 0;
   takeOffJetpack(); // found, not bought: it waits on the Belpaire again
   $('wasted').hidden = true; canvasEl.style.filter = '';
   G.state = 'play'; showBig('City General discharged you');

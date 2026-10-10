@@ -4,6 +4,7 @@ import { RADAR_GLOW, RADAR_PULSE_FROM } from '../data/wanted.js';
 import { G, I, P, inv, stats } from '../core/state.js';
 import { $, clamp, clock } from '../core/util.js';
 import { hintShown } from '../game/hint.js';
+import { REPAIR, tool } from '../game/repair.js';
 import { flyingHeli, heliGunHud } from '../vehicles/heli-guns.js';
 import { drawIcon } from './weapon-icons.js';
 
@@ -16,7 +17,7 @@ export function updateHUD() {
   // flying a chopper, its own guns are shown instead of the one in hand
   const heli = flyingHeli(), hg = heli && heliGunHud(heli);
   const w = curWeapon(), mag = inv.mag[w.id] || 0;
-  const ammoStr = hg ? hg.ammo : w.melee ? '' : w.thrown ? `${inv.ammo[w.id] || 0}` : G.reloadT > 0 ? 'Reloading' : `${mag}<span>/${w.infinite ? '∞' : (inv.ammo[w.id] || 0)}</span>`;
+  const ammoStr = hg ? hg.ammo : w.melee ? '' : w.tool ? `${Math.round(tool.charge / REPAIR.charge * 100)}<span>%</span>` : w.thrown ? `${inv.ammo[w.id] || 0}` : G.reloadT > 0 ? 'Reloading' : `${mag}<span>/${w.infinite ? '∞' : (inv.ammo[w.id] || 0)}</span>`;
   const name = hg ? hg.name : w.name, icon = hg ? hg.icon : inv.cur;
   if (icon !== updateHUD.icon) drawWeaponIcon(icon);
   const key = [ammoStr, name, Math.ceil(P.hp), Math.ceil(P.armor), inv.money, G.wanted].join('|');

@@ -7,6 +7,7 @@ import { angDiff, clamp, rnd } from '../core/util.js';
 import { addEntity, all, removeEntity } from '../entities/registry.js';
 import { explosion } from '../combat/combat.js';
 import { enterVehicle, exitVehicle, hurtPlayer } from '../game/player.js';
+import { REPAIR } from '../data/weapons.js';
 import { alarm, onFoot } from '../npcs/npc.js';
 import { emit } from '../render/effects.js';
 import { scene } from '../render/scene.js';
@@ -108,6 +109,27 @@ const Vehicle = {
     emitEvent('vehicle:doused', { vehicle: this });
     return true;
   },
+  // the repair tool (game/repair.js): dt seconds of the torch put out a fire first, holding it back like a hose meanwhile,
+  // then bring the bodywork back REPAIR.rate of its full health a second; true while it has work to do
+  repair(dt) {
+    if (this.dead) return false;
+    if (this.burnT > 0) {
+      this.wetT = G.time + 0.3; this.torch = (this.torch || 0) + dt;
+      if (this.torch < REPAIR.douse) return true;
+      this.burnT = 0; this.water = 0; this.torch = 0; this.crashFire = false; this.hp = CRASH_FIRE.hp;
+      emit(this.x, 1.4 + (this.K.flies ? this.y : 0), this.z, 10, '#e8eef4', 2, 1.4, 0.5, 2, 2);
+      emitEvent('vehicle:doused', { vehicle: this });
+      return true;
+    }
+    const max = this.model.hp; if (this.hp >= max) return false;
+    this.hp = Math.min(max, this.hp + max * REPAIR.rate * dt);
+    return true;
+  },
+  health() {
+    if (this.dead) return null;
+    const b = this.K.hitBox(this);
+    return { hp: Math.max(0, this.hp), max: this.model.hp, burning: this.burnT > 0, name: this.model.name, x: this.x, z: this.z, y: this.K.flies ? this.y : 0, hw: b.hx, hl: b.hz };
+  },
   explode() {
     const K = this.K;
     this.dead = true; this.burnT = 0; this.v = 0; this.crashFire = false;
@@ -166,6 +188,7 @@ const Vehicle = {
     const a = this.driver; if (!a || a === P || !a.alive || a.faction !== 'civilian') return null;
     this.ejectDriver(true); alarm(this.x, this.z, 20);
     if (this.K.shoveOff) this.K.shoveOff(this, a, p, THROWN);
+    emitEvent('vehicle:scared', { vehicle: this, driver: a });
     return a;
   },
   shouldDespawn() {

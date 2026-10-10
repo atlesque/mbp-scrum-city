@@ -92,7 +92,7 @@ function draw() {
       if (!owned.length) { const [lx, ly] = at(cx, cy, (r0 + r1) / 2 - 22 * k, am); x.fillStyle = 'rgba(198,175,220,.5)'; x.font = `700 ${9 * k}px ${UI_FONT}`; x.textAlign = 'center'; x.fillText('LOCKED', lx, ly + 4 * k); }
     }
     const [kx, ky] = at(cx, cy, r1 - 13 * k, am);
-    x.fillStyle = on ? C.pink : 'rgba(198,175,220,.7)'; x.font = `${10 * k}px ${HUD_FONT}`; x.textAlign = 'center'; x.fillText(slotKeys(i, kb('melee')), kx, ky + 4 * k);
+    x.fillStyle = on ? C.pink : 'rgba(198,175,220,.7)'; x.font = `${10 * k}px ${HUD_FONT}`; x.textAlign = 'center'; x.fillText(slotKeys(i, kb('melee'), kb('tool')), kx, ky + 4 * k);
     // a closed group: one tick on the rim per weapon in it
     if (!on && owned.length > 1) {
       x.fillStyle = 'rgba(62,240,255,.55)';

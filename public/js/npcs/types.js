@@ -8,6 +8,7 @@ import { HAIR, SKIN, randomLook } from '../characters/character.js';
 //   cash       what the body drops when the player takes them down: a number or a [min, max] range
 //   drops      extra pickups the body may leave, as { type: chance }; types are DROP_TYPES in game/pickups.js (armor, ammo)
 //   weaponDrops  weapons the body may leave, as { weapon id: chance }; picking one up lends it until the player is wasted
+//   leaveDrops   weapons a driver may leave behind when dragged out of or scared off their vehicle, as { weapon id: chance }
 //   heat       wanted heat added when the player takes them down
 //   radar      blip colour, or 'siren' for flashing red and blue; omit to stay off the radar
 //   despawn    distance from the player at which they are cleared away
@@ -19,7 +20,9 @@ import { HAIR, SKIN, randomLook } from '../characters/character.js';
 // minRange keeps them far enough out not to be caught in their own blast.
 export const NPC_TYPES = {
   civilian: { name: 'Civilian', faction: 'civilian', behaviour: 'wander', hp: 40, walkSpeed: 1.4, runSpeed: 6.3, look: randomLook, cash: [30, 120], heat: 3, screams: true, despawn: 115, fightBack: 0.3, punch: 5 },
-  motorist: { name: 'Driver', faction: 'civilian', behaviour: 'ride', hp: 40, walkSpeed: 1.4, runSpeed: 6.3, look: randomLook, cash: [40, 140], heat: 3, screams: true, despawn: 115 },
+  // car drivers now and then carry a repair tool (game/repair.js), dropped when taken down or left behind when pulled out
+  motorist: { name: 'Driver', faction: 'civilian', behaviour: 'ride', hp: 40, walkSpeed: 1.4, runSpeed: 6.3, look: randomLook, cash: [40, 140], heat: 3, screams: true, despawn: 115,
+    weaponDrops: { repair: 0.15 }, leaveDrops: { repair: 0.1 } },
   biker: { name: 'Biker', faction: 'civilian', behaviour: 'ride', hp: 50, walkSpeed: 1.4, runSpeed: 6.3, look: bikerLook, cash: [30, 120], heat: 3, screams: true, despawn: 115 },
   // on an e-step (vehicles/kinds/step.js): commuters in everyday clothes, now and then a helmet
   stepper: { name: 'Stepper', faction: 'civilian', behaviour: 'ride', hp: 40, walkSpeed: 1.4, runSpeed: 6.3, look: stepperLook, cash: [20, 100], heat: 3, screams: true, despawn: 115 },

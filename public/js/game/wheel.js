@@ -65,9 +65,15 @@ export function stepRing(pick, owned, dir) {
   const i = items.indexOf(pick.item);
   return { ...pick, item: items[(i + dir + items.length) % items.length] };
 }
-// the key that picks a slot straight away: the wheel key for melee, the number keys for the rest
-export function slotKeys(i, meleeKey) {
+// the key that picks a slot straight away: the wheel key for melee, the tool key for the repair tool, the number keys
+// for the rest
+export function slotKeys(i, meleeKey, toolKey) {
   const s = WHEEL_SLOTS[i];
   if (s.id === 'melee') return meleeKey;
-  return s.items.map(id => String((GUNS.indexOf(WBY[id]) + 1) % 10)).join(' ');
+  return s.items.map(id => weaponKey(id, meleeKey, toolKey)).join(' ');
+}
+// the key that picks weapon id: the wheel key for melee, the tool key for a tool, else its number key (the tenth is 0)
+export function weaponKey(id, meleeKey, toolKey) {
+  const w = WBY[id];
+  return w.melee ? meleeKey : w.tool ? toolKey : String((GUNS.indexOf(w) + 1) % 10);
 }

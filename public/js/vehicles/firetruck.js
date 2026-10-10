@@ -8,6 +8,7 @@ import { G, P } from '../core/state.js';
 import { angDiff, clamp, lerp, rnd } from '../core/util.js';
 import { addEntity, all, removeEntity } from '../entities/registry.js';
 import { enterVehicle } from '../game/player.js';
+import { REPAIR } from '../data/weapons.js';
 import { addHeat } from '../game/wanted.js';
 import { BEHAVIOURS } from '../npcs/behaviours.js';
 import { alarm, onFoot, spawnNpc } from '../npcs/npc.js';
@@ -108,6 +109,13 @@ const Truck = {
     if (t.hp <= 0) destroy(t);
   },
   pushOut(o, r) { return pushOutOBB(o, r, this.x, this.z, this.yaw, TRUCK.hw, TRUCK.hl); },
+  // the repair tool (game/repair.js) on it: the bodywork comes back like any vehicle's
+  repair(dt) { const t = this; if (t.dead || t.hp >= TRUCK.hp) return false; t.hp = Math.min(TRUCK.hp, t.hp + TRUCK.hp * REPAIR.rate * dt); return true; },
+  health() {
+    if (this.dead) return null;
+    const sy = Math.abs(Math.sin(this.yaw)), cy = Math.abs(Math.cos(this.yaw));
+    return { hp: Math.max(0, this.hp), max: TRUCK.hp, burning: false, name: 'Fire truck', x: this.x, z: this.z, y: 0, hw: sy * TRUCK.hl + cy * TRUCK.hw, hl: cy * TRUCK.hl + sy * TRUCK.hw };
+  },
   // the player can take it: climb up into the cab while it's stopped or crawling along, and drive off in it
   interaction(p) {
     if (p.vehicle || this.dead || this.v > 5) return null;

@@ -93,6 +93,6 @@ describe('aliens', () => {
   it('the laser rifle is never sold and keeps the thrown weapons on 8 and 9', async () => {
     const { GUNS } = await import('../../public/js/data/weapons.js');
     expect(WBY.laser.dropOnly).toBe(true);
-    expect(GUNS.map(w => w.id).slice(7)).toEqual(['grenade', 'molotov', 'laser']);
+    expect(GUNS.map(w => w.id).slice(7, 10)).toEqual(['grenade', 'molotov', 'laser']);
   });
 });

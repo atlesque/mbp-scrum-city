@@ -4,7 +4,9 @@
 //   npc:killed        { npc, byPlayer, dir, vehicle }   vehicle: what the NPC was riding, if anything
 //   vehicle:wrecked   { vehicle, byPlayer }
 //   vehicle:burning   { vehicle, crash }                caught fire; crash: a collision did it, so it burns long (vehicles/firetruck.js)
-//   vehicle:doused    { vehicle }                       firemen put the fire out
+//   vehicle:doused    { vehicle }                       firemen (or the player's repair tool) put the fire out
+//   vehicle:jacked    { vehicle, driver }               the player dragged the driver out (or shoved the rider off) to take it
+//   vehicle:scared    { vehicle, driver }               a melee blow on a civilian's vehicle sent the driver running
 //   vehicle:enter     { vehicle }                       the player got on or in
 //   vehicle:exit      { vehicle, crash }
 //   wanted:up         { level }
