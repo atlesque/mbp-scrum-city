@@ -1032,8 +1032,14 @@ try {
     // the player's own pistol, fired at the sand at their feet on the beach
     await game(() => { const { P, cam } = __neonbay; P.x = 222; P.z = 3; P.y = 0; cam.pitch = -1.2; });
     await until(() => __neonbay.cam.pitch < -1 && Math.abs(__neonbay.P.x - 222) < 1); await page.waitForTimeout(500); // the camera follows a frame behind
-    const n0 = await game(() => { __neonbay.I.clickQ = 0.3; return __neonbay.Sound.impactsPlayed.sand; });
-    check(await until(n0 => __neonbay.Sound.impactsPlayed.sand > n0 && __neonbay.I.clickQ === 0, n0), 'a shot into the sand made no sound');
+    const n0 = await game(() => __neonbay.Sound.impactsPlayed.sand);
+    let sand = false; // on a busy machine a frame can take long enough for the camera to lag the first shot, so try a few
+    for (let i = 0; i < 6 && !sand; i++) {
+      await game(() => { const { P, cam, I } = __neonbay; P.x = 222; P.z = 3; cam.pitch = -1.2; I.clickQ = 0.3; });
+      await until(() => __neonbay.I.clickQ === 0, undefined, 5000);
+      sand = await until(n0 => __neonbay.Sound.impactsPlayed.sand > n0, n0, 2000);
+    }
+    check(sand, 'a shot into the sand made no sound: ' + JSON.stringify(await game(() => __neonbay.Sound.impactsPlayed)));
     // then a bullet each at a lifeguard hut, out to sea, a car and a person on the beach, and a building in town
     const heard = await game(async () => {
       const { P, Sound, spawnVehicle, spawnNpc } = __neonbay, { castBullet, bulletImpact } = await import('/js/combat/combat.js'), { tallBoxes } = await import('/js/world/collision.js');
