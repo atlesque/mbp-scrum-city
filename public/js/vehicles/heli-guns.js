@@ -1,10 +1,10 @@
-import { castShot, crimeNoise, fireRocket } from '../combat/combat.js';
+import { bulletImpact, castBullet, castShot, crimeNoise, fireRocket } from '../combat/combat.js';
 import { Sound } from '../core/audio.js';
 import { G, I, P, cam } from '../core/state.js';
 import { $, clamp, rnd } from '../core/util.js';
 import { WBY } from '../data/weapons.js';
 import { camTarget } from '../game/player.js';
-import { emit, muzzleFlash, tracer } from '../render/effects.js';
+import { muzzleFlash, tracer } from '../render/effects.js';
 import { GUN_TIP, PODS, SKID, heliPoint } from './heli-mesh.js';
 
 // ================= CHOPPER GUNS =================
@@ -73,13 +73,13 @@ function shootMinigun(v, g, W) {
   g.mag.minigun--; g.cd = W.rate; P.lastShot = G.time;
   const from = muzzle(v, GUN_TIP).clone(), dir = aimDir(), origin = camTarget.clone();
   _d.copy(dir).add(new THREE.Vector3(rnd(-W.spread, W.spread), rnd(-W.spread, W.spread), rnd(-W.spread, W.spread))).normalize();
-  const h = castShot(origin, _d, W.range);
-  tracer(from, h.p, false); muzzleFlash(from); Sound.shot('minigun', 1, 0);
+  const h = castBullet(origin, _d, W.range);
+  tracer(from, h.p, false); muzzleFlash(from); Sound.shot('minigun', 1, 0); bulletImpact(h);
   cam.shake = Math.max(cam.shake, W.recoil * 20);
   if (h.kind === 'entity') {
     const r = h.entity.onShot(h, W.dmg, _d);
     G.hitT = 0.12; const ch = $('crosshair'); if (ch) ch.className = r && r.head ? 'head' : 'hit'; r && r.head ? Sound.head() : Sound.hit();
-  } else if (h.kind !== 'none') emit(h.p.x, h.p.y, h.p.z, 3, h.kind === 'ground' ? '#c8b8a8' : '#f4e8f0', 3, 0.35, 0.07);
+  }
   crimeNoise();
 }
 function shootRocket(v, g) {

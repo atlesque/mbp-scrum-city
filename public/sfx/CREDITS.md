@@ -1,7 +1,7 @@
 # Sound credits
 
 Every recorded sound here is CC0 (public domain, https://creativecommons.org/publicdomain/zero/1.0/), from OpenGameArt and Freesound.
-Each file was trimmed, mixed, level-matched and saved as MP3 for the game: mono at 64 kbps for the reloads, the gull calls, the surf and the fountain, mono at 96 kbps for the gunshots so the crack stays sharp, and stereo at 96 kbps for the ambience beds (city day, city night, wind). Everything else is synthesized in `js/core/audio.js`.
+Each file was trimmed, mixed, level-matched and saved as MP3 for the game: mono at 64 kbps for the reloads, the gull calls, the surf and the fountain, mono at 96 kbps for the gunshots so the crack stays sharp and for the bullet impacts, and stereo at 96 kbps for the ambience beds (city day, city night, wind). Everything else is synthesized in `js/core/audio.js`.
 
 ## Gunshots
 
@@ -18,6 +18,30 @@ Every gunshot is a real gun recorded at a range for The Free Firearm Sound Libra
 | `shot-rpg-1`, `-2` | Mossberg 190 12 gauge, `N_30P.wav`, slowed to 55% (the backblast), with `boost_0.mp3` by ezduzziteh (CC0, https://opengameart.org/content/boost-or-launch-or-thruster-sound-effect) and `missile.wav` by mikeask (CC0, https://opengameart.org/content/missile-sound) fading out (the motor) |
 | `shot-laser-1` to `-3` (the aliens' laser rifle) | Synthesized for this game (a falling square-wave zap with a fizz and a short slap-back), released as CC0 like the rest |
 | `shot-cannon-1` (the tank) | `cannon_fire_0.ogg` by thimras (CC0, https://opengameart.org/content/cannon-fire) |
+
+## Bullet impacts
+
+No CC0 recordings of real bullet impacts could be found, so each surface is built from CC0 foley hits, often two or three layered (a crack or crunch on top, a thud or plop under it for body). Every take comes from a different source hit, cut to start right on it (0.25 to 0.5 s), high-passed at 60 Hz and loudness-matched across surfaces. The game plays them well under the gunshots.
+
+| Files | Built from | Author | Source |
+| --- | --- | --- | --- |
+| `impact-brick-1` to `-3` | `bfh1_rock_hit_01.ogg`, `bfh1_rock_breaking_02.ogg`, `bfh1_rock_breaking_03.ogg`, `bfh1_rock_falling_04.ogg`, `bfh1_rock_falling_07.ogg` | rubberduck | https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx |
+| | with `impactSoft_medium_000.ogg`, `impactSoft_medium_003.ogg`, `impactGeneric_light_002.ogg` (body thud) | Kenney | https://kenney.nl/assets/impact-sounds |
+| `impact-sand-1` to `-3` | `impactSoft_heavy_000.ogg`, `_002.ogg`, `_004.ogg` | Kenney | https://kenney.nl/assets/impact-sounds |
+| | with three steps cut from `sand_footsteps_0.mp3` | Peludo | https://opengameart.org/content/water-splash-and-sand-footsteps |
+| `impact-wood-1`, `-3` | `wood_hit_04.ogg`, `wood_hit_02.ogg` | rubberduck | https://opengameart.org/content/100-cc0-metal-and-wood-sfx |
+| | with `impactWood_medium_002.ogg`, `impactWood_medium_000.ogg` | Kenney | https://kenney.nl/assets/impact-sounds |
+| `impact-wood-2` | `crack07.mp3.flac` | qubodup | https://opengameart.org/content/35-wooden-crackshitsdestructions |
+| `impact-water-1`, `-2` | `splash_09.ogg`, `splash_03.ogg` | rubberduck | https://opengameart.org/content/40-cc0-water-splash-slime-sfx |
+| `impact-water-1`, `-3` | `plop_01.ogg`, `plop_02.ogg` | rubberduck | https://opengameart.org/content/100-cc0-sfx |
+| `impact-water-3` | `water_splash-05.flac` | qubodup | https://opengameart.org/content/6-short-water-splashes |
+| `impact-metal-1`, `-2` | `impactMetal_light_003.ogg`, `impactMetal_medium_001.ogg` | Kenney | https://kenney.nl/assets/impact-sounds |
+| `impact-metal-2` | `clink3.wav` | BMacZero | https://opengameart.org/content/metal-impact-sounds |
+| `impact-metal-3` | `metal_hit_04.ogg` | rubberduck | https://opengameart.org/content/100-cc0-metal-and-wood-sfx |
+| `impact-flesh-1` | `impactPunch_heavy_001.ogg` | Kenney | https://kenney.nl/assets/impact-sounds |
+| | with a short squelch from `rippingintomeat_0.mp3` | Eldritch Grim | https://opengameart.org/content/ripping-into-meat |
+| `impact-flesh-2`, `-3` | `hit12.mp3.flac`, `hit17.mp3.flac` | qubodup | https://opengameart.org/content/37-hitspunches |
+| `impact-flesh-3` | with `impactPunch_medium_003.ogg` | Kenney | https://kenney.nl/assets/impact-sounds |
 
 ## Reloads
 
