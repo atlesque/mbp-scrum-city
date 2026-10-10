@@ -12,7 +12,7 @@ import { G, I, P, cam, inv, stats } from '../core/state.js';
 import { $, angDiff, clamp, clock, lerp, rnd } from '../core/util.js';
 import { HEAR, beside } from '../core/spatial.js';
 import { reloadOf } from '../data/reloads.js';
-import { WBY, loadAll, loseFound, wStat } from '../data/weapons.js';
+import { WBY, firesFrom, loadAll, loseFound, wStat } from '../data/weapons.js';
 import { all, removeEntity } from '../entities/registry.js';
 import { emit as emitFx } from '../render/effects.js';
 import { faceTo, onFoot } from '../npcs/npc.js';
@@ -74,7 +74,8 @@ function handWeapon(dt) {
     else if ((I.mouseL || I.clickQ > 0) && G.fireCd <= 0 && G.state === 'play') { playerSwing(w, st); I.clickQ = 0; }
     if (P.swing) tickSwing(P, dt, landPlayerSwing);
   } else if ((I.mouseL || I.clickQ > 0) && G.fireCd <= 0 && G.state === 'play') {
-    if (w.auto ? (I.mouseL || I.clickQ > 0) : I.clickQ > 0) { if (!w.spin || G.spin >= 1) { playerShoot(); I.clickQ = 0; } else G.fireCd = 0.05; }
+    if (!firesFrom(w, P.vehicle)) { I.clickQ = 0; G.fireCd = 0.3; if (!(P.noRocketT > G.time)) { toast('Get out of the vehicle to fire the <b>Rocket Launcher</b>', 2.5); P.noRocketT = G.time + 3; } }
+    else if (w.auto ? (I.mouseL || I.clickQ > 0) : I.clickQ > 0) { if (!w.spin || G.spin >= 1) { playerShoot(); I.clickQ = 0; } else G.fireCd = 0.05; }
   }
   if (P.c.gun && w.spin && G.spin > 0) P.c.gun.rotation.y += dt * G.spin * 40;
 }
