@@ -9,7 +9,7 @@ import { HEAR, airCutoff, distToEar, doppler, echoSend, falloff, listenerPose } 
 export const Sound = (() => {
   let ctx = null, master, dimmer, dimmed = false, sfx, mus, musLvl, noise, reverbIn, skidGain, skidF, amb, ambDuck, bedF, echoIn, slap, slapG, tailG, own, ownVoice, engG, evOwn, evG, musicOn = true, seq = null, step = 0, nextT = 0, intensity = 0, wantIntensity = 0, layers = musicLayers(0);
   const mix = { on: true, sfx: 1, music: 1, amb: 1 }; // from the Settings screen
-  const AMB_LEVEL = 0.3, RADIO_ON_FOOT = 0.3; // the city's level next to the effects; the radio's share while on foot
+  const AMB_LEVEL = 0.3, RADIO_ON_FOOT = 0.5; // the city's level next to the effects; the radio's share while on foot
   let radioK = 1; const beds = {};
   const MENU_DIM = 0.5, DIM_FADE = 0.3; // everything plays at half volume, faded over 0.3 s, while the pause menu is open
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
