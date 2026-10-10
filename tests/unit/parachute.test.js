@@ -2,7 +2,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../../public/js/core/util.js', async orig => ({ ...(await orig()), $: () => ({ hidden: true, style: {} }) }));
 import { G, P } from '../../public/js/core/state.js';
-import { PARA, chuteStep, dropChute, makeParachutePickup, openChute, opensChute, strapOnChute } from '../../public/js/game/parachute.js';
+import { HANG, PARA, chuteStep, dropChute, hangPose, makeParachutePickup, openChute, opensChute, poseHang, strapOnChute } from '../../public/js/game/parachute.js';
+import { animateChar } from '../../public/js/characters/character.js';
 import { landDamage } from '../../public/js/game/player.js';
 import { removeEntity } from '../../public/js/entities/registry.js';
 
@@ -48,5 +49,27 @@ describe('parachute', () => {
     strapOnChute(); const mine = P.chute; p.update(DT);
     expect(P.chute).toBe(mine); expect(p.m.visible).toBe(true);
     removeEntity(p);
+  });
+  it('hangs in the harness under the open wing instead of walking: legs together and forward, hands up on the lines', () => {
+    const g = () => new THREE.Group();
+    const a = { c: { body: g(), legL: g(), legR: g(), armL: g(), armR: g(), gunHolder: g() }, moveSpeed: PARA.air, jumpY: 30, vx: 0, vz: PARA.air, yaw: 0 };
+    const legs = [];
+    for (let i = 0; i < 40; i++) { // steering ahead at full speed: the walk cycle would swing the legs a long way
+      G.time = i * DT; animateChar(a, DT); poseHang(a);
+      const { legL, legR } = a.c;
+      expect(Math.abs(legL.rotation.x - legR.rotation.x)).toBeLessThan(0.05); // together, not striding
+      expect(legL.rotation.x).toBeLessThan(0); // swung forward, like sitting
+      expect(a.c.body.position.y).toBe(30); // no step bob
+      expect(a.c.armL.rotation.x).toBeLessThan(-2.4); expect(a.c.armR.rotation.x).toBeLessThan(-2.4); // up on the lines
+      legs.push(legL.rotation.x);
+    }
+    expect(Math.max(...legs) - Math.min(...legs)).toBeLessThanOrEqual(2 * HANG.sway + 1e-6); // only a slow sway
+    a.aiming = true; a.c.armR.rotation.set(-1.5, 0, 0); poseHang(a);
+    expect(a.c.armR.rotation.x).toBe(-1.5); // a gun being aimed keeps its arm
+  });
+  it('pulls the brake on the side it steers towards', () => {
+    const left = hangPose(0, PARA.air), right = hangPose(0, -PARA.air), level = hangPose(0, 0);
+    expect(left.armL[0]).toBeGreaterThan(level.armL[0]); expect(left.armR[0]).toBe(level.armR[0]);
+    expect(right.armR[0]).toBeGreaterThan(level.armR[0]); expect(right.armL[0]).toBe(level.armL[0]);
   });
 });

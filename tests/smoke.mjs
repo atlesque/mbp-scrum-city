@@ -923,6 +923,22 @@ try {
     await game(() => __neonbay.removeEntity(window.__heli));
   });
 
+  await step('hangs in the parachute harness instead of walking while gliding down', async () => {
+    await game(async () => {
+      const { P, cam } = __neonbay, { strapOnChute, openChute } = await import('/js/game/parachute.js');
+      P.x = 0; P.z = -60; P.y = 12; P.floor = 0; P.grounded = false; P.vy = -4; P.jumps = 2; P.hp = 100; P.yaw = cam.yaw = 0;
+      strapOnChute(true); openChute();
+    });
+    await page.keyboard.down('KeyW');
+    try {
+      check(await until(() => __neonbay.P.moveSpeed > 4 && __neonbay.P.chute.t > 0.4), 'did not glide forward under the wing');
+      // sampled over a second of steering at full speed: the walk would stride the legs apart and back
+      const legs = await game(() => new Promise(done => { const out = [], t = setInterval(() => { const { legL, legR } = __neonbay.P.c; out.push([legL.rotation.x, legR.rotation.x]); if (out.length === 10) { clearInterval(t); done(out); } }, 100); }));
+      check(legs.every(([l, r]) => Math.abs(l - r) < 0.1 && l < -0.2), `the legs walked under the chute: ${JSON.stringify(legs.map(p => p.map(v => +v.toFixed(2))))}`);
+    } finally { await page.keyboard.up('KeyW'); }
+    check(await until(() => __neonbay.P.grounded && !__neonbay.P.chute, undefined, 60000), 'never landed under the chute');
+  });
+
   await step('a tank rolls in with the army and shells the player', async () => {
     // the soldiers from the steps before can have taken the player down, which clears the stars: wait out the respawn,
     // then keep them topped up until the tank is here, so the five stars hold

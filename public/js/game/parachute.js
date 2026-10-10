@@ -103,6 +103,30 @@ export function chuteFx(dt) {
   c.canopy.rotation.z = Math.sin(G.time * 1.3) * 0.04 + side * 0.03; c.canopy.rotation.x = Math.sin(G.time * 0.9) * 0.04;
 }
 
+// Hanging in the harness: no walking under the wing. The legs hang together, swung a little forward as if sitting in
+// the harness, and swaying slowly; the hands are up on the brake lines by the risers, the one on the side you steer
+// towards pulled a little lower. Arm x: 0 hangs down, -PI points straight up (characters/character.js).
+export const HANG = { leg: -0.45, sway: 0.06, arm: -2.75, out: 0.22, brake: 0.25 };
+// the pose at time t with sideways speed side (m/s, + towards the left hand, the body's +x): leg swing and both arms as [x, y, z]
+export function hangPose(t, side = 0) {
+  const pull = Math.max(-1, Math.min(1, side / PARA.air)) * HANG.brake;
+  return {
+    leg: HANG.leg + Math.sin(t * 1.1) * HANG.sway,
+    armR: [HANG.arm + Math.max(0, -pull), 0, -HANG.out],
+    armL: [HANG.arm + Math.max(0, pull), 0, HANG.out],
+  };
+}
+// lay the hanging pose over the walk animateChar just set, eased in as the wing opens. A gun being aimed, a swing or a
+// reload keeps the arms; the legs always hang.
+export function poseHang(a, k = 1) {
+  const c = a.c, side = (a.vx || 0) * Math.cos(a.yaw || 0) - (a.vz || 0) * Math.sin(a.yaw || 0);
+  const p = hangPose(G.time, side), mix = (from, to) => from + (to - from) * k;
+  c.legL.rotation.x = mix(c.legL.rotation.x, p.leg); c.legR.rotation.x = mix(c.legR.rotation.x, p.leg + 0.04);
+  c.body.position.y = a.jumpY || 0; // no step bob in the air
+  if (a.aiming || a.swing || a.reload) return;
+  for (const [arm, to] of [[c.armR, p.armR], [c.armL, p.armL]]) arm.rotation.set(mix(arm.rotation.x, to[0]), mix(arm.rotation.y, to[1]), mix(arm.rotation.z, to[2]));
+}
+
 // the pack lying on the roof: walk over it to take it. Once taken the spot stays empty for PARA.respawn seconds.
 const glowGeo = new THREE.CircleGeometry(0.8, 20); glowGeo.rotateX(-Math.PI / 2);
 const glowMat = new THREE.MeshBasicMaterial({ color: '#ff5a3c', transparent: true, opacity: 0.35, depthWrite: false });
