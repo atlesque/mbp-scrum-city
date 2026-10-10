@@ -1,4 +1,4 @@
-import { fireRocket } from '../combat/combat.js';
+import { bulletImpact, castBullet, fireRocket } from '../combat/combat.js';
 import { rollZone, zoneDamage } from '../combat/hitzones.js';
 import { Sound } from '../core/audio.js';
 import { at } from '../core/spatial.js';
@@ -191,7 +191,9 @@ function shootAtPlayer(e, dist) {
   Sound.shot(e.def.gun, 0.7, at(e, 1.3));
   // a rocket flies at where they aim, on target or off; the blast does the damage
   if (e.def.rocket) { fireRocket(from, target.sub(from).normalize(), e.def.dmg, 1, e); return; }
-  tracer(from, target, true, laser);
-  if (hit) { const zone = rollZone(); hurtPlayer(zoneDamage(e.def.dmg, zone), zone); }
-  else if (dist < 12) Sound.ting(0.5, at(target, 1.3));
+  if (hit) { tracer(from, target, true, laser); const zone = rollZone(); hurtPlayer(zoneDamage(e.def.dmg, zone), zone); Sound.impact('flesh', 1, target); return; }
+  // a miss flies on past the player into whatever is behind them, and lands there with its own sound
+  const d = target.clone().sub(from), h = castBullet(from, d.normalize(), from.distanceTo(target) + 40, e);
+  tracer(from, h.kind === 'none' ? target : h.p, true, laser); bulletImpact(h);
+  if (dist < 12) Sound.ting(0.5, at(target, 1.3));
 }
