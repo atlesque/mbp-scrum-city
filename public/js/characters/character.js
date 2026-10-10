@@ -96,6 +96,7 @@ export function makeCharacter(L) {
   if (L.tie) { box(core, 0.16, 0.5, 0.02, 0, 1.24, 0.151, '#f2f2f2'); box(core, 0.06, 0.42, 0.02, 0, 1.24, 0.162, '#b3122a'); }
   if (L.stripes) for (const y of [1.0, 1.32]) box(core, 0.54, 0.05, 0.32, 0, y, 0, L.stripes);
   if (L.badge) box(core, 0.07, 0.08, 0.02, 0.13, 1.36, 0.155, '#ffd23e');
+  if (L.chain) { box(core, 0.22, 0.025, 0.02, 0, 1.47, 0.152, L.chain); for (const x of [-0.07, 0.07]) box(core, 0.08, 0.025, 0.02, x, 1.43, 0.153, L.chain); box(core, 0.06, 0.025, 0.02, 0, 1.4, 0.153, L.chain); box(core, 0.05, 0.06, 0.02, 0, 1.35, 0.156, L.chain); }
   body.add(new THREE.Mesh(core.geometry(), charMat));
   const ag = new GB(), sl = L.longSleeve ? 0.52 : 0.24;
   box(ag, 0.17, sl, 0.18, 0, -sl / 2 + 0.04, 0, L.sleeve || L.shirt);
@@ -115,11 +116,15 @@ export function makeCharacter(L) {
   else if (L.glasses) box(hg, 0.27, 0.06, 0.03, 0, 0.27, 0.15, '#0c0c12');
   else { box(hg, 0.05, 0.04, 0.02, 0.07, 0.27, 0.148, '#1a1222'); box(hg, 0.05, 0.04, 0.02, -0.07, 0.27, 0.148, '#1a1222'); }
   box(hg, 0.1, 0.025, 0.02, 0, 0.14, 0.148, '#8a3a3a');
+  // a short trimmed beard along the jaw and a moustache, in the hair colour
+  if (L.beard) { box(hg, 0.3, 0.07, 0.05, 0, 0.11, 0.13, L.hair); for (const x of [-0.14, 0.14]) box(hg, 0.03, 0.16, 0.2, x, 0.17, 0.05, L.hair); box(hg, 0.13, 0.025, 0.02, 0, 0.17, 0.152, L.hair); }
   const hs = L.hairStyle;
   if (hs !== 'bald' && L.hat !== 'helmet' && L.hat !== 'fire') {
     box(hg, 0.32, 0.09, 0.31, 0, 0.42, -0.005, L.hair);
     box(hg, 0.32, hs === 'long' ? 0.42 : hs === 'mullet' ? 0.36 : 0.2, 0.07, 0, hs === 'long' ? 0.2 : hs === 'mullet' ? 0.23 : 0.31, -0.15, L.hair);
     if (hs === 'afro') box(hg, 0.42, 0.24, 0.4, 0, 0.46, -0.02, L.hair);
+    // a big round afro: stacked boxes, widest in the middle, standing well clear of the head all round
+    if (hs === 'bigafro') { box(hg, 0.5, 0.34, 0.48, 0, 0.5, -0.03, L.hair); box(hg, 0.58, 0.2, 0.42, 0, 0.5, -0.03, L.hair); box(hg, 0.42, 0.1, 0.4, 0, 0.7, -0.03, L.hair); box(hg, 0.46, 0.26, 0.12, 0, 0.36, -0.19, L.hair); }
     box(hg, 0.04, 0.16, 0.25, 0.155, 0.33, -0.02, L.hair); box(hg, 0.04, 0.16, 0.25, -0.155, 0.33, -0.02, L.hair);
   }
   if (L.hat === 'cap') { box(hg, 0.33, 0.1, 0.32, 0, 0.45, 0, L.hatColor); box(hg, 0.28, 0.03, 0.13, 0, 0.41, 0.2, L.hatColor); box(hg, 0.06, 0.05, 0.02, 0, 0.46, 0.165, '#ffd23e'); }

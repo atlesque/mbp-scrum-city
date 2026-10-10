@@ -1,4 +1,5 @@
 import { ALL_AMB_FILES, AMB } from '../data/ambience.js';
+import { ALL_IMPACT_FILES, IMPACTS, impactFiles } from '../data/impacts.js';
 import { LEAD, musicLayers } from '../data/music.js';
 import { RELOADS, SFX_DIR, reloadOf } from '../data/reloads.js';
 import { ALL_SHOT_FILES, SHOTS, shotFiles } from '../data/shots.js';
@@ -9,7 +10,7 @@ import { HEAR, airCutoff, distToEar, doppler, echoSend, falloff, listenerPose } 
 export const Sound = (() => {
   let ctx = null, master, dimmer, dimmed = false, sfx, mus, musLvl, noise, reverbIn, skidGain, skidF, amb, ambDuck, bedF, echoIn, slap, slapG, tailG, own, ownVoice, engG, evOwn, evG, musicOn = true, seq = null, step = 0, nextT = 0, intensity = 0, wantIntensity = 0, layers = musicLayers(0);
   const mix = { on: true, sfx: 1, music: 1, amb: 1 }; // from the Settings screen
-  const AMB_LEVEL = 0.3, RADIO_ON_FOOT = 0.3; // the city's level next to the effects; the radio's share while on foot
+  const AMB_LEVEL = 0.3, RADIO_ON_FOOT = 0.5; // the city's level next to the effects; the radio's share while on foot
   let radioK = 1; const beds = {};
   const MENU_DIM = 0.5, DIM_FADE = 0.3; // everything plays at half volume, faded over 0.3 s, while the pause menu is open
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
@@ -315,7 +316,7 @@ export const Sound = (() => {
   const buffers = {};
   let reloadSrc = null;
   function loadSamples() {
-    for (const sound of [...ALL_SHOT_FILES, ...Object.values(RELOADS).map(r => r.sound), ...ALL_AMB_FILES]) {
+    for (const sound of [...ALL_SHOT_FILES, ...ALL_IMPACT_FILES, ...Object.values(RELOADS).map(r => r.sound), ...ALL_AMB_FILES]) {
       if (!sound || sound in buffers) continue;
       buffers[sound] = null;
       fetch(`${SFX_DIR}${sound}.mp3`).then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status)).then(b => ctx.decodeAudioData(b)).then(buf => { buffers[sound] = buf; }).catch(() => {});
@@ -414,9 +415,26 @@ export const Sound = (() => {
     if (kind === 'sniper') { tone(o, t + 0.55, 'square', 900, 500, 0.04, 0.25); tone(o, t + 0.8, 'square', 1300, 700, 0.05, 0.3); }
     if (kind === 'rpg') { const f = nz(o, t, 0.9, 'bandpass', 600, 2, 0.5); f.frequency.exponentialRampToValueAtTime(2500, t + 0.9); }
   }
+  // a bullet landing on `surface` (data/impacts.js) at a world point: one of its takes, a touch higher or lower each
+  // time, quiet next to the shot and without the street's echo; it leaves the city's sounds alone. Until the takes
+  // have loaded a short filtered tick stands in.
+  const IMPACT_SYNTH = { brick: ['bandpass', 2600, 1.4, 0.05], sand: ['lowpass', 900, 0.8, 0.08], wood: ['bandpass', 1300, 2.5, 0.06], water: ['bandpass', 1800, 0.7, 0.18], metal: ['bandpass', 3600, 6, 0.12], flesh: ['lowpass', 600, 1, 0.07] };
+  const impactsPlayed = Object.fromEntries(Object.keys(IMPACTS).map(k => [k, 0]));
+  function impact(surface, vol = 1, at = null) {
+    if (!ctx || !IMPACTS[surface]) return;
+    const takes = impactFiles(surface), name = takes[Math.floor(Math.random() * takes.length)];
+    const s = sample(name, IMPACTS[surface].vol * vol, at, HEAR.impact, 0.92 + Math.random() * 0.16, false);
+    if (s === null) return; // too far off to hear
+    impactsPlayed[surface]++;
+    if (s) return;
+    const o = out(IMPACTS[surface].vol * vol, at, HEAR.impact, false); if (!o) return; const [type, f, q, dur] = IMPACT_SYNTH[surface];
+    nz(o, ctx.currentTime, dur, type, f, q, 0.8, 1);
+  }
   return {
     init, get ready() { return !!ctx; },
-    shot,
+    shot, impact,
+    // how many bullet impacts each surface has played, recorded or not, within earshot (for tests)
+    get impactsPlayed() { return { ...impactsPlayed }; },
     boom(vol = 1, at = null) { if (!ctx) return; duck(at); const t = ctx.currentTime, o = out(vol, at, HEAR.boom, true); if (!o) return; nz(o, t, 1.6, 'lowpass', 900, 0.6, 1.4, 0.6); tone(o, t, 'sine', 90, 30, 0.9, 1.2); nz(o, t, 0.3, 'bandpass', 2400, 1, 0.5); },
     // the scope's zoom click; deeper on the way back out
     zoom(level) { if (!ctx) return; tone(out(0.3), ctx.currentTime, 'square', level ? 2400 + level * 400 : 1500, 1100, 0.035, 0.35); },

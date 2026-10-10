@@ -23,6 +23,11 @@ export const NPC_TYPES = {
   biker: { name: 'Biker', faction: 'civilian', behaviour: 'ride', hp: 50, walkSpeed: 1.4, runSpeed: 6.3, look: bikerLook, cash: [30, 120], heat: 3, screams: true, despawn: 115 },
   // on an e-step (vehicles/kinds/step.js): commuters in everyday clothes, now and then a helmet
   stepper: { name: 'Stepper', faction: 'civilian', behaviour: 'ride', hp: 40, walkSpeed: 1.4, runSpeed: 6.3, look: stepperLook, cash: [20, 100], heat: 3, screams: true, despawn: 115 },
+  // the guy on the pimped e-step (models/pimpstep.js): big afro, trimmed beard, shades, a purple tracksuit to match the
+  // step, a gold chain and clean white sneakers. There's only ever one of him about, and he carries a fat roll.
+  stepking: { name: 'Step king', faction: 'civilian', behaviour: 'ride', hp: 55, walkSpeed: 1.5, runSpeed: 6.6, cash: [250, 600], heat: 3, screams: true, despawn: 140,
+    look: () => ({ skin: '#94644a', hair: '#17110d', hairStyle: 'bigafro', beard: true, glasses: true, shirt: '#5a16a8', sleeve: '#5a16a8', longSleeve: true,
+      pants: '#151419', shorts: false, chain: '#e8b83a', shoes: '#f4f2f0' }) },
   // off the fire truck (vehicles/firetruck.js) to put out crash fires; each carries a fire axe and drops it when taken down
   fireman: { name: 'Fireman', faction: 'civilian', behaviour: 'douse', hp: 90, walkSpeed: 1.8, runSpeed: 5.6, cash: [20, 90], heat: 4, weaponDrops: { fireaxe: 1 }, screams: true, despawn: 160,
     look: () => uniform({ shirt: '#b8995a', pants: '#b8995a', stripes: '#e8ff5a', hat: 'fire', hatColor: '#c8141e', longSleeve: true, gloves: '#2a241c', shoes: '#141316', shorts: false, glasses: false }) },

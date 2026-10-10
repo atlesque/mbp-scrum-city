@@ -28,8 +28,7 @@ export const G = {
   reloadT: 0,
   fireCd: 0,
   spin: 0,
-  scope: 0, // sniper zoom step (combat/scope.js); rescope is the step to return to once the bolt is back
-  rescope: 0,
+  scope: 0, // sniper zoom step (combat/scope.js)
   deadT: 0,
   toastT: 0,
   bigT: 0,

@@ -7,6 +7,7 @@ import { estep, sharestep } from './estep.js';
 import firetruck from './firetruck.js';
 import modelyblue from './modely-blue.js';
 import modely from './modely.js';
+import { pimpstep } from './pimpstep.js';
 import police from './police.js';
 import sedan from './sedan.js';
 import t7 from './t7.js';
@@ -20,12 +21,13 @@ import t7 from './t7.js';
 //              when not its kind's ('twin', 'four', 'diesel' or 'whine', see makeEngine in core/audio.js)
 //   electric   true: no engine note, a pedestrian-warning hum below 30 km/h and road noise above it
 //   traffic    { weight, speed: [min, max] }; weight 0 keeps it out of random traffic
+//   trafficAi  overrides for the kind's traffic tuning (look, decel, accel, ...) when an NPC rides it (models/pimpstep.js)
 //   police     true for cop cars: flashing lights, and they leave with the heat
 //   army       true for the army's troop truck: it answers the heat like a cop car, without lights or siren
 //   crew       how many officers or soldiers get out when it arrives (default 2)
 //   siren      true when the player can switch a siren and flashing lights on (core/keymap.js 'siren'); sirenY: how high it sounds
 // Bikes also give spec / geos / wheel / decal / decalAt (see models/gs.js), e-steps spec / geos / wheel (models/estep.js); cars give mesh().
-export const VEHICLE_MODELS = Object.fromEntries([gs, t7, estep, sharestep, sedan, modely, police, modelyblue, eqa, bmw5, firetruck, army, heli].map(m => [m.id, m]));
+export const VEHICLE_MODELS = Object.fromEntries([gs, t7, estep, sharestep, pimpstep, sedan, modely, police, modelyblue, eqa, bmw5, firetruck, army, heli].map(m => [m.id, m]));
 
 // pick a model of a kind for traffic, weighted by traffic.weight
 export function pickTrafficModel(kind) {
