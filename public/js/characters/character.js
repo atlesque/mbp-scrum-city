@@ -37,13 +37,18 @@ export function gunGeo(id) {
     for (const y of [-0.38, -0.44, -0.5]) box(g, 0.1, 0.025, 0.1, 0, y, 0.08, '#8a90a0');
     box(g, 0.05, 0.16, 0.05, 0, -0.47, 0.08, '#3a3f4a'); box(g, 0.06, 0.02, 0.06, 0, -0.56, 0.08, glow); muzzle = -0.57;
   }
-  // the repair tool, Battlefield style: a chunky yellow body with black grip and battery pack, a steel neck and a copper
-  // torch tip (the flame and sparks come from game/repair.js)
+  // the repair tool: a gas blowtorch. The hand holds the dark canister (its label band round the middle), a brass valve
+  // with its knob on top, then a thin neck that bends up to the nozzle (the flame and sparks come from game/repair.js)
   if (id === 'repair') {
-    const yel = '#f2b81e', blk = '#1f1f24', steel = '#8a8d94';
-    box(g, 0.09, 0.3, 0.12, 0, -0.06, 0.08, yel); box(g, 0.05, 0.1, 0.17, 0, 0.0, -0.02, blk); box(g, 0.1, 0.12, 0.1, 0, 0.14, 0.06, blk);
-    box(g, 0.095, 0.03, 0.125, 0, -0.14, 0.08, blk); box(g, 0.04, 0.16, 0.04, 0, -0.29, 0.1, steel); box(g, 0.05, 0.05, 0.05, 0, -0.39, 0.1, '#c8743a');
-    box(g, 0.02, 0.06, 0.02, 0, -0.44, 0.1, '#e8a060'); muzzle = -0.46; muzzleZ = 0.1;
+    const can = '#2a2c33', rim = '#18191d', brass = '#b8873a', neck = '#2e2e34';
+    tube(g, [0, 0.17, 0.07], [0, 0.155, 0.07], 0.057, rim, 14); tube(g, [0, 0.155, 0.07], [0, -0.095, 0.07], 0.054, can, 14);
+    tube(g, [0, 0.07, 0.07], [0, -0.02, 0.07], 0.056, '#3e4149', 14);
+    for (const y of [0.05, 0.03, 0.01]) box(g, 0.006, 0.012, 0.03 - (y === 0.03 ? 0.012 : 0), 0.056, y, 0.07, '#d8dade');
+    tube(g, [0, -0.095, 0.07], [0, -0.125, 0.07], 0.038, can, 12);
+    tube(g, [0, -0.125, 0.07], [0, -0.17, 0.07], 0.024, brass, 10); box(g, 0.03, 0.016, 0.03, 0.03, -0.15, 0.07, brass);
+    tube(g, [0, -0.17, 0.07], [0, -0.3, 0.085], 0.011, neck, 8); tube(g, [0, -0.3, 0.085], [0, -0.36, 0.125], 0.011, neck, 8);
+    tube(g, [0, -0.36, 0.125], [0, -0.41, 0.15], 0.017, neck, 8); tube(g, [0, -0.36, 0.125], [0, -0.372, 0.132], 0.02, brass, 8);
+    muzzle = -0.42; muzzleZ = 0.155;
   }
   // a fireman's hose nozzle: a red coupling at the hose end, the brass pipe with its pistol grip and the tip
   if (id === 'nozzle') { box(g, 0.09, 0.09, 0.09, 0, 0.03, 0.07, '#c8141e'); box(g, 0.065, 0.24, 0.065, 0, -0.12, 0.07, '#c9a24a'); box(g, 0.045, 0.08, 0.045, 0, -0.27, 0.07, '#e0bf6a'); box(g, 0.035, 0.1, 0.1, 0, -0.06, 0.0, '#2a2a30'); muzzle = -0.31; }
