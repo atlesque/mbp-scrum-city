@@ -1066,12 +1066,12 @@ try {
   });
 
   await step('every gun reloads with its own move and sound', async () => {
-    // on keys 1, 2, 3, ... 0; grenades and molotovs are thrown one at a time and never reload
-    const guns = await game(() => import('/js/data/weapons.js').then(m => m.GUNS.map((w, i) => [i, w.id, !!w.thrown])));
+    // on keys 1, 2, 3, ... 0; grenades and molotovs are thrown one at a time and never reload, nor does the repair tool
+    const guns = await game(() => import('/js/data/weapons.js').then(m => m.GUNS.map((w, i) => [i, w.id, !!(w.thrown || w.tool)])));
     await game(() => { const { G, P } = __neonbay; G.heat = 0; G.wanted = 0; P.hp = 100; });
     if (await game(() => __neonbay.Sound.ready)) check(await until(() => import('/js/data/reloads.js').then(m => Object.values(m.RELOADS).every(r => __neonbay.Sound.samplesLoaded.includes(r.sound)))), 'the reload sounds did not load');
     for (const [i, id, thrown] of guns) {
-      if (thrown) continue;
+      if (thrown) continue; // or a tool
       await game(id => { const { inv } = __neonbay; inv.owned[id] = true; if (id !== 'pistol') inv.ammo[id] = 50; inv.mag[id] = 0; }, id);
       await press(`Digit${(i + 1) % 10}`); // the tenth gun is on 0
       check(await until(id => __neonbay.inv.cur === id, id, 3000), `could not switch to the ${id}`);
