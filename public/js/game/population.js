@@ -22,6 +22,10 @@ export const POPULATION = [
   { id: 'steppers', perTick: 1, target: () => busy(5),
     counts: e => e.kind === 'vehicle' && e.model.kind === 'step' && e.driver && e.driver.kind === 'npc',
     spawn: () => spawnTrafficBike('step', 'stepper') },
+  // the one guy on the pimped e-step (models/pimpstep.js); take his ride and another one turns up
+  { id: 'stepking', perTick: 1, target: () => 1,
+    counts: e => e.kind === 'vehicle' && e.model.id === 'pimpstep' && e.driver && e.driver.kind === 'npc',
+    spawn: () => spawnTrafficBike('step', 'stepking', 'pimpstep') },
 ];
 
 export function managePopulation(dt) {

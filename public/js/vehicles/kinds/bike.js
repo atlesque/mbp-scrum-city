@@ -122,7 +122,7 @@ export const bike = {
     traffic(b, dt) {
       b.turnCd -= dt;
       const ox = b.x, oz = b.z;
-      followLane(b, dt, b.K.traffic);
+      followLane(b, dt, b.model.trafficAi || b.K.traffic);
       // at a junction, sometimes swing onto the crossing road's lane
       if (b.turnCd <= 0 && b.v > 3) turn: {
         const L = b.K.lane;
