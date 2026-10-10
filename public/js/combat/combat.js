@@ -15,7 +15,9 @@ import { scene } from '../render/scene.js';
 import { boltOut } from './scope.js';
 import { drawWeaponIcon, toast } from '../ui/hud.js';
 import { raySphere, wallHit } from '../world/collision.js';
-import { blastProps } from '../world/props.js';
+import { blastProps, propOnRay } from '../world/props.js';
+import { IMPACTS } from '../data/impacts.js';
+import { surfaceOf } from './surface.js';
 import { nextMelee } from './melee.js';
 import { throwItem, throwVelocity } from './throwables.js';
 
@@ -32,6 +34,20 @@ export function castShot(o, d, maxT, skip) {
   }
   best.p = o.clone().addScaledVector(d, best.t);
   return best;
+}
+// a bullet's path: like castShot, but palm trunks, lamp posts and the beach huts stop it too (rockets and
+// thrown things fly past them as before)
+export function castBullet(o, d, maxT, skip) {
+  const h = castShot(o, d, maxT, skip), p = propOnRay(o, d, h.t);
+  if (p) { h.t = p.t; h.kind = 'prop'; h.prop = p.prop; delete h.entity; h.p = o.clone().addScaledVector(d, p.t); }
+  return h;
+}
+// the sound and the bits of a bullet landing where castBullet says it did (nothing when it flew off into the sky)
+export function bulletImpact(h, vol = 1) {
+  if (h.kind === 'none') return;
+  const s = surfaceOf(h);
+  Sound.impact(s, vol, h.p);
+  if (h.kind !== 'entity' && h.kind !== 'player') emit(h.p.x, h.p.y + (s === 'water' ? 0.1 : 0), h.p.z, s === 'water' ? 5 : 3, IMPACTS[s].puff, 3, 0.35, s === 'water' ? 0.09 : 0.07, -12, s === 'water' ? 4 : 2);
 }
 export function curWeapon() { return WBY[inv.cur]; }
 export function playerShoot() {
@@ -57,10 +73,10 @@ export function playerShoot() {
     for (let k = 0; k < w.pellets; k++) {
       const sp = spread * spreadMul;
       _d.copy(dir).add(new THREE.Vector3(rnd(-sp, sp), rnd(-sp, sp), rnd(-sp, sp))).normalize();
-      const h = castShot(origin, _d, w.range);
+      const h = castBullet(origin, _d, w.range);
       tracer(muz, h.p, false, w.laser);
       if (h.kind === 'entity') { const r = h.entity.onShot(h, st.dmg, _d); hitAny = true; if (r && r.head) headAny = true; }
-      else if (h.kind !== 'none') emit(h.p.x, h.p.y, h.p.z, 3, h.kind === 'ground' ? '#c8b8a8' : '#f4e8f0', 3, 0.35, 0.07);
+      if (k < 3) bulletImpact(h); // a shotgun's first few pellets are plenty to hear
     }
     if (hitAny) { G.hitT = 0.12; const ch = $('crosshair'); ch.className = headAny ? 'head' : 'hit'; headAny ? Sound.head() : Sound.hit(); }
   }

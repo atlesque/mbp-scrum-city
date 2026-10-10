@@ -1026,6 +1026,32 @@ try {
     check(played.played === played.ids, `some guns played the synthesized shot instead ${JSON.stringify(played)}`);
   });
 
+  await step('bullets land with the sound of what they hit: sand, wood, water, brick, metal and flesh', async () => {
+    if (!(await game(() => __neonbay.Sound.ready))) return;
+    check(await until(() => import('/js/data/impacts.js').then(m => m.ALL_IMPACT_FILES.every(f => __neonbay.Sound.samplesLoaded.includes(f)))), 'the impact recordings did not load');
+    // the player's own pistol, fired at the sand at their feet on the beach
+    await game(() => { const { P, cam } = __neonbay; P.x = 222; P.z = 3; P.y = 0; cam.pitch = -1.2; });
+    await until(() => __neonbay.cam.pitch < -1 && Math.abs(__neonbay.P.x - 222) < 1); await page.waitForTimeout(500); // the camera follows a frame behind
+    const n0 = await game(() => { __neonbay.I.clickQ = 0.3; return __neonbay.Sound.impactsPlayed.sand; });
+    check(await until(n0 => __neonbay.Sound.impactsPlayed.sand > n0 && __neonbay.I.clickQ === 0, n0), 'a shot into the sand made no sound');
+    // then a bullet each at a lifeguard hut, out to sea, a car and a person on the beach, and a building in town
+    const heard = await game(async () => {
+      const { P, Sound, spawnVehicle, spawnNpc } = __neonbay, { castBullet, bulletImpact } = await import('/js/combat/combat.js'), { tallBoxes } = await import('/js/world/collision.js');
+      const before = Sound.impactsPlayed, V = (x, y, z) => new THREE.Vector3(x, y, z);
+      const fire = (o, to) => { const h = castBullet(o, to.clone().sub(o).normalize(), 80); bulletImpact(h); return h.kind; };
+      const kinds = {};
+      kinds.wood = fire(V(226, 2, 0), V(240, 2, 0)); // the hut at z 0
+      kinds.water = fire(V(240, 3, 0), V(262, 0, 30)); // past the hut, over the waterline
+      const car = window.__car = spawnVehicle('sedan', 222, 12, 0, 'parked'); kinds.metal = fire(V(222, 0.8, 4), V(car.x, 0.8, car.z));
+      const n = window.__target = spawnNpc('civilian', 222, -2); n.update = function () { this.place && this.place(); }; kinds.flesh = fire(V(222, 1.1, 2), V(n.x, 1.1, n.z));
+      P.x = -25; P.z = 7.5; Sound.listen(); const b = tallBoxes.filter(b => b.h > 6).sort((a, c) => Math.hypot((a.x0 + a.x1) / 2 - P.x, (a.z0 + a.z1) / 2 - P.z) - Math.hypot((c.x0 + c.x1) / 2 - P.x, (c.z0 + c.z1) / 2 - P.z))[0];
+      kinds.brick = fire(V(P.x, 1.5, P.z), V((b.x0 + b.x1) / 2, 3, (b.z0 + b.z1) / 2));
+      const after = Sound.impactsPlayed;
+      return { kinds, played: Object.fromEntries(Object.keys(after).map(k => [k, after[k] - before[k]])) };
+    });
+    for (const s of ['wood', 'water', 'brick', 'metal', 'flesh']) check(heard.played[s] === 1, `no ${s} impact: ${JSON.stringify(heard)}`);
+  });
+
   await step('every gun reloads with its own move and sound', async () => {
     // on keys 1, 2, 3, ... 0; grenades and molotovs are thrown one at a time and never reload
     const guns = await game(() => import('/js/data/weapons.js').then(m => m.GUNS.map((w, i) => [i, w.id, !!w.thrown])));
