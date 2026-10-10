@@ -51,7 +51,8 @@ export function holdFive(dt) {
   if (G.wanted !== 5) { if (G.wanted < 5) G.fiveT = 0; return; }
   G.fiveT += dt;
   if (G.fiveT < SIX_STAR_AFTER) return;
-  G.wanted = 6; G.lostT = 0; G.ufoT = Math.min(G.ufoT, 2); Sound.star(); stats.best = Math.max(stats.best, 6);
+  // reset the count, so fading back to five starts a fresh five minutes instead of jumping straight back to six
+  G.wanted = 6; G.lostT = 0; G.fiveT = 0; G.ufoT = Math.min(G.ufoT, 2); Sound.star(); stats.best = Math.max(stats.best, 6);
   showBig(LEVEL_TEXT[6]);
   emit('wanted:up', { level: 6 });
 }
