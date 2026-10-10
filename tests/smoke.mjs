@@ -52,7 +52,7 @@ async function reset() {
     respawn();
     for (const k of Object.keys(window)) if (k.startsWith('__') && k !== '__neonbay') { const e = window[k]; if (e && e.kind && !e.removed) removeEntity(e); delete window[k]; }
     for (const e of all()) if (e.kind === 'vehicle' && e.mode !== 'traffic' && !e.home && Math.hypot(e.x - P.x, e.z - P.z) < 30) removeEntity(e);
-    Object.assign(G, { scope: 0, rescope: 0, reloadT: 0, fireCd: 0, spawnT: 0 });
+    Object.assign(G, { scope: 0, reloadT: 0, fireCd: 0, spawnT: 0 });
     Object.assign(P, { hp: 100, armor: 0, swing: null, reload: null, aiming: false });
     Object.assign(I, { mouseL: false, mouseR: false, clickQ: 0 });
     selectWeapon('pistol'); cam.pitch = -0.08;
@@ -272,8 +272,11 @@ try {
     if (shots) await page.screenshot({ path: `${shots}/sniper-scope.png` });
     await game(() => { __neonbay.I.clickQ = 0.3; });
     check(await until(() => !__mark.alive, undefined, 8000), `the target was not taken down (hp ${await game(() => __mark.hp)})`);
-    check(await game(() => __neonbay.G.scope === 0 && __neonbay.G.rescope === 2), 'the scope did not drop out for the bolt');
-    check(await until(() => __neonbay.G.scope === 2, undefined, 40000), 'the scope did not come back after the bolt: ' + JSON.stringify(await game(() => { const { G, P, inv } = __neonbay; return { st: G.state, sc: G.scope, re: G.rescope, cd: G.fireCd, rl: G.reloadT, cur: inv.cur, alive: P.alive, veh: !!P.vehicle }; })));
+    check(await game(() => __neonbay.G.scope === 2 && __neonbay.G.fireCd > 0 && !document.getElementById('scope').hidden), 'the scope dropped out after the shot');
+    check(await until(() => __neonbay.G.fireCd <= 0, undefined, 40000), 'the bolt did not come back');
+    await game(() => { __neonbay.I.clickQ = 0.3; }); // a second shot once the bolt is back, still through the 9x scope
+    check(await until(() => __neonbay.inv.mag.sniper <= 8, undefined, 8000), 'the second shot did not fire');
+    check(await game(() => __neonbay.G.scope === 2 && !document.getElementById('scope').hidden), 'the scope did not stay on for the second shot');
     await game(async () => {
       const { G, inv, removeEntity } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js');
       selectWeapon('pistol'); removeEntity(__mark); delete inv.owned.sniper; delete inv.ammo.sniper; G.heat = 0; G.wanted = 0;
