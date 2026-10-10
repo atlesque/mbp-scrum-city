@@ -61,7 +61,8 @@ const K = {
   crash: { exitSpeed: 9, hurt: 0.5 },
   ram: { mass: 4, hull: [B.circles[0], HW], heavierAt: 3, sameAt: Infinity }, // see vehicles/knock.js
   camera: { dist: 7.4, aimDist: 4.2, height: 2.2, fovPerSpeed: 0.3, minArm: 3.4 }, // minArm: see game/camera.js
-  laneHalf: 1.7, trafficDespawn: Infinity, reachMax: 1.6, stopsWhileBurning: true, enclosed: true, jack: 'pull the driver out of',
+  laneHalf: 1.7, trafficDespawn: Infinity, reachMax: 1.6, stopsWhileBurning: true, enclosed: true,
+  ambientEngine: true, engineVoice: 'four', engineNear: 0.06, jack: 'pull the driver out of',
   wheelbase: WZ * 2,
   tip: M => `The ${M.name}. <em>${kb('forward')}</em>/<em>${kb('back')}</em> gas and brake, <em>${kb('left')}</em>/<em>${kb('right')}</em> steer, <em>${kb('sprint')}</em> boost, <em>${kb('jump')}</em> handbrake (steer with it to drift),${M.siren ? ` <em>${kb('siren')}</em> siren,` : ''} <em>${kb('ride')}</em> to get out.`,
 

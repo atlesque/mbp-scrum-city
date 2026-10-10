@@ -6,7 +6,7 @@ import { clamp } from '../core/util.js';
 import { all } from '../entities/registry.js';
 
 const GEARS = [0, 7, 13, 19, 26, 34, 50];
-// a passing bike is heard only up close: quiet at its loudest and gone by ENGINE_RANGE metres
+// a passing engine is heard only up close: quiet at its loudest (its kind's engineNear) and gone by ENGINE_RANGE metres
 export const ENGINE_RANGE = 28, ENGINE_NEAR = 0.07;
 export const engineFalloff = d => clamp(1 - d / ENGINE_RANGE, 0, 1) ** 2.5;
 
@@ -19,10 +19,14 @@ export function rpmFor(M, v, thr) {
   if (v > 0.5) { let g = 0; while (g < gears.length - 2 && v > gears[g + 1]) g++; rpm = 2600 + clamp((v - gears[g]) / (gears[g + 1] - gears[g]), 0, 1) * 5600 + (thr ? 300 : 0); }
   return rpm * rev;
 }
-// every bike in traffic, as a sound source at its engine
+// the engine a vehicle sounds like: its model's own engine.voice, else its kind's (a bike's twin, a car's four, a truck's diesel)
+export const engineVoice = V => (V.model && V.model.engine && V.model.engine.voice) || V.K.engineVoice || 'twin';
+// every bike, car and truck in traffic, as a sound source at its engine; electric ones are heard by evSources instead
 export function engineSources() {
   const out = [];
-  if (G.state === 'play') for (const b of all('vehicle')) if (b.K.ambientEngine && b.driver && !b.dead && b !== P.vehicle) out.push({ key: b, ...at(b, 0.6), vol: ENGINE_NEAR, rpm: rpmFor(b.model, Math.abs(b.v), true) });
+  if (G.state === 'play') for (const b of all('vehicle')) if (b.K.ambientEngine && !isElectric(b) && b.driver && !b.dead && b !== P.vehicle) {
+    out.push({ key: b, ...at(b, 0.6), vol: b.K.engineNear ?? ENGINE_NEAR, rpm: rpmFor(b.model, Math.abs(b.v), true), voice: engineVoice(b), speed: Math.abs(b.v) });
+  }
   return out;
 }
 
@@ -48,11 +52,11 @@ export function evSources() {
   return out;
 }
 
-// the player's ride is heard as their own (unplaced); every bike and electric car passing by plays from where it is
+// the player's ride is heard as their own (unplaced); every vehicle passing by plays from where it is
 export function updateEngineSound() {
   // a chopper has no engine note of its own: its rotor is heard instead (rotorSources in game/wanted.js)
   const V = G.state === 'play' && P.vehicle && !P.vehicle.K.flies && P.vehicle, thr = held('forward'), ev = isElectric(V);
-  Sound.setEngine(V && !ev ? 0.08 + (thr ? 0.03 : 0) : 0, V && !ev ? rpmFor(V.model, Math.abs(V.v), thr) : 1050);
+  Sound.setEngine(V && !ev ? 0.08 + (thr ? 0.03 : 0) : 0, V && !ev ? rpmFor(V.model, Math.abs(V.v), thr) : 1050, V && !ev ? engineVoice(V) : null, V ? Math.abs(V.v) : 0);
   Sound.setElectric(ev ? 0.09 : 0, evMix(ev ? V.v : 0));
   Sound.loops('engine', engineSources(), ENGINE_HEAR);
   Sound.loops('ev', evSources(), ENGINE_HEAR);

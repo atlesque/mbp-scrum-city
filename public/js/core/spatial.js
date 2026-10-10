@@ -42,6 +42,9 @@ export const HEAR = {
   rotor: { ref: 18, max: 200 },
   tank: { ref: 12, max: 170 },
   ufo: { ref: 16, max: 180 },
+  surf: { ref: 12, max: 150 }, // the waves breaking along the shore
+  gull: { ref: 6, max: 90 },
+  spot: { ref: 3, max: 30 }, // a place's own sound: a fountain, a club, a radio (game/ambience.js gives each its own)
 };
 export function falloff(d, p) {
   if (p.curve) return d >= p.max ? 0 : clamp(p.curve(d), 0, 1);
@@ -58,6 +61,11 @@ export function airCutoff(d, p) {
   const k = clamp(d / p.max, 0, 1);
   return AIR_NEAR * Math.pow(AIR_FAR / AIR_NEAR, Math.sqrt(k));
 }
+
+// How much of a placed sound goes to the street's echo (core/audio.js), for each unit of it heard dry: a little up
+// close, and more the further off it is, since the direct sound fades faster than what the walls send back, so a
+// far-off fight arrives as a dull boom and its ring rather than a quiet crack.
+export const echoSend = (d, p) => Math.min(0.5 + 2.5 * Math.pow(clamp(d / p.max, 0, 1), 0.7), 3);
 
 // Doppler: the pitch of a source closing on the listener at `closing` m/s (negative when moving away), kept
 // to a believable range so a frame's jitter can't warble it.

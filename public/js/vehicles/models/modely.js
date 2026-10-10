@@ -49,6 +49,6 @@ export default {
   mesh: modelYMesh,
   // electric: quick off the line, one long gear, a high whine instead of an engine note
   handling: { accel: 11, boostAccel: 14, top: 32, boostTop: 42, coast: 0.9 },
-  engine: { rev: 1.15, gears: [0, 52] },
+  engine: { rev: 1.15, gears: [0, 52], voice: 'whine' },
   traffic: { weight: 0.35, speed: [10, 14] },
 };

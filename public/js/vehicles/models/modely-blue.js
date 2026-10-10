@@ -79,6 +79,6 @@ export default {
   mesh: () => carMeshes(geo || (geo = build()), [0.42 * S, -0.44, -0.4 * S], { fit: 0.88, knees: -1.2 }),
   build,
   handling: { accel: 11, boostAccel: 14, top: 32, boostTop: 42, coast: 0.9 },
-  engine: { rev: 1.15, gears: [0, 52] },
+  engine: { rev: 1.15, gears: [0, 52], voice: 'whine' },
   traffic: { weight: 0.3, speed: [10, 14] },
 };

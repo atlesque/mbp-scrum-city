@@ -16,6 +16,7 @@ export const SETTINGS = [
   { id: 'sound', tab: 'sound', label: 'Sound', type: 'toggle', def: true },
   { id: 'sfxVolume', tab: 'sound', label: 'Effects volume', type: 'range', min: 0, max: 1, step: 0.05, def: 1, fmt: pct },
   { id: 'musicVolume', tab: 'sound', label: 'Music volume', type: 'range', min: 0, max: 1, step: 0.05, def: 1, fmt: pct },
+  { id: 'ambVolume', tab: 'sound', label: 'City ambience volume', type: 'range', min: 0, max: 1, step: 0.05, def: 1, fmt: pct },
 
   { id: 'quality', tab: 'graphics', label: 'Render quality', type: 'choice', def: 'high', options: [['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['ultra', 'Ultra']] },
   { id: 'drawDistance', tab: 'graphics', label: 'Draw distance', type: 'choice', def: 'normal', options: [['near', 'Near'], ['normal', 'Normal'], ['far', 'Far']] },

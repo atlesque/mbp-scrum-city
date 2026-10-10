@@ -1,7 +1,7 @@
 # Sound credits
 
-Every recorded sound here is CC0 (public domain, https://creativecommons.org/publicdomain/zero/1.0/), from OpenGameArt.
-Each file was trimmed, mixed, level-matched and saved as mono MP3 for the game (64 kbps for the reloads, 96 kbps for the gunshots so the crack stays sharp). Everything else is synthesized in `js/core/audio.js`.
+Every recorded sound here is CC0 (public domain, https://creativecommons.org/publicdomain/zero/1.0/), from OpenGameArt and Freesound.
+Each file was trimmed, mixed, level-matched and saved as MP3 for the game: mono at 64 kbps for the reloads, the gull calls, the surf and the fountain, mono at 96 kbps for the gunshots so the crack stays sharp, and stereo at 96 kbps for the ambience beds (city day, city night, wind). Everything else is synthesized in `js/core/audio.js`.
 
 ## Gunshots
 
@@ -34,3 +34,20 @@ Every gunshot is a real gun recorded at a range for The Free Firearm Sound Libra
 | | then `gun_reload_lock_or_click_sound.mp3`, pitched down | pauliuw | https://opengameart.org/content/gun-reload-lock-or-click-sound |
 | `reload-sniper.mp3` | `gun_reload_lock_or_click_sound.mp3` (the bolt), pitched down | pauliuw | https://opengameart.org/content/gun-reload-lock-or-click-sound |
 | | then `assaultriflereload1_0.wav` (the magazine) and `shotguncock_0.wav` (the bolt going home), pitched up | springyspringo | https://opengameart.org/content/gun-reload-sounds |
+
+## Ambience
+
+All from Freesound, each checked as CC0 on its own sound page (the HQ previews were used). Every file was high-passed (40 Hz or more) with DC removed. The loops were cut from a steady stretch, made seamless by crossfading the last 2 s into the first 2 s (equal-power), checked by playing them twice in a row (no level step at the seam), and levelled to about -24 LUFS for the beds and -20 LUFS for the surf and the fountain. The gull calls were cut tight with short fades, lightly denoised and peak-normalized to about -3 dBFS.
+
+| File | Built from | Author | Source |
+| --- | --- | --- | --- |
+| `amb-surf.mp3` | `waves_1.wav`, a 26.5 s loop, high-passed at 65 Hz to drop the wind rumble | haldigital97 | https://freesound.org/people/haldigital97/sounds/241824/ |
+| `amb-gull-1.mp3` | `Seagull on beach`, one call (0.76 s), high-passed at 450 Hz | squashy555 | https://freesound.org/people/squashy555/sounds/353416/ |
+| `amb-gull-2.mp3` | `Seagull on beach`, a short series of four calls (2.4 s), high-passed at 450 Hz | squashy555 | https://freesound.org/people/squashy555/sounds/353416/ |
+| `amb-gull-3.mp3` | `sea gulls.wav`, a laughing call series (1.9 s), high-passed at 650 Hz | Snapper4298 | https://freesound.org/people/Snapper4298/sounds/166703/ |
+| `amb-city-day.mp3` | `City hum #1` (distant traffic across a lake), a 50 s loop | morosopher | https://freesound.org/people/morosopher/sounds/179117/ |
+| | with `geroezemoes.wav` (indistinct crowd), two 50 s loops placed left and right, low-passed at 2 kHz and mixed about 7 dB under the traffic | gecop | https://freesound.org/people/gecop/sounds/640254/ |
+| `amb-city-night.mp3` | `AMBSubn-Summer_Golf Course at Night, crickets, frogs, insects, distant traffic_QCF_Gulf Shores Alabama_Zoom H1n`, a 50 s loop, the shrill insect band near 7.6 kHz turned down 4 dB | treytatum3 | https://freesound.org/people/treytatum3/sounds/812214/ |
+| | with `City hum #1` (another stretch), low-passed at 1.2 kHz as a faint far-off city hush about 10 dB under | morosopher | https://freesound.org/people/morosopher/sounds/179117/ |
+| `amb-wind.mp3` | `winter wind 01a.aiff`, a 31 s loop, high-passed at 80 Hz (no buffeting) | klangfabrik | https://freesound.org/people/klangfabrik/sounds/117504/ |
+| `amb-fountain.mp3` | `Water from a Fountain Splashing into the Basin - Recording close to the Fountain Tap`, a 12.25 s loop, high-passed at 90 Hz, splash peaks limited | bassimat | https://freesound.org/people/bassimat/sounds/863058/ |

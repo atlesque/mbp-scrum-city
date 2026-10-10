@@ -13,6 +13,7 @@ import { G, I, P, cam, inv, stats } from './core/state.js';
 import { $ } from './core/util.js';
 import { WBY, WEAPONS, wStat } from './data/weapons.js';
 import { all, count, entities, removeEntity } from './entities/registry.js';
+import { updateAmbience } from './game/ambience.js';
 import { countPlayTime } from './game/hint.js';
 import { makeJetpackPickup } from './game/jetpack.js';
 import { makeParachutePickup } from './game/parachute.js';
@@ -59,7 +60,7 @@ function frame(now) {
     G.shootersNow = count(e => e.kind === 'npc' && e.alive && e.burst > 0);
     // every person, vehicle, pickup and shop in the world
     for (const e of all()) if (e.update && !e.removed) e.update(dt);
-    updateEngineSound();
+    updateEngineSound(); updateAmbience(dt);
     updateRockets(dt); updateThrown(dt); updateProps(dt); updateParts(dt); updateFx(dt); updateLighting(dt);
     if (G.state !== 'title') updateWanted(dt);
     managePopulation(dt);

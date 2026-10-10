@@ -12,7 +12,7 @@ import { buildRooftops, flatRoofs, roofSpots } from './rooftops.js';
 // ================= WORLD =================
 const PASTEL = ['#f7a8c4', '#8fe3d6', '#ffd0a1', '#c9b3f2', '#a7e8a1', '#fff1c9', '#ffb3a7', '#9fd4ff', '#f4ece6', '#ffc6e7', '#b8f0e6', '#ffe0b3'];
 const NEON = ['#ff2fa8', '#21f7ff', '#b04bff', '#39ff88', '#ffcf3a', '#ff5a3d'];
-export const signs = [], parkRects = [], healthSpots = [], armorSpots = [];
+export const signs = [], parkRects = [], healthSpots = [], armorSpots = [], beachHuts = [];
 // filled by buildWorld: where shop doors are ({ type, x, z }) and where parked cars stand
 export const shopSpots = [], lotSpots = [];
 // street lamp heads ({ x, y, z }), lit at night by render/lighting.js
@@ -210,7 +210,7 @@ export function buildWorld() {
   box(plain, 3, 0.14, 900, 206.5, 0.07, 0, '#cbbac6');
   for (let z = -198; z <= 198; z += 11) { palm(trees, 210 + srange(-0.6, 0.6), z + srange(-2, 2), srange(8, 12)); }
   for (let z = -170; z <= 170; z += 85) {
-    const c = spick(['#ff6fae', '#3fd6c8', '#ffb347', '#a77bff']);
+    const c = spick(['#ff6fae', '#3fd6c8', '#ffb347', '#a77bff']); beachHuts.push({ x: 234, z });
     prop('hut', 234, z, [plain], cut => {
       for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { box(plain, 0.2, 2.2, 0.2, 234 + a * 1.1, 1.1, z + b * 1.1, '#f4ece6'); cut(); }
       box(plain, 3, 2, 3, 234, 3.2, z, c); cut(); box(plain, 3.6, 0.3, 3.6, 234, 4.35, z, '#ffffff'); cut();
