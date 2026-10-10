@@ -880,7 +880,7 @@ try {
   });
 
   await step('the city plays its bed, the surf breaks on the beach and the radio drops back on foot', async () => {
-    check(await until(() => __neonbay.Sound.radio === 0.3), `the radio stayed up on foot (${await game(() => __neonbay.Sound.radio)})`);
+    check(await until(() => __neonbay.Sound.radio === 0.5), `the radio stayed up on foot (${await game(() => __neonbay.Sound.radio)})`);
     check(await until(() => { const b = __neonbay.Sound.beds(); return ['day', 'night', 'wind'].every(k => b[k]?.loaded); }), 'the city beds never loaded: ' + JSON.stringify(await game(() => __neonbay.Sound.beds())));
     const home = await game(() => { const { P } = __neonbay, home = [P.x, P.z]; P.x = 240; P.z = 0; return home; });
     check(await until(() => __neonbay.Sound.voices().surf === 3), 'no surf on the beach: ' + JSON.stringify(await game(() => __neonbay.Sound.voices())));
@@ -892,7 +892,7 @@ try {
     await press('KeyF');
     check(await until(() => __neonbay.P.vehicle === __car && __neonbay.Sound.radio === 1), 'the radio did not come back up in the car');
     await press('KeyF');
-    check(await until(() => !__neonbay.P.vehicle && __neonbay.Sound.radio === 0.3), 'the radio did not drop back on getting out');
+    check(await until(() => !__neonbay.P.vehicle && __neonbay.Sound.radio === 0.5), 'the radio did not drop back on getting out');
   });
 
   await step('places make their own sounds: a park fountain, a bar\'s salsa, a beach hut\'s radio', async () => {
