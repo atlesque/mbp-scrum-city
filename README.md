@@ -50,7 +50,7 @@ These are the QWERTY defaults; the AZERTY preset uses ZQSD to move, A for melee 
 
 ## Project layout
 
-`public/index.html` holds the page, styles and HUD markup, and loads the game as native ES modules from `public/js/` (no build step). Three.js (r186) loads from jsDelivr as an ES module in `js/three.js`, which sets it as the global `THREE`, fonts from Google Fonts, and sound is synthesized with the Web Audio API, apart from the gunshots, gun reloads and the city's ambience (beds, surf, gulls, fountains), which are CC0 recordings in `public/sfx/` (credited in `public/sfx/CREDITS.md`).
+`public/index.html` holds the page, styles and HUD markup, and loads the game as native ES modules from `public/js/` (no build step). Three.js (r186) loads from jsDelivr as an ES module in `js/three.js`, which sets it as the global `THREE`, fonts from Google Fonts, and sound is synthesized with the Web Audio API, apart from the gunshots, bullet impacts, gun reloads and the city's ambience (beds, surf, gulls, fountains), which are CC0 recordings in `public/sfx/` (credited in `public/sfx/CREDITS.md`).
 
 ```
 public/js/
@@ -102,6 +102,8 @@ Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share 
 **A reload for a new gun.** Add a line to `RELOADS` in `data/reloads.js`: the move (`pistol`, `mag`, `pump`, `bolt`, `box` or `tube`, keyframed in `characters/reload.js`) and a sound file in `public/sfx/` (mono MP3, CC0 or your own, credited in `public/sfx/CREDITS.md`). A unit test fails until every gun with a magazine has one. A new move is a new list of keyframes in `RELOAD_ANIMS`.
 
 **A gunshot for a new gun.** Add a line to `SHOTS` in `data/shots.js` with how many takes it has and how loud it is, and put the takes in `public/sfx/` as `shot-<id>-1.mp3`, `shot-<id>-2.mp3`, ... (mono MP3 starting right on the shot, CC0 or your own, credited in `public/sfx/CREDITS.md`). Each shot plays a random take a touch faster or slower. A unit test fails until every gun has one.
+
+**A bullet impact surface.** Bullets sound like what they land on: `IMPACTS` in `data/impacts.js` lists each surface (brick, sand, wood, water, metal, flesh) with its takes, volume and puff colour, as `impact-<surface>-1.mp3`, ... in `public/sfx/`. `combat/surface.js` says what each hit is made of: buildings brick, the street brick, the beach and parks sand, the sea water, palms and huts wood (`PROP_SURFACE`), people flesh, vehicles metal (an entity can set its own `surface`). Bullets go through `castBullet` and `bulletImpact` in `combat/combat.js`, which also stop them at palm trunks, lamp posts and huts.
 
 **A new setting.** Add a row to `SETTINGS` in `core/settings.js` (a toggle, range or choice, on the Sound, Graphics or Gameplay tab), then read `settings.<id>` where it matters or apply it in `apply()` in `ui/settings.js`. The Settings screen, saving and validation pick it up on their own.
 
