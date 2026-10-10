@@ -52,7 +52,7 @@ async function reset() {
     respawn();
     for (const k of Object.keys(window)) if (k.startsWith('__') && k !== '__neonbay') { const e = window[k]; if (e && e.kind && !e.removed) removeEntity(e); delete window[k]; }
     for (const e of all()) if (e.kind === 'vehicle' && e.mode !== 'traffic' && !e.home && Math.hypot(e.x - P.x, e.z - P.z) < 30) removeEntity(e);
-    Object.assign(G, { scope: 0, rescope: 0, reloadT: 0, fireCd: 0, spawnT: 0 });
+    Object.assign(G, { scope: 0, reloadT: 0, fireCd: 0, spawnT: 0 });
     Object.assign(P, { hp: 100, armor: 0, swing: null, reload: null, aiming: false });
     Object.assign(I, { mouseL: false, mouseR: false, clickQ: 0 });
     selectWeapon('pistol'); cam.pitch = -0.08;
@@ -272,8 +272,11 @@ try {
     if (shots) await page.screenshot({ path: `${shots}/sniper-scope.png` });
     await game(() => { __neonbay.I.clickQ = 0.3; });
     check(await until(() => !__mark.alive, undefined, 8000), `the target was not taken down (hp ${await game(() => __mark.hp)})`);
-    check(await game(() => __neonbay.G.scope === 0 && __neonbay.G.rescope === 2), 'the scope did not drop out for the bolt');
-    check(await until(() => __neonbay.G.scope === 2, undefined, 40000), 'the scope did not come back after the bolt: ' + JSON.stringify(await game(() => { const { G, P, inv } = __neonbay; return { st: G.state, sc: G.scope, re: G.rescope, cd: G.fireCd, rl: G.reloadT, cur: inv.cur, alive: P.alive, veh: !!P.vehicle }; })));
+    check(await game(() => __neonbay.G.scope === 2 && __neonbay.G.fireCd > 0 && !document.getElementById('scope').hidden), 'the scope dropped out after the shot');
+    check(await until(() => __neonbay.G.fireCd <= 0, undefined, 40000), 'the bolt did not come back');
+    await game(() => { __neonbay.I.clickQ = 0.3; }); // a second shot once the bolt is back, still through the 9x scope
+    check(await until(() => __neonbay.inv.mag.sniper <= 8, undefined, 8000), 'the second shot did not fire');
+    check(await game(() => __neonbay.G.scope === 2 && !document.getElementById('scope').hidden), 'the scope did not stay on for the second shot');
     await game(async () => {
       const { G, inv, removeEntity } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js');
       selectWeapon('pistol'); removeEntity(__mark); delete inv.owned.sniper; delete inv.ammo.sniper; G.heat = 0; G.wanted = 0;
@@ -1024,6 +1027,38 @@ try {
     check(await until(() => import('/js/data/shots.js').then(m => m.ALL_SHOT_FILES.every(f => __neonbay.Sound.samplesLoaded.includes(f)))), 'the gunshot recordings did not load');
     const played = await game(() => import('/js/data/shots.js').then(m => { const { Sound } = __neonbay, n0 = Sound.shotsPlayed, ids = Object.keys(m.SHOTS); for (const id of ids) Sound.shot(id); return { ids: ids.length, played: Sound.shotsPlayed - n0 }; }));
     check(played.played === played.ids, `some guns played the synthesized shot instead ${JSON.stringify(played)}`);
+  });
+
+  await step('bullets land with the sound of what they hit: sand, wood, water, brick, metal and flesh', async () => {
+    if (!(await game(() => __neonbay.Sound.ready))) return;
+    check(await until(() => import('/js/data/impacts.js').then(m => m.ALL_IMPACT_FILES.every(f => __neonbay.Sound.samplesLoaded.includes(f)))), 'the impact recordings did not load');
+    // the player's own pistol, fired at the sand at their feet on the beach
+    await game(() => { const { P, cam } = __neonbay; P.x = 222; P.z = 3; P.y = 0; cam.pitch = -1.2; });
+    await until(() => __neonbay.cam.pitch < -1 && Math.abs(__neonbay.P.x - 222) < 1); await page.waitForTimeout(500); // the camera follows a frame behind
+    const n0 = await game(() => __neonbay.Sound.impactsPlayed.sand);
+    let sand = false; // on a busy machine a frame can take long enough for the camera to lag the first shot, so try a few
+    for (let i = 0; i < 6 && !sand; i++) {
+      await game(() => { const { P, cam, I } = __neonbay; P.x = 222; P.z = 3; cam.pitch = -1.2; I.clickQ = 0.3; });
+      await until(() => __neonbay.I.clickQ === 0, undefined, 5000);
+      sand = await until(n0 => __neonbay.Sound.impactsPlayed.sand > n0, n0, 2000);
+    }
+    check(sand, 'a shot into the sand made no sound: ' + JSON.stringify(await game(() => __neonbay.Sound.impactsPlayed)));
+    // then a bullet each at a lifeguard hut, out to sea, a car and a person on the beach, and a building in town
+    const heard = await game(async () => {
+      const { P, Sound, spawnVehicle, spawnNpc } = __neonbay, { castBullet, bulletImpact } = await import('/js/combat/combat.js'), { tallBoxes } = await import('/js/world/collision.js');
+      const before = Sound.impactsPlayed, V = (x, y, z) => new THREE.Vector3(x, y, z);
+      const fire = (o, to) => { const h = castBullet(o, to.clone().sub(o).normalize(), 80); bulletImpact(h); return h.kind; };
+      const kinds = {};
+      kinds.wood = fire(V(226, 2, 0), V(240, 2, 0)); // the hut at z 0
+      kinds.water = fire(V(240, 3, 0), V(262, 0, 30)); // past the hut, over the waterline
+      const car = window.__car = spawnVehicle('sedan', 222, 12, 0, 'parked'); kinds.metal = fire(V(222, 0.8, 4), V(car.x, 0.8, car.z));
+      const n = window.__target = spawnNpc('civilian', 222, -2); n.update = function () { this.place && this.place(); }; kinds.flesh = fire(V(222, 1.1, 2), V(n.x, 1.1, n.z));
+      P.x = -25; P.z = 7.5; Sound.listen(); const b = tallBoxes.filter(b => b.h > 6).sort((a, c) => Math.hypot((a.x0 + a.x1) / 2 - P.x, (a.z0 + a.z1) / 2 - P.z) - Math.hypot((c.x0 + c.x1) / 2 - P.x, (c.z0 + c.z1) / 2 - P.z))[0];
+      kinds.brick = fire(V(P.x, 1.5, P.z), V((b.x0 + b.x1) / 2, 3, (b.z0 + b.z1) / 2));
+      const after = Sound.impactsPlayed;
+      return { kinds, played: Object.fromEntries(Object.keys(after).map(k => [k, after[k] - before[k]])) };
+    });
+    for (const s of ['wood', 'water', 'brick', 'metal', 'flesh']) check(heard.played[s] === 1, `no ${s} impact: ${JSON.stringify(heard)}`);
   });
 
   await step('every gun reloads with its own move and sound', async () => {

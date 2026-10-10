@@ -1,4 +1,4 @@
-import { explosion } from '../combat/combat.js';
+import { bulletImpact, castBullet, explosion } from '../combat/combat.js';
 import { SIGHT_EVERY, aimFalloff, newSight, reactTo } from '../combat/sight.js';
 import { Sound } from '../core/audio.js';
 import { at } from '../core/spatial.js';
@@ -97,9 +97,13 @@ const Heli = {
         h.burst--; h.burstT = 0.09;
         const from = new THREE.Vector3(h.x, h.y - 1, h.z), to = new THREE.Vector3(P.x, P.y + 1, P.z);
         const hit = Math.random() < 0.2 * aimFalloff(dist, HELI_AIM_CLOSE) && !blocked(from.x, from.y, from.z, to.x, to.y, to.z);
-        if (!hit) to.add(new THREE.Vector3(rnd(-2, 2), rnd(-1, 0.5), rnd(-2, 2)));
-        tracer(from, to, true); muzzleFlash(from); Sound.shot('minigun', 0.6, at(h, -0.5)); if (hit) hurtPlayer(5);
-        emit(to.x, 0.1, to.z, 2, '#d8c8b0', 3, 0.3, 0.1);
+        muzzleFlash(from); Sound.shot('minigun', 0.6, at(h, -0.5));
+        if (hit) { tracer(from, to, true); hurtPlayer(5); Sound.impact('flesh', 1, to); } else {
+          // a miss rakes the ground (or a wall, a car, a palm) round the player
+          to.add(new THREE.Vector3(rnd(-2, 2), rnd(-1, 0.5), rnd(-2, 2)));
+          const b = castBullet(from, to.clone().sub(from).normalize(), from.distanceTo(to) + 30, h);
+          tracer(from, b.kind === 'none' ? to : b.p, true); bulletImpact(b);
+        }
       }
     } else if (h.fireT <= 0 && ready) { h.burst = 10; h.fireT = rnd(2.5, 3.5); }
     if (h.los) G.seenNow = true;

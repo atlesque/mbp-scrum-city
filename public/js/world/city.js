@@ -255,6 +255,17 @@ export function buildWorld() {
     m.position.set(s.x, s.y, s.z); m.rotation.y = s.ry; scene.add(m);
   }
 }
+// what the ground is made of at x, z (combat/surface.js picks a bullet's sound by it): the sea past the waterline,
+// the beach's sand, a park's lawn and paths, or paving everywhere else
+export const WATERLINE_X = 251;
+export function groundKind(x, z) {
+  if (x >= WATERLINE_X) return 'water';
+  if (x > 208) return 'sand';
+  const i = Math.round((x + 175) / 50), j = Math.round((z + 175) / 50);
+  if (i < 0 || i > 7 || j < 0 || j > 7) return 'paved';
+  const dx = Math.abs(x + 175 - i * 50), dz = Math.abs(z + 175 - j * 50);
+  return dx < 16 && dz < 16 && blockKind(i, j) === 'park' ? 'park' : 'paved';
+}
 // top of the ground slabs laid down in buildWorld: block sidewalks, park and lot surfaces, the beach
 export function groundAt(x, z) {
   if (x > 204) return x >= 205 && x <= 208 ? 0.14 : x < 254 ? 0.1 : 0;
