@@ -10,7 +10,7 @@ const slot = id => WHEEL_SLOTS.findIndex(s => s.id === id);
 
 describe('weapon wheel layout', () => {
   it('has one slice for melee, one for the thrown weapons and one per gun, melee at the top', () => {
-    expect(WHEEL_SLOTS.map(s => s.id)).toEqual(['melee', 'pistol', 'smg', 'shotgun', 'rifle', 'minigun', 'rpg', 'sniper', 'thrown', 'laser']);
+    expect(WHEEL_SLOTS.map(s => s.id)).toEqual(['melee', 'pistol', 'smg', 'shotgun', 'rifle', 'minigun', 'rpg', 'sniper', 'thrown', 'laser', 'repair']);
     expect(WHEEL_SLOTS[0].items).toEqual(MELEE.map(w => w.id));
     expect(WHEEL_SLOTS.flatMap(s => s.items).sort()).toEqual(WEAPONS.map(w => w.id).sort());
   });
@@ -18,7 +18,8 @@ describe('weapon wheel layout', () => {
     expect(slotKeys(0, 'Q')).toBe('Q');
     expect(slotKeys(slot('pistol'), 'Q')).toBe('1');
     expect(slotKeys(slot('thrown'), 'Q')).toBe('8 9');
-    expect(slotKeys(slot('laser'), 'Q')).toBe(String(GUNS.length % 10));
+    expect(slotKeys(slot('laser'), 'Q')).toBe('0');
+    expect(slotKeys(slot('repair'), 'Q', 'T')).toBe('T');
   });
   it('has an icon for every weapon', () => {
     for (const w of WEAPONS) expect(ICONS[w.id], w.id).toBeTruthy();

@@ -123,7 +123,10 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 .bar.hp b{background:linear-gradient(90deg,#ff2f6e,var(--pink))}
 .bar.ar b{background:linear-gradient(90deg,#2a8cff,var(--armor))}
 .vital.hp .ic{color:var(--pink)} .vital.ar .ic{color:var(--armor)}
-.vital[hidden]{display:none} .jetLbl{font-size:14px;color:#ffb347} .bar.jet b{background:linear-gradient(90deg,#ff7a2a,#ffd23e)} .chuteLbl{font-size:14px;color:#ff8a6c}
+.vital[hidden]{display:none} .jetLbl{font-size:14px;color:#ffb347} .bar.jet b{background:linear-gradient(90deg,#ff7a2a,#ffd23e)} .chuteLbl{font-size:14px;color:#ff8a6c} .fixLbl{font-size:14px;color:#7fd8ff} .bar.fix b{background:linear-gradient(90deg,#2a8cff,#7fd8ff)}
+/* repair tool: what it would fix, under the crosshair */
+#fixTarget{position:absolute;left:50%;top:calc(50% + 26px);transform:translateX(-50%);text-align:center;font-size:13px;color:#e8f8ff;text-shadow:1px 1px 0 #000;pointer-events:none}
+#fixTarget[hidden]{display:none} #fixTarget .bar{width:110px;height:7px;margin:3px auto 0} #fixTarget .bar b{background:linear-gradient(90deg,#ff7a2a,#ffd23e 45%,#5cff6a)}
 #money{font-family:var(--f-hud);font-size:34px;color:var(--cash);letter-spacing:.02em;font-variant-numeric:tabular-nums}
 #stars{font-size:30px;letter-spacing:2px;line-height:1}
 #stars span{color:rgba(255,255,255,.18);text-shadow:2px 2px 0 #000}
@@ -213,7 +216,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 .tgl{min-width:64px}
 .tgl[aria-checked="true"]{background:rgba(62,240,255,.22);border-color:var(--cyan);color:var(--cyan)}
 .tabs button:focus-visible,.seg button:focus-visible,.tgl:focus-visible,.set-range input:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
-#setBody{display:flex;flex-direction:column;gap:4px;min-height:200px}
+#setBody{display:flex;flex-direction:column;gap:4px;min-height:200px;flex:none}
 .set-row{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 16px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06)}
 .set-label{font-weight:600;font-size:15px}
 .set-range{display:flex;align-items:center;gap:10px}
@@ -282,6 +285,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
   <div id="hud" hidden>
     <div id="scope" hidden><i></i><i></i></div>
     <div id="crosshair"><i></i><i></i><i></i><i></i><b></b></div>
+    <div id="fixTarget" hidden><span id="fixName"></span><div class="bar"><b id="fixHp"></b></div></div>
     <div class="hud-tr">
       <div class="weapon-row">
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
@@ -294,6 +298,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
         <div class="vital hp outline"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="icHeartG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8cc6"/><stop offset=".55" stop-color="#ff4fa3"/><stop offset="1" stop-color="#c8105a"/></linearGradient></defs><path d="M12 21.2C5 16.3 2 12.6 2 8.6 2 5.5 4.4 3.2 7.3 3.2c2 0 3.7 1.1 4.7 2.8 1-1.7 2.7-2.8 4.7-2.8 2.9 0 5.3 2.3 5.3 5.4 0 4-3 7.7-10 12.6Z" fill="url(#icHeartG)" stroke="#000" stroke-width="2.4" stroke-linejoin="round"/><path d="M12 18.4C6.6 14.5 4.3 11.6 4.3 8.7c0-1.8 1.4-3.2 3-3.2 1.5 0 2.6.9 3.3 2.3L12 10l1.4-2.2c.7-1.4 1.8-2.3 3.3-2.3 1.6 0 3 1.4 3 3.2 0 2.9-2.3 5.8-7.7 9.7Z" fill="none" stroke="#fff3fa" stroke-opacity=".55" stroke-width=".9" stroke-linejoin="round"/><path d="M5.6 8.6c0-1 .7-1.8 1.7-1.9" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg><span id="hpNum">100</span><div class="bar hp"><b id="hpFill"></b></div></div>
         <div class="vital ar outline"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="icVestG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9adfff"/><stop offset=".5" stop-color="#5ec8ff"/><stop offset="1" stop-color="#2a6fd6"/></linearGradient></defs><path d="M7 2h2.6L12 8.2 14.4 2H17l.4 3.2c.3 2.4 1.6 4 3.6 4.8V20c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V10c2-.8 3.3-2.4 3.6-4.8Z" fill="url(#icVestG)" stroke="#000" stroke-width="2.2" stroke-linejoin="round"/><path d="M12 8.6V21.4M4.6 14.2h5M14.4 14.2h5M4.6 17.6h5M14.4 17.6h5" fill="none" stroke="#0b2a55" stroke-width="1.3" stroke-linecap="round"/><path d="M8 3.3l2.6 6M16 3.3l-2.6 6" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width=".9" stroke-linecap="round"/></svg><span id="arNum">0</span><div class="bar ar"><b id="arFill" style="width:0"></b></div></div>
         <div class="vital jet outline" id="jetVital" hidden><span class="jetLbl">JET</span><div class="bar jet"><b id="jetFill"></b></div></div>
+        <div class="vital fix outline" id="fixVital" hidden><span class="fixLbl">FIX</span><div class="bar fix"><b id="fixFill"></b></div></div>
         <div class="vital chute outline" id="chuteVital" hidden><span class="chuteLbl">CHUTE</span></div>
       </div>
       <div id="money" class="outline">$00000500</div>

@@ -7,7 +7,7 @@ const sfx = name => new URL(`../../public/sfx/${name}.mp3`, import.meta.url);
 
 describe('gunshots', () => {
   it('gives every gun and the tank cannon a recorded shot', () => {
-    for (const w of WEAPONS.filter(w => !w.melee && !w.thrown)) expect(SHOTS[w.id], `${w.id} has no line in SHOTS`).toBeTruthy();
+    for (const w of WEAPONS.filter(w => !w.melee && !w.thrown && !w.tool)) expect(SHOTS[w.id], `${w.id} has no line in SHOTS`).toBeTruthy();
     expect(SHOTS.cannon).toBeTruthy();
   });
   it('has a file for every take', () => {

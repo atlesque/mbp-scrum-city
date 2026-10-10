@@ -39,7 +39,21 @@ export const WEAPONS = [
   // dropped by the aliens of the secret sixth star (npcs/types.js), never sold: a quick, accurate beam that fires
   // green laser bolts (laser: true) and hums instead of banging. Key 0, after the thrown weapons.
   { id: 'laser', name: 'Laser Rifle', price: 0, dmg: 44, rate: 0.14, mag: 32, spread: 0.006, range: 220, auto: true, pellets: 1, ammoPrice: 0, ammoPack: 64, recoil: 0.004, reload: 1.6, up: 0, twoHand: true, laser: true, dropOnly: true },
+  // Battlefield's repair tool (game/repair.js): a welding torch that fixes the vehicle in front of the player while fire is
+  // held, on a charge that drains as it works and fills back up while it rests, like the jetpack's fuel. It isn't a gun:
+  // no magazine, no ammo, no upgrades. Sold at the gun shop, and now and then left behind by a car's driver.
+  { id: 'repair', name: 'Repair Tool', tool: true, price: 3000, dmg: 0, rate: 0, mag: 0, spread: 0, range: 0, auto: true, pellets: 1, ammoPrice: 0, ammoPack: 0, infinite: true, recoil: 0, reload: 0, up: 0 },
 ];
+// the repair tool's numbers (game/repair.js)
+export const REPAIR = {
+  charge: 6,    // seconds of welding on a full charge
+  refill: 0.75, // seconds of charge back per second while the trigger is let go: full again from empty in 8 s
+  rate: 0.2,    // share of a vehicle's full health put back per second, so any vehicle is good as new in 5 s
+  reach: 2,     // metres from the bodywork the torch reaches
+  cone: 0.9,    // radians either side of the aim it still finds a vehicle
+  lift: 2.5,    // metres between the feet and the vehicle's base still in reach (a chopper parked on a roof)
+  douse: 1.5,   // seconds of welding that put out a vehicle on fire
+};
 export const WBY = Object.fromEntries(WEAPONS.map(w => [w.id, w]));
 export const MELEE = WEAPONS.filter(w => w.melee), GUNS = WEAPONS.filter(w => !w.melee);
 // what each upgrade level adds: +30% damage, +25% magazine and 8% faster fire, unless a weapon sets its own

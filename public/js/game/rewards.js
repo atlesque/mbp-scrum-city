@@ -35,6 +35,14 @@ on('vehicle:wrecked', ({ vehicle, byPlayer }) => {
 
 // dragging someone out of their car is a crime
 on('vehicle:jacked', () => addHeat(2));
+// a driver pulled out of their car or scared off it may leave something behind on the road (leaveDrops in npcs/types.js)
+export function leaveBehind(driver, rand = Math.random) {
+  const out = [];
+  for (const [id, chance] of Object.entries(driver?.def?.leaveDrops || {})) if (rand() < chance) out.push(dropWeapon(id, driver.x + rnd(-0.8, 0.8), driver.z + rnd(-0.8, 0.8)));
+  return out;
+}
+on('vehicle:jacked', ({ driver }) => leaveBehind(driver));
+on('vehicle:scared', ({ driver }) => leaveBehind(driver));
 
 // a police car or army truck that reaches the player lets its crew out: two officers from a cruiser, one each side; soldiers
 // from a truck, two from the cab and the rest jumping off the back. Each brings only who rides in it (RIDES in data/wanted.js).

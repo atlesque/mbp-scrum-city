@@ -1,5 +1,5 @@
 // Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, shoot a chopper's pilot and fly the chopper off, get shelled by the army's tank and blow it up, hold five stars into the secret sixth and take a laser rifle off an alien, snipe through the scope, throw a car with a rocket,
-// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, ram a bike, ride a bike over a car, pull a wheelie, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, change settings and remap keys. Fails on any page error or broken step.
+// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, buy the repair tool and fix a car with it, ram a bike, ride a bike over a car, pull a wheelie, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, change settings and remap keys. Fails on any page error or broken step.
 // Run with `npm run test:smoke`, which splits the steps over a few browsers at once (tests/smoke-all.mjs). This file is one of
 // those browsers: `node tests/smoke.mjs` runs every step in one, in order.
 // SMOKE_ONLY=tank,reload runs only the steps whose names contain one of those words (case-insensitive), after the boot;
@@ -457,6 +457,50 @@ try {
     check(r.armor === 100 && r.money < 5000, `armor not bought (armor ${r.armor}, money ${r.money})`);
     await page.click('#shopClose');
     check(await game(() => __neonbay.G.state === 'play'), 'shop did not close');
+  });
+
+  await step('buys the repair tool, fixes a shot-up car and puts out a burning one', async () => {
+    await game(() => {
+      const { P, G, inv, all } = __neonbay, s = all('shop')[0];
+      G.wanted = 0; G.heat = 0; inv.money = 5000; delete inv.owned.repair; P.x = s.x; P.z = s.z;
+    });
+    await clearVehicles(...await game(() => [__neonbay.P.x, __neonbay.P.z]));
+    check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes('to shop at')), 'no shop prompt');
+    await press('KeyE');
+    check(await until(() => __neonbay.G.state === 'shop' && !document.getElementById('shop').hidden), 'E did not open the shop');
+    await page.click('#shopGrid .card:has-text("Repair Tool") button[data-a="buy"]');
+    await page.click('#shopClose');
+    check(await game(() => __neonbay.inv.owned.repair && __neonbay.inv.cur === 'repair'), 'the repair tool was not bought and equipped');
+    // a shot-up car side on just ahead; hold fire on it
+    const hold = on => game(on => { const { P, I, cam } = __neonbay; P.yaw = cam.yaw; cam.pitch = -0.1; I.mouseL = on ? { fresh: true } : false; }, on);
+    await game(async () => {
+      const { P, G, cam, all, removeEntity, spawnVehicle } = __neonbay, { tool, REPAIR } = await import('/js/game/repair.js'), { SPAWN } = await import('/js/world/city.js');
+      P.x = SPAWN.x; P.z = SPAWN.z; P.yaw = cam.yaw = SPAWN.yaw; // back out in the open street
+      for (const e of all()) if ((e.kind === 'vehicle' || (e.kind === 'npc' && e !== P)) && Math.hypot(e.x - P.x, e.z - P.z) < 14) removeEntity(e);
+      const v = window.__fix = spawnVehicle('sedan', P.x + Math.sin(P.yaw) * 2.2, P.z + Math.cos(P.yaw) * 2.2, P.yaw + Math.PI / 2);
+      v.hp = v.model.hp * 0.4; tool.charge = REPAIR.charge; G.wanted = 0;
+    });
+    check(await until(() => !document.getElementById('fixTarget').hidden), 'aiming at the car shows nothing to fix');
+    await hold(true);
+    check(await until(() => __fix.hp >= __fix.model.hp, undefined, 40000), 'holding fire did not fix the car');
+    const r = await game(async () => { const { tool, REPAIR } = await import('/js/game/repair.js'); return { charge: tool.charge, full: REPAIR.charge, gauge: !document.getElementById('fixVital').hidden }; });
+    check(r.charge < r.full, 'fixing the car used no charge');
+    check(r.gauge, 'no FIX gauge while the tool works');
+    // now set it on fire: the torch puts it out before it goes up
+    await game(async () => { const { tool, REPAIR } = await import('/js/game/repair.js'); tool.charge = REPAIR.charge; __fix.damage(__fix.hp + 1, false, true); });
+    check(await game(() => __fix.burnT > 0), 'the car did not catch fire');
+    check(await until(() => !(__fix.burnT > 0), undefined, 40000), 'the torch did not put the fire out');
+    check(await game(() => !__fix.dead), 'the car went up anyway');
+    // let go and the charge comes back
+    await hold(false);
+    const was = await game(async () => (await import('/js/game/repair.js')).tool.charge);
+    check(await until(async was => (await import('/js/game/repair.js')).tool.charge > was + 0.05, was), 'the charge did not refill');
+    // the crash fire called out the fire brigade: send it home so it can't stand in for the next step's truck
+    await game(async () => {
+      const { all, removeEntity } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js');
+      removeEntity(__fix); selectWeapon('pistol');
+      for (const e of all()) if (e.kind === 'firetruck' || (e.kind === 'npc' && e.def.behaviour === 'douse')) removeEntity(e);
+    });
   });
 
   await step('rams a parked bike out of the way', async () => {
@@ -1134,12 +1178,12 @@ try {
   });
 
   await step('every gun reloads with its own move and sound', async () => {
-    // on keys 1, 2, 3, ... 0; grenades and molotovs are thrown one at a time and never reload
-    const guns = await game(() => import('/js/data/weapons.js').then(m => m.GUNS.map((w, i) => [i, w.id, !!w.thrown])));
+    // on keys 1, 2, 3, ... 0; grenades and molotovs are thrown one at a time and never reload, nor does the repair tool
+    const guns = await game(() => import('/js/data/weapons.js').then(m => m.GUNS.map((w, i) => [i, w.id, !!(w.thrown || w.tool)])));
     await game(() => { const { G, P } = __neonbay; G.heat = 0; G.wanted = 0; P.hp = 100; });
     if (await game(() => __neonbay.Sound.ready)) check(await until(() => import('/js/data/reloads.js').then(m => Object.values(m.RELOADS).every(r => __neonbay.Sound.samplesLoaded.includes(r.sound)))), 'the reload sounds did not load');
     for (const [i, id, thrown] of guns) {
-      if (thrown) continue;
+      if (thrown) continue; // or a tool
       await game(id => { const { inv } = __neonbay; inv.owned[id] = true; if (id !== 'pistol') inv.ammo[id] = 50; inv.mag[id] = 0; }, id);
       await press(`Digit${(i + 1) % 10}`); // the tenth gun is on 0
       check(await until(id => __neonbay.inv.cur === id, id, 3000), `could not switch to the ${id}`);

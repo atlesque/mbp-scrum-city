@@ -3,7 +3,7 @@ import { toggleScope } from '../combat/scope.js';
 import { Sound } from './audio.js';
 import { actionFor, kb, kbMove } from './controls.js';
 import { save } from './save.js';
-import { G, I, P, cam, keys, stats } from './state.js';
+import { G, I, P, cam, inv, keys, stats } from './state.js';
 import { $, clamp, clock } from './util.js';
 import { GUNS } from '../data/weapons.js';
 import { all, removeEntity } from '../entities/registry.js';
@@ -63,6 +63,7 @@ document.addEventListener('keydown', e => {
   if (act === 'pause' || (e.code === 'Escape' && I.noLock)) pauseGame();
   // hold for the weapon wheel (ui/wheel.js); a quick tap steps through the fists and melee weapons
   if (act === 'melee' && !e.repeat && !heli) openWheel();
+  if (act === 'tool' && !heli) { closeWheel(false); if (inv.owned.repair) selectWeapon('repair'); else toast(`No <em>Repair Tool</em> yet. Buy one at <em>Bullet Bros. Guns</em>, or take it off a driver.`); }
   // 1 to 9 pick a gun, 0 the tenth (the laser rifle)
   const d = /^(?:Digit|Numpad)([0-9])$/.exec(e.code), n = d ? +d[1] || 10 : 0;
   if (heli) { if (n && n <= HELI_GUN_ORDER.length) pickHeliGun(heli, HELI_GUN_ORDER[n - 1]); }
