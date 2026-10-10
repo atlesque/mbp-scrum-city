@@ -495,7 +495,12 @@ try {
     await hold(false);
     const was = await game(async () => (await import('/js/game/repair.js')).tool.charge);
     check(await until(async was => (await import('/js/game/repair.js')).tool.charge > was + 0.05, was), 'the charge did not refill');
-    await game(async () => { const { selectWeapon } = await import('/js/combat/combat.js'); __neonbay.removeEntity(__fix); selectWeapon('pistol'); });
+    // the crash fire called out the fire brigade: send it home so it can't stand in for the next step's truck
+    await game(async () => {
+      const { all, removeEntity } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js');
+      removeEntity(__fix); selectWeapon('pistol');
+      for (const e of all()) if (e.kind === 'firetruck' || (e.kind === 'npc' && e.def.behaviour === 'douse')) removeEntity(e);
+    });
   });
 
   await step('rams a parked bike out of the way', async () => {
