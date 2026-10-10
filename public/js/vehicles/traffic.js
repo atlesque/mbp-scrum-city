@@ -28,8 +28,9 @@ export function spawnTrafficCar(far) {
   }
 }
 
-// a biker (or another rider: an e-step and its stepper, kind 'step') on a road near the player, but not right on top of them
-export function spawnTrafficBike(kind = 'bike', rider = 'biker') {
+// a biker (or another rider: an e-step and its stepper, kind 'step') on a road near the player, but not right on top of them;
+// `model` puts them on that model instead of one picked from traffic
+export function spawnTrafficBike(kind = 'bike', rider = 'biker', model = null) {
   const roads = ROADS.slice(1, -1).concat([200]);
   for (let i = 0; i < 12; i++) {
     const vertical = Math.random() < 0.5, near = roads.filter(r => Math.abs(r - (vertical ? P.x : P.z)) < 130); if (!near.length) continue;
@@ -37,7 +38,7 @@ export function spawnTrafficBike(kind = 'bike', rider = 'biker') {
     const off = KINDS[kind].lane, dx = vertical ? 0 : s, dz = vertical ? s : 0, L = laneFor(road, dx, dz, off), x = vertical ? L.x : along, z = vertical ? along : L.z;
     if (Math.hypot(x - P.x, z - P.z) < 55) continue;
     if (!clear(x, z)) continue;
-    const b = spawnVehicle(pickTrafficModel(kind), x, z, Math.atan2(dx, dz), 'traffic'); b.v = b.top * 0.7; b.lean = 0;
+    const b = spawnVehicle(model || pickTrafficModel(kind), x, z, Math.atan2(dx, dz), 'traffic'); b.v = b.top * 0.7; b.lean = 0;
     b.seatDriver(spawnNpc(rider, x, z));
     return b;
   }
