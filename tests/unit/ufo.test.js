@@ -36,6 +36,17 @@ describe('secret sixth star', () => {
     G.wanted = 5; holdFive(20);
     expect(G.wanted).toBe(5);
   });
+  it('starts a fresh count when the sixth star fades back to five', () => {
+    G.wanted = 5; G.fiveT = 0;
+    holdFive(SIX_STAR_AFTER);
+    expect(G.wanted).toBe(6);
+    G.wanted = 5; holdFive(1);
+    expect(G.wanted).toBe(5);
+    holdFive(SIX_STAR_AFTER - 2);
+    expect(G.wanted).toBe(5);
+    holdFive(1);
+    expect(G.wanted).toBe(6);
+  });
   it('only sends the UFO at six stars', () => {
     expect(WANTED[6].ufo).toBe(true);
     expect(WANTED.slice(1, 6).some(L => L.ufo)).toBe(false);
