@@ -19,7 +19,7 @@ export function reactTo(s, visible, dt) {
 
 // Shooters miss more the further off the player is: full accuracy up to `close` metres, then the hit chance
 // halves every AIM_HALF metres beyond that, never dropping below AIM_FLOOR of the close-range figure.
-export const AIM_CLOSE = 8, AIM_HALF = 16, AIM_FLOOR = 0.12;
+export const AIM_CLOSE = 8, AIM_HALF = 8, AIM_FLOOR = 0.05;
 export function aimFalloff(dist, close = AIM_CLOSE) {
   return Math.max(AIM_FLOOR, 0.5 ** (Math.max(0, dist - close) / AIM_HALF));
 }

@@ -52,7 +52,7 @@ async function reset() {
     respawn();
     for (const k of Object.keys(window)) if (k.startsWith('__') && k !== '__neonbay') { const e = window[k]; if (e && e.kind && !e.removed) removeEntity(e); delete window[k]; }
     for (const e of all()) if (e.kind === 'vehicle' && e.mode !== 'traffic' && !e.home && Math.hypot(e.x - P.x, e.z - P.z) < 30) removeEntity(e);
-    Object.assign(G, { scope: 0, rescope: 0, reloadT: 0, fireCd: 0, spawnT: 0 });
+    Object.assign(G, { scope: 0, reloadT: 0, fireCd: 0, spawnT: 0 });
     Object.assign(P, { hp: 100, armor: 0, swing: null, reload: null, aiming: false });
     Object.assign(I, { mouseL: false, mouseR: false, clickQ: 0 });
     selectWeapon('pistol'); cam.pitch = -0.08;
@@ -272,8 +272,11 @@ try {
     if (shots) await page.screenshot({ path: `${shots}/sniper-scope.png` });
     await game(() => { __neonbay.I.clickQ = 0.3; });
     check(await until(() => !__mark.alive, undefined, 8000), `the target was not taken down (hp ${await game(() => __mark.hp)})`);
-    check(await game(() => __neonbay.G.scope === 0 && __neonbay.G.rescope === 2), 'the scope did not drop out for the bolt');
-    check(await until(() => __neonbay.G.scope === 2, undefined, 40000), 'the scope did not come back after the bolt: ' + JSON.stringify(await game(() => { const { G, P, inv } = __neonbay; return { st: G.state, sc: G.scope, re: G.rescope, cd: G.fireCd, rl: G.reloadT, cur: inv.cur, alive: P.alive, veh: !!P.vehicle }; })));
+    check(await game(() => __neonbay.G.scope === 2 && __neonbay.G.fireCd > 0 && !document.getElementById('scope').hidden), 'the scope dropped out after the shot');
+    check(await until(() => __neonbay.G.fireCd <= 0, undefined, 40000), 'the bolt did not come back');
+    await game(() => { __neonbay.I.clickQ = 0.3; }); // a second shot once the bolt is back, still through the 9x scope
+    check(await until(() => __neonbay.inv.mag.sniper <= 8, undefined, 8000), 'the second shot did not fire');
+    check(await game(() => __neonbay.G.scope === 2 && !document.getElementById('scope').hidden), 'the scope did not stay on for the second shot');
     await game(async () => {
       const { G, inv, removeEntity } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js');
       selectWeapon('pistol'); removeEntity(__mark); delete inv.owned.sniper; delete inv.ammo.sniper; G.heat = 0; G.wanted = 0;
@@ -297,6 +300,23 @@ try {
     check(await until(() => !(__tossed.air > 0)), 'the car never landed');
     // blowing up a car is a crime: drop the heat so the police don't crowd the steps that follow
     await game(() => { const { G, all, removeEntity } = __neonbay; removeEntity(__tossed); G.heat = 0; G.wanted = 0; for (const n of all('npc')) if (n.faction === 'law') removeEntity(n); });
+  });
+
+  await step('the rocket launcher will not fire from a car, only on foot', async () => {
+    await clearVehicles(...await game(() => [__neonbay.P.x, __neonbay.P.z]));
+    await game(async () => {
+      const { P, inv, spawnVehicle } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js'), { enterVehicle } = await import('/js/game/player.js');
+      inv.owned.rpg = true; inv.mag.rpg = 1; selectWeapon('rpg');
+      enterVehicle(window.__car = spawnVehicle('sedan', P.x + 2.5, P.z, P.yaw));
+      __neonbay.I.clickQ = 0.3;
+    });
+    await page.waitForTimeout(600);
+    const seated = await game(() => ({ mag: __neonbay.inv.mag.rpg, toast: document.getElementById('toast').textContent }));
+    check(seated.mag === 1, `a rocket left the launcher from the driver's seat (mag ${seated.mag})`);
+    check(seated.toast.includes('Rocket Launcher'), 'no message saying to get out first');
+    await game(async () => { const { exitVehicle } = await import('/js/game/player.js'); __neonbay.P.vehicle.v = 0; exitVehicle(false); __neonbay.G.fireCd = 0; __neonbay.cam.pitch = 0.3; __neonbay.I.clickQ = 0.3; });
+    check(await until(() => __neonbay.inv.mag.rpg === 0), 'the launcher did not fire on foot');
+    await game(() => { const { G, inv, all, removeEntity } = __neonbay; delete inv.owned.rpg; G.heat = 0; G.wanted = 0; for (const n of all('npc')) if (n.faction === 'law') removeEntity(n); });
   });
 
   await step('shoots a driver through the window and takes the car', async () => {
@@ -379,6 +399,26 @@ try {
       const { G, all, removeEntity } = __neonbay; removeEntity(__jack); removeEntity(__jacked); G.heat = 0; G.wanted = 0;
       for (const e of all()) if ((e.kind === 'npc' && e.def.faction === 'law') || (e.kind === 'vehicle' && (e.model.police || e.model.army))) removeEntity(e);
     });
+  });
+
+  await step('the step king rides his pimped e-step about; the player shoves him off and does 70+ km/h on it', async () => {
+    check(await until(() => __neonbay.all('vehicle').some(v => v.model.id === 'pimpstep' && v.driver && v.driver.kind === 'npc' && v.driver.type === 'stepking'), null, 8000), 'no step king out on his step');
+    // a second one on the open beach, stopped next to the player; once it's the player's it starts off rolling at 43 km/h,
+    // as software WebGL under load runs only a few frames a second
+    await clearVehicles(228, -60);
+    await game(() => {
+      const { G, P, spawnVehicle, spawnNpc } = __neonbay; G.heat = 0; G.wanted = 0; P.x = 229.6; P.z = -60; P.yaw = 0;
+      const s = window.__pimp = spawnVehicle('pimpstep', 228, -60, 0); s.seatDriver(window.__king = spawnNpc('stepking', s.x, s.z));
+    });
+    check(await until(() => /shove the rider off/.test((__neonbay.G.near[0] || {}).prompt)), 'no prompt to shove the rider off');
+    await press('KeyF');
+    check(await until(() => __neonbay.P.vehicle === window.__pimp), 'F did not take the pimped step');
+    await game(() => { const { G, all, removeEntity } = __neonbay; removeEntity(__king); G.heat = 0; G.wanted = 0; for (const e of all('npc')) if (e.def.faction === 'law') removeEntity(e); __pimp.x = 228; __pimp.z = -60; __pimp.yaw = 0; __pimp.v = 12; __pimp.peak = 0; const up = __pimp.update; __pimp.update = function (dt) { up.call(this, dt); this.peak = Math.max(this.peak, this.v); }; });
+    for (const k of ['KeyW', 'ShiftLeft']) await page.keyboard.down(k);
+    const fast = await until(() => __pimp.peak * 3.6 > 70, null, 30000);
+    for (const k of ['KeyW', 'ShiftLeft']) await page.keyboard.up(k);
+    const r = await game(() => ({ peak: __pimp.peak * 3.6, x: __pimp.x, z: __pimp.z }));
+    check(fast, `topped out at ${r.peak.toFixed(0)} km/h (at ${r.x.toFixed(0)}, ${r.z.toFixed(0)})`);
   });
 
   await step('a bat on a car scares the driver out, and on a bike throws the rider off', async () => {
@@ -660,6 +700,25 @@ try {
     check(r.cz > r.z, `the ${model} did not roll on past the player`);
     await game(() => __neonbay.removeEntity(__ram));
   });
+  await step('hops off a regular e-step at speed, no roll and no damage', async () => {
+    await clearVehicles(228, -60);
+    await game(() => { const { P, spawnVehicle } = __neonbay; P.x = 229.5; P.z = -60; window.__ram = spawnVehicle('estep', 228, -60, 0); });
+    check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes(__ram.model.name)), 'no prompt to get on');
+    await press('KeyF');
+    check(await until(() => __neonbay.P.vehicle === window.__ram), 'F did not put the player on board');
+    await until(() => __neonbay.G.near.some(i => i.priority === 9));
+    await game(() => { const { P } = __neonbay; P.hp = 100; P.armor = 0; __ram.x = 228; __ram.z = -60; __ram.yaw = 0; __ram.v = 7.5; P.vx = 0; P.vz = 7.5; });
+    await press('KeyF');
+    check(await until(() => !__neonbay.P.vehicle), 'F did not get the player off');
+    const mid = await game(() => ({ tumbling: !!__neonbay.P.tumble, up: __neonbay.P.vy > 0 || !__neonbay.P.grounded }));
+    check(!mid.tumbling, 'the player rolled instead of hopping off');
+    check(mid.up, 'the player did not jump off');
+    check(await until(() => __neonbay.P.grounded), 'the player never landed');
+    const r = await game(() => { const { P } = __neonbay; return { hp: P.hp, tumble: !!P.tumble, x: P.x }; });
+    check(r.hp === 100 && !r.tumble, `hopping off should not hurt or roll (hp ${r.hp})`);
+    check(r.x > 228.5, `did not hop off to the side (x ${r.x.toFixed(2)})`);
+    await game(() => __neonbay.removeEntity(__ram));
+  });
 
   await step('drives up onto the sidewalk instead of through it', async () => {
     await clearVehicles(5, -75);
@@ -880,7 +939,7 @@ try {
   });
 
   await step('the city plays its bed, the surf breaks on the beach and the radio drops back on foot', async () => {
-    check(await until(() => __neonbay.Sound.radio === 0.3), `the radio stayed up on foot (${await game(() => __neonbay.Sound.radio)})`);
+    check(await until(() => __neonbay.Sound.radio === 0.5), `the radio stayed up on foot (${await game(() => __neonbay.Sound.radio)})`);
     check(await until(() => { const b = __neonbay.Sound.beds(); return ['day', 'night', 'wind'].every(k => b[k]?.loaded); }), 'the city beds never loaded: ' + JSON.stringify(await game(() => __neonbay.Sound.beds())));
     const home = await game(() => { const { P } = __neonbay, home = [P.x, P.z]; P.x = 240; P.z = 0; return home; });
     check(await until(() => __neonbay.Sound.voices().surf === 3), 'no surf on the beach: ' + JSON.stringify(await game(() => __neonbay.Sound.voices())));
@@ -892,7 +951,7 @@ try {
     await press('KeyF');
     check(await until(() => __neonbay.P.vehicle === __car && __neonbay.Sound.radio === 1), 'the radio did not come back up in the car');
     await press('KeyF');
-    check(await until(() => !__neonbay.P.vehicle && __neonbay.Sound.radio === 0.3), 'the radio did not drop back on getting out');
+    check(await until(() => !__neonbay.P.vehicle && __neonbay.Sound.radio === 0.5), 'the radio did not drop back on getting out');
   });
 
   await step('places make their own sounds: a park fountain, a bar\'s salsa, a beach hut\'s radio', async () => {
@@ -960,6 +1019,22 @@ try {
     check(await game(() => __neonbay.P.chute && __neonbay.P.chute.open && !__neonbay.P.tumble), 'the parachute did not open by itself');
     check(await until(() => __neonbay.P.grounded && !__neonbay.P.chute, undefined, 60000), 'never landed under the chute');
     await game(() => __neonbay.removeEntity(window.__heli));
+  });
+
+  await step('hangs in the parachute harness instead of walking while gliding down', async () => {
+    await game(async () => {
+      const { P, cam } = __neonbay, { strapOnChute, openChute } = await import('/js/game/parachute.js');
+      P.x = 0; P.z = -60; P.y = 12; P.floor = 0; P.grounded = false; P.vy = -4; P.jumps = 2; P.hp = 100; P.yaw = cam.yaw = 0;
+      strapOnChute(true); openChute();
+    });
+    await page.keyboard.down('KeyW');
+    try {
+      check(await until(() => __neonbay.P.moveSpeed > 4 && __neonbay.P.chute.t > 0.4), 'did not glide forward under the wing');
+      // sampled over a second of steering at full speed: the walk would stride the legs apart and back
+      const legs = await game(() => new Promise(done => { const out = [], t = setInterval(() => { const { legL, legR } = __neonbay.P.c; out.push([legL.rotation.x, legR.rotation.x]); if (out.length === 10) { clearInterval(t); done(out); } }, 100); }));
+      check(legs.every(([l, r]) => Math.abs(l - r) < 0.1 && l < -0.2), `the legs walked under the chute: ${JSON.stringify(legs.map(p => p.map(v => +v.toFixed(2))))}`);
+    } finally { await page.keyboard.up('KeyW'); }
+    check(await until(() => __neonbay.P.grounded && !__neonbay.P.chute, undefined, 60000), 'never landed under the chute');
   });
 
   await step('a tank rolls in with the army and shells the player', async () => {
@@ -1063,6 +1138,38 @@ try {
     check(await until(() => import('/js/data/shots.js').then(m => m.ALL_SHOT_FILES.every(f => __neonbay.Sound.samplesLoaded.includes(f)))), 'the gunshot recordings did not load');
     const played = await game(() => import('/js/data/shots.js').then(m => { const { Sound } = __neonbay, n0 = Sound.shotsPlayed, ids = Object.keys(m.SHOTS); for (const id of ids) Sound.shot(id); return { ids: ids.length, played: Sound.shotsPlayed - n0 }; }));
     check(played.played === played.ids, `some guns played the synthesized shot instead ${JSON.stringify(played)}`);
+  });
+
+  await step('bullets land with the sound of what they hit: sand, wood, water, brick, metal and flesh', async () => {
+    if (!(await game(() => __neonbay.Sound.ready))) return;
+    check(await until(() => import('/js/data/impacts.js').then(m => m.ALL_IMPACT_FILES.every(f => __neonbay.Sound.samplesLoaded.includes(f)))), 'the impact recordings did not load');
+    // the player's own pistol, fired at the sand at their feet on the beach
+    await game(() => { const { P, cam } = __neonbay; P.x = 222; P.z = 3; P.y = 0; cam.pitch = -1.2; });
+    await until(() => __neonbay.cam.pitch < -1 && Math.abs(__neonbay.P.x - 222) < 1); await page.waitForTimeout(500); // the camera follows a frame behind
+    const n0 = await game(() => __neonbay.Sound.impactsPlayed.sand);
+    let sand = false; // on a busy machine a frame can take long enough for the camera to lag the first shot, so try a few
+    for (let i = 0; i < 6 && !sand; i++) {
+      await game(() => { const { P, cam, I } = __neonbay; P.x = 222; P.z = 3; cam.pitch = -1.2; I.clickQ = 0.3; });
+      await until(() => __neonbay.I.clickQ === 0, undefined, 5000);
+      sand = await until(n0 => __neonbay.Sound.impactsPlayed.sand > n0, n0, 2000);
+    }
+    check(sand, 'a shot into the sand made no sound: ' + JSON.stringify(await game(() => __neonbay.Sound.impactsPlayed)));
+    // then a bullet each at a lifeguard hut, out to sea, a car and a person on the beach, and a building in town
+    const heard = await game(async () => {
+      const { P, Sound, spawnVehicle, spawnNpc } = __neonbay, { castBullet, bulletImpact } = await import('/js/combat/combat.js'), { tallBoxes } = await import('/js/world/collision.js');
+      const before = Sound.impactsPlayed, V = (x, y, z) => new THREE.Vector3(x, y, z);
+      const fire = (o, to) => { const h = castBullet(o, to.clone().sub(o).normalize(), 80); bulletImpact(h); return h.kind; };
+      const kinds = {};
+      kinds.wood = fire(V(226, 2, 0), V(240, 2, 0)); // the hut at z 0
+      kinds.water = fire(V(240, 3, 0), V(262, 0, 30)); // past the hut, over the waterline
+      const car = window.__car = spawnVehicle('sedan', 222, 12, 0, 'parked'); kinds.metal = fire(V(222, 0.8, 4), V(car.x, 0.8, car.z));
+      const n = window.__target = spawnNpc('civilian', 222, -2); n.update = function () { this.place && this.place(); }; kinds.flesh = fire(V(222, 1.1, 2), V(n.x, 1.1, n.z));
+      P.x = -25; P.z = 7.5; Sound.listen(); const b = tallBoxes.filter(b => b.h > 6).sort((a, c) => Math.hypot((a.x0 + a.x1) / 2 - P.x, (a.z0 + a.z1) / 2 - P.z) - Math.hypot((c.x0 + c.x1) / 2 - P.x, (c.z0 + c.z1) / 2 - P.z))[0];
+      kinds.brick = fire(V(P.x, 1.5, P.z), V((b.x0 + b.x1) / 2, 3, (b.z0 + b.z1) / 2));
+      const after = Sound.impactsPlayed;
+      return { kinds, played: Object.fromEntries(Object.keys(after).map(k => [k, after[k] - before[k]])) };
+    });
+    for (const s of ['wood', 'water', 'brick', 'metal', 'flesh']) check(heard.played[s] === 1, `no ${s} impact: ${JSON.stringify(heard)}`);
   });
 
   await step('every gun reloads with its own move and sound', async () => {

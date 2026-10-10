@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BAIL, bailDamage, bailLaunch, tumbleStep } from '../../public/js/game/bailout.js';
+import { BAIL, bailDamage, bailLaunch, hopLaunch, tumbleStep } from '../../public/js/game/bailout.js';
 
 const roll = (yaw, v, side) => {
   const vx = Math.sin(yaw) * v, vz = Math.cos(yaw) * v, T = bailLaunch(yaw, vx, vz, side);
@@ -41,5 +41,20 @@ describe('bailing out of a moving vehicle', () => {
     expect(t).toBeLessThan(4);
     expect(b.vx).toBe(0); expect(b.vz).toBe(0); expect(b.y).toBe(0);
     expect(T.roll).toBe(0);
+  });
+});
+
+describe('hopping off a regular e-step', () => {
+  it('the regular e-steps hop off, so a faster step that leaves the flag off keeps the roll', async () => {
+    const { estep, sharestep } = await import('../../public/js/vehicles/models/estep.js');
+    expect(estep.hopOff).toBe(true);
+    expect(sharestep.hopOff).toBe(true);
+  });
+  it('jumps up and out to the door side, keeping some of the speed', () => {
+    const H = hopLaunch(0, 0, 7, 1); // heading +z at 25 km/h, door side +x
+    expect(H.vy).toBe(BAIL.hopUp);
+    expect(H.vx).toBeCloseTo(BAIL.hopOut);
+    expect(H.vz).toBeCloseTo(7 * BAIL.hopKeep);
+    expect(hopLaunch(0, 0, 7, -1).vx).toBeCloseTo(-BAIL.hopOut);
   });
 });

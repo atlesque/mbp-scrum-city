@@ -12,7 +12,7 @@ import { G, I, P, cam, inv, stats } from '../core/state.js';
 import { $, angDiff, clamp, clock, lerp, rnd } from '../core/util.js';
 import { HEAR, beside } from '../core/spatial.js';
 import { reloadOf } from '../data/reloads.js';
-import { WBY, loadAll, loseFound, wStat } from '../data/weapons.js';
+import { WBY, firesFrom, loadAll, loseFound, wStat } from '../data/weapons.js';
 import { all, removeEntity } from '../entities/registry.js';
 import { emit as emitFx } from '../render/effects.js';
 import { faceTo, onFoot } from '../npcs/npc.js';
@@ -25,10 +25,10 @@ import { answersHeat, driveByPlayer, sirenOn } from '../vehicles/vehicle.js';
 import { SPAWN } from '../world/city.js';
 import { collide, wallHit } from '../world/collision.js';
 import { ceilingAt, collideRoofs, surfaceAt } from '../world/rooftops.js';
-import { BAIL, bailDamage, bailLaunch, tumbleStep } from './bailout.js';
+import { BAIL, bailDamage, bailLaunch, hopLaunch, tumbleStep } from './bailout.js';
 import { PITCH_MAX, PITCH_MIN, cameraRoof, stepArm, stepShoulder } from './camera.js';
 import { JET, jetFx, jetStep, refuel, takeOffJetpack } from './jetpack.js';
-import { PARA, chuteFx, chuteStep, dropChute, openChute, opensChute, strapOnChute } from './parachute.js';
+import { PARA, chuteFx, chuteStep, dropChute, openChute, opensChute, poseHang, strapOnChute } from './parachute.js';
 import { updateInteraction } from './interact.js';
 import { resetTool, updateTool } from './repair.js';
 
@@ -55,6 +55,7 @@ export function updatePlayer(dt) {
     // separation from people
     for (const a of all('npc')) { if (!onFoot(a) || P.y > 1) continue; const dx = a.x - P.x, dz = a.z - P.z, d = Math.hypot(dx, dz); if (d < 0.75 && d > 0.001) { const k = (0.75 - d) * 0.5; a.x += dx / d * k; a.z += dz / d * k; P.x -= dx / d * k; P.z -= dz / d * k; } }
     animateChar(P, dt);
+    if (P.chute && P.chute.open) poseHang(P, Math.min(1, P.chute.t / 0.3)); // hanging in the harness, not walking
     P.c.root.position.set(P.x, P.floor || 0, P.z); P.c.root.rotation.y = P.yaw;
     if (P.tumble) rollPose(-P.tumble.roll); // rolling out towards the body's +x side turns it the negative way round z
   }
@@ -76,7 +77,8 @@ function handWeapon(dt) {
     else if ((I.mouseL || I.clickQ > 0) && G.fireCd <= 0 && G.state === 'play') { playerSwing(w, st); I.clickQ = 0; }
     if (P.swing) tickSwing(P, dt, landPlayerSwing);
   } else if ((I.mouseL || I.clickQ > 0) && G.fireCd <= 0 && G.state === 'play') {
-    if (w.auto ? (I.mouseL || I.clickQ > 0) : I.clickQ > 0) { if (!w.spin || G.spin >= 1) { playerShoot(); I.clickQ = 0; } else G.fireCd = 0.05; }
+    if (!firesFrom(w, P.vehicle)) { I.clickQ = 0; G.fireCd = 0.3; if (!(P.noRocketT > G.time)) { toast('Get out of the vehicle to fire the <b>Rocket Launcher</b>', 2.5); P.noRocketT = G.time + 3; } }
+    else if (w.auto ? (I.mouseL || I.clickQ > 0) : I.clickQ > 0) { if (!w.spin || G.spin >= 1) { playerShoot(); I.clickQ = 0; } else G.fireCd = 0.05; }
   }
   if (P.c.gun && w.spin && G.spin > 0) P.c.gun.rotation.y += dt * G.spin * 40;
 }
@@ -189,7 +191,11 @@ export function exitVehicle(crash) {
   P.y = base.floor; P.floor = base.floor; P.roof = base.roof; P.vy = 0; P.grounded = true; P.yaw = v.yaw; P.vx = P.vz = 0; P.moveSpeed = 0;
   P.c.root.position.set(P.x, base.floor, P.z); P.c.root.rotation.y = P.yaw;
   v.K.onPlayerExit(v, crash, sp, side);
-  if (fast) {
+  if (fast && v.model.hopOff) { // a regular e-step: just jump off, no roll and no damage
+    const H = hopLaunch(v.yaw, vx, vz, side);
+    P.vx = H.vx; P.vz = H.vz; P.vy = H.vy; P.grounded = false; P.jumps = 1;
+    P.bailFrom = v; P.bailT = G.time + BAIL.ghost;
+  } else if (fast) {
     const T = P.tumble = bailLaunch(v.yaw, vx, vz, side);
     P.vx = T.vx; P.vz = T.vz; P.vy = T.vy; P.grounded = false;
     P.bailFrom = v; P.bailT = G.time + BAIL.ghost; // the vehicle rolls on past without running into them

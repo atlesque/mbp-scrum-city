@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ZONE_DAMAGE } from '../../public/js/combat/hitzones.js';
-import { SCOPE_ZOOM, boltOut, nextScope, scopeFov, toggleScope } from '../../public/js/combat/scope.js';
+import { SCOPE_ZOOM, nextScope, updateScope, scopeFov, toggleScope } from '../../public/js/combat/scope.js';
 import { G, P, inv } from '../../public/js/core/state.js';
 import { WBY, wStat } from '../../public/js/data/weapons.js';
 import { NPC_TYPES } from '../../public/js/npcs/types.js';
@@ -32,7 +32,7 @@ describe('the scope', () => {
     expect(scopeFov(72, 2)).toBeLessThan(scopeFov(72, 1));
   });
   it('zooms only with a scoped gun in hand, on foot', () => {
-    Object.assign(G, { state: 'play', scope: 0, rescope: 0, reloadT: 0 }); P.alive = true; P.vehicle = null;
+    Object.assign(G, { state: 'play', scope: 0, reloadT: 0 }); P.alive = true; P.vehicle = null;
     inv.cur = 'pistol'; toggleScope(); expect(G.scope).toBe(0);
     inv.cur = 'sniper'; toggleScope(); expect(G.scope).toBe(1);
     toggleScope(); expect(G.scope).toBe(2);
@@ -40,9 +40,12 @@ describe('the scope', () => {
     toggleScope(); expect(G.scope).toBe(0);
     inv.cur = 'pistol';
   });
-  it('drops out for the bolt after a shot and remembers the zoom', () => {
-    Object.assign(G, { scope: 2, rescope: 0 });
-    boltOut();
-    expect(G.scope).toBe(0); expect(G.rescope).toBe(2);
+  it('stays zoomed in while the bolt cycles after a shot', () => {
+    Object.assign(G, { state: 'play', scope: 2, reloadT: 0, fireCd: 1.4 }); P.alive = true; P.vehicle = null; inv.cur = 'sniper';
+    const page = globalThis.document; globalThis.document = { getElementById: () => ({}) }; // the scope overlay
+    updateScope();
+    globalThis.document = page;
+    expect(G.scope).toBe(2);
+    Object.assign(G, { scope: 0, fireCd: 0 }); inv.cur = 'pistol';
   });
 });

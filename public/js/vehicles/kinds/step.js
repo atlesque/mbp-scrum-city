@@ -34,7 +34,7 @@ export const step = {
   lamp: { y: 0.83, pool: 0.5 },
   sideLift: 0, // nothing sticks out: on its side it lies flat
   laneHalf: 0.6, trafficDespawn: 150, reachMax: 2.2, ambientEngine: false,
-  tip: M => `${M.name}. <em>${kb('forward')}</em>/<em>${kb('back')}</em> throttle and brake, <em>${kb('left')}</em>/<em>${kb('right')}</em> steer, <em>${kb('sprint')}</em> sport mode, <em>${kb('ride')}</em> to step off. 25 km/h, silent, and guns still work.`,
+  tip: M => `${M.name}. <em>${kb('forward')}</em>/<em>${kb('back')}</em> throttle and brake, <em>${kb('left')}</em>/<em>${kb('right')}</em> steer, <em>${kb('sprint')}</em> sport mode, <em>${kb('ride')}</em> to step off. ${Math.round((M.handling?.top ?? step.handling.top) * 3.6 / 5) * 5} km/h, silent, and guns still work.`,
 
   build(v) { return makeStepMesh(v.model); },
   drive(v, dt, c) { arcadeDrive(v, dt, c, v.model.spec.wb); },

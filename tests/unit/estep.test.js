@@ -13,7 +13,7 @@ const kmh = v => v * 3.6;
 
 describe('e-steps', () => {
   it('come as two models of the step kind, electric, with a rider type to go with them', () => {
-    const steps = Object.values(VEHICLE_MODELS).filter(m => m.kind === 'step');
+    const steps = Object.values(VEHICLE_MODELS).filter(m => m.kind === 'step' && m.traffic.weight > 0); // the pimped one: pimpstep.test.js
     expect(steps.map(m => m.id)).toEqual(['estep', 'sharestep']);
     for (const m of steps) { expect(m.electric).toBe(true); expect(kmh(m.traffic.speed[1])).toBeLessThanOrEqual(25); }
     expect(NPC_TYPES.stepper.behaviour).toBe('ride');
