@@ -830,6 +830,16 @@ try {
     check(await until(() => __cars.every(c => !__neonbay.Sound.playing('engine').includes(c))), 'the engines kept going after the cars left');
   });
 
+  await step('shots echo between the buildings and hardly at all on the beach', async () => {
+    // the echo is looked at a few times a second of game time (game/ambience.js)
+    const go = (x, z) => game(([x, z]) => { const { P } = __neonbay; P.x = x; P.z = z; }, [x, z]), wet = () => game(() => __neonbay.Sound.echo?.wet.toFixed(2));
+    await go(50, 25);
+    check(await until(() => __neonbay.Sound.echo?.wet > 0.25), `the street hardly echoes (${await wet()})`);
+    await game(() => { __neonbay.Sound.shot('pistol'); __neonbay.Sound.boom(1, { x: __neonbay.P.x + 30, y: 1, z: __neonbay.P.z }); });
+    await go(240, 0);
+    check(await until(() => __neonbay.Sound.echo?.wet < 0.15), `the beach echoes like a street (${await wet()})`);
+  });
+
   await step('survives a five-star chase', async () => {
     await game(() => { const { G, P } = __neonbay; G.heat = 100; G.wanted = 5; G.spawnT = 0; G.heliT = 0; P.hp = 100; });
     check(await until(() => __neonbay.all('npc').some(n => n.faction === 'law' && n.alive) && __neonbay.all('vehicle').some(v => v.model.police || v.model.army), undefined, 40000), 'the law never showed up');

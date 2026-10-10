@@ -2,11 +2,11 @@ import { LEAD, musicLayers } from '../data/music.js';
 import { RELOADS, SFX_DIR, reloadOf } from '../data/reloads.js';
 import { ALL_SHOT_FILES, SHOTS, shotFiles } from '../data/shots.js';
 import { clamp } from './util.js';
-import { HEAR, airCutoff, distToEar, doppler, falloff, listenerPose } from './spatial.js';
+import { HEAR, airCutoff, distToEar, doppler, echoSend, falloff, listenerPose } from './spatial.js';
 
 // ================= AUDIO =================
 export const Sound = (() => {
-  let ctx = null, master, dimmer, dimmed = false, sfx, mus, noise, reverbIn, skidGain, skidF, own, ownVoice, engG, evOwn, evG, musicOn = true, seq = null, step = 0, nextT = 0, intensity = 0, wantIntensity = 0, layers = musicLayers(0);
+  let ctx = null, master, dimmer, dimmed = false, sfx, mus, noise, reverbIn, skidGain, skidF, echoIn, slap, slapG, tailG, own, ownVoice, engG, evOwn, evG, musicOn = true, seq = null, step = 0, nextT = 0, intensity = 0, wantIntensity = 0, layers = musicLayers(0);
   const mix = { on: true, sfx: 1, music: 1 }; // from the Settings screen
   const MENU_DIM = 0.5, DIM_FADE = 0.3; // everything plays at half volume, faded over 0.3 s, while the pause menu is open
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
@@ -22,6 +22,12 @@ export const Sound = (() => {
     mus = ctx.createGain(); mus.gain.value = musicLevel(); mus.connect(comp);
     noise = makeNoise();
     const conv = ctx.createConvolver(); conv.buffer = impulse(1.8, 2.6); const rv = ctx.createGain(); rv.gain.value = 0.4; conv.connect(rv); rv.connect(mus); reverbIn = conv;
+    // the street's echo: placed sounds send a share here (see out below); the walls take the highs off, then a
+    // slap that comes back once and fades over a few repeats, and a short ring. room() sets all three per place.
+    echoIn = ctx.createGain(); echoIn.gain.value = 0; const wall = ctx.createBiquadFilter(); wall.type = 'lowpass'; wall.frequency.value = 3200; echoIn.connect(wall);
+    slap = ctx.createDelay(0.5); slap.delayTime.value = 0.08; const fb = ctx.createGain(); fb.gain.value = 0.28; slapG = ctx.createGain(); slapG.gain.value = 0.55;
+    wall.connect(slap); slap.connect(fb); fb.connect(slap); slap.connect(slapG); slapG.connect(sfx);
+    const ring = ctx.createConvolver(); ring.buffer = impulse(1.3, 3.2); tailG = ctx.createGain(); tailG.gain.value = 0.5; wall.connect(ring); ring.connect(tailG); tailG.connect(sfx);
     // the player's own ride: not placed, since the listener sits on it
     engG = ctx.createGain(); engG.gain.value = 0; engG.connect(sfx); ownVoice = 'twin'; own = makeEngine({ voice: ownVoice }); own.out.connect(engG);
     // the player's own electric car: the hum and the road under it, also unplaced
@@ -40,7 +46,7 @@ export const Sound = (() => {
   // a source goes gain (its volume at this distance) -> lowpass (air dulling far sounds) -> HRTF panner (direction,
   // in front, behind, above) -> the effects bus. Distance is handled by our own curves (core/spatial.js), so the
   // panners themselves don't roll off.
-  let L = null; const recent = [];
+  let L = null, room = null; const recent = [];
   function setPos(n, prefix, x, y, z, t, snap) {
     const px = n[prefix + 'X'];
     if (px) for (const [k, v] of [['X', x], ['Y', y], ['Z', z]]) { const a = n[prefix + k]; if (snap) a.setValueAtTime(v, t); else a.setTargetAtTime(v, t, 0.04); }
@@ -61,19 +67,22 @@ export const Sound = (() => {
     n.connect(sfx); return n;
   }
   // the node a sound plays into: at `at` (a world point) heard by the `prof` rules, or straight into the
-  // effects bus when it has no place (the player's own gun, the UI); null when it is too far off to hear
-  function out(vol, at, prof) {
-    let g = ctx.createGain(), dest = sfx;
+  // effects bus when it has no place (the player's own gun, the UI); null when it is too far off to hear.
+  // `echo` sends a share of it to the street's echo: on for everything placed, and the player's own gun and bangs.
+  function out(vol, at, prof, echo = !!at) {
+    let g = ctx.createGain(), dest = sfx, d = 0, p = prof || HEAR.shot;
     if (at) {
       L = L || listenerPose();
-      const d = distToEar(at, L), p = prof || HEAR.shot; vol *= falloff(d, p);
+      d = distToEar(at, L); vol *= falloff(d, p);
       if (vol >= 0.004 && ctx.createPanner) {
         const t = ctx.currentTime; while (recent.length && recent[0] < t - 0.5) recent.shift(); recent.push(t);
         dest = ctx.createBiquadFilter(); dest.type = 'lowpass'; dest.frequency.value = airCutoff(d, p); dest.connect(panner(at, recent.length <= 12));
       }
     }
     if (vol < 0.004) return null;
-    g.gain.value = vol; g.connect(dest); return g;
+    g.gain.value = vol; g.connect(dest);
+    if (echo) { const e = ctx.createGain(); e.gain.value = echoSend(d, p); g.connect(e); e.connect(echoIn); }
+    return g;
   }
 
   // ---- looping sources: one voice per siren, rotor and passing engine ----
@@ -271,9 +280,9 @@ export const Sound = (() => {
     }
   }
   // a loaded sound played once: its source node, null when it is too far off to hear, false when not loaded
-  function sample(name, vol, at, prof = HEAR.reload, rate = 1) {
+  function sample(name, vol, at, prof = HEAR.reload, rate = 1, echo = !!at) {
     const buf = buffers[name]; if (!buf) return false;
-    const o = out(vol, at, prof); if (!o) return null;
+    const o = out(vol, at, prof, echo); if (!o) return null;
     const s = ctx.createBufferSource(); s.buffer = buf; s.playbackRate.value = rate; s.connect(o); s.start(); return s;
   }
   function stopReload() { if (reloadSrc) { try { reloadSrc.stop(); } catch (e) { /* already ended */ } reloadSrc = null; } }
@@ -286,8 +295,8 @@ export const Sound = (() => {
   function shot(kind, vol = 1, at = null) {
     if (!ctx) return;
     const takes = shotFiles(kind), name = takes[Math.floor(Math.random() * takes.length)];
-    if (name && sample(name, SHOTS[kind].vol * vol, at, HEAR.shot, 0.95 + Math.random() * 0.1) !== false) { shotsPlayed++; return; }
-    const o = out(vol, at, HEAR.shot); if (!o) return; const p = GUN[kind] || GUN.pistol, t = ctx.currentTime;
+    if (name && sample(name, SHOTS[kind].vol * vol, at, HEAR.shot, 0.95 + Math.random() * 0.1, true) !== false) { shotsPlayed++; return; }
+    const o = out(vol, at, HEAR.shot, true); if (!o) return; const p = GUN[kind] || GUN.pistol, t = ctx.currentTime;
     // a laser has no bang: a falling sci-fi zap and a little fizz
     if (kind === 'laser') { tone(o, t, 'square', 2400, 220, 0.14, 0.32); tone(o, t, 'sine', 1300, 180, 0.18, 0.5); nz(o, t, 0.06, 'highpass', 5000, 0.5, 0.2); return; }
     nz(o, t, p[1], 'lowpass', p[0], 0.8, p[3], 0.85 + Math.random() * 0.3);
@@ -300,12 +309,12 @@ export const Sound = (() => {
   return {
     init, get ready() { return !!ctx; },
     shot,
-    boom(vol = 1, at = null) { if (!ctx) return; const t = ctx.currentTime, o = out(vol, at, HEAR.boom); if (!o) return; nz(o, t, 1.6, 'lowpass', 900, 0.6, 1.4, 0.6); tone(o, t, 'sine', 90, 30, 0.9, 1.2); nz(o, t, 0.3, 'bandpass', 2400, 1, 0.5); },
+    boom(vol = 1, at = null) { if (!ctx) return; const t = ctx.currentTime, o = out(vol, at, HEAR.boom, true); if (!o) return; nz(o, t, 1.6, 'lowpass', 900, 0.6, 1.4, 0.6); tone(o, t, 'sine', 90, 30, 0.9, 1.2); nz(o, t, 0.3, 'bandpass', 2400, 1, 0.5); },
     // the scope's zoom click; deeper on the way back out
     zoom(level) { if (!ctx) return; tone(out(0.3), ctx.currentTime, 'square', level ? 2400 + level * 400 : 1500, 1100, 0.035, 0.35); },
     hit() { if (!ctx) return; tone(out(0.35), ctx.currentTime, 'square', 1700, 1200, 0.05, 0.4); },
     head() { if (!ctx) return; const t = ctx.currentTime, o = out(0.4); tone(o, t, 'square', 2100, 1500, 0.05, 0.4); tone(o, t + 0.05, 'square', 2600, 1900, 0.06, 0.35); },
-    ting(vol, at) { if (!ctx) return; const o = out(vol * 0.25, at, HEAR.ting); if (o) tone(o, ctx.currentTime, 'triangle', 3200 + Math.random() * 800, 2400, 0.12, 0.5); },
+    ting(vol, at) { if (!ctx) return; const o = out(vol * 0.25, at, HEAR.ting, false); if (o) tone(o, ctx.currentTime, 'triangle', 3200 + Math.random() * 800, 2400, 0.12, 0.5); },
     hurt() { if (!ctx) return; const t = ctx.currentTime, o = out(0.6); tone(o, t, 'sawtooth', 210, 120, 0.18, 0.4); nz(o, t, 0.1, 'lowpass', 500, 1, 0.6); },
     scream(vol, at) { if (!ctx) return; const t = ctx.currentTime, o = out(vol * 0.5, at, HEAR.voice); if (!o) return; const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1100 + Math.random() * 500; f.Q.value = 2.5; f.connect(o); const b = 380 + Math.random() * 300; const os = tone(f, t, 'sawtooth', b * 1.6, b * 0.7, 0.55, 0.9, 0.02); const v = ctx.createOscillator(); v.frequency.value = 7; const vg = ctx.createGain(); vg.gain.value = 30; v.connect(vg); vg.connect(os.frequency); v.start(t); v.stop(t + 0.6); },
     cash() { if (!ctx) return; const t = ctx.currentTime, o = out(0.3); tone(o, t, 'square', 1046, 0, 0.07, 0.35); tone(o, t + 0.07, 'square', 1568, 0, 0.12, 0.35); },
@@ -359,6 +368,13 @@ export const Sound = (() => {
     setSkid(v) { if (!ctx) return; const t = ctx.currentTime; skidGain.gain.setTargetAtTime(v * 0.22, t, 0.06); skidF.frequency.setTargetAtTime(1300 + v * 500, t, 0.1); },
     // move the listener to the player's head and the camera's view; once a frame, before the sounds of the frame
     listen,
+    // how the street around the listener echoes: { wet, delay, tail } from roomAt in world/acoustics.js
+    room(r) {
+      if (!ctx) return; const t = ctx.currentTime; room = r;
+      echoIn.gain.setTargetAtTime(r.wet, t, 0.3); slap.delayTime.setTargetAtTime(r.delay, t, 0.3);
+      tailG.gain.setTargetAtTime(0.25 + 0.5 * r.tail, t, 0.3); slapG.gain.setTargetAtTime(0.65 - 0.3 * r.tail, t, 0.3);
+    },
+    get echo() { return room; },
     // the sirens, rotors, passing engines and electric cars out in the world this frame (see loops above)
     loops,
     // silence every looping sound at once: pausing, a shop menu, death
