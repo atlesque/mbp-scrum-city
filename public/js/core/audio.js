@@ -94,7 +94,8 @@ export const Sound = (() => {
 
   // ---- looping sources: one voice per siren, rotor and passing engine ----
   // loops(kind, sources) is called every frame with every candidate source of that kind ({ key, x, y, z, vol,
-  // prof, ...}; prof, when given, is how that one source carries); the loudest few as heard from here get a voice, which follows its source, and the rest stay silent.
+  // prof, ...}; prof, when given, is how that one source carries); the loudest few as heard from here get a voice,
+  // which follows its source, and the rest stay silent.
   // A voice whose source drops out fades and is freed. Each voice estimates how fast its source closes on the
   // listener for a touch of Doppler.
   const LOOPS = {
@@ -105,7 +106,7 @@ export const Sound = (() => {
     engine: { max: 6, prof: null, make: makeEngine },
     ev: { max: 3, prof: null, make: makeEv },
     // the city's own: the surf along the shore and sounds tied to places (game/ambience.js); they never move, so
-    // the cheaper equal-power panner does, and they play on the ambience volume
+    // the cheaper equal-power panner will do, and they play on the ambience volume
     surf: { max: 3, prof: HEAR.surf, make: () => makeLoop(AMB.surf), amb: true },
     spot: { max: 4, prof: HEAR.spot, make: makeSpot, amb: true },
   };
