@@ -42,6 +42,9 @@ export const HEAR = {
   rotor: { ref: 18, max: 200 },
   tank: { ref: 12, max: 170 },
   ufo: { ref: 16, max: 180 },
+  surf: { ref: 12, max: 150 }, // the waves breaking along the shore
+  gull: { ref: 6, max: 90 },
+  spot: { ref: 3, max: 30 }, // a place's own sound: a fountain, a club, a radio (game/ambience.js gives each its own)
 };
 export function falloff(d, p) {
   if (p.curve) return d >= p.max ? 0 : clamp(p.curve(d), 0, 1);

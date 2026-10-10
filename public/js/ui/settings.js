@@ -17,7 +17,7 @@ let tab = 'sound', from = null, capturing = null, note = '';
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 function apply(id) {
-  if (!id || id === 'sound' || id === 'sfxVolume' || id === 'musicVolume') Sound.setMix({ on: settings.sound, sfx: settings.sfxVolume, music: settings.musicVolume });
+  if (!id || id === 'sound' || id.endsWith('Volume')) Sound.setMix({ on: settings.sound, sfx: settings.sfxVolume, music: settings.musicVolume, amb: settings.ambVolume });
   if (!id || id === 'quality') { renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, RENDER_SCALE[settings.quality])); renderer.setSize(innerWidth, innerHeight); }
   if (!id || id === 'drawDistance') { const far = DRAW_DISTANCE[settings.drawDistance]; scene.fog.far = far; scene.fog.near = far * 0.2; }
 }

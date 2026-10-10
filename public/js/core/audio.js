@@ -1,3 +1,4 @@
+import { ALL_AMB_FILES, AMB } from '../data/ambience.js';
 import { LEAD, musicLayers } from '../data/music.js';
 import { RELOADS, SFX_DIR, reloadOf } from '../data/reloads.js';
 import { ALL_SHOT_FILES, SHOTS, shotFiles } from '../data/shots.js';
@@ -6,8 +7,10 @@ import { HEAR, airCutoff, distToEar, doppler, echoSend, falloff, listenerPose } 
 
 // ================= AUDIO =================
 export const Sound = (() => {
-  let ctx = null, master, dimmer, dimmed = false, sfx, mus, noise, reverbIn, skidGain, skidF, echoIn, slap, slapG, tailG, own, ownVoice, engG, evOwn, evG, musicOn = true, seq = null, step = 0, nextT = 0, intensity = 0, wantIntensity = 0, layers = musicLayers(0);
-  const mix = { on: true, sfx: 1, music: 1 }; // from the Settings screen
+  let ctx = null, master, dimmer, dimmed = false, sfx, mus, musLvl, noise, reverbIn, skidGain, skidF, amb, ambDuck, bedF, echoIn, slap, slapG, tailG, own, ownVoice, engG, evOwn, evG, musicOn = true, seq = null, step = 0, nextT = 0, intensity = 0, wantIntensity = 0, layers = musicLayers(0);
+  const mix = { on: true, sfx: 1, music: 1, amb: 1 }; // from the Settings screen
+  const AMB_LEVEL = 0.3, RADIO_ON_FOOT = 0.3; // the city's level next to the effects; the radio's share while on foot
+  let radioK = 1; const beds = {};
   const MENU_DIM = 0.5, DIM_FADE = 0.3; // everything plays at half volume, faded over 0.3 s, while the pause menu is open
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
   function makeNoise() { const b = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate); const d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; }
@@ -19,7 +22,11 @@ export const Sound = (() => {
     master = ctx.createGain(); master.gain.value = mix.on ? 0.85 : 0; dimmer = ctx.createGain(); dimmer.gain.value = dimmed ? MENU_DIM : 1; master.connect(dimmer); dimmer.connect(ctx.destination);
     const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 5; comp.connect(master);
     sfx = ctx.createGain(); sfx.gain.value = 0.75 * mix.sfx; sfx.connect(comp);
-    mus = ctx.createGain(); mus.gain.value = musicLevel(); mus.connect(comp);
+    // the radio: every note plays into mus, which the beach huts' radios also listen to; musLvl is its volume
+    mus = ctx.createGain(); musLvl = ctx.createGain(); musLvl.gain.value = musicLevel(); mus.connect(musLvl); musLvl.connect(comp);
+    // the city around you (game/ambience.js) on its own volume: ducked for a moment under gunfire and bangs
+    amb = ctx.createGain(); amb.gain.value = AMB_LEVEL * mix.amb; amb.connect(comp); ambDuck = ctx.createGain(); ambDuck.connect(amb);
+    bedF = ctx.createBiquadFilter(); bedF.type = 'lowpass'; bedF.frequency.value = 12000; bedF.connect(ambDuck);
     noise = makeNoise();
     const conv = ctx.createConvolver(); conv.buffer = impulse(1.8, 2.6); const rv = ctx.createGain(); rv.gain.value = 0.4; conv.connect(rv); rv.connect(mus); reverbIn = conv;
     // the street's echo: placed sounds send a share here (see out below); the walls take the highs off, then a
@@ -37,9 +44,9 @@ export const Sound = (() => {
     skidF = ctx.createBiquadFilter(); skidF.type = 'bandpass'; skidF.frequency.value = 1500; skidF.Q.value = 9;
     const klfo = ctx.createOscillator(); klfo.frequency.value = 7; const klg = ctx.createGain(); klg.gain.value = 90; klfo.connect(klg); klg.connect(skidF.frequency);
     skidGain = ctx.createGain(); skidGain.gain.value = 0; kn.connect(skidF); skidF.connect(skidGain); skidGain.connect(sfx); kn.start(); klfo.start();
-    startMusic(); loadSamples();
+    startMusic(); loadSamples(); renderLoops();
   }
-  function musicLevel() { return musicOn ? 0.32 * mix.music : 0; }
+  function musicLevel() { return musicOn ? 0.32 * mix.music * radioK : 0; }
   function env(g, t, a, peak, dur) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); }
   // ---- placing sounds in the world ----
   // The listener (where the player's head is, facing the camera) is moved every frame by listen(). A sound with
@@ -61,22 +68,22 @@ export const Sound = (() => {
   }
   // HRTF for everything, except when a burst of one-shots (a minigun) would stack up a dozen at once: those
   // extra ones get the cheaper equal-power panner
-  function panner(p, hrtf) {
+  function panner(p, hrtf, bus = sfx) {
     const n = ctx.createPanner(); n.panningModel = hrtf ? 'HRTF' : 'equalpower'; n.distanceModel = 'inverse'; n.refDistance = 1; n.rolloffFactor = 0;
     const t = ctx.currentTime; if (!setPos(n, 'position', p.x, p.y ?? 1, p.z, t, true)) n.setPosition(p.x, p.y ?? 1, p.z);
-    n.connect(sfx); return n;
+    n.connect(bus); return n;
   }
   // the node a sound plays into: at `at` (a world point) heard by the `prof` rules, or straight into the
   // effects bus when it has no place (the player's own gun, the UI); null when it is too far off to hear.
   // `echo` sends a share of it to the street's echo: on for everything placed, and the player's own gun and bangs.
-  function out(vol, at, prof, echo = !!at) {
-    let g = ctx.createGain(), dest = sfx, d = 0, p = prof || HEAR.shot;
+  function out(vol, at, prof, echo = !!at, bus = sfx) {
+    let g = ctx.createGain(), dest = bus, d = 0, p = prof || HEAR.shot;
     if (at) {
       L = L || listenerPose();
       d = distToEar(at, L); vol *= falloff(d, p);
       if (vol >= 0.004 && ctx.createPanner) {
         const t = ctx.currentTime; while (recent.length && recent[0] < t - 0.5) recent.shift(); recent.push(t);
-        dest = ctx.createBiquadFilter(); dest.type = 'lowpass'; dest.frequency.value = airCutoff(d, p); dest.connect(panner(at, recent.length <= 12));
+        dest = ctx.createBiquadFilter(); dest.type = 'lowpass'; dest.frequency.value = airCutoff(d, p); dest.connect(panner(at, recent.length <= 12, bus));
       }
     }
     if (vol < 0.004) return null;
@@ -87,7 +94,7 @@ export const Sound = (() => {
 
   // ---- looping sources: one voice per siren, rotor and passing engine ----
   // loops(kind, sources) is called every frame with every candidate source of that kind ({ key, x, y, z, vol,
-  // ...}); the loudest few as heard from here get a voice, which follows its source, and the rest stay silent.
+  // prof, ...}; prof, when given, is how that one source carries); the loudest few as heard from here get a voice, which follows its source, and the rest stay silent.
   // A voice whose source drops out fades and is freed. Each voice estimates how fast its source closes on the
   // listener for a touch of Doppler.
   const LOOPS = {
@@ -97,25 +104,29 @@ export const Sound = (() => {
     ufo: { max: 1, prof: HEAR.ufo, make: makeUfo },
     engine: { max: 6, prof: null, make: makeEngine },
     ev: { max: 3, prof: null, make: makeEv },
+    // the city's own: the surf along the shore and sounds tied to places (game/ambience.js); they never move, so
+    // the cheaper equal-power panner does, and they play on the ambience volume
+    surf: { max: 3, prof: HEAR.surf, make: () => makeLoop(AMB.surf), amb: true },
+    spot: { max: 4, prof: HEAR.spot, make: makeSpot, amb: true },
   };
-  const live = { siren: new Map(), rotor: new Map(), engine: new Map(), ev: new Map(), tank: new Map(), ufo: new Map() };
+  const live = Object.fromEntries(Object.keys(LOOPS).map(k => [k, new Map()]));
   function loops(kind, list, prof) {
     if (!ctx) return;
     const def = LOOPS[kind], p = prof || def.prof, map = live[kind], t = ctx.currentTime; L = L || listenerPose();
     const heardNow = [];
-    for (const s of list) { const d = distToEar(s, L), g = (s.vol ?? 1) * falloff(d, p); if (g > 0.001) heardNow.push({ s, d, g }); }
+    for (const s of list) { const d = distToEar(s, L), g = (s.vol ?? 1) * falloff(d, s.prof || p); if (g > 0.001) heardNow.push({ s, d, g }); }
     heardNow.sort((a, b) => b.g - a.g); heardNow.length = Math.min(heardNow.length, def.max);
     const keep = new Set();
     for (const { s, d, g } of heardNow) {
       let v = map.get(s.key);
       if (!v) {
-        v = def.make(s); v.gain = ctx.createGain(); v.gain.gain.value = 0; v.air = ctx.createBiquadFilter(); v.air.type = 'lowpass'; v.air.frequency.value = airCutoff(d, p);
-        v.pan = panner(s, true); v.out.connect(v.gain); v.gain.connect(v.air); v.air.connect(v.pan);
+        v = def.make(s); v.gain = ctx.createGain(); v.gain.gain.value = 0; v.air = ctx.createBiquadFilter(); v.air.type = 'lowpass'; v.air.frequency.value = airCutoff(d, s.prof || p);
+        v.pan = panner(s, !def.amb, def.amb ? ambDuck : sfx); v.out.connect(v.gain); v.gain.connect(v.air); v.air.connect(v.pan);
         v.lastD = d; v.lastT = t; v.closing = 0; map.set(s.key, v);
       }
       keep.add(s.key);
       const dt = t - v.lastT; if (dt > 0.01) { v.closing += (clamp((v.lastD - d) / dt, -60, 60) - v.closing) * Math.min(1, dt * 6); v.lastD = d; v.lastT = t; }
-      v.gain.gain.setTargetAtTime(g, t, 0.12); v.air.frequency.setTargetAtTime(airCutoff(d, p), t, 0.1);
+      v.gain.gain.setTargetAtTime(g, t, 0.12); v.air.frequency.setTargetAtTime(airCutoff(d, s.prof || p), t, 0.1);
       setPos(v.pan, 'position', s.x, s.y ?? 1, s.z, t) || v.pan.setPosition(s.x, s.y ?? 1, s.z);
       v.set(s, doppler(v.closing), t);
     }
@@ -229,6 +240,36 @@ export const Sound = (() => {
     }, stop() { a.stop(); b.stop(); road.stop(); } };
   }
   const VOICES = { twin: makeTwin, four: makeFour, diesel: makeDiesel, whine: makeWhine };
+  // a recording (data/ambience.js) played round and round from a random point, so two of them never line up;
+  // silent until it has loaded, then it comes in on its own
+  function makeLoop(name) {
+    const out = ctx.createGain(); let src = null;
+    const go = () => { const buf = buffers[name]; if (src || !buf) return; src = ctx.createBufferSource(); src.buffer = buf; src.loop = true; src.connect(out); src.start(0, Math.random() * buf.duration); };
+    go();
+    return { out, set() { go(); }, stop() { if (src) src.stop(); } };
+  }
+  // a place's sound (game/ambience.js): a recording or a groove drawn by renderLoops, s.sound, heard through a wall
+  // when s.wall (a lowpass, Hz) is set; or s.sound 'radio', a beach hut's radio playing Neon FM, small and tinny
+  function makeSpot(s) {
+    if (s.sound === 'radio') {
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 450; const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3200;
+      mus.connect(hp); hp.connect(lp); return { out: lp, set() {}, stop() { mus.disconnect(hp); } };
+    }
+    const v = makeLoop(s.sound); if (!s.wall) return v;
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = s.wall; f.Q.value = 0.8; v.out.connect(f);
+    return { out: f, set: v.set, stop: v.stop };
+  }
+  // the city beds (day, night and the wind on the roofs), each on its own level; day and night go through a lowpass
+  // that dulls the street from up on a roof
+  function bed(name) {
+    if (!beds[name]) { const v = makeLoop(AMB[name]), g = ctx.createGain(); g.gain.value = 0; v.out.connect(g); g.connect(name === 'wind' ? ambDuck : bedF); beds[name] = { v, g }; }
+    return beds[name];
+  }
+  // under a gunshot or a bang close by the city drops back for a moment, so the fight reads clearly
+  function duck(at) {
+    if (at) { L = L || listenerPose(); if (distToEar(at, L) > 40) return; }
+    const g = ambDuck.gain, t = ctx.currentTime; g.setTargetAtTime(0.55, t, 0.02); g.setTargetAtTime(1, t + 0.3, 0.5);
+  }
   // electric car: no engine. Below 30 km/h a soft two-tone hum (sines a fifth apart, with a slow wobble) that rises
   // a little with speed; then road noise, low tyre rumble plus a breathier band of wind, both opening up with speed.
   // s.hum and s.road (0 to 1) set how much of each, s.speed (km/h) the pitch and brightness (see vehicles/engine.js).
@@ -273,18 +314,84 @@ export const Sound = (() => {
   const buffers = {};
   let reloadSrc = null;
   function loadSamples() {
-    for (const sound of [...ALL_SHOT_FILES, ...Object.values(RELOADS).map(r => r.sound)]) {
+    for (const sound of [...ALL_SHOT_FILES, ...Object.values(RELOADS).map(r => r.sound), ...ALL_AMB_FILES]) {
       if (!sound || sound in buffers) continue;
       buffers[sound] = null;
       fetch(`${SFX_DIR}${sound}.mp3`).then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status)).then(b => ctx.decodeAudioData(b)).then(buf => { buffers[sound] = buf; }).catch(() => {});
     }
   }
   // a loaded sound played once: its source node, null when it is too far off to hear, false when not loaded
-  function sample(name, vol, at, prof = HEAR.reload, rate = 1, echo = !!at) {
+  function sample(name, vol, at, prof = HEAR.reload, rate = 1, echo = !!at, bus = sfx) {
     const buf = buffers[name]; if (!buf) return false;
-    const o = out(vol, at, prof, echo); if (!o) return null;
+    const o = out(vol, at, prof, echo, bus); if (!o) return null;
     const s = ctx.createBufferSource(); s.buffer = buf; s.playbackRate.value = rate; s.connect(o); s.start(); return s;
   }
+  // ---- grooves for the city's places ----
+  // the music heard through the wall of a club or a bar, an arcade's bleeps and the buzz of a neon sign: each a
+  // couple of seconds drawn once into a buffer with an offline context when the sound starts, then looped like a
+  // recording by the spots in game/ambience.js
+  const BPM = 120, BEAT = 60 / BPM, E = BEAT / 2; // two bars of 4/4 at 120 make 4 s
+  function renderLoops() {
+    const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext; if (!OAC) return;
+    for (const [name, [dur, draw]] of Object.entries(GROOVES)) {
+      const c = new OAC(1, Math.round(ctx.sampleRate * dur), ctx.sampleRate), out = c.createGain(); out.connect(c.destination);
+      draw(c, out);
+      const r = c.startRendering(); if (r && r.then) r.then(b => { buffers[name] = b; }).catch(() => {});
+    }
+  }
+  // a note or a drum hit in an offline context: an oscillator gliding f0 to f1 (or noise through a filter when
+  // type is a filter type) under a quick attack and an exponential fall
+  function hitAt(c, dest, t, type, f0, f1, dur, peak) {
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); g.connect(dest);
+    let src;
+    if (['lowpass', 'highpass', 'bandpass'].includes(type)) {
+      src = c.createBufferSource(); const b = c.createBuffer(1, noise.length, noise.sampleRate); b.copyToChannel(noise.getChannelData(0), 0); src.buffer = b;
+      const f = c.createBiquadFilter(); f.type = type; f.frequency.value = f0; f.Q.value = f1 || 0.8; src.connect(f); f.connect(g); src.start(t, Math.random()); src.stop(t + dur + 0.02); return;
+    }
+    src = c.createOscillator(); src.type = type; src.frequency.setValueAtTime(f0, t); if (f1) src.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    src.connect(g); src.start(t); src.stop(t + dur + 0.02);
+  }
+  const GROOVES = {
+    // a disco club: four on the floor, a clap on two and four, and the bass jumping octaves on the eighths (Am, F)
+    'club-disco': [8 * BEAT, (c, o) => {
+      for (let b = 0; b < 8; b++) {
+        const t = b * BEAT, root = b < 4 ? 55 : 43.65;
+        hitAt(c, o, t, 'sine', 130, 42, 0.32, 0.9);
+        if (b % 2) hitAt(c, o, t, 'bandpass', 1400, 1.2, 0.14, 0.35);
+        hitAt(c, o, t, 'triangle', root, 0, E * 0.9, 0.45); hitAt(c, o, t + E, 'triangle', root * 2, 0, E * 0.9, 0.4);
+      }
+    }],
+    // a Latin bar: the son clave (3-2), the tumbao bass pushing ahead of the beat, congas on four and its "and",
+    // and a piano montuno over C and G
+    'club-salsa': [8 * BEAT, (c, o) => {
+      for (const e of [0, 3, 6, 10, 12]) hitAt(c, o, e * E, 'sine', 2300, 0, 0.06, 0.25); // clave, in eighths over the two bars
+      for (let bar = 0; bar < 2; bar++) {
+        const t0 = bar * 4 * BEAT, [a, b] = bar ? [49, 65.4] : [65.4, 49]; // C then G, G then C
+        hitAt(c, o, t0 + 3 * E, 'triangle', a, 0, 3 * E, 0.55); hitAt(c, o, t0 + 6 * E, 'triangle', b, 0, 2 * E, 0.5);
+        hitAt(c, o, t0 + 6 * E, 'sine', 230, 200, 0.18, 0.5); hitAt(c, o, t0 + 7 * E, 'sine', 230, 200, 0.18, 0.45); // open congas
+        for (const e of [0, 2, 4]) hitAt(c, o, t0 + e * E, 'sine', 120, 90, 0.12, 0.25); // heel and toe on the low drum
+        const chord = bar ? [196, 246.9, 293.7] : [261.6, 329.6, 392];
+        for (const [i, e] of [0, 2, 3, 5, 7].entries()) hitAt(c, o, t0 + e * E, 'triangle', chord[i % 3], 0, 0.2, 0.18);
+        for (let q = 0; q < 4; q++) hitAt(c, o, t0 + q * BEAT, 'square', 800, 0, 0.07, 0.05); // cowbell
+      }
+    }],
+    // an arcade's attract mode: little square-wave runs and blips, never quite the same game twice
+    arcade: [8 * BEAT, (c, o) => {
+      let seed = 7; const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      for (let t = 0; t < 8 * BEAT - 0.3; t += 0.09 + r() * 0.25) {
+        const f = 400 + Math.floor(r() * 8) * 160;
+        if (r() < 0.3) for (let k = 0; k < 4; k++) hitAt(c, o, t + k * 0.05, 'square', f * (1 + k * 0.25), 0, 0.05, 0.12);
+        else hitAt(c, o, t, 'square', f, r() < 0.4 ? f * 0.5 : 0, 0.07, 0.12);
+      }
+    }],
+    // a neon tube's buzz: the mains hum (60 Hz here, so it buzzes at 120) with its harmonics, and a crackle now and then
+    'neon-buzz': [1, (c, o) => {
+      for (const [type, f, a] of [['sawtooth', 120, 0.25], ['square', 240, 0.08], ['sine', 360, 0.12]]) {
+        const x = c.createOscillator(), g = c.createGain(); x.type = type; x.frequency.value = f; g.gain.value = a; x.connect(g); g.connect(o); x.start(0); x.stop(1);
+      }
+      for (const t of [0.13, 0.52, 0.81]) hitAt(c, o, t, 'highpass', 3000, 0.7, 0.03, 0.2);
+    }],
+  };
   function stopReload() { if (reloadSrc) { try { reloadSrc.stop(); } catch (e) { /* already ended */ } reloadSrc = null; } }
   const PROG = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]];
   const GUN = { pistol: [3600, .22, 150, .9], smg: [5200, .1, 210, .6], shotgun: [2300, .55, 80, 1.35], rifle: [5600, .17, 130, .85], minigun: [6200, .07, 240, .5], rpg: [1400, .7, 60, .9], sniper: [3800, .5, 70, 1.45], laser: [4000, .12, 900, .7], cannon: [700, 1.1, 40, 1.8] };
@@ -293,7 +400,7 @@ export const Sound = (() => {
   // gun without any) the synthesized shot below stands in.
   let shotsPlayed = 0;
   function shot(kind, vol = 1, at = null) {
-    if (!ctx) return;
+    if (!ctx) return; duck(at);
     const takes = shotFiles(kind), name = takes[Math.floor(Math.random() * takes.length)];
     if (name && sample(name, SHOTS[kind].vol * vol, at, HEAR.shot, 0.95 + Math.random() * 0.1, true) !== false) { shotsPlayed++; return; }
     const o = out(vol, at, HEAR.shot, true); if (!o) return; const p = GUN[kind] || GUN.pistol, t = ctx.currentTime;
@@ -309,7 +416,7 @@ export const Sound = (() => {
   return {
     init, get ready() { return !!ctx; },
     shot,
-    boom(vol = 1, at = null) { if (!ctx) return; const t = ctx.currentTime, o = out(vol, at, HEAR.boom, true); if (!o) return; nz(o, t, 1.6, 'lowpass', 900, 0.6, 1.4, 0.6); tone(o, t, 'sine', 90, 30, 0.9, 1.2); nz(o, t, 0.3, 'bandpass', 2400, 1, 0.5); },
+    boom(vol = 1, at = null) { if (!ctx) return; duck(at); const t = ctx.currentTime, o = out(vol, at, HEAR.boom, true); if (!o) return; nz(o, t, 1.6, 'lowpass', 900, 0.6, 1.4, 0.6); tone(o, t, 'sine', 90, 30, 0.9, 1.2); nz(o, t, 0.3, 'bandpass', 2400, 1, 0.5); },
     // the scope's zoom click; deeper on the way back out
     zoom(level) { if (!ctx) return; tone(out(0.3), ctx.currentTime, 'square', level ? 2400 + level * 400 : 1500, 1100, 0.035, 0.35); },
     hit() { if (!ctx) return; tone(out(0.35), ctx.currentTime, 'square', 1700, 1200, 0.05, 0.4); },
@@ -375,6 +482,25 @@ export const Sound = (() => {
       tailG.gain.setTargetAtTime(0.25 + 0.5 * r.tail, t, 0.3); slapG.gain.setTargetAtTime(0.65 - 0.3 * r.tail, t, 0.3);
     },
     get echo() { return room; },
+    // the city beds: { day, night, wind } levels (0 to 1) and how bright the street sounds (a lowpass in Hz), from
+    // bedMix in game/ambience.js; eased in over a second or two
+    bed(m) {
+      if (!ctx) return; const t = ctx.currentTime;
+      for (const k of ['day', 'night', 'wind']) { const b = bed(k); b.v.set(); b.g.gain.setTargetAtTime(m[k] || 0, t, 1.2); }
+      bedF.frequency.setTargetAtTime(m.bright || 12000, t, 1);
+    },
+    // the places' grooves that have been drawn (for tests)
+    get grooves() { return Object.keys(GROOVES).filter(k => buffers[k]); },
+    // how loud each bed is meant to be right now, and whether its recording is playing (for tests)
+    beds() { return Object.fromEntries(Object.entries(beds).map(([k, b]) => [k, { level: b.g.gain.value, loaded: !!buffers[AMB[k]] }])); },
+    // a gull calling at a point over the beach
+    gull(at) { if (!ctx) return; const n = AMB.gulls[Math.floor(Math.random() * AMB.gulls.length)]; sample(n, 0.45, at, HEAR.gull, 0.9 + Math.random() * 0.2, false, ambDuck); },
+    // Neon FM plays at full volume in a vehicle and drops back while on foot, so the city can be heard
+    onFoot(foot) {
+      const k = foot ? RADIO_ON_FOOT : 1; if (k === radioK) return; radioK = k;
+      if (ctx) musLvl.gain.setTargetAtTime(musicLevel(), ctx.currentTime, 0.6);
+    },
+    get radio() { return radioK; },
     // the sirens, rotors, passing engines and electric cars out in the world this frame (see loops above)
     loops,
     // silence every looping sound at once: pausing, a shop menu, death
@@ -390,7 +516,7 @@ export const Sound = (() => {
     // the wanted level; new layers join (or drop out) on the next beat
     setIntensity(level) { wantIntensity = level; },
     get intensity() { return intensity; },
-    toggleMusic() { musicOn = !musicOn; if (ctx) mus.gain.setTargetAtTime(musicLevel(), ctx.currentTime, 0.2); return musicOn; },
+    toggleMusic() { musicOn = !musicOn; if (ctx) musLvl.gain.setTargetAtTime(musicLevel(), ctx.currentTime, 0.2); return musicOn; },
     // fade all sound down while a menu is open, and back up when it closes (on top of the Settings volumes)
     dim(on) {
       dimmed = !!on; if (!ctx) return;
@@ -398,10 +524,11 @@ export const Sound = (() => {
       g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(dimmed ? MENU_DIM : 1, t + DIM_FADE);
     },
     get dimmed() { return dimmed; },
-    // sound on / off and the effects and music volumes (0 to 1)
-    setMix({ on, sfx: s, music }) {
-      Object.assign(mix, { on, sfx: s, music }); if (!ctx) return;
-      const t = ctx.currentTime; master.gain.setTargetAtTime(on ? 0.85 : 0, t, 0.05); sfx.gain.setTargetAtTime(0.75 * s, t, 0.05); mus.gain.setTargetAtTime(musicLevel(), t, 0.05);
+    // sound on / off and the effects, music and city ambience volumes (0 to 1)
+    setMix({ on, sfx: s, music, amb: a = 1 }) {
+      Object.assign(mix, { on, sfx: s, music, amb: a }); if (!ctx) return;
+      const t = ctx.currentTime; master.gain.setTargetAtTime(on ? 0.85 : 0, t, 0.05); sfx.gain.setTargetAtTime(0.75 * s, t, 0.05); musLvl.gain.setTargetAtTime(musicLevel(), t, 0.05);
+      amb.gain.setTargetAtTime(AMB_LEVEL * a, t, 0.05);
     },
   };
   // ---- synthwave radio ----

@@ -840,6 +840,35 @@ try {
     check(await until(() => __neonbay.Sound.echo?.wet < 0.15), `the beach echoes like a street (${await wet()})`);
   });
 
+  await step('the city plays its bed, the surf breaks on the beach and the radio drops back on foot', async () => {
+    check(await until(() => __neonbay.Sound.radio === 0.3), `the radio stayed up on foot (${await game(() => __neonbay.Sound.radio)})`);
+    check(await until(() => { const b = __neonbay.Sound.beds(); return ['day', 'night', 'wind'].every(k => b[k]?.loaded); }), 'the city beds never loaded: ' + JSON.stringify(await game(() => __neonbay.Sound.beds())));
+    const home = await game(() => { const { P } = __neonbay, home = [P.x, P.z]; P.x = 240; P.z = 0; return home; });
+    check(await until(() => __neonbay.Sound.voices().surf === 3), 'no surf on the beach: ' + JSON.stringify(await game(() => __neonbay.Sound.voices())));
+    await game(([x, z]) => { const { P } = __neonbay; P.x = x; P.z = z; }, home);
+    check(await until(() => __neonbay.Sound.voices().surf === 0), 'the surf carried right into the city');
+    await clearVehicles(...home);
+    await game(() => { const { P, spawnVehicle } = __neonbay, yaw = P.yaw; window.__car = spawnVehicle('sedan', P.x + Math.sin(yaw) * 2.5, P.z + Math.cos(yaw) * 2.5, yaw); });
+    check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes(__car.model.name)), 'no prompt to get in the car');
+    await press('KeyF');
+    check(await until(() => __neonbay.P.vehicle === __car && __neonbay.Sound.radio === 1), 'the radio did not come back up in the car');
+    await press('KeyF');
+    check(await until(() => !__neonbay.P.vehicle && __neonbay.Sound.radio === 0.3), 'the radio did not drop back on getting out');
+  });
+
+  await step('places make their own sounds: a park fountain, a bar\'s salsa, a beach hut\'s radio', async () => {
+    check(await until(() => ['club-disco', 'club-salsa', 'arcade', 'neon-buzz'].every(k => __neonbay.Sound.grooves.includes(k))), 'the grooves were never drawn: ' + await game(() => __neonbay.Sound.grooves.join()));
+    for (const type of ['fountain', 'salsa', 'radio']) {
+      const found = await game(async type => {
+        const { placeSpots } = await import('/js/game/ambience.js'), { signs, parkRects, beachHuts } = await import('/js/world/city.js');
+        const s = placeSpots(signs, parkRects, beachHuts).find(s => s.type === type); if (!s) return false;
+        const { P } = __neonbay; P.x = s.x + (type === 'fountain' ? 4 : 0); P.z = s.z + (type === 'fountain' ? 0 : 2); return true;
+      }, type);
+      check(found, `no ${type} in the city`);
+      check(await until(type => __neonbay.Sound.playing('spot').some(s => s.type === type), type), `no ${type} heard next to it: ` + await game(() => __neonbay.Sound.playing('spot').map(s => s.type).join()));
+    }
+  });
+
   await step('survives a five-star chase', async () => {
     await game(() => { const { G, P } = __neonbay; G.heat = 100; G.wanted = 5; G.spawnT = 0; G.heliT = 0; P.hp = 100; });
     check(await until(() => __neonbay.all('npc').some(n => n.faction === 'law' && n.alive) && __neonbay.all('vehicle').some(v => v.model.police || v.model.army), undefined, 40000), 'the law never showed up');

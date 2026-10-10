@@ -22,7 +22,7 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 - Every flat roof can be stood on. Press `Space` again in the air to double jump, jump over a roof's railings or up onto them, and hop across to the next roof. Whatever stands on a roof can be climbed too, up to the Belpaire's pergola (bring the jetpack); a fall of more than about 5 m hurts. With the jetpack on, hold `Space` in the air to fly; let go and you drop, a little softer than without it at first but just as hard from high up, so hold it again to brake before you land. With a parachute on, jump off and press `Space` again in the air (once the double jump is spent, or straight away when you are already falling fast) to open it; you float down at a soft 4 m/s, steer with `WASD`, and the chute is spent when you land.
 - Dying sends you to City General with a 10% hospital bill.
 - **Guest or account.** Play as a guest and your progress (cash, guns, upgrades, ammo) saves in this browser. Or press **Sign in or create account** on the title screen (or **Sign in** in the pause menu): you get an email link, no password, for an MBP Games account that works across every MBP game. Signed in, your progress saves to the account every 5 minutes, every time you get wasted, and when you close the page, so it follows you to any device. The first time you sign in, guest progress moves into the account, unless the account already has progress, which then wins.
-- **Settings** (pause menu or title screen): sound on/off, effects and music volume, render quality, draw distance, animated waves, mouse sensitivity, invert look, field of view, camera shake, crowd and traffic density, km/h or mph, and the keys: a QWERTY or AZERTY preset, then any action rebound by clicking it and pressing the new key (a key already in use swaps over). On a first visit in Chrome or Edge an AZERTY keyboard is detected and picked for you. Settings save in this browser, separately from game progress.
+- **Settings** (pause menu or title screen): sound on/off, effects, music and city ambience volume, render quality, draw distance, animated waves, mouse sensitivity, invert look, field of view, camera shake, crowd and traffic density, km/h or mph, and the keys: a QWERTY or AZERTY preset, then any action rebound by clicking it and pressing the new key (a key already in use swaps over). On a first visit in Chrome or Edge an AZERTY keyboard is detected and picked for you. Settings save in this browser, separately from game progress.
 
 ## Controls
 
@@ -50,7 +50,7 @@ These are the QWERTY defaults; the AZERTY preset uses ZQSD to move, A for melee 
 
 ## Project layout
 
-`public/index.html` holds the page, styles and HUD markup, and loads the game as native ES modules from `public/js/` (no build step). Three.js (r186) loads from jsDelivr as an ES module in `js/three.js`, which sets it as the global `THREE`, fonts from Google Fonts, and sound is synthesized with the Web Audio API, apart from the gunshots and gun reloads, which are CC0 recordings in `public/sfx/` (credited in `public/sfx/CREDITS.md`).
+`public/index.html` holds the page, styles and HUD markup, and loads the game as native ES modules from `public/js/` (no build step). Three.js (r186) loads from jsDelivr as an ES module in `js/three.js`, which sets it as the global `THREE`, fonts from Google Fonts, and sound is synthesized with the Web Audio API, apart from the gunshots, gun reloads and the city's ambience (beds, surf, gulls, fountains), which are CC0 recordings in `public/sfx/` (credited in `public/sfx/CREDITS.md`).
 
 ```
 public/js/
@@ -107,7 +107,11 @@ Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share 
 
 **A new key.** Add an action to `ACTIONS` and both presets in `core/keymap.js`, then check `held('<id>')` (in `core/controls.js`) every frame or `actionFor(e.code) === '<id>'` in the keydown handler in `core/input.js`. Use `kb('<id>')` for the key's name in prompts and tips so they follow the player's bindings. The Controls tab lists and rebinds it on its own.
 
-**A sound from something in the world.** Pass where it comes from: `Sound.shot(kind, vol, at(entity, height))` and the other one-shots take a world point (`at`, `beside` in `core/spatial.js`), and looping sources go through `Sound.loops(kind, sources)` once a frame. Each plays through its own HRTF panner relative to a listener at the player's head facing the camera, with inverse-distance falloff and distance dulling by the profile in `HEAR`. Sounds with no source (UI, the player's own gun) take no point.
+**A sound from something in the world.** Pass where it comes from: `Sound.shot(kind, vol, at(entity, height))` and the other one-shots take a world point (`at`, `beside` in `core/spatial.js`), and looping sources go through `Sound.loops(kind, sources)` once a frame. Each plays through its own HRTF panner relative to a listener at the player's head facing the camera, with inverse-distance falloff and distance dulling by the profile in `HEAR`. Sounds with no source (UI, the player's own gun) take no point. Placed sounds also send a share to the street's echo, set a few times a second from the walls round the player (`world/acoustics.js`).
+
+**An engine sound for a new vehicle.** A vehicle sounds like its kind's `engineVoice` (a bike's `twin`, a car's `four`, a truck's `diesel`) unless its model sets `engine.voice` (the Model Y's `whine`); `electric: true` hums instead. The voices are synthesized in `makeEngine` in `core/audio.js`.
+
+**A sound for a place in the city.** `game/ambience.js` keeps the city's own sounds: the day and night beds, the wind on the roofs, the surf and gulls, and `SPOTS`, the places heard a few steps away (park fountains, clubs and bars by their sign, arcades, the beach huts' radios, neon buzz at night). A new kind of place is a row in `SPOTS` with a recording from `data/ambience.js` or a groove drawn in `GROOVES` in `core/audio.js`, and a line in `placeSpots` saying where they stand.
 
 **Saves.** When the save shape changes, bump `SAVE_VERSION` in `core/save.js` and add a migration from the previous version.
 
