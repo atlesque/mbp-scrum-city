@@ -18,7 +18,7 @@ export const truck = carKind({
   shieldsDriver: true,
   ram: { mass: 12, hull: [3.0, BODY.hw], heavierAt: 3, sameAt: Infinity },
   camera: { dist: 11.5, aimDist: 6.5, height: 3.6, fovPerSpeed: 0.3, minArm: 5 },
-  laneHalf: 2.2, reachMax: 1.8,
+  laneHalf: 2.2, reachMax: 1.8, engineVoice: 'diesel', engineNear: 0.09,
   topAt: undefined, // far too tall to ride a bike over
   tip: M => `The ${M.name}. <em>${kb('forward')}</em>/<em>${kb('back')}</em> gas and brake, <em>${kb('left')}</em>/<em>${kb('right')}</em> steer, <em>${kb('sprint')}</em> boost, ${M.siren ? `<em>${kb('siren')}</em> siren, ` : ''}<em>${kb('ride')}</em> to get out. It's heavy: cars get shoved out of its way.`,
 }));

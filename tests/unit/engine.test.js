@@ -64,3 +64,32 @@ describe('electric cars', async () => {
     for (const e of [eqa, bmw]) removeEntity(e);
   });
 });
+
+describe('traffic car engines', async () => {
+  const { G, P } = await import('../../public/js/core/state.js');
+  const { addEntity, removeEntity } = await import('../../public/js/entities/registry.js');
+  const { engineSources, engineVoice } = await import('../../public/js/vehicles/engine.js');
+  const { VEHICLE_MODELS } = await import('../../public/js/vehicles/models/index.js');
+  const { car } = await import('../../public/js/vehicles/kinds/car.js');
+  const { truck } = await import('../../public/js/vehicles/kinds/truck.js');
+  const { bike } = await import('../../public/js/vehicles/kinds/bike.js');
+  const make = (model, K, x, extra = {}) => addEntity({ kind: 'vehicle', K, model: VEHICLE_MODELS[model], driver: {}, x, z: 0, v: 8, dead: false, ...extra });
+  it('give each kind its own voice, and the Model Y its whine', () => {
+    expect(engineVoice({ model: VEHICLE_MODELS.sedan, K: car })).toBe('four');
+    expect(engineVoice({ model: VEHICLE_MODELS.firetruck, K: truck })).toBe('diesel');
+    expect(engineVoice({ model: VEHICLE_MODELS.gs, K: bike })).toBe('twin');
+    expect(engineVoice({ model: VEHICLE_MODELS.modely, K: car })).toBe('whine');
+    expect(engineVoice({ model: VEHICLE_MODELS.modelyblue, K: car })).toBe('whine');
+  });
+  it('play from every driven petrol car and truck, not from parked, electric or burnt-out ones', () => {
+    G.state = 'play';
+    const sedan = make('sedan', car, 5), fire = make('firetruck', truck, 9), parked = make('bmw5', car, -5, { driver: null }), eqa = make('eqa', car, -9), wreck = make('police', car, 12, { dead: true });
+    const s = engineSources();
+    expect(s.map(e => e.key)).toEqual([sedan, fire]);
+    expect(s.map(e => e.voice)).toEqual(['four', 'diesel']);
+    expect(s[1].vol).toBeGreaterThan(s[0].vol);
+    expect(s[0].speed).toBe(8);
+    G.state = 'loading';
+    for (const e of [sedan, fire, parked, eqa, wreck]) removeEntity(e);
+  });
+});

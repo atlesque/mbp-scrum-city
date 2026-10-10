@@ -16,7 +16,8 @@ import t7 from './t7.js';
 // and hit box; the model supplies the looks and can override any of the kind's numbers:
 //   id, kind, name, short (HUD), tag (toasts), hp
 //   handling   overrides for the kind's handling (top speed, accel, brakes, steering)
-//   engine     { rev } pitch multiplier, { gears } speed (m/s) at each gear change
+//   engine     { rev } pitch multiplier, { gears } speed (m/s) at each gear change, { voice } the engine it sounds like
+//              when not its kind's ('twin', 'four', 'diesel' or 'whine', see makeEngine in core/audio.js)
 //   electric   true: no engine note, a pedestrian-warning hum below 30 km/h and road noise above it
 //   traffic    { weight, speed: [min, max] }; weight 0 keeps it out of random traffic
 //   police     true for cop cars: flashing lights, and they leave with the heat

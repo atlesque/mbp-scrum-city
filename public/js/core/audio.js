@@ -6,7 +6,7 @@ import { HEAR, airCutoff, distToEar, doppler, falloff, listenerPose } from './sp
 
 // ================= AUDIO =================
 export const Sound = (() => {
-  let ctx = null, master, dimmer, dimmed = false, sfx, mus, noise, reverbIn, skidGain, skidF, engO1, engO2, engF, engG, evOwn, evG, musicOn = true, seq = null, step = 0, nextT = 0, intensity = 0, wantIntensity = 0, layers = musicLayers(0);
+  let ctx = null, master, dimmer, dimmed = false, sfx, mus, noise, reverbIn, skidGain, skidF, own, ownVoice, engG, evOwn, evG, musicOn = true, seq = null, step = 0, nextT = 0, intensity = 0, wantIntensity = 0, layers = musicLayers(0);
   const mix = { on: true, sfx: 1, music: 1 }; // from the Settings screen
   const MENU_DIM = 0.5, DIM_FADE = 0.3; // everything plays at half volume, faded over 0.3 s, while the pause menu is open
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
@@ -23,11 +23,7 @@ export const Sound = (() => {
     noise = makeNoise();
     const conv = ctx.createConvolver(); conv.buffer = impulse(1.8, 2.6); const rv = ctx.createGain(); rv.gain.value = 0.4; conv.connect(rv); rv.connect(mus); reverbIn = conv;
     // the player's own ride: not placed, since the listener sits on it
-    engO1 = ctx.createOscillator(); engO1.type = 'sawtooth'; engO1.frequency.value = 18;
-    engO2 = ctx.createOscillator(); engO2.type = 'triangle'; engO2.frequency.value = 36; const e2g = ctx.createGain(); e2g.gain.value = 0.45;
-    engF = ctx.createBiquadFilter(); engF.type = 'lowpass'; engF.frequency.value = 220; engF.Q.value = 0.9;
-    const engCap = ctx.createBiquadFilter(); engCap.type = 'lowpass'; engCap.frequency.value = 650; engCap.Q.value = 0.5;
-    engG = ctx.createGain(); engG.gain.value = 0; engO1.connect(engF); engO2.connect(e2g); e2g.connect(engF); engF.connect(engCap); engCap.connect(engG); engG.connect(sfx); engO1.start(); engO2.start();
+    engG = ctx.createGain(); engG.gain.value = 0; engG.connect(sfx); ownVoice = 'twin'; own = makeEngine({ voice: ownVoice }); own.out.connect(engG);
     // the player's own electric car: the hum and the road under it, also unplaced
     evOwn = makeEv(); evG = ctx.createGain(); evG.gain.value = 0; evOwn.out.connect(evG); evG.connect(sfx);
     // tyre squeal: narrow band of noise, wavering a little
@@ -90,7 +86,7 @@ export const Sound = (() => {
     rotor: { max: 2, prof: HEAR.rotor, make: makeRotor },
     tank: { max: 1, prof: HEAR.tank, make: makeTank },
     ufo: { max: 1, prof: HEAR.ufo, make: makeUfo },
-    engine: { max: 3, prof: null, make: makeEngine },
+    engine: { max: 6, prof: null, make: makeEngine },
     ev: { max: 3, prof: null, make: makeEv },
   };
   const live = { siren: new Map(), rotor: new Map(), engine: new Map(), ev: new Map(), tank: new Map(), ufo: new Map() };
@@ -104,7 +100,7 @@ export const Sound = (() => {
     for (const { s, d, g } of heardNow) {
       let v = map.get(s.key);
       if (!v) {
-        v = def.make(); v.gain = ctx.createGain(); v.gain.gain.value = 0; v.air = ctx.createBiquadFilter(); v.air.type = 'lowpass'; v.air.frequency.value = airCutoff(d, p);
+        v = def.make(s); v.gain = ctx.createGain(); v.gain.gain.value = 0; v.air = ctx.createBiquadFilter(); v.air.type = 'lowpass'; v.air.frequency.value = airCutoff(d, p);
         v.pan = panner(s, true); v.out.connect(v.gain); v.gain.connect(v.air); v.air.connect(v.pan);
         v.lastD = d; v.lastT = t; v.closing = 0; map.set(s.key, v);
       }
@@ -159,9 +155,12 @@ export const Sound = (() => {
     a.start(); b.start(); w.start(); lfo.start();
     return { out: mix, set(s, k, t) { a.frequency.setTargetAtTime(96 * k, t, 0.1); b.frequency.setTargetAtTime(99 * k, t, 0.1); }, stop() { a.stop(); b.stop(); w.stop(); lfo.stop(); } };
   }
+  // the engine a vehicle sounds like, by its source's `voice` (vehicles/engine.js picks one per model): a bike's
+  // boxer twin, a car's four, a truck's diesel or the Model Y's motor whine. The player's own ride uses the same ones.
+  function makeEngine(s) { return (VOICES[s && s.voice] || makeTwin)(); }
   // boxer twin: low saw at the firing rate plus a soft triangle octave, through a gentle tracking lowpass and a
-  // fixed one that keeps the buzzy highs out (the same voice as the player's own, below)
-  function makeEngine() {
+  // fixed one that keeps the buzzy highs out
+  function makeTwin() {
     const o1 = ctx.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = 18;
     const o2 = ctx.createOscillator(); o2.type = 'triangle'; o2.frequency.value = 36; const g2 = ctx.createGain(); g2.gain.value = 0.45;
     const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 220; f.Q.value = 0.9;
@@ -169,6 +168,58 @@ export const Sound = (() => {
     o1.connect(f); o2.connect(g2); g2.connect(f); f.connect(cap); o1.start(); o2.start();
     return { out: cap, set(s, k, t) { const hz = (s.rpm || 1050) / 60 * k; o1.frequency.setTargetAtTime(hz, t, 0.06); o2.frequency.setTargetAtTime(hz * 2.02, t, 0.06); f.frequency.setTargetAtTime(Math.min(140 + hz * 3.5, 600), t, 0.08); }, stop() { o1.stop(); o2.stop(); } };
   }
+  // the hiss of tyres on the road, opening up with speed (s.speed in m/s); shared by the car voices
+  function tyres(mix) {
+    const n = ctx.createBufferSource(); n.buffer = noise; n.loop = true; n.playbackRate.value = 0.6;
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 220; f.Q.value = 0.7; const g = ctx.createGain(); g.gain.value = 0;
+    n.connect(f); f.connect(g); g.connect(mix); n.start(0, Math.random() * 1.5);
+    return { set(s, t) { const k = Math.min(Math.abs(s.speed || 0) / 30, 1); g.gain.setTargetAtTime(k * 0.9, t, 0.15); f.frequency.setTargetAtTime(220 + k * 380, t, 0.15); }, stop() { n.stop(); } };
+  }
+  // a car's inline four: two firings a turn, so an octave over a twin at the same revs; a rounder note than the
+  // bike's (a saw with a sine an octave down, closed off lower) and the tyres underneath
+  function makeFour() {
+    const mix = ctx.createGain();
+    const o1 = ctx.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = 35;
+    const o2 = ctx.createOscillator(); o2.type = 'sine'; o2.frequency.value = 17.5; const g2 = ctx.createGain(); g2.gain.value = 0.7;
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 160; f.Q.value = 0.7;
+    const cap = ctx.createBiquadFilter(); cap.type = 'lowpass'; cap.frequency.value = 420; cap.Q.value = 0.5;
+    o1.connect(f); o2.connect(g2); g2.connect(f); f.connect(cap); cap.connect(mix); o1.start(); o2.start();
+    const road = tyres(mix);
+    return { out: mix, set(s, k, t) {
+      const hz = (s.rpm || 1050) / 30 * k; o1.frequency.setTargetAtTime(hz, t, 0.08); o2.frequency.setTargetAtTime(hz / 2, t, 0.08);
+      f.frequency.setTargetAtTime(Math.min(110 + hz * 2.2, 380), t, 0.1); road.set(s, t);
+    }, stop() { o1.stop(); o2.stop(); road.stop(); } };
+  }
+  // a truck's diesel six: three firings a turn on a deep, dull saw, with the knock of the injectors, a band of
+  // noise chopped at the firing rate
+  function makeDiesel() {
+    const mix = ctx.createGain();
+    const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 21;
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 150; f.Q.value = 0.8; o.connect(f); f.connect(mix);
+    const n = ctx.createBufferSource(); n.buffer = noise; n.loop = true;
+    const nf = ctx.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = 1300; nf.Q.value = 2.5;
+    const knock = ctx.createGain(); knock.gain.value = 0.06; const lfo = ctx.createOscillator(); lfo.type = 'square'; lfo.frequency.value = 21; const lg = ctx.createGain(); lg.gain.value = 0.06;
+    lfo.connect(lg); lg.connect(knock.gain); n.connect(nf); nf.connect(knock); knock.connect(mix);
+    o.start(); n.start(0, Math.random() * 1.5); lfo.start();
+    const road = tyres(mix);
+    return { out: mix, set(s, k, t) {
+      const hz = (s.rpm || 1050) / 20 * k; o.frequency.setTargetAtTime(hz, t, 0.1); lfo.frequency.setTargetAtTime(hz, t, 0.1);
+      f.frequency.setTargetAtTime(Math.min(120 + hz * 1.4, 320), t, 0.12); road.set(s, t);
+    }, stop() { o.stop(); n.stop(); lfo.stop(); road.stop(); } };
+  }
+  // the Model Y: no engine, the whine of its motor rising with speed (two sines a fifth apart) over the tyres
+  function makeWhine() {
+    const mix = ctx.createGain(), wg = ctx.createGain(); wg.gain.value = 0.05; wg.connect(mix);
+    const a = ctx.createOscillator(); a.type = 'sine'; a.frequency.value = 300;
+    const b = ctx.createOscillator(); b.type = 'sine'; b.frequency.value = 450; const bg = ctx.createGain(); bg.gain.value = 0.4;
+    a.connect(wg); b.connect(bg); bg.connect(wg); a.start(); b.start();
+    const road = tyres(mix);
+    return { out: mix, set(s, k, t) {
+      const sp = Math.abs(s.speed || 0), hz = (240 + sp * 38) * k; a.frequency.setTargetAtTime(hz, t, 0.08); b.frequency.setTargetAtTime(hz * 1.5, t, 0.08);
+      wg.gain.setTargetAtTime(0.02 + Math.min(sp / 15, 1) * 0.06, t, 0.12); road.set(s, t);
+    }, stop() { a.stop(); b.stop(); road.stop(); } };
+  }
+  const VOICES = { twin: makeTwin, four: makeFour, diesel: makeDiesel, whine: makeWhine };
   // electric car: no engine. Below 30 km/h a soft two-tone hum (sines a fifth apart, with a slow wobble) that rises
   // a little with speed; then road noise, low tyre rumble plus a breathier band of wind, both opening up with speed.
   // s.hum and s.road (0 to 1) set how much of each, s.speed (km/h) the pitch and brightness (see vehicles/engine.js).
@@ -295,8 +346,13 @@ export const Sound = (() => {
     // a parachute opening: the cord's rip, the rustle of cloth, then the canopy snapping full (game/parachute.js)
     chute(vol = 1) { if (!ctx) return; const t = ctx.currentTime, o = out(vol * 0.4); nz(o, t, 0.08, 'highpass', 3000, 0.8, 0.5); nz(o, t + 0.05, 0.35, 'bandpass', 1400, 0.6, 0.4, 0.8); nz(o, t + 0.38, 0.16, 'lowpass', 500, 1, 1.2, 0.6); },
     thud(vol, at, prof = HEAR.thud) { if (!ctx) return; const t = ctx.currentTime, o = out(vol, at, prof); if (!o) return; nz(o, t, 0.22, 'lowpass', 420, 1, 1.1, 0.7); tone(o, t, 'sine', 140, 45, 0.2, 0.9); },
-    // the player's own ride (the engine under you isn't placed)
-    setEngine(vol, rpm) { if (!ctx) return; const t = ctx.currentTime, f = rpm / 60; engO1.frequency.setTargetAtTime(f, t, 0.06); engO2.frequency.setTargetAtTime(f * 2.02, t, 0.06); engF.frequency.setTargetAtTime(Math.min(140 + f * 3.5, 600), t, 0.08); engG.gain.setTargetAtTime(vol, t, 0.12); },
+    // the player's own ride (the engine under you isn't placed): its voice ('twin', 'four', 'diesel', 'whine'; null
+    // keeps the last one), revs and speed in m/s
+    setEngine(vol, rpm, voice = null, speed = 0) {
+      if (!ctx) return; const t = ctx.currentTime;
+      if (voice && voice !== ownVoice) { own.out.disconnect(); own.stop(); ownVoice = voice; own = makeEngine({ voice }); own.out.connect(engG); }
+      own.set({ rpm, speed }, 1, t); engG.gain.setTargetAtTime(vol, t, 0.12);
+    },
     // the player's own electric car: vol overall, mix { hum, road, speed } from evMix in vehicles/engine.js
     setElectric(vol, mix) { if (!ctx) return; const t = ctx.currentTime; evOwn.set(mix, 1, t); evG.gain.setTargetAtTime(vol, t, 0.12); },
     // tyres sliding: 0 (gripping) to 1 (a full drift)
@@ -313,6 +369,8 @@ export const Sound = (() => {
     },
     // how many voices of each looping kind are playing (for tests)
     voices() { return Object.fromEntries(Object.entries(live).map(([k, m]) => [k, m.size])); },
+    // the sources of one looping kind that have a voice right now (for tests)
+    playing(kind) { return [...(live[kind] || new Map()).keys()]; },
     // the wanted level; new layers join (or drop out) on the next beat
     setIntensity(level) { wantIntensity = level; },
     get intensity() { return intensity; },

@@ -48,7 +48,8 @@ export const THROWN = { v: 8, down: 2.6, carry: 0.4 };
 //   verb, tip(M)             'ride' or 'drive', and the first-time help toast
 //   sideLift                 how far a bike lying on its side is held up by what sticks out (the GS's cylinder heads)
 //   lane, lamp               traffic lane offset; a single headlight's height and pool (cars have two)
-//   laneHalf, trafficDespawn, ambientEngine, stopsWhileBurning
+//   laneHalf, trafficDespawn, stopsWhileBurning
+//   ambientEngine, engineVoice, engineNear  heard in traffic: with which voice (core/audio.js; a model's engine.voice wins) and how loud close up
 //   enclosed, occupantHit    riders sit inside (cars): bullets through the windows reach them via occupantHit(v, o, d, maxT)
 
 export const bike = {
@@ -74,7 +75,7 @@ export const bike = {
   lane: 3, // how far right of the road's middle it rides in traffic (vehicles/traffic.js laneFor)
   lamp: { y: 1.05, pool: 0.7 }, // one headlight this high, its pool on the road this wide (render/lighting.js)
   sideLift: 0.6, // lying on its side it rests up on the engine, this far out
-  laneHalf: 1.4, trafficDespawn: 170, reachMax: 2.8, ambientEngine: true, jack: 'shove the rider off',
+  laneHalf: 1.4, trafficDespawn: 170, reachMax: 2.8, ambientEngine: true, engineVoice: 'twin', engineNear: 0.07, jack: 'shove the rider off',
   tip: M => `${M.name}. <em>${kb('forward')}</em>/<em>${kb('back')}</em> throttle and brake, <em>${kb('left')}</em>/<em>${kb('right')}</em> lean, <em>${kb('sprint')}</em> boost, <em>${kb('jump')}</em> rear brake, <em>${kb('wheelie')}</em> wheelie, <em>${kb('ride')}</em> to get off. Guns still work.`,
 
   init(v) { v.lean = -0.12; v.fallen = false; v.fallSide = 1; v.pop = 0; v.popW = 0; },

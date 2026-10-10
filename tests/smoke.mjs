@@ -818,6 +818,18 @@ try {
     check(await until(() => __neonbay.Sound.voices().ev === 0), 'the EQA hum kept going after it left');
   });
 
+  await step('a petrol car in traffic runs a four and the fire truck a diesel', async () => {
+    await clearLane();
+    await game(() => {
+      const { P, spawnVehicle, spawnNpc } = __neonbay;
+      window.__cars = ['sedan', 'firetruck'].map((id, i) => { const c = spawnVehicle(id, P.x + 5, P.z + (i ? 7 : -7), 0, 'traffic'); c.v = 0; c.seatDriver(spawnNpc('motorist', c.x, c.z)); return c; });
+    });
+    check(await until(() => __cars.every(c => __neonbay.Sound.playing('engine').includes(c))), 'the cars make no engine sound: ' + JSON.stringify(await game(() => __neonbay.Sound.voices())));
+    check(await game(async () => { const { engineSources } = await import('/js/vehicles/engine.js'), s = engineSources(); return __cars.map(c => s.find(e => e.key === c).voice).join(); }) === 'four,diesel', 'wrong engine voices');
+    await game(() => { for (const c of __cars) { if (c.driver) __neonbay.removeEntity(c.driver); __neonbay.removeEntity(c); } });
+    check(await until(() => __cars.every(c => !__neonbay.Sound.playing('engine').includes(c))), 'the engines kept going after the cars left');
+  });
+
   await step('survives a five-star chase', async () => {
     await game(() => { const { G, P } = __neonbay; G.heat = 100; G.wanted = 5; G.spawnT = 0; G.heliT = 0; P.hp = 100; });
     check(await until(() => __neonbay.all('npc').some(n => n.faction === 'law' && n.alive) && __neonbay.all('vehicle').some(v => v.model.police || v.model.army), undefined, 40000), 'the law never showed up');
