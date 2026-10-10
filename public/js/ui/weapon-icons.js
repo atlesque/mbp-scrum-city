@@ -30,13 +30,10 @@ export const ICONS = {
   katana: [[-112, -7, 64, 15], [-48, -16, 8, 32], [-40, -5, 150, 11], [110, -3, 6, 7]],
   chainsaw: [[-100, -24, 70, 44], [-96, -36, 46, 12], [-30, -12, 140, 20], [-104, 20, 30, 10]],
   laser: [[-96, -16, 150, 24], [-20, 8, 16, 34], [-104, -10, 30, 28], [54, -12, 40, 16], [94, -8, 14, 8], [-50, -26, 50, 10]],
-  // the repair tool, a gas blowtorch: the canister with its label band, a brass valve and knob, the bent neck and its nozzle
-  repair: { fit: 0.86, dy: 16, parts: [{ d: TORCH_CAN, fill: '#5a5e69' }, { d: 'M14 -9 L34 -9 L34 9 L14 9 Z', fill: '#e8c27a' }, { d: 'M20 -9 L20 -18 L28 -18 L28 -9 Z', fill: '#e8c27a' },
-    { d: 'M34 -4 L72 -4 Q84 -4 90 -13 L98 -25 L105 -20 L97 -8 Q89 4 72 4 L34 4 Z', fill: '#6b6f7a' }, { d: 'M96 -23 L108 -40 L117 -34 L105 -17 Z', fill: '#6b6f7a' },
-    { d: 'M99 -26 L103 -32 L112 -26 L108 -20 Z', fill: '#e8c27a', inner: true },
-    { d: 'M110 -40 Q116 -50 122 -54 Q121 -44 115 -36 Z', fill: '#7fd8ff' },
-    { d: 'M-74 -20 L-30 -20 L-30 20 L-74 20 Z', fill: '#e4e6ea', inner: true },
-    { line: 'M-66 -6 H-40 M-66 4 H-50', w: 3, clip: TORCH_CAN }] },
+  // the repair tool, a gas blowtorch: the canister with its label band, the valve and knob, the bent neck and its nozzle
+  repair: { fit: 0.86, dy: 16, parts: [{ d: TORCH_CAN }, [14, -9, 20, 18], [20, -18, 8, 9],
+    { d: 'M34 -4 L72 -4 Q84 -4 90 -13 L98 -25 L105 -20 L97 -8 Q89 4 72 4 L34 4 Z' }, { d: 'M96 -23 L108 -40 L117 -34 L105 -17 Z' },
+    { line: 'M-74 -20 V20 M-30 -20 V20 M-66 -6 H-40 M-66 4 H-50', w: 3, clip: TORCH_CAN }, { line: 'M99 -26 L112 -20', w: 3 }] },
   fireaxe: [[-110, -6, 160, 12], { d: 'M40 -26 L64 -26 L64 -14 Q84 -30 100 -36 Q110 -2 100 32 Q84 26 64 12 L64 20 L40 20 Z' }, { d: 'M40 -18 L22 -12 L40 -6 Z' }],
   grenade: { fit: 0.92, parts: [{ ring: [-28, -44, 13] }, { d: GRENADE_BODY }, [-14, -40, 28, 16], { d: LEVER },
     { line: 'M-16 -32 L-20 -40', w: 5, c: '#fff' }, { line: LEVER, w: 2.5 },
