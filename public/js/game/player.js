@@ -28,7 +28,7 @@ import { ceilingAt, collideRoofs, surfaceAt } from '../world/rooftops.js';
 import { BAIL, bailDamage, bailLaunch, hopLaunch, tumbleStep } from './bailout.js';
 import { PITCH_MAX, PITCH_MIN, cameraRoof, stepArm, stepShoulder } from './camera.js';
 import { JET, jetFx, jetStep, refuel, takeOffJetpack } from './jetpack.js';
-import { PARA, chuteFx, chuteStep, dropChute, openChute, opensChute, strapOnChute } from './parachute.js';
+import { PARA, chuteFx, chuteStep, dropChute, openChute, opensChute, poseHang, strapOnChute } from './parachute.js';
 import { updateInteraction } from './interact.js';
 
 // ================= PLAYER =================
@@ -54,6 +54,7 @@ export function updatePlayer(dt) {
     // separation from people
     for (const a of all('npc')) { if (!onFoot(a) || P.y > 1) continue; const dx = a.x - P.x, dz = a.z - P.z, d = Math.hypot(dx, dz); if (d < 0.75 && d > 0.001) { const k = (0.75 - d) * 0.5; a.x += dx / d * k; a.z += dz / d * k; P.x -= dx / d * k; P.z -= dz / d * k; } }
     animateChar(P, dt);
+    if (P.chute && P.chute.open) poseHang(P, Math.min(1, P.chute.t / 0.3)); // hanging in the harness, not walking
     P.c.root.position.set(P.x, P.floor || 0, P.z); P.c.root.rotation.y = P.yaw;
     if (P.tumble) rollPose(-P.tumble.roll); // rolling out towards the body's +x side turns it the negative way round z
   }
