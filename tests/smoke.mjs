@@ -299,6 +299,23 @@ try {
     await game(() => { const { G, all, removeEntity } = __neonbay; removeEntity(__tossed); G.heat = 0; G.wanted = 0; for (const n of all('npc')) if (n.faction === 'law') removeEntity(n); });
   });
 
+  await step('the rocket launcher will not fire from a car, only on foot', async () => {
+    await clearVehicles(...await game(() => [__neonbay.P.x, __neonbay.P.z]));
+    await game(async () => {
+      const { P, inv, spawnVehicle } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js'), { enterVehicle } = await import('/js/game/player.js');
+      inv.owned.rpg = true; inv.mag.rpg = 1; selectWeapon('rpg');
+      enterVehicle(window.__car = spawnVehicle('sedan', P.x + 2.5, P.z, P.yaw));
+      __neonbay.I.clickQ = 0.3;
+    });
+    await page.waitForTimeout(600);
+    const seated = await game(() => ({ mag: __neonbay.inv.mag.rpg, toast: document.getElementById('toast').textContent }));
+    check(seated.mag === 1, `a rocket left the launcher from the driver's seat (mag ${seated.mag})`);
+    check(seated.toast.includes('Rocket Launcher'), 'no message saying to get out first');
+    await game(async () => { const { exitVehicle } = await import('/js/game/player.js'); __neonbay.P.vehicle.v = 0; exitVehicle(false); __neonbay.G.fireCd = 0; __neonbay.cam.pitch = 0.3; __neonbay.I.clickQ = 0.3; });
+    check(await until(() => __neonbay.inv.mag.rpg === 0), 'the launcher did not fire on foot');
+    await game(() => { const { G, inv, all, removeEntity } = __neonbay; delete inv.owned.rpg; G.heat = 0; G.wanted = 0; for (const n of all('npc')) if (n.faction === 'law') removeEntity(n); });
+  });
+
   await step('shoots a driver through the window and takes the car', async () => {
     const before = await game(() => __neonbay.stats.kills);
     for (let i = 0; i < 16; i++) {
