@@ -25,7 +25,7 @@ import { answersHeat, driveByPlayer, sirenOn } from '../vehicles/vehicle.js';
 import { SPAWN } from '../world/city.js';
 import { collide, wallHit } from '../world/collision.js';
 import { ceilingAt, collideRoofs, surfaceAt } from '../world/rooftops.js';
-import { BAIL, bailDamage, bailLaunch, tumbleStep } from './bailout.js';
+import { BAIL, bailDamage, bailLaunch, hopLaunch, tumbleStep } from './bailout.js';
 import { PITCH_MAX, PITCH_MIN, cameraRoof, stepArm, stepShoulder } from './camera.js';
 import { JET, jetFx, jetStep, refuel, takeOffJetpack } from './jetpack.js';
 import { PARA, chuteFx, chuteStep, dropChute, openChute, opensChute, strapOnChute } from './parachute.js';
@@ -187,7 +187,11 @@ export function exitVehicle(crash) {
   P.y = base.floor; P.floor = base.floor; P.roof = base.roof; P.vy = 0; P.grounded = true; P.yaw = v.yaw; P.vx = P.vz = 0; P.moveSpeed = 0;
   P.c.root.position.set(P.x, base.floor, P.z); P.c.root.rotation.y = P.yaw;
   v.K.onPlayerExit(v, crash, sp, side);
-  if (fast) {
+  if (fast && v.model.hopOff) { // a regular e-step: just jump off, no roll and no damage
+    const H = hopLaunch(v.yaw, vx, vz, side);
+    P.vx = H.vx; P.vz = H.vz; P.vy = H.vy; P.grounded = false; P.jumps = 1;
+    P.bailFrom = v; P.bailT = G.time + BAIL.ghost;
+  } else if (fast) {
     const T = P.tumble = bailLaunch(v.yaw, vx, vz, side);
     P.vx = T.vx; P.vz = T.vz; P.vy = T.vy; P.grounded = false;
     P.bailFrom = v; P.bailT = G.time + BAIL.ghost; // the vehicle rolls on past without running into them

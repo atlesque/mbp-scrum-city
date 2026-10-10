@@ -624,6 +624,25 @@ try {
     check(r.cz > r.z, `the ${model} did not roll on past the player`);
     await game(() => __neonbay.removeEntity(__ram));
   });
+  await step('hops off a regular e-step at speed, no roll and no damage', async () => {
+    await clearVehicles(228, -60);
+    await game(() => { const { P, spawnVehicle } = __neonbay; P.x = 229.5; P.z = -60; window.__ram = spawnVehicle('estep', 228, -60, 0); });
+    check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes(__ram.model.name)), 'no prompt to get on');
+    await press('KeyF');
+    check(await until(() => __neonbay.P.vehicle === window.__ram), 'F did not put the player on board');
+    await until(() => __neonbay.G.near.some(i => i.priority === 9));
+    await game(() => { const { P } = __neonbay; P.hp = 100; P.armor = 0; __ram.x = 228; __ram.z = -60; __ram.yaw = 0; __ram.v = 7.5; P.vx = 0; P.vz = 7.5; });
+    await press('KeyF');
+    check(await until(() => !__neonbay.P.vehicle), 'F did not get the player off');
+    const mid = await game(() => ({ tumbling: !!__neonbay.P.tumble, up: __neonbay.P.vy > 0 || !__neonbay.P.grounded }));
+    check(!mid.tumbling, 'the player rolled instead of hopping off');
+    check(mid.up, 'the player did not jump off');
+    check(await until(() => __neonbay.P.grounded), 'the player never landed');
+    const r = await game(() => { const { P } = __neonbay; return { hp: P.hp, tumble: !!P.tumble, x: P.x }; });
+    check(r.hp === 100 && !r.tumble, `hopping off should not hurt or roll (hp ${r.hp})`);
+    check(r.x > 228.5, `did not hop off to the side (x ${r.x.toFixed(2)})`);
+    await game(() => __neonbay.removeEntity(__ram));
+  });
 
   await step('drives up onto the sidewalk instead of through it', async () => {
     await clearVehicles(5, -75);
