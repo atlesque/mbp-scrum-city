@@ -383,7 +383,8 @@ try {
 
   await step('the step king rides his pimped e-step about; the player shoves him off and does 70+ km/h on it', async () => {
     check(await until(() => __neonbay.all('vehicle').some(v => v.model.id === 'pimpstep' && v.driver && v.driver.kind === 'npc' && v.driver.type === 'stepking'), null, 8000), 'no step king out on his step');
-    // a second one on the open beach, stopped next to the player
+    // a second one on the open beach, stopped next to the player; once it's the player's it starts off rolling at 43 km/h,
+    // as software WebGL under load runs only a few frames a second
     await clearVehicles(228, -60);
     await game(() => {
       const { G, P, spawnVehicle, spawnNpc } = __neonbay; G.heat = 0; G.wanted = 0; P.x = 229.6; P.z = -60; P.yaw = 0;
@@ -392,9 +393,9 @@ try {
     check(await until(() => /shove the rider off/.test((__neonbay.G.near[0] || {}).prompt)), 'no prompt to shove the rider off');
     await press('KeyF');
     check(await until(() => __neonbay.P.vehicle === window.__pimp), 'F did not take the pimped step');
-    await game(() => { const { G, all, removeEntity } = __neonbay; removeEntity(__king); G.heat = 0; G.wanted = 0; for (const e of all('npc')) if (e.def.faction === 'law') removeEntity(e); __pimp.x = 228; __pimp.z = -60; __pimp.yaw = 0; __pimp.peak = 0; const up = __pimp.update; __pimp.update = function (dt) { up.call(this, dt); this.peak = Math.max(this.peak, this.v); }; });
+    await game(() => { const { G, all, removeEntity } = __neonbay; removeEntity(__king); G.heat = 0; G.wanted = 0; for (const e of all('npc')) if (e.def.faction === 'law') removeEntity(e); __pimp.x = 228; __pimp.z = -60; __pimp.yaw = 0; __pimp.v = 12; __pimp.peak = 0; const up = __pimp.update; __pimp.update = function (dt) { up.call(this, dt); this.peak = Math.max(this.peak, this.v); }; });
     for (const k of ['KeyW', 'ShiftLeft']) await page.keyboard.down(k);
-    const fast = await until(() => __pimp.peak * 3.6 > 70, null, 20000);
+    const fast = await until(() => __pimp.peak * 3.6 > 70, null, 30000);
     for (const k of ['KeyW', 'ShiftLeft']) await page.keyboard.up(k);
     const r = await game(() => ({ peak: __pimp.peak * 3.6, x: __pimp.x, z: __pimp.z }));
     check(fast, `topped out at ${r.peak.toFixed(0)} km/h (at ${r.x.toFixed(0)}, ${r.z.toFixed(0)})`);
