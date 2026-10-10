@@ -45,6 +45,10 @@ describe('accuracy over distance', () => {
     for (let d = 0; d <= 200; d += 2) { const f = aimFalloff(d); expect(f).toBeLessThanOrEqual(last); last = f; }
     expect(aimFalloff(500)).toBe(AIM_FLOOR);
   });
+  it('falls off steeply: a quarter of the close-range chance by 24 m, near the floor by 40 m', () => {
+    expect(aimFalloff(24)).toBeLessThanOrEqual(0.25);
+    expect(aimFalloff(40)).toBeLessThan(0.08);
+  });
   it('lets a shooter set its own close range', () => {
     expect(aimFalloff(30, 32)).toBe(1);
     expect(aimFalloff(32 + AIM_HALF, 32)).toBeCloseTo(0.5);
