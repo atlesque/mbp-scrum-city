@@ -50,6 +50,8 @@ export const wStat = (w, lvl) => ({
   rate: w.rate * (1 - (w.upRate ?? 0.08) * lvl),
   blastMul: 1 + (w.upBlast ?? 0) * lvl,
 });
+// the rocket launcher needs both feet on the ground: no firing it from a car, bike, e-step or truck seat
+export const firesFrom = (w, vehicle) => !(vehicle && w.rocket);
 // top up every owned gun's magazine from its spare ammo (the pistol never runs out)
 export function loadAll(inv) {
   for (const w of GUNS) {

@@ -302,6 +302,23 @@ try {
     await game(() => { const { G, all, removeEntity } = __neonbay; removeEntity(__tossed); G.heat = 0; G.wanted = 0; for (const n of all('npc')) if (n.faction === 'law') removeEntity(n); });
   });
 
+  await step('the rocket launcher will not fire from a car, only on foot', async () => {
+    await clearVehicles(...await game(() => [__neonbay.P.x, __neonbay.P.z]));
+    await game(async () => {
+      const { P, inv, spawnVehicle } = __neonbay, { selectWeapon } = await import('/js/combat/combat.js'), { enterVehicle } = await import('/js/game/player.js');
+      inv.owned.rpg = true; inv.mag.rpg = 1; selectWeapon('rpg');
+      enterVehicle(window.__car = spawnVehicle('sedan', P.x + 2.5, P.z, P.yaw));
+      __neonbay.I.clickQ = 0.3;
+    });
+    await page.waitForTimeout(600);
+    const seated = await game(() => ({ mag: __neonbay.inv.mag.rpg, toast: document.getElementById('toast').textContent }));
+    check(seated.mag === 1, `a rocket left the launcher from the driver's seat (mag ${seated.mag})`);
+    check(seated.toast.includes('Rocket Launcher'), 'no message saying to get out first');
+    await game(async () => { const { exitVehicle } = await import('/js/game/player.js'); __neonbay.P.vehicle.v = 0; exitVehicle(false); __neonbay.G.fireCd = 0; __neonbay.cam.pitch = 0.3; __neonbay.I.clickQ = 0.3; });
+    check(await until(() => __neonbay.inv.mag.rpg === 0), 'the launcher did not fire on foot');
+    await game(() => { const { G, inv, all, removeEntity } = __neonbay; delete inv.owned.rpg; G.heat = 0; G.wanted = 0; for (const n of all('npc')) if (n.faction === 'law') removeEntity(n); });
+  });
+
   await step('shoots a driver through the window and takes the car', async () => {
     const before = await game(() => __neonbay.stats.kills);
     for (let i = 0; i < 16; i++) {
@@ -644,6 +661,25 @@ try {
     check(r.cz > r.z, `the ${model} did not roll on past the player`);
     await game(() => __neonbay.removeEntity(__ram));
   });
+  await step('hops off a regular e-step at speed, no roll and no damage', async () => {
+    await clearVehicles(228, -60);
+    await game(() => { const { P, spawnVehicle } = __neonbay; P.x = 229.5; P.z = -60; window.__ram = spawnVehicle('estep', 228, -60, 0); });
+    check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes(__ram.model.name)), 'no prompt to get on');
+    await press('KeyF');
+    check(await until(() => __neonbay.P.vehicle === window.__ram), 'F did not put the player on board');
+    await until(() => __neonbay.G.near.some(i => i.priority === 9));
+    await game(() => { const { P } = __neonbay; P.hp = 100; P.armor = 0; __ram.x = 228; __ram.z = -60; __ram.yaw = 0; __ram.v = 7.5; P.vx = 0; P.vz = 7.5; });
+    await press('KeyF');
+    check(await until(() => !__neonbay.P.vehicle), 'F did not get the player off');
+    const mid = await game(() => ({ tumbling: !!__neonbay.P.tumble, up: __neonbay.P.vy > 0 || !__neonbay.P.grounded }));
+    check(!mid.tumbling, 'the player rolled instead of hopping off');
+    check(mid.up, 'the player did not jump off');
+    check(await until(() => __neonbay.P.grounded), 'the player never landed');
+    const r = await game(() => { const { P } = __neonbay; return { hp: P.hp, tumble: !!P.tumble, x: P.x }; });
+    check(r.hp === 100 && !r.tumble, `hopping off should not hurt or roll (hp ${r.hp})`);
+    check(r.x > 228.5, `did not hop off to the side (x ${r.x.toFixed(2)})`);
+    await game(() => __neonbay.removeEntity(__ram));
+  });
 
   await step('drives up onto the sidewalk instead of through it', async () => {
     await clearVehicles(5, -75);
@@ -864,7 +900,7 @@ try {
   });
 
   await step('the city plays its bed, the surf breaks on the beach and the radio drops back on foot', async () => {
-    check(await until(() => __neonbay.Sound.radio === 0.3), `the radio stayed up on foot (${await game(() => __neonbay.Sound.radio)})`);
+    check(await until(() => __neonbay.Sound.radio === 0.5), `the radio stayed up on foot (${await game(() => __neonbay.Sound.radio)})`);
     check(await until(() => { const b = __neonbay.Sound.beds(); return ['day', 'night', 'wind'].every(k => b[k]?.loaded); }), 'the city beds never loaded: ' + JSON.stringify(await game(() => __neonbay.Sound.beds())));
     const home = await game(() => { const { P } = __neonbay, home = [P.x, P.z]; P.x = 240; P.z = 0; return home; });
     check(await until(() => __neonbay.Sound.voices().surf === 3), 'no surf on the beach: ' + JSON.stringify(await game(() => __neonbay.Sound.voices())));
@@ -876,7 +912,7 @@ try {
     await press('KeyF');
     check(await until(() => __neonbay.P.vehicle === __car && __neonbay.Sound.radio === 1), 'the radio did not come back up in the car');
     await press('KeyF');
-    check(await until(() => !__neonbay.P.vehicle && __neonbay.Sound.radio === 0.3), 'the radio did not drop back on getting out');
+    check(await until(() => !__neonbay.P.vehicle && __neonbay.Sound.radio === 0.5), 'the radio did not drop back on getting out');
   });
 
   await step('places make their own sounds: a park fountain, a bar\'s salsa, a beach hut\'s radio', async () => {
@@ -944,6 +980,22 @@ try {
     check(await game(() => __neonbay.P.chute && __neonbay.P.chute.open && !__neonbay.P.tumble), 'the parachute did not open by itself');
     check(await until(() => __neonbay.P.grounded && !__neonbay.P.chute, undefined, 60000), 'never landed under the chute');
     await game(() => __neonbay.removeEntity(window.__heli));
+  });
+
+  await step('hangs in the parachute harness instead of walking while gliding down', async () => {
+    await game(async () => {
+      const { P, cam } = __neonbay, { strapOnChute, openChute } = await import('/js/game/parachute.js');
+      P.x = 0; P.z = -60; P.y = 12; P.floor = 0; P.grounded = false; P.vy = -4; P.jumps = 2; P.hp = 100; P.yaw = cam.yaw = 0;
+      strapOnChute(true); openChute();
+    });
+    await page.keyboard.down('KeyW');
+    try {
+      check(await until(() => __neonbay.P.moveSpeed > 4 && __neonbay.P.chute.t > 0.4), 'did not glide forward under the wing');
+      // sampled over a second of steering at full speed: the walk would stride the legs apart and back
+      const legs = await game(() => new Promise(done => { const out = [], t = setInterval(() => { const { legL, legR } = __neonbay.P.c; out.push([legL.rotation.x, legR.rotation.x]); if (out.length === 10) { clearInterval(t); done(out); } }, 100); }));
+      check(legs.every(([l, r]) => Math.abs(l - r) < 0.1 && l < -0.2), `the legs walked under the chute: ${JSON.stringify(legs.map(p => p.map(v => +v.toFixed(2))))}`);
+    } finally { await page.keyboard.up('KeyW'); }
+    check(await until(() => __neonbay.P.grounded && !__neonbay.P.chute, undefined, 60000), 'never landed under the chute');
   });
 
   await step('a tank rolls in with the army and shells the player', async () => {
