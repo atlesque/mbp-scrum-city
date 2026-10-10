@@ -2,7 +2,7 @@ import { P } from '../core/state.js';
 import { clamp, rnd } from '../core/util.js';
 import { emit } from '../render/effects.js';
 import { scene } from '../render/scene.js';
-import { placeCollider, removeCollider } from './collision.js';
+import { placeCollider, rayBox, removeCollider } from './collision.js';
 
 // ================= BREAKABLE PROPS =================
 // Palm trees, street lamps, beach umbrellas and the lifeguard huts on the beach go down when a vehicle drives into
@@ -174,6 +174,20 @@ export function smashProps(x, z, fx, fz, vx, vz, half, r) {
     _hits.push({ p, closing });
   }
   return _hits;
+}
+// the first standing prop a bullet's path from o along d (a unit vector) runs into within maxT: { t, prop } or null.
+// Each is its collider (a palm's trunk, a lamp post, a hut), or a thin pole up to its height when it has none.
+export function propOnRay(o, d, maxT) {
+  const ex = o.x + d.x * maxT, ez = o.z + d.z * maxT, x0 = Math.min(o.x, ex) - 2, x1 = Math.max(o.x, ex) + 2, z0 = Math.min(o.z, ez) - 2, z1 = Math.max(o.z, ez) + 2;
+  let best = null;
+  for (const p of props) {
+    if (p.broken || p.x < x0 || p.x > x1 || p.z < z0 || p.z > z1) continue;
+    const c = p.collider || { x0: p.x - 0.08, x1: p.x + 0.08, z0: p.z - 0.08, z1: p.z + 0.08, h: p.h || 2 };
+    if (o.x > c.x0 && o.x < c.x1 && o.z > c.z0 && o.z < c.z1 && o.y < c.h) continue; // starting inside it (standing on a hut): shoot out
+    const t = rayBox(o.x, o.y, o.z, d.x, d.y, d.z, c.x0, 0, c.z0, c.x1, c.h, c.z1);
+    if (t < (best ? best.t : maxT)) best = { t, prop: p };
+  }
+  return best;
 }
 // an explosion: everything close enough goes over, away from the blast
 export function blastProps(x, y, z, R, power = 1) {
