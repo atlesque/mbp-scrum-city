@@ -16,6 +16,9 @@ export const BAIL = {
   friction: 13,    // m/s² of slowing while sliding and rolling on the road
   rollR: 0.45,     // radius the body rolls over, m
   ghost: 1.5,      // seconds the vehicle just left ignores the player
+  hopUp: 4,        // a model with hopOff (the regular e-steps): upward speed of the plain jump off, m/s
+  hopOut: 2.5,     // and its sideways speed, m/s
+  hopKeep: 0.5,    // share of the step's speed carried into the jump
 };
 
 // damage for leaving at `speed` (m/s) from a kind that counts it as a crash above `from`
@@ -30,6 +33,13 @@ export function bailLaunch(yaw, vx, vz, side) {
   const sx = Math.cos(yaw) * side, sz = -Math.sin(yaw) * side, sp = Math.hypot(vx, vz);
   const out = Math.min(BAIL.outMax, BAIL.out + sp * BAIL.outPerMs);
   return { vx: vx * BAIL.keep + sx * out, vz: vz * BAIL.keep + sz * out, vy: BAIL.hop, side, roll: 0, t: 0 };
+}
+
+// Off a slow, low vehicle whose model has hopOff (the regular e-steps): no throw and no tumble, just a jump off to
+// the side, on the feet, keeping some of the speed; it lands like any other jump and costs nothing.
+export function hopLaunch(yaw, vx, vz, side) {
+  const sx = Math.cos(yaw) * side, sz = -Math.sin(yaw) * side;
+  return { vx: vx * BAIL.hopKeep + sx * BAIL.hopOut, vz: vz * BAIL.hopKeep + sz * BAIL.hopOut, vy: BAIL.hopUp };
 }
 
 // one step of the tumble for a body { x, z, y, vx, vz, vy } and its launch `T`; true while it is still going.

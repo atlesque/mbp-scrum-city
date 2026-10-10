@@ -77,6 +77,7 @@ export const estep = {
   spec: STEP, geos: () => stepGeos('estep'), wheel: stepWheelGeo,
   engine: { rev: 1 },
   electric: true, // a hub motor: the soft hum, never an engine note (vehicles/engine.js)
+  hopOff: true, // getting off at speed is a plain jump off, no bail-out roll or damage (game/player.js exitVehicle)
   traffic: { weight: 1, speed: [5.6, 6.9] }, // 20 to 25 km/h
 };
 export const sharestep = {
