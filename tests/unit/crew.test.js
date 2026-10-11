@@ -2,7 +2,7 @@
 // (game/crew.js).
 import { describe, expect, it } from 'vitest';
 import { P } from '../../public/js/core/state.js';
-import { crew, nearestOf } from '../../public/js/game/crew.js';
+import { SAFE_R, crew, nearestOf, safeSpot, spawnSpot } from '../../public/js/game/crew.js';
 import { NPC_CHUNK, chunks, due, heatNews, packNpc, packState, unpackNpc } from '../../public/js/net/protocol.js';
 import { NPC_TYPES, lookFrom } from '../../public/js/npcs/types.js';
 
@@ -65,5 +65,23 @@ describe('who the law goes after', () => {
       P.alive = false; expect(nearestOf(5, 0)).toBe(bo);
       crew.others = () => []; expect(nearestOf(5, 0)).toBe(P);
     } finally { Object.assign(P, saved); crew.others = others; }
+  });
+});
+
+describe('where a player comes into the city in multiplayer', () => {
+  const spots = [{ x: 0, z: 0, yaw: 1 }, { x: 100, z: 0, yaw: 1 }, { x: 300, z: 0, yaw: 1 }];
+  it('takes the usual spot when no law is near it', () => {
+    expect(safeSpot(spots, [{ x: 0, z: SAFE_R + 1 }])).toBe(spots[0]);
+  });
+  it('moves on to the next spot with nobody hunting near it', () => {
+    expect(safeSpot(spots, [{ x: 10, z: 0 }])).toBe(spots[1]);
+    expect(safeSpot(spots, [{ x: 10, z: 0 }, { x: 110, z: 5 }])).toBe(spots[2]);
+  });
+  it('picks the one with the law furthest off when every spot has some near', () => {
+    expect(safeSpot(spots, [{ x: 5, z: 0 }, { x: 140, z: 0 }, { x: 290, z: 0 }])).toBe(spots[1]);
+  });
+  it('always the usual spot in single player', () => {
+    const home = { x: 1, z: 2, yaw: 3 };
+    expect(spawnSpot(home, spots)).toBe(home);
   });
 });

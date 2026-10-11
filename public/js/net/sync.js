@@ -81,6 +81,7 @@ on('npc:shot', ({ npc, from, end }) => {
   send({ t: 'nshot', i: npc.nid, w: npc.def.gun, f: [r2(from.x), r2(from.y), r2(from.z)], h: [[r2(end.x), r2(end.y), r2(end.z)]] });
 });
 crew.others = () => connected() ? allRemotes().filter(r => r.alive && r.where === 1 && r.c.root.visible) : [];
+crew.online = connected;
 crew.hit = (r, d, zone) => send({ t: 'hit', to: r.id, d: Math.round(d * 10) / 10, z: zone });
 on('player:died', () => {
   if (!connected()) return;

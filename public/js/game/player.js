@@ -22,7 +22,8 @@ import { removeHeli } from '../vehicles/heli.js';
 import { removeTank } from '../vehicles/tank.js';
 import { removeUfo } from '../vehicles/ufo.js';
 import { answersHeat, driveByPlayer, sirenOn } from '../vehicles/vehicle.js';
-import { SPAWN } from '../world/city.js';
+import { spawnSpot } from './crew.js';
+import { SPAWN, shopSpots } from '../world/city.js';
 import { collide, wallHit } from '../world/collision.js';
 import { collideClub } from '../world/club.js';
 import { ceilingAt, collideRoofs, surfaceAt } from '../world/rooftops.js';
@@ -283,7 +284,8 @@ export function respawn() {
   for (const e of all()) if ((e.kind === 'npc' && e.faction === 'law') || answersHeat(e) || (e.kind === 'vehicle' && e.dead)) removeEntity(e);
   removeHeli(); removeTank(null, true); removeUfo(null);
   G.wanted = 0; G.heat = 0; G.lostT = 0; G.heliT = 15; G.tankT = 6; G.fiveT = 0; G.ufoT = 2;
-  P.x = SPAWN.x; P.z = SPAWN.z; P.y = 0; P.floor = 0; P.vy = 0; P.grounded = true; P.roof = null; P.hp = 100; P.alive = true; P.deadT = 0; P.yaw = SPAWN.yaw; cam.yaw = SPAWN.yaw; cam.pitch = -0.08;
+  const at = spawnSpot(SPAWN, shopSpots); // (in multiplayer, away from the crew's law: game/crew.js)
+  P.x = at.x; P.z = at.z; P.y = 0; P.floor = 0; P.vy = 0; P.grounded = true; P.roof = null; P.hp = 100; P.alive = true; P.deadT = 0; P.yaw = at.yaw; cam.yaw = at.yaw; cam.pitch = -0.08;
   P.c.body.rotation.x = 0; P.c.body.position.y = 0; P.swing = null;
   loadAll(inv); resetTool(); G.reloadT = 0;
   takeOffJetpack(); // found, not bought: it waits on the Belpaire again

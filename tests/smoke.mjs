@@ -1375,6 +1375,13 @@ try {
       return sent;
     });
     check(frozen === 0, `people were shared ${frozen} times with the game's frames stopped`);
+    // a cop of theirs stands on the spawn point: out of the hospital, the player comes in somewhere he isn't
+    const away2 = await game(async () => {
+      const { SPAWN } = await import('/js/world/city.js'), { respawn } = await import('/js/game/player.js'), { SAFE_R } = await import('/js/game/crew.js');
+      window.__mpSock.push({ t: 'npcs', id: 'bot', n: [[2, 'cop', 7, SPAWN.x, 0, SPAWN.z, 0, 0, 1, 'pistol', 0]] });
+      respawn(); const { P } = __neonbay; return { d: Math.hypot(P.x - SPAWN.x, P.z - SPAWN.z), r: SAFE_R };
+    });
+    check(away2.d >= away2.r, 'came in next to the crew\'s cop: ' + JSON.stringify(away2));
     // leaving takes them, their bike and their people out of the world
     await game(async () => { (await import('/js/net/net.js')).leave(); window.WebSocket = window.__mpWS; });
     check(await game(() => __neonbay.all('remote').length === 0 && __neonbay.all('ghost').length === 0 && !__neonbay.all('vehicle').some(v => v.remote)), 'the other player stayed after leaving');
