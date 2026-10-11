@@ -1,3 +1,4 @@
+import { freshTeam, selectPokemon, SPECIES, xpToNextLevel } from '../pokemon/team.js';
 import { REPAIR, WBY, wStat } from '../data/weapons.js';
 
 // What a shop can sell. Each item type renders its card and carries out the buttons on it.
@@ -24,6 +25,35 @@ function toolCard(w, inv, i, own, found) {
 }
 
 export const ITEM_TYPES = {
+  pokeballs: {
+    render(item, { inv }, i) {
+      const team = inv.pokemon || freshTeam();
+      return `<div class="card"><h3><span>Poké Balls ×${item.amount}</span><span class="lvl">${team.balls} IN BAG</span></h3><div class="small">Approach a wild Pokémon and press the use key to throw. Each attempt uses one ball.</div><div class="acts">${btn(i, 'buy', 'Buy pack', item.price, inv.money >= item.price && team.balls <= 999 - item.amount)}</div></div>`;
+    },
+    act(item, a, ctx) {
+      const team = ctx.inv.pokemon ||= freshTeam();
+      if (a !== 'buy' || team.balls > 999 - item.amount || !ctx.pay(item.price)) return false;
+      team.balls += item.amount; return true;
+    },
+  },
+  pokemonTeam: {
+    render(item, { inv }, i) {
+      const team = inv.pokemon || freshTeam();
+      return `<div class="card"><h3><span>Your Pokémon</span><span class="lvl">${team.party.length}/6</span></h3><div class="small">Select a partner to follow and help battle NPCs you attack. Fainted partners rest until healed.</div><div class="acts">${btn(i, 'heal', 'Heal team · free', null, team.party.some(p => p.hp < 100), 'cy')}${btn(i, 'recall', 'Recall partner', null, team.selected >= 0)}</div>${team.party.map((p, n) => `<div class="small">${SPECIES[p.species].name} Lv ${p.level || 1} · ${SPECIES[p.species].move} · HP ${Math.ceil(p.hp)}/100 ${team.selected === n ? '· FOLLOWING' : ''} · XP ${p.xp || 0}/${xpToNextLevel(p.level || 1)}${SPECIES[p.species].evolveLevel ? ' · evolves at Lv ' + SPECIES[p.species].evolveLevel : SPECIES[p.species].evolutionItem ? ' · ' + (SPECIES[p.species].evolutionItem === 'leafstone' ? 'Leaf Stone' : 'Thunder Stone') + ' evolution' : ''}</div><div class="acts">${btn(i, 'select:' + n, 'Select ' + SPECIES[p.species].name, null, p.hp > 0 && team.selected !== n, 'cy')}${SPECIES[p.species].evolutionItem ? btn(i, 'evolve:' + n, (SPECIES[p.species].evolutionItem === 'leafstone' ? 'Leaf Stone' : 'Thunder Stone') + ' → ' + SPECIES[SPECIES[p.species].evolvesTo].name, 300, inv.money >= 300) : ''}</div>`).join('')}${team.party.length ? '' : '<div class="small">Your first catch becomes your partner. Five starter balls are in your bag.</div>'}</div>`;
+    },
+    act(item, a, ctx) {
+      const team = ctx.inv.pokemon ||= freshTeam();
+      if (a === 'heal') { for (const p of team.party) p.hp = 100; return true; }
+      if (a === 'recall') return selectPokemon(team, -1);
+      if (/^evolve:\d+$/.test(a)) {
+        const p = team.party[+a.split(':')[1]], def = p && SPECIES[p.species];
+        if (!['thunderstone', 'leafstone'].includes(def?.evolutionItem) || !ctx.pay(300)) return false;
+        p.species = def.evolvesTo; return true;
+      }
+      if (/^select:\d+$/.test(a)) return selectPokemon(team, +a.split(':')[1]);
+      return false;
+    },
+  },
   weapon: {
     render(item, ctx, i) {
       const { inv } = ctx, w = WBY[item.id], found = !!(inv.owned[w.id] && inv.found?.[w.id]), own = !!inv.owned[w.id] && !found, lvl = inv.lvl[w.id] || 0, st = wStat(w, lvl);

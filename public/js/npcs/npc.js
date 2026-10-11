@@ -85,8 +85,9 @@ const Npc = {
     if (this.alive || this.vehicle) return;
     const l = blastLaunch(this.x - x, this.z - z, R, Math.random, power); if (l) launch(this, l);
   },
-  hurt(dmg, dir, byPlayer, blood = 1) {
+  hurt(dmg, dir, byPlayer, blood = 1, source = 'player') {
     if (!this.alive) return;
+    if (byPlayer) emitEvent('npc:attacked', { npc: this, source });
     this.hp -= dmg;
     emit(this.x, 1.2, this.z, Math.round(6 * blood), '#c0142c', 3.5, 0.5, 0.09);
     const b = BEHAVIOURS[this.behaviour]; if (b.onHurt) b.onHurt(this, byPlayer);

@@ -1,6 +1,7 @@
 // Tiny event bus so systems can react to what happens in the game without importing each other.
 //
 // Events the game emits:
+//   npc:attacked      { npc, source }                   player or Pokémon damage; partners assist player attacks
 //   npc:killed        { npc, byPlayer, dir, vehicle }   vehicle: what the NPC was riding, if anything
 //   vehicle:wrecked   { vehicle, byPlayer }
 //   vehicle:burning   { vehicle, crash }                caught fire; crash: a collision did it, so it burns long (vehicles/firetruck.js)
