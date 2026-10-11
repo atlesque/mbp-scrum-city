@@ -4,12 +4,12 @@ Written from the commits on main by `scripts/changelog.mjs`; every change merged
 
 ## 2026-10-11
 
-- **v1.123** Halve the sniper rifle's recoil ([#118](https://github.com/atlesque/mbp-scrum-city/pull/118))
-- **v1.122** Smaller rocket splash radius (10 m → 6 m) ([#117](https://github.com/atlesque/mbp-scrum-city/pull/117))
-- **v1.121** Add blocky Pokemon encounters, companions, evolutions and Center ([#116](https://github.com/atlesque/mbp-scrum-city/pull/116))
-- **v1.120** Multiplayer crew: one wanted level, shared people and club, live map, no pausing ([#114](https://github.com/atlesque/mbp-scrum-city/pull/114))
-- **v1.119** Add courier driving jobs and repair-respray garages ([#115](https://github.com/atlesque/mbp-scrum-city/pull/115))
-- **v1.118** Exit to the title screen from the pause menu ([#113](https://github.com/atlesque/mbp-scrum-city/pull/113))
+- **v1.123** Keep respray regression checks fast and compare consecutive colors
+- **v1.122** Merge remote-tracking branch 'origin/main' into feat/pokemon-companions
+- **v1.121** Add Pokemon cries and interaction sounds
+- **v1.120** Merge remote-tracking branch 'origin/main' into feat/pokemon-companions
+- **v1.119** Fix Pokemon friendly fire, Pokedex scale and combat pursuit
+- **v1.118** Add blocky Pokemon encounters, companions, evolutions and Center
 - **v1.117** Opt-in multiplayer: share the city with up to 15 other players ([#111](https://github.com/atlesque/mbp-scrum-city/pull/111))
 - **v1.116** Club: the dancers wear sequinned bikinis ([#112](https://github.com/atlesque/mbp-scrum-city/pull/112))
 - **v1.115** Club: women in the Velvet Flamingo, and a private dance in the Pink Room ([#110](https://github.com/atlesque/mbp-scrum-city/pull/110))

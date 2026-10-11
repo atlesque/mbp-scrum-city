@@ -5,44 +5,44 @@
   {
    "v": "1.123",
    "date": "2026-10-11",
-   "sha": "d81584a",
-   "pr": 118,
-   "title": "Halve the sniper rifle's recoil"
+   "sha": "1bdd7de",
+   "pr": null,
+   "title": "Keep respray regression checks fast and compare consecutive colors"
   },
   {
    "v": "1.122",
    "date": "2026-10-11",
-   "sha": "d1494f8",
-   "pr": 117,
-   "title": "Smaller rocket splash radius (10 m → 6 m)"
+   "sha": "e9c4475",
+   "pr": null,
+   "title": "Merge remote-tracking branch 'origin/main' into feat/pokemon-companions"
   },
   {
    "v": "1.121",
    "date": "2026-10-11",
-   "sha": "b311258",
-   "pr": 116,
-   "title": "Add blocky Pokemon encounters, companions, evolutions and Center"
+   "sha": "ce52031",
+   "pr": null,
+   "title": "Add Pokemon cries and interaction sounds"
   },
   {
    "v": "1.120",
    "date": "2026-10-11",
-   "sha": "2b21378",
-   "pr": 114,
-   "title": "Multiplayer crew: one wanted level, shared people and club, live map, no pausing"
+   "sha": "9e0be78",
+   "pr": null,
+   "title": "Merge remote-tracking branch 'origin/main' into feat/pokemon-companions"
   },
   {
    "v": "1.119",
    "date": "2026-10-11",
-   "sha": "277b0c9",
-   "pr": 115,
-   "title": "Add courier driving jobs and repair-respray garages"
+   "sha": "7930e7d",
+   "pr": null,
+   "title": "Fix Pokemon friendly fire, Pokedex scale and combat pursuit"
   },
   {
    "v": "1.118",
    "date": "2026-10-11",
-   "sha": "34c6be2",
-   "pr": 113,
-   "title": "Exit to the title screen from the pause menu"
+   "sha": "541c0ff",
+   "pr": null,
+   "title": "Add blocky Pokemon encounters, companions, evolutions and Center"
   },
   {
    "v": "1.117",
