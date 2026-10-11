@@ -1,7 +1,14 @@
 {
- "version": "1.117",
+ "version": "1.118",
  "date": "2026-10-11",
  "entries": [
+  {
+   "v": "1.118",
+   "date": "2026-10-11",
+   "sha": "34c6be2",
+   "pr": 113,
+   "title": "Exit to the title screen from the pause menu"
+  },
   {
    "v": "1.117",
    "date": "2026-10-11",
