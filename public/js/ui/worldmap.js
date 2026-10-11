@@ -13,7 +13,7 @@ import { MAP, mapImage } from '../world/radar.js';
 import { clampView, openView, panBy, toScreen, toWorld, zoomAt } from '../world/mapview.js';
 
 // ================= WORLD MAP =================
-// The whole city on one screen, north up: the map key (Tab unless rebound) or the pause menu's Map button opens it.
+// The whole city on one screen, north up: the map key (M unless rebound) or the pause menu's Map button opens it.
 // Like a shop's menu, the city waits while it is open. Drag or use the movement keys to pan, scroll or +/- to zoom,
 // click to drop a waypoint (it shows on the radar until you get there), click it again or right click to clear it.
 // Every marker comes from the same blip(radar) trait the radar draws (entities/registry.js), so anything that

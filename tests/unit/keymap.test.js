@@ -25,10 +25,10 @@ describe('key map', () => {
   it('the AZERTY preset reads ZQSD, A for melee and M for the radio', () => {
     setSetting('layout', 'azerty');
     expect(settings.binds).toEqual(PRESETS.azerty);
-    expect(kbMove()).toBe('ZQSD'); expect(kb('melee')).toBe('A'); expect(kb('radio')).toBe('M');
-    expect(actionFor('Semicolon')).toBe('radio'); expect(actionFor('KeyM')).toBe(null);
+    expect(kbMove()).toBe('ZQSD'); expect(kb('melee')).toBe('A'); expect(kb('map')).toBe('M'); expect(kb('radio')).toBe('N');
+    expect(actionFor('Semicolon')).toBe('map'); expect(actionFor('KeyM')).toBe(null);
     setSetting('layout', 'qwerty');
-    expect(kbMove()).toBe('WASD'); expect(kb('radio')).toBe('M');
+    expect(kbMove()).toBe('WASD'); expect(kb('map')).toBe('M'); expect(kb('radio')).toBe('N');
   });
   it('rebinding swaps with whatever had the key, and is saved', () => {
     setSetting('binds', rebind(settings.binds, 'jump', 'KeyF'));

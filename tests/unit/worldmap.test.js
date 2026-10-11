@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MAP_BOUNDS, MAX_ZOOM_X, clampView, fitZoom, openView, panBy, reachedWaypoint, toScreen, toWorld, zoomAt } from '../../public/js/world/mapview.js';
-import { ACTIONS, PRESETS } from '../../public/js/core/keymap.js';
+import { ACTIONS, PRESETS, sanitizeBinds } from '../../public/js/core/keymap.js';
 
 const W = 1280, H = 720;
 const close = (a, b) => expect(Math.abs(a - b)).toBeLessThan(1e-6);
@@ -42,8 +42,15 @@ describe('world map view', () => {
     expect(reachedWaypoint({ x: 0, z: 0 }, 5, 5)).toBe(true);
     expect(reachedWaypoint({ x: 0, z: 0 }, 40, 0)).toBe(false);
   });
-  it('has a rebindable key, Tab on both layouts', () => {
+  it('has a rebindable key, the M on both layouts', () => {
     expect(ACTIONS.some(a => a.id === 'map')).toBe(true);
-    expect(PRESETS.qwerty.map).toBe('Tab'); expect(PRESETS.azerty.map).toBe('Tab');
+    expect(PRESETS.qwerty.map).toBe('KeyM'); expect(PRESETS.azerty.map).toBe('Semicolon'); expect(PRESETS.qwerty.radio).toBe('KeyN');
+  });
+  it('moves a saved radio off M so M opens the map, but keeps a radio the player put there', () => {
+    const old = { ...PRESETS.qwerty, radio: 'KeyM' }; delete old.map;
+    expect(sanitizeBinds(old, 'qwerty')).toMatchObject({ radio: 'KeyN', map: 'KeyM' });
+    const oldAz = { ...PRESETS.azerty, radio: 'Semicolon' }; delete oldAz.map;
+    expect(sanitizeBinds(oldAz, 'azerty')).toMatchObject({ radio: 'KeyN', map: 'Semicolon' });
+    expect(sanitizeBinds({ ...PRESETS.qwerty, radio: 'KeyM', map: 'KeyB' }, 'qwerty')).toMatchObject({ radio: 'KeyM', map: 'KeyB' });
   });
 });

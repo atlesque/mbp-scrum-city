@@ -857,8 +857,8 @@ try {
 
   await step('opens the world map, pans and zooms it, and drops a waypoint the radar follows', async () => {
     const view = () => game(async () => (await import('/js/ui/worldmap.js')).mapView());
-    await press('Tab');
-    check(await until(() => __neonbay.G.state === 'map'), 'Tab did not open the map');
+    await press('KeyM');
+    check(await until(() => __neonbay.G.state === 'map'), 'M did not open the map');
     check(await page.isVisible('#worldMap') && !(await page.isVisible('#hud')), 'the map is not showing in place of the HUD');
     const t0 = await game(() => __neonbay.G.time); await page.waitForTimeout(500);
     check(await game(t0 => __neonbay.G.time === t0, t0), 'the city kept running behind the map');
@@ -873,8 +873,8 @@ try {
     await page.mouse.click(mx + 80, my);
     const wp = await game(() => __neonbay.G.waypoint);
     check(wp && Math.abs(wp.x - (v2.cx + 80 / v2.zoom)) < 2 && Math.abs(wp.z - v2.cz) < 2, 'clicking did not drop the waypoint there: ' + JSON.stringify({ wp, v2 }));
-    await press('Tab');
-    check(await until(() => __neonbay.G.state === 'play'), 'Tab did not close the map');
+    await press('KeyM');
+    check(await until(() => __neonbay.G.state === 'play'), 'M did not close the map');
     check(await page.isVisible('#hud') && !(await page.isVisible('#worldMap')), 'the HUD did not come back');
     await page.waitForTimeout(300);
     check(await game(() => !!__neonbay.G.waypoint), 'the waypoint went before the player got there');
@@ -919,7 +919,7 @@ try {
     await page.click('#pauseSettingsBtn'); await page.click('#setTabs [data-tab="controls"]');
     await page.click('#setBody [data-set="layout"][data-val="azerty"]');
     check(await page.textContent('#setBody [data-bind="forward"]') === 'Z' && await page.textContent('#setBody [data-bind="melee"]') === 'A', 'the AZERTY preset does not show Z and A');
-    check(await page.textContent('#hint [data-kb="radio"]') === 'M' && await page.textContent('.controls [data-kb="move"]') === 'ZQSD', 'the on-screen hints did not follow the preset');
+    check(await page.textContent('#hint [data-kb="map"]') === 'M' && await page.textContent('.controls [data-kb="move"]') === 'ZQSD', 'the on-screen hints did not follow the preset');
     await page.click('#setBody [data-bind="pause"]');
     await page.keyboard.press('KeyO');
     check(await page.textContent('#setBody [data-bind="pause"]') === 'O', 'pause was not rebound to O');
