@@ -18,7 +18,8 @@ import { cycleHeliGun, flyingHeli, HELI_GUN_ORDER, pickHeliGun, reloadHeliGun } 
 import { closeWheel, openWheel, wheelMove, wheelOpen, wheelScroll } from '../ui/wheel.js';
 import { closeMap, mapKey, openMap } from '../ui/worldmap.js';
 import { toggleSiren } from '../vehicles/vehicle.js';
-import { SPAWN } from '../world/city.js';
+import { spawnSpot } from '../game/crew.js';
+import { SPAWN, shopSpots } from '../world/city.js';
 
 export function requestLock(fromClick) {
   I.lockFromClick = !!fromClick;
@@ -92,7 +93,7 @@ function resumeGame(fromClick) { if (G.state !== 'paused') return; $('pause').hi
 $('resumeBtn').addEventListener('click', () => resumeGame(true));
 $('playBtn').addEventListener('click', () => {
   Sound.init(); Sound.dim(false); $('title').hidden = true; $('hud').hidden = false; G.state = 'play';
-  P.x = SPAWN.x; P.z = SPAWN.z; P.yaw = cam.yaw = SPAWN.yaw; cam.pitch = -0.08;
+  const at = spawnSpot(SPAWN, shopSpots); P.x = at.x; P.z = at.z; P.yaw = cam.yaw = at.yaw; cam.pitch = -0.08;
   for (const n of all('npc')) if (!n.vehicle && Math.hypot(n.x - P.x, n.z - P.z) < 6) removeEntity(n);
   requestLock(true); drawWeaponIcon(); G.hudCache = '';
   setTimeout(() => showRadio('Neon FM 86.0'), 600);

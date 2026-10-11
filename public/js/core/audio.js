@@ -1,3 +1,5 @@
+import { EVENT_LOOPS } from '../data/world-event-sounds.js';
+import { pokemonNotes } from '../data/pokemon-sounds.js';
 import { ALL_AMB_FILES, AMB } from '../data/ambience.js';
 import { ALL_IMPACT_FILES, IMPACTS, impactFiles } from '../data/impacts.js';
 import { LEAD, musicLayers } from '../data/music.js';
@@ -100,6 +102,7 @@ export const Sound = (() => {
   // A voice whose source drops out fades and is freed. Each voice estimates how fast its source closes on the
   // listener for a touch of Doppler.
   const LOOPS = {
+    disaster: { max: 1, prof: { ref: 45, max: 420 }, make: makeDisaster },
     siren: { max: 3, prof: HEAR.siren, make: makeSiren },
     rotor: { max: 2, prof: HEAR.rotor, make: makeRotor },
     tank: { max: 1, prof: HEAR.tank, make: makeTank },
@@ -135,7 +138,52 @@ export const Sound = (() => {
     for (const [key, v] of map) if (!keep.has(key)) drop(map, key, v, t);
   }
   function drop(map, key, v, t) { map.delete(key); v.gain.gain.setTargetAtTime(0, t, 0.15); setTimeout(() => { v.stop(); v.pan.disconnect(); }, 1500); }
-  // a wailing saw; each car's is a little off from the others so two sirens don't merge into one
+  // Moving disaster voices share the existing distance, Doppler, pause and cleanup rules.
+  function makeDisaster(s) {
+    const [hz, wind, rate, depth] = EVENT_LOOPS[s.id];
+    const mix = ctx.createGain(), osc = ctx.createOscillator(), trem = ctx.createGain();
+    osc.type = s.id === 'ufo' ? 'sine' : 'sawtooth'; osc.frequency.value = hz;
+    const low = ctx.createBiquadFilter(); low.type = 'lowpass'; low.frequency.value = 350;
+    trem.gain.value = .16; osc.connect(low); low.connect(trem); trem.connect(mix);
+    const n = ctx.createBufferSource(); n.buffer = noise; n.loop = true;
+    const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = wind; f.Q.value = .6;
+    const ng = ctx.createGain(); ng.gain.value = s.id === 'ufo' ? .12 : .6;
+    n.connect(f); f.connect(ng); ng.connect(mix);
+    const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = rate; lg.gain.value = depth;
+    lfo.connect(lg); lg.connect(osc.frequency);
+    const t = ctx.currentTime; osc.start(t); n.start(t); lfo.start(t);
+    return { out: mix, set(s, k, t) {
+      osc.frequency.setTargetAtTime(hz * k * (1 + (s.charge || 0) * 5), t, .15);
+      f.frequency.setTargetAtTime(wind * (1 + (s.charge || 0) * 3), t, .15);
+    }, stop() { osc.stop(); n.stop(); lfo.stop(); mix.disconnect(); } };
+  }
+  // Short attack cues layer over the moving environmental voice; no external sound files required.
+  function disasterCue(id, at) {
+    if (!ctx) return;
+    const o = out(.75, at, { ref: 45, max: 420 }, false); if (!o) return;
+    const t = ctx.currentTime;
+    if (id === 'roar') {
+      tone(o, t, 'sawtooth', 145, 32, 2.5, .6, .2);
+      tone(o, t, 'square', 78, 28, 2.2, .22, .1);
+      nz(o, t, 2.5, 'bandpass', 270, 1.2, .65);
+    } else if (id === 'charge' || id === 'beam') {
+      const charge = id === 'charge';
+      tone(o, t, 'sawtooth', charge ? 100 : 700, charge ? 1600 : 180, 2.9, .35, .15);
+      tone(o, t, 'sine', charge ? 160 : 110, charge ? 2200 : 40, 2.9, .3, .1);
+      nz(o, t, 2.9, charge ? 'bandpass' : 'lowpass', charge ? 1500 : 3200, .6, charge ? .2 : .9);
+    } else if (id === 'meteor') {
+      tone(o, t, 'sine', 1900, 140, 2.8, .25, .4);
+      const f = nz(o, t, 2.8, 'bandpass', 3500, 2, .4);
+      f.frequency.exponentialRampToValueAtTime(200, t + 2.8);
+    } else if (id === 'abduct') {
+      for (let i = 0; i < 5; i++) tone(o, t + i * .16, 'sine', 240 + i * 150, 1200 + i * 180, .65, .3, .08);
+    } else if (id === 'eruption') {
+      tone(o, t, 'sine', 70, 22, 2, .7, .05); nz(o, t, 2, 'lowpass', 550, .8, .9);
+    } else if (id === 'warning') {
+      for (let i = 0; i < 3; i++) tone(o, t + i * .35, 'triangle', 660, 880, .24, .25, .02);
+    }
+  }
+  // A wailing saw; each car is a little off from the others so two sirens do not merge.
   function makeSiren() {
     const base = 860 + Math.random() * 80;
     const so = ctx.createOscillator(); so.type = 'sawtooth'; so.frequency.value = base;
@@ -450,6 +498,14 @@ export const Sound = (() => {
     boom(vol = 1, at = null) { if (!ctx) return; duck(at); const t = ctx.currentTime, o = out(vol, at, HEAR.boom, true); if (!o) return; nz(o, t, 1.6, 'lowpass', 900, 0.6, 1.4, 0.6); tone(o, t, 'sine', 90, 30, 0.9, 1.2); nz(o, t, 0.3, 'bandpass', 2400, 1, 0.5); },
     // the scope's zoom click; deeper on the way back out
     zoom(level) { if (!ctx) return; tone(out(0.3), ctx.currentTime, 'square', level ? 2400 + level * 400 : 1500, 1100, 0.035, 0.35); },
+    // Pokémon cues share the effects mix, menu fade and positional falloff.
+    pokemon(cue, def, at = null) {
+      if (!ctx) return;
+      const notes = pokemonNotes(cue, def); if (!notes.length) return;
+      const o = out(0.32, at, HEAR.voice, false); if (!o) return;
+      const t = ctx.currentTime;
+      for (const n of notes) tone(o, t + n.at, n.type, n.hz, n.end, n.duration, 0.35);
+    },
     hit() { if (!ctx) return; tone(out(0.35), ctx.currentTime, 'square', 1700, 1200, 0.05, 0.4); },
     head() { if (!ctx) return; const t = ctx.currentTime, o = out(0.4); tone(o, t, 'square', 2100, 1500, 0.05, 0.4); tone(o, t + 0.05, 'square', 2600, 1900, 0.06, 0.35); },
     ting(vol, at) { if (!ctx) return; const o = out(vol * 0.25, at, HEAR.ting, false); if (o) tone(o, ctx.currentTime, 'triangle', 3200 + Math.random() * 800, 2400, 0.12, 0.5); },
@@ -537,7 +593,7 @@ export const Sound = (() => {
     indoors() { radioK = 0; if (ctx) musLvl.gain.setTargetAtTime(musicLevel(), ctx.currentTime, 0.4); },
     get radio() { return radioK; },
     // the sirens, rotors, passing engines and electric cars out in the world this frame (see loops above)
-    loops,
+    loops, disasterCue,
     // silence every looping sound at once: pausing, a shop menu, death
     hush() {
       if (!ctx) return; const t = ctx.currentTime;

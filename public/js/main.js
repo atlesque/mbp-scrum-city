@@ -17,6 +17,7 @@ import { all, count, entities, removeEntity } from './entities/registry.js';
 import { updateAmbience } from './game/ambience.js';
 import { clubScene, spawnClubDoor, updateClub } from './game/club.js';
 import { spawnCityServices, updateCityServicesHUD } from './game/city-services.js';
+import { worldEvents, startWorldEvent, stopWorldEvent, updateWorldEvents } from './game/world-events.js';
 import { countPlayTime } from './game/hint.js';
 import { makeJetpackPickup } from './game/jetpack.js';
 import { makeParachutePickup } from './game/parachute.js';
@@ -38,6 +39,7 @@ import { connected } from './net/net.js';
 import { updateEngineSound } from './vehicles/engine.js';
 import './vehicles/firetruck.js'; // sends the fire brigade to crash fires
 import { spawnTrafficBike, spawnTrafficCar } from './vehicles/traffic.js';
+import { PARKED_CARS } from './vehicles/models/index.js';
 import { spawnVehicle } from './vehicles/vehicle.js';
 import { loadLandmarkModels } from './world/landmarks.js';
 import { updateProps } from './world/props.js';
@@ -61,6 +63,7 @@ function frame(now) {
   // in multiplayer the city never stops: the pause menu, the map and a shop open over it, and the wheel doesn't slow it
   const away = G.away = connected() && (G.state === 'paused' || G.state === 'map' || G.state === 'shop');
   const dt = wheelOpen() && !connected() ? real * WHEEL_SLOW : real;
+  updateWorldEvents(dt);
   const live = G.state === 'play' || G.state === 'dead' || G.state === 'title' || away;
   if (P.club && (G.state === 'play' || away)) {
     // inside the club (game/club.js) the city waits outside, as it does while a shop's menu is open; the rest of the crew
@@ -150,7 +153,7 @@ async function start(data) {
   for (const r of ROOFS) if (r.gunAt) makeRoofGun(r.gun, r.gunAt.x, r.floor, r.gunAt.z, got => { selectWeapon(got); save(); });
   for (const r of ROOFS) if (r.jetpackAt) makeJetpackPickup(r.jetpackAt.x, r.floor, r.jetpackAt.z);
   for (const r of ROOFS) if (r.chuteAt) makeParachutePickup(r.chuteAt.x, r.floor, r.chuteAt.z);
-  lotSpots.forEach((s, i) => { spawnVehicle(i % 3 ? 'sedan' : 'modely', s.x, s.z, s.yaw).home = true; });
+  lotSpots.forEach((s, i) => { spawnVehicle(PARKED_CARS[i % PARKED_CARS.length], s.x, s.z, s.yaw).home = true; });
   P.x = 230; P.z = -40;
   for (let i = 0; i < 26; i++) spawnTrafficCar(false);
   for (let i = 0; i < 4; i++) spawnTrafficBike();
@@ -169,7 +172,7 @@ async function start(data) {
 }
 try { window.claude && window.claude.hot && window.claude.hot.snapshot && window.claude.hot.snapshot(() => ({ inv: serialize(inv, stats), cur: inv.cur })); } catch (e) {}
 // ?debug exposes the game state to the console and to the smoke test
-if (/[?&]debug\b/.test(location.search)) window.__neonbay = { G, I, P, Sound, hurtPlayer, cam, inv, stats, entities, all, removeEntity, spawnVehicle, spawnNpc, spawnShop, lighting, ROOFS, CLUB };
+if (/[?&]debug\b/.test(location.search)) window.__neonbay = { worldEvents, startWorldEvent, stopWorldEvent, G, I, P, Sound, hurtPlayer, cam, inv, stats, entities, all, removeEntity, spawnVehicle, spawnNpc, spawnShop, lighting, ROOFS, CLUB };
 requestAnimationFrame(frame);
 const hot = window.claude && window.claude.hot;
 if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});

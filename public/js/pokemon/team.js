@@ -5,9 +5,20 @@ const FAMILIES = {
   charmander: { name: 'Charmander', color: '#f39346', accent: '#ffe2a0', move: 'Ember', effect: '#ff843e', damage: 23, speed: 6.5, catchRate: 0.75 },
   squirtle: { name: 'Squirtle', color: '#6dcbed', accent: '#aa7345', move: 'Water Gun', effect: '#68ddff', damage: 20, speed: 6.5, catchRate: 0.8 },
 };
+// Pokédex heights in meters (PokéAPI height / 10); one world unit is one meter.
+// Source: https://github.com/PokeAPI/pokeapi/blob/master/data/v2/csv/pokemon.csv
+const HEIGHTS = {
+  caterpie: 0.3, metapod: 0.7, butterfree: 1.1, weedle: 0.3, kakuna: 0.6,
+  beedrill: 1, oddish: 0.5, gloom: 0.8, vileplume: 1.2, psyduck: 0.8,
+  golduck: 1.7, sandshrew: 0.6, sandslash: 1, diglett: 0.2, dugtrio: 0.7,
+  magnemite: 0.3, magneton: 1, pikachu: 0.4, raichu: 0.8, bulbasaur: 0.7,
+  ivysaur: 1, venusaur: 2, charmander: 0.6, charmeleon: 1.1, charizard: 1.7,
+  squirtle: 0.5, wartortle: 1, blastoise: 1.6, pidgey: 0.3, pidgeotto: 1.1,
+  pidgeot: 1.5, rattata: 0.3, raticate: 0.7, zubat: 0.8, golbat: 1.6,
+};
 function form(name, family, stage = 1, extra = {}) {
   const base = FAMILIES[family];
-  return { ...base, name, family, stage, damage: base.damage + (stage - 1) * 8,
+  return { ...base, name, family, stage, height: HEIGHTS[name.toLowerCase()], attackRange: ['Bug Bite', 'Quick Attack', 'Dig'].includes(base.move) ? 3 : 8, damage: base.damage + (stage - 1) * 8,
     catchRate: Math.max(0.3, base.catchRate - (stage - 1) * 0.15),
     minLevel: stage === 1 ? 1 : stage === 2 ? 16 : 36,
     maxLevel: stage === 1 ? 12 : stage === 2 ? 28 : 46,
@@ -26,7 +37,7 @@ FAMILIES.magnemite = { color: '#a9bdcc', accent: '#657384', move: 'Spark', effec
 export const SPECIES = {
   caterpie: form('Caterpie', 'caterpie', 1, { evolvesTo: 'metapod', evolveLevel: 7, maxLevel: 6 }),
   metapod: form('Metapod', 'caterpie', 2, { color: '#69ad56', evolvesTo: 'butterfree', evolveLevel: 10, minLevel: 7, maxLevel: 9 }),
-  butterfree: form('Butterfree', 'caterpie', 3, { color: '#a69ac5', accent: '#e9e4ee', minLevel: 10, maxLevel: 30, move: 'Gust' }),
+  butterfree: form('Butterfree', 'caterpie', 3, { color: '#a69ac5', accent: '#e9e4ee', minLevel: 10, maxLevel: 30, move: 'Gust', attackRange: 8 }),
   weedle: form('Weedle', 'weedle', 1, { evolvesTo: 'kakuna', evolveLevel: 7, maxLevel: 6 }),
   kakuna: form('Kakuna', 'weedle', 2, { color: '#edca4a', evolvesTo: 'beedrill', evolveLevel: 10, minLevel: 7, maxLevel: 9 }),
   beedrill: form('Beedrill', 'weedle', 3, { color: '#edc746', minLevel: 10, maxLevel: 30, move: 'Twineedle' }),

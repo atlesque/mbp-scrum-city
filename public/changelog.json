@@ -1,48 +1,55 @@
 {
- "version": "1.123",
+ "version": "1.124",
  "date": "2026-10-11",
  "entries": [
   {
+   "v": "1.124",
+   "date": "2026-10-11",
+   "sha": "6e25f95",
+   "pr": 120,
+   "title": "Multiplayer: no frozen people, a safe spawn, and a shared five-star clock"
+  },
+  {
    "v": "1.123",
    "date": "2026-10-11",
-   "sha": "d81584a",
-   "pr": 118,
-   "title": "Halve the sniper rifle's recoil"
+   "sha": "894591c",
+   "pr": null,
+   "title": "Let aiming and shooting pass through Pokemon"
   },
   {
    "v": "1.122",
    "date": "2026-10-11",
-   "sha": "d1494f8",
-   "pr": 117,
-   "title": "Smaller rocket splash radius (10 m → 6 m)"
+   "sha": "dae63d2",
+   "pr": null,
+   "title": "Merge remote-tracking branch 'upstream/main' into feat/random-world-events"
   },
   {
    "v": "1.121",
    "date": "2026-10-11",
-   "sha": "b311258",
-   "pr": 116,
-   "title": "Add blocky Pokemon encounters, companions, evolutions and Center"
+   "sha": "de046db",
+   "pr": null,
+   "title": "Integrate disasters and club cars with latest main"
   },
   {
    "v": "1.120",
    "date": "2026-10-11",
-   "sha": "2b21378",
-   "pr": 114,
-   "title": "Multiplayer crew: one wanted level, shared people and club, live map, no pausing"
+   "sha": "3a9cf3c",
+   "pr": null,
+   "title": "Add random world disasters, atomic breath and spatial sounds"
   },
   {
    "v": "1.119",
    "date": "2026-10-11",
-   "sha": "277b0c9",
-   "pr": 115,
-   "title": "Add courier driving jobs and repair-respray garages"
+   "sha": "121b649",
+   "pr": null,
+   "title": "Add club stage tipping, DJ requests and four retro cars"
   },
   {
    "v": "1.118",
    "date": "2026-10-11",
-   "sha": "34c6be2",
-   "pr": 113,
-   "title": "Exit to the title screen from the pause menu"
+   "sha": "edab7d4",
+   "pr": null,
+   "title": "Add courier driving jobs and repair-respray garages"
   },
   {
    "v": "1.117",

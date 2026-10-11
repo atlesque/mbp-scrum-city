@@ -65,7 +65,7 @@ export function makePokemon(species) {
         for (const side of [-1, 1]) b(side * 0.3, 1.78, 0, 0.2, 0.3, 0.2);
       }
     }
-    return meshFor(g, def.stage);
+    return meshFor(g, def);
   }
   if (family === 'pidgey' || family === 'zubat') {
     if (family === 'pidgey') {
@@ -90,7 +90,7 @@ export function makePokemon(species) {
       b(0, 1.08, 0.24, 0.4, def.stage === 2 ? 0.58 : 0.35, 0.04, '#342334');
       for (const side of [-1, 1]) b(side * 0.12, def.stage === 2 ? 1.27 : 1.18, 0.28, 0.08, 0.17, 0.05, '#fff4de');
     }
-    return meshFor(g, def.stage);
+    return meshFor(g, def);
   }
   const quad = family === 'bulbasaur' || family === 'rattata';
   b(0, 0.64, 0, 0.7, quad ? 0.55 : 0.85, quad ? 0.95 : 0.55);
@@ -155,12 +155,16 @@ export function makePokemon(species) {
     }
     b(0, 0.24, -0.64, 0.3, 0.3, 0.35); b(0, 0.43, -0.76, 0.22, 0.2, 0.2);
   }
-  return meshFor(g, def.stage);
+  return meshFor(g, def);
 }
-function meshFor(g, stage) {
-  const mesh = new THREE.Mesh(g.geometry(), new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
+function meshFor(g, def) {
+  const geometry = g.geometry(); geometry.computeBoundingBox();
+  const bounds = geometry.boundingBox, factor = def.height / (bounds.max.y - bounds.min.y);
+  const hover = ['zubat', 'magnemite'].includes(def.family) || (['caterpie', 'weedle'].includes(def.family) && def.stage === 3) ? 0.45 : 0;
+  geometry.translate(0, -bounds.min.y, 0); geometry.scale(factor, factor, factor); geometry.translate(0, hover, 0); geometry.computeBoundingBox();
+  const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
   mesh.castShadow = true; mesh.receiveShadow = true;
-  const root = new THREE.Group(); root.add(mesh); root.scale.setScalar(1 + (stage - 1) * 0.18); return root;
+  const root = new THREE.Group(); root.add(mesh); return root;
 }
 export function makeBall() {
   const g = new GB();

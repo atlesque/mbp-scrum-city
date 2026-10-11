@@ -93,15 +93,26 @@ describe('service integration boundaries', () => {
     for (const id of ['sedan', 'modely', 'modelyblue', 'eqa', 'bmw5']) {
       const v = car(id), original = v.mesh.m.geometry, source = original.attributes.color;
       const first = [source.getX(0), source.getY(0), source.getZ(0)];
-      let painted = 0;
-      repaintCar(v); repaintCar(v);
-      const changed = v.mesh.m.geometry.attributes.color;
-      for (let i = 0; i < source.count; i++) {
-        const isPaint = Math.abs(source.getX(i) - first[0]) + Math.abs(source.getY(i) - first[1]) + Math.abs(source.getZ(i) - first[2]) < 0.001;
-        if (isPaint) { painted++; expect(changed.getX(i), id).not.toBe(source.getX(i)); }
-        else expect([changed.getX(i), changed.getY(i), changed.getZ(i)], id).toEqual([source.getX(i), source.getY(i), source.getZ(i)]);
+      const sourceColors = source.array.slice();
+      // A second repaint may legitimately cycle back to the original body color.
+      // Check every vertex against the immediately preceding paint, preserving trim.
+      for (let pass = 0; pass < 2; pass++) {
+        const before = v.mesh.m.geometry.attributes.color.array.slice();
+        repaintCar(v);
+        const changed = v.mesh.m.geometry.attributes.color;
+        let painted = 0; const unchangedBody = [], changedTrim = [];
+        for (let i = 0; i < source.count; i++) {
+          const isPaint = Math.abs(source.getX(i) - first[0]) + Math.abs(source.getY(i) - first[1]) + Math.abs(source.getZ(i) - first[2]) < 0.001;
+          if (isPaint) {
+            painted++;
+            if ([changed.getX(i), changed.getY(i), changed.getZ(i)].every((v, c) => v === before[i * 3 + c])) unchangedBody.push(i);
+          } else if ([changed.getX(i), changed.getY(i), changed.getZ(i)].some((v, c) => v !== sourceColors[i * 3 + c])) changedTrim.push(i);
+        }
+        expect(unchangedBody, id).toEqual([]);
+        expect(changedTrim, id).toEqual([]);
+        expect(painted, id).toBeGreaterThan(source.count / 10);
+        expect(source.array.every((v, i) => v === sourceColors[i]), id).toBe(true);
       }
-      expect(painted, id).toBeGreaterThan(source.count / 10);
       expect(v.mesh.m.geometry).not.toBe(original);
     }
   });
