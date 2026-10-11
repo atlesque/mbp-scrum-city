@@ -3,6 +3,7 @@ import './core/input.js';
 import './shops/shop.js';
 import './game/rewards.js';
 import './ui/settings.js';
+import './ui/exit.js';
 import { makeCharacter, setGun } from './characters/character.js';
 import { selectWeapon, updateRockets } from './combat/combat.js';
 import { updateThrown } from './combat/throwables.js';
@@ -15,6 +16,7 @@ import { WBY, WEAPONS, wStat } from './data/weapons.js';
 import { all, count, entities, removeEntity } from './entities/registry.js';
 import { updateAmbience } from './game/ambience.js';
 import { clubScene, spawnClubDoor, updateClub } from './game/club.js';
+import { spawnCityServices, updateCityServicesHUD } from './game/city-services.js';
 import { countPlayTime } from './game/hint.js';
 import { makeJetpackPickup } from './game/jetpack.js';
 import { makeParachutePickup } from './game/parachute.js';
@@ -32,6 +34,7 @@ import { finishSignIn, initAccount, playLabel } from './ui/account.js';
 import { updateHUD } from './ui/hud.js';
 import { initMultiplayer } from './ui/multiplayer.js';
 import { WHEEL_SLOW, closeWheel, wheelOpen } from './ui/wheel.js';
+import { connected } from './net/net.js';
 import { updateEngineSound } from './vehicles/engine.js';
 import './vehicles/firetruck.js'; // sends the fire brigade to crash fires
 import { spawnTrafficBike, spawnTrafficCar } from './vehicles/traffic.js';
@@ -55,14 +58,18 @@ function frame(now) {
   if (G.state === 'loading') return;
   // the world slows down while the weapon wheel is open; the camera and the HUD timers keep real time
   if (wheelOpen() && G.state !== 'play') closeWheel(false);
-  const dt = wheelOpen() ? real * WHEEL_SLOW : real;
-  const live = G.state === 'play' || G.state === 'dead' || G.state === 'title';
-  if (P.club && G.state === 'play') {
-    // inside the club (game/club.js) the city waits outside, as it does while a shop's menu is open
+  // in multiplayer the city never stops: the pause menu, the map and a shop open over it, and the wheel doesn't slow it
+  const away = G.away = connected() && (G.state === 'paused' || G.state === 'map' || G.state === 'shop');
+  const dt = wheelOpen() && !connected() ? real * WHEEL_SLOW : real;
+  const live = G.state === 'play' || G.state === 'dead' || G.state === 'title' || away;
+  if (P.club && (G.state === 'play' || away)) {
+    // inside the club (game/club.js) the city waits outside, as it does while a shop's menu is open; the rest of the crew
+    // on the floor are in there too (net/remote.js)
     updatePlayer(dt); countPlayTime(dt); Sound.listen(); updateClub(dt);
+    for (const e of all('remote')) e.update(dt);
   } else if (live) {
     G.time += dt;
-    if (G.state === 'play') { updatePlayer(dt); countPlayTime(dt); }
+    if (G.state === 'play' || away) { updatePlayer(dt); countPlayTime(dt); }
     else if (G.state === 'dead') { updatePlayer(dt); G.deadT += dt; if (G.deadT > 3.6) respawn(); }
     Sound.listen(); // the ears follow the player and the camera before this frame's sounds play
     G.shootersNow = count(e => e.kind === 'npc' && e.alive && e.burst > 0);
@@ -89,7 +96,7 @@ function frame(now) {
     P.x = camera.position.x - 30; P.z = camera.position.z;
   } else if (G.state !== 'loading') {
     updateCamera(real);
-    updateHUD(); drawRadar();
+    updateHUD(); drawRadar(); updateCityServicesHUD();
   }
   if (G.toastT > 0) { G.toastT -= real; if (G.toastT <= 0) $('toast').classList.remove('show'); }
   if (G.bigT > 0) { G.bigT -= real; if (G.bigT <= 0) $('bigText').classList.remove('show'); }
@@ -124,7 +131,7 @@ async function start(data) {
   try { await Promise.race([Promise.all([document.fonts.load('80px "Yellowtail"'), document.fonts.load('80px "Bowlby One"')]), new Promise(r => setTimeout(r, 2500))]); } catch (e) {}
   await loadLandmarkModels();
   await loadStep(0.5, 'Pouring Ocean Drive');
-  buildWorld(); buildLighting();
+  buildWorld(); buildLighting(); spawnCityServices();
   await loadStep(0.7, 'Planting the palm trees');
   buildMap(); load(data);
   P.c = makeCharacter({ skin: '#eab48f', shirt: '#2fb8c9', pa: '#ff6fae', pb: '#f6f1e7', pants: '#f4f0e6', hair: '#3a2416', hairStyle: 'mullet', glasses: true, shoes: '#f6f1e7' });

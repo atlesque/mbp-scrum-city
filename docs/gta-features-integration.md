@@ -1,0 +1,35 @@
+# GTA city services: integration handoff
+
+Checkout: `/Users/bryan/Documents/Questoins/mbp-scrum-city-gta-features`
+Branch: `feat/gta-city-services`
+Committed starting point: `03d86b0237045b3b5381ff91abd9f8a07fe9ed4b` (v1.117).
+
+This is a local shared clone, with Git objects borrowed from the original checkout. Keep the original repository's object store available; do not delete or prune its required objects before integrating. `node_modules` reuses `/tmp/neonbay-pokemon-tools/node_modules`. No upstream push, deployment or merge is part of this work.
+
+## Selected gaps
+
+The committed game already has vehicle theft, traffic, five (and secret six) star escalation, drive-by weapons, aircraft, roof traversal, gun shops, a repair tool, a club, a map and multiplayer. Duplicating these would add little. The strongest bounded gaps were noncombat driving income and a classic paid repair/respray escape service. Taxi passenger AI, property ownership and story missions are deferred because they would substantially widen this change.
+
+Neon Express adds repeatable three-stop courier jobs, ordered stops, deadlines, cash rewards, damage and speed bonuses, a dedicated objective marker and status panel. Spray & Go adds a paid civilian-car repair/respray with pursuit, vehicle, affordability and cooldown gates. Both use existing lots, interaction bindings and entity radar/map hooks, and preserve the blocky neon city.
+
+## Combine after the Pokémon work is safely committed
+
+The original checkout and its uncommitted Pokémon work must remain untouched until its owner is ready. From that checkout, after committing Pokémon work and checking `git status` is clean:
+
+```sh
+git fetch /Users/bryan/Documents/Questoins/mbp-scrum-city-gta-features feat/gta-city-services
+git cherry-pick FETCH_HEAD
+```
+
+Review any conflicts rather than choosing one whole file. Both features add initialization to `public/js/main.js`: retain Pokémon imports/spawning/update hooks, and retain `spawnCityServices()` after `buildWorld()` and `updateCityServicesHUD()` alongside HUD/radar updates. Other GTA edits are the mounted `inVehicle` interaction opt-in, map labels/legend and respray geometry disposal. README changes are additive. This branch does not change inventory, save schema, Pokémon systems or core input bindings.
+
+New modules: `data/city-services.js`, `game/city-services.js`, `world/city-services.js`. New tests: `tests/unit/city-services.test.js`, `tests/city-services-smoke.mjs`.
+
+## Validation and integration checks
+
+Run `npm test` and `node tests/city-services-smoke.mjs`. Do not run software-WebGL smoke/screenshot suites concurrently with another chat. The bounded smoke uses the real F/E/M keyboard interactions, verifies courier completion and payout, and checks garage refusal, repair, heat clearing, payment, cooldown, driving out of the bay and exit. It places the player at destinations rather than testing road navigation AI. A full smoke run remains required by the repository before any eventual merge; after integration, run the combined suite including Pokémon checks.
+
+Manual tour: open the map and find gold D/cyan G; take an ordinary car to D, start a run, follow its separate gold objective marker, stop at the three rings, then drive into G. Check that manual waypoints and Pokémon encounters still work and that Pokémon Center placement avoids both service lots.
+
+
+Validation at handoff: `npm test` passed all 496 tests across 59 files. The bounded browser check passed with no page/console errors; screenshots of the courier HUD and garage were visually inspected. The full legacy smoke suite was not repeated in this clone to avoid competing with the Pokémon run; run the complete combined suite before any eventual merge.

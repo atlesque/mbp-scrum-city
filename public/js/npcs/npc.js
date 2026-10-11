@@ -11,7 +11,7 @@ import { collide, isFree, onRoad, raySphere } from '../world/collision.js';
 import { zoneDamage, zoneOnBody } from '../combat/hitzones.js';
 import { BEHAVIOURS } from './behaviours.js';
 import { airborne, blastLaunch, flyStep, launch, settleFlip } from './fling.js';
-import { NPC_TYPES, makeLook } from './types.js';
+import { NPC_TYPES, lookFrom } from './types.js';
 
 // A person in the world. Shared behaviour lives on this prototype; what they do each frame comes
 // from their behaviour (npcs/behaviours.js) and their numbers from their type (npcs/types.js).
@@ -117,8 +117,8 @@ const Npc = {
 
 export function spawnNpc(type, x, z) {
   const def = NPC_TYPES[type]; if (!def) throw new Error('unknown NPC type ' + type);
-  const c = makeCharacter(makeLook(def)); if (def.gun) setGun(c, def.gun);
-  const n = Object.assign(Object.create(Npc), { type, def, faction: def.faction, c, x, z, yaw: rnd(0, 6.28), hp: def.hp, alive: true, r: def.scale ? 0.5 : 0.38, moveSpeed: 0, deadT: 0, aiming: false, aimPitch: 0, twoHand: !!def.gun && def.gun !== 'pistol', panic: false, vehicle: null });
+  const seed = (Math.random() * 2 ** 31) | 0, c = makeCharacter(lookFrom(def, seed)); if (def.gun) setGun(c, def.gun);
+  const n = Object.assign(Object.create(Npc), { type, def, seed, faction: def.faction, c, x, z, yaw: rnd(0, 6.28), hp: def.hp, alive: true, r: def.scale ? 0.5 : 0.38, moveSpeed: 0, deadT: 0, aiming: false, aimPitch: 0, twoHand: !!def.gun && def.gun !== 'pistol', panic: false, vehicle: null });
   n.become(def.behaviour);
   c.root.position.set(x, 0, z); scene.add(c.root); addEntity(n); return n;
 }

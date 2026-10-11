@@ -1,7 +1,35 @@
 {
- "version": "1.117",
+ "version": "1.121",
  "date": "2026-10-11",
  "entries": [
+  {
+   "v": "1.121",
+   "date": "2026-10-11",
+   "sha": "b311258",
+   "pr": 116,
+   "title": "Add blocky Pokemon encounters, companions, evolutions and Center"
+  },
+  {
+   "v": "1.120",
+   "date": "2026-10-11",
+   "sha": "2b21378",
+   "pr": 114,
+   "title": "Multiplayer crew: one wanted level, shared people and club, live map, no pausing"
+  },
+  {
+   "v": "1.119",
+   "date": "2026-10-11",
+   "sha": "277b0c9",
+   "pr": 115,
+   "title": "Add courier driving jobs and repair-respray garages"
+  },
+  {
+   "v": "1.118",
+   "date": "2026-10-11",
+   "sha": "34c6be2",
+   "pr": 113,
+   "title": "Exit to the title screen from the pause menu"
+  },
   {
    "v": "1.117",
    "date": "2026-10-11",

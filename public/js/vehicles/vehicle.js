@@ -201,7 +201,7 @@ const Vehicle = {
   },
   dispose() {
     if (this.driver && this.driver !== P) removeEntity(this.driver);
-    scene.remove(this.mesh.grp); if (this.K.dispose) this.K.dispose(this);
+    scene.remove(this.mesh.grp); this.resprayGeometry?.dispose(); if (this.K.dispose) this.K.dispose(this);
   },
   // put an NPC on board; it rides along until ejected
   seatDriver(n) { this.driver = n; n.vehicle = this; n.become('ride'); this.K.seat(this, n.c); n.yaw = this.yaw; },

@@ -380,10 +380,13 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 
   <section id="pause" class="overlay" hidden>
     <div class="panel">
-      <h2>Paused</h2>
+      <h2 id="pauseTitle">Paused</h2>
+      <p id="pauseLive" class="small acct-warn" hidden>The city keeps going while this is open: you can still be hit.</p>
       <button id="resumeBtn" class="btn">Back to the streets</button>
       <button id="pauseMapBtn" class="sbtn cy menu-btn">Map</button>
       <button id="pauseSettingsBtn" class="sbtn cy menu-btn">Settings</button>
+      <button id="pauseExitBtn" class="sbtn menu-btn">Exit to title</button>
+      <div id="exitAsk" hidden><p class="small">Back to the title screen? Your progress is saved.</p><div class="menu-row"><button id="exitYes" class="sbtn menu-btn">Exit</button><button id="exitNo" class="sbtn cy menu-btn">Stay</button></div></div>
       <p class="small" id="pauseStats"></p>
       <p class="small" id="pauseAcct"></p>
       <p class="small" id="pauseMp"></p>
