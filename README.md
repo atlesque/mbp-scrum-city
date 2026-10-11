@@ -150,3 +150,11 @@ Deploys run automatically through the Cloudflare Pages GitHub integration (proje
 There is no build step. Pages serves the `public/` directory as is.
 
 Because file URLs never change, `public/_headers` sends `Cache-Control: no-cache` so browsers revalidate every file on each load and pick up a new deploy straight away (unchanged files come back as a small 304).
+
+### Version and changelog
+
+Every change merged into `main` is one version: the 112th is v1.112. After each push to `main` the Changelog workflow
+(`.github/workflows/changelog.yml`) runs `scripts/changelog.mjs`, which reads main's history (the PR title from each merge
+or squash commit) and writes `public/changelog.json` and `CHANGELOG.md`, then commits them back as `Changelog: v1.N`.
+That commit deploys like any other. The title screen and the settings footer show the version in small text, and the
+settings "What's new" tab lists the changes. Don't edit either file by hand; `npm run changelog` rebuilds them locally.

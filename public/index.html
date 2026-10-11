@@ -234,6 +234,14 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 .settings-foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
 .settings-foot .sbtn{flex:0 0 auto}
 #setBack{margin-left:auto}
+.version{margin:0;font-size:11px;letter-spacing:.04em;color:var(--dim);opacity:.8}
+.version .linkbtn{font-size:11px}
+.changelog h3{margin:12px 0 4px;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--pink)}
+.changelog h3:first-child{margin-top:0}
+.changelog{max-height:52vh;overflow:auto;padding-right:6px}
+.changelog ul{margin:0;padding-left:18px;font-size:14px;line-height:1.45}
+.changelog .cl-v{font-family:var(--f-hud);font-size:12px;color:var(--cyan)}
+.changelog a{color:var(--dim);font-size:12px}
 
 /* Shop */
 #shop{background:rgba(23,12,40,.7)}
@@ -352,6 +360,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
       <button id="playBtn" class="btn" disabled>Loading the city…</button>
       <div class="menu-row"><button id="signInBtn" class="sbtn cy menu-btn" hidden>Sign in or create account</button><button id="titleSettingsBtn" class="sbtn cy menu-btn">Settings</button></div>
       <div id="acctBox" class="acct-box" aria-live="polite"></div>
+      <p class="version" id="titleVersion"></p>
     </div>
   </section>
 
@@ -380,6 +389,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
       <div id="setBody"></div>
       <div class="settings-foot">
         <button id="setReset" class="sbtn">Reset to defaults</button>
+        <span class="version" id="setVersion"></span>
         <button id="setBack" class="btn">Back (Esc)</button>
       </div>
     </div>
