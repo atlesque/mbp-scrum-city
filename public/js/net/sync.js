@@ -4,6 +4,7 @@ import { G, P, cam } from '../core/state.js';
 import { angDiff, clamp } from '../core/util.js';
 import { all } from '../entities/registry.js';
 import { crew } from '../game/crew.js';
+import { LAYOUT } from '../game/club.js';
 import { hurtPlayer } from '../game/player.js';
 import { HEAT } from '../data/wanted.js';
 import { addHeat, setWanted } from '../game/wanted.js';
@@ -36,7 +37,8 @@ function tick() {
   G.crewSeen = allRemotes().some(r => r.seenUntil > now);
   shareHeat();
   const v = P.vehicle, aimYaw = v && P.aiming ? clamp(angDiff(v.yaw, cam.yaw), -2.4, 2.4) : null;
-  const s = packState(P, inWorld(), aimYaw);
+  // on the club's floor they're seen by the others in there; in the Pink Room by nobody
+  const s = P.club === LAYOUT ? { ...packState(P, true), w: 2 } : packState(P, inWorld(), aimYaw);
   s.wl = G.wanted; s.sn = performance.now() - (G.seenAt || 0) < 700 ? 1 : 0;
   if (due(s, last, now - lastAt)) { send(s); last = s; lastAt = now; }
   if (now - npcAt >= NPC_EVERY) { npcAt = now; shareNpcs(); }
@@ -59,7 +61,7 @@ function take(l, h) { setWanted(l, h ?? Math.max(G.heat, HEAT[Math.min(l, 5)] ||
 // the people this game runs, near anyone else in the crew
 function shareNpcs() {
   if (!inWorld()) return;
-  const others = allRemotes().filter(r => r.c.root.visible); if (!others.length) return;
+  const others = allRemotes().filter(r => r.where === 1); if (!others.length) return;
   const near = all('npc').filter(n => !n.vehicle && others.some(r => Math.hypot(n.x - r.x, n.z - r.z) < NPC_SHARE_R));
   for (const n of near) if (!n.nid) n.nid = ++nid;
   for (const part of chunks(near.map(packNpc), NPC_CHUNK)) send({ t: 'npcs', n: part });
@@ -75,7 +77,7 @@ on('npc:shot', ({ npc, from, end }) => {
   if (!connected() || !npc.nid) return;
   send({ t: 'nshot', i: npc.nid, w: npc.def.gun, f: [r2(from.x), r2(from.y), r2(from.z)], h: [[r2(end.x), r2(end.y), r2(end.z)]] });
 });
-crew.others = () => connected() ? allRemotes().filter(r => r.alive && r.c.root.visible) : [];
+crew.others = () => connected() ? allRemotes().filter(r => r.alive && r.where === 1 && r.c.root.visible) : [];
 crew.hit = (r, d, zone) => send({ t: 'hit', to: r.id, d: Math.round(d * 10) / 10, z: zone });
 on('player:died', () => {
   if (!connected()) return;

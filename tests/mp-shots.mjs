@@ -1,6 +1,7 @@
 // Plays multiplayer for real: two browsers join the shared city on a local copy of the MBP Games service
 // (github.com/atlesque/mbp-games, checked out next to this repo or at MBP_GAMES_DIR, run with wrangler dev), see each
-// other and each other's people, share one wanted level, get hunted by the same cops and show on each other's map.
+// other and each other's people, share one wanted level, get hunted by the same cops, show on each other's map and
+// meet in the club.
 // Screenshots go to the folder given.
 // Run with `node tests/mp-shots.mjs <folder>`. Set CHROMIUM_PATH to use a specific browser binary.
 import { spawn } from 'node:child_process';
@@ -110,10 +111,23 @@ try {
   step('Alex\'s map'); await shot(a, '6-alex-map');
   await a.keyboard.press('KeyM');
 
+  // the club is shared: both go in and see each other on the floor, but the Pink Room is Bo's alone
+  const inClub = async page => page.evaluate(async () => { const { G } = window.__neonbay; G.wanted = 0; G.heat = 0; (await import('/js/game/club.js')).enterClub(); });
+  await b.evaluate(() => { const { P } = window.__neonbay; P.x -= 30; }); // (back by Alex)
+  await inClub(a); await inClub(b);
+  await b.evaluate(() => { const { P } = window.__neonbay; P.x += 2; P.z -= 3; });
+  await a.waitForFunction(() => { const r = window.__neonbay.all('remote')[0]; return r && r.c.root.visible && r.where === 2; }, null, { timeout: 8000 });
+  step('Alex sees Bo in the club'); await shot(a, '7-club-together');
+  await b.evaluate(async () => (await import('/js/game/club.js')).intoPinkRoom());
+  await a.waitForFunction(() => !window.__neonbay.all('remote')[0].c.root.visible, null, { timeout: 8000 });
+  step('Bo in the Pink Room, out of Alex\'s sight');
+  await b.evaluate(async () => { const c = await import('/js/game/club.js'); c.backToFloor(); c.leaveClub(); });
+  await a.evaluate(async () => (await import('/js/game/club.js')).leaveClub());
+
   // Bo leaves: Alex hears and Bo's player and people go
   await b.evaluate(() => document.getElementById('pauseMpGo').click()); // (the pause menu's Leave the city)
   await a.waitForFunction(() => window.__neonbay.all('remote').length === 0 && window.__neonbay.all('ghost').length === 0, null, { timeout: 5000 });
-  step('Bo left'); await shot(a, '7-bo-left');
+  step('Bo left'); await shot(a, '8-bo-left');
   if (errors.length) throw new Error('page errors: ' + errors.join(' | '));
   console.log('ok');
 } catch (e) {

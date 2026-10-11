@@ -3,6 +3,7 @@ import { Sound } from '../core/audio.js';
 import { P } from '../core/state.js';
 import { addEntity, removeEntity } from '../entities/registry.js';
 import { emit, muzzleFlash, tracer } from '../render/effects.js';
+import { clubScene, LAYOUT } from '../game/club.js';
 import { scene } from '../render/scene.js';
 import { spawnVehicle } from '../vehicles/vehicle.js';
 import { VEHICLE_MODELS } from '../vehicles/models/index.js';
@@ -47,7 +48,13 @@ const Remote = {
     trim(this.buf, now - LAG);
     const s = sample(this.buf, now - LAG);
     const c = this.c;
-    if (!s || !s.w) { this.hide(); return; }
+    // where they are (w: 1 the city, 2 the club's floor) has to be where this player is to see them; the club is a scene
+    // of its own (game/club.js)
+    const here = P.club === LAYOUT ? 2 : P.club ? -1 : 1;
+    this.where = s ? s.w : 0;
+    if (!s || s.w !== here) { this.hide(); return; }
+    const sc = here === 2 ? clubScene() : scene;
+    if (c.root.parent !== sc) { sc.add(c.root, this.tag); }
     c.root.visible = true; this.tag.visible = true;
     const wasAlive = this.alive;
     this.alive = !!s.al; if (wasAlive && !this.alive) this.deadT = 0;
@@ -96,7 +103,7 @@ const Remote = {
   // on the radar, and on the world map with their name (worked out here, as the game doesn't move them while the map is open)
   blip(radar) {
     const now = performance.now() / 1000; trim(this.buf, now - LAG);
-    const s = sample(this.buf, now - LAG); if (!s || !s.w) return;
+    const s = sample(this.buf, now - LAG); if (!s || s.w !== 1) return;
     const x = s.v ? s.v.x : s.x, z = s.v ? s.v.z : s.z;
     radar.dot(x, z, CREW_COLOR, 9, true);
     if (radar.label) radar.label(x, z, this.name, CREW_COLOR);
@@ -112,8 +119,8 @@ const Remote = {
   },
   shouldDespawn() { return false; },
   dispose() {
-    this.dismount(); disposeChar(this.c);
-    scene.remove(this.tag); this.tag.material.map.dispose(); this.tag.material.dispose();
+    this.dismount(); disposeChar(this.c); this.c.root.removeFromParent(); // (it may be in the club's scene)
+    this.tag.removeFromParent(); this.tag.material.map.dispose(); this.tag.material.dispose();
   },
 };
 

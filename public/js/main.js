@@ -58,9 +58,11 @@ function frame(now) {
   const away = G.away = connected() && (G.state === 'paused' || G.state === 'map' || G.state === 'shop');
   const dt = wheelOpen() && !connected() ? real * WHEEL_SLOW : real;
   const live = G.state === 'play' || G.state === 'dead' || G.state === 'title' || away;
-  if (P.club && G.state === 'play') {
-    // inside the club (game/club.js) the city waits outside, as it does while a shop's menu is open
+  if (P.club && (G.state === 'play' || away)) {
+    // inside the club (game/club.js) the city waits outside, as it does while a shop's menu is open; the rest of the crew
+    // on the floor are in there too (net/remote.js)
     updatePlayer(dt); countPlayTime(dt); Sound.listen(); updateClub(dt);
+    for (const e of all('remote')) e.update(dt);
   } else if (live) {
     G.time += dt;
     if (G.state === 'play' || away) { updatePlayer(dt); countPlayTime(dt); }
