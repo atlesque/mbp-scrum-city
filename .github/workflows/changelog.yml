@@ -1,0 +1,47 @@
+name: Changelog
+
+# After every push to main, write the version number and changelog from main's history
+# (scripts/changelog.mjs) and commit them back, so the next Cloudflare Pages deploy shows them.
+# A push made with GITHUB_TOKEN starts no workflows, so this commit doesn't loop back here.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# one at a time, so two quick merges don't race for the same push
+concurrency:
+  group: changelog
+  cancel-in-progress: false
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Write changelog
+        id: build
+        run: echo "version=$(node scripts/changelog.mjs | cut -d, -f1)" >> "$GITHUB_OUTPUT"
+      - name: Commit if it changed
+        run: |
+          git add public/changelog.json CHANGELOG.md
+          if git diff --cached --quiet; then echo "Already up to date"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # no [skip ci] in the message: Cloudflare Pages would skip this deploy too
+          git commit -m "Changelog: ${{ steps.build.outputs.version }}"
+          # main moved on while this ran: the run its push queued writes the changelog instead
+          if ! git push origin HEAD:main; then
+            git fetch origin main
+            [ "$(git rev-parse origin/main)" != "$(git rev-parse HEAD~1)" ] && echo "::warning::main moved on, the next run updates the changelog" && exit 0
+            exit 1
+          fi
