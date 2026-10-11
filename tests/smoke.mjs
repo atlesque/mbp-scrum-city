@@ -855,6 +855,24 @@ try {
     check(out.d < 1.5 && out.cur === 'pistol', 'did not come back out to the street with the pistol: ' + JSON.stringify(out));
   });
 
+  await step('pays the host for a private dance in the Pink Room, sits through it and goes back to the floor', async () => {
+    await game(() => { const { P, cam, CLUB } = __neonbay, s = CLUB.site; P.x = s.street.x; P.z = s.street.z; cam.yaw = s.yaw + Math.PI; });
+    await clearLane();
+    check(await until(() => __neonbay.G.near.some(i => /Flamingo/.test(i.prompt))), 'no prompt at the club door');
+    await press('KeyE');
+    check(await until(() => !!__neonbay.P.club), 'did not get into the club');
+    await game(() => { const { P, cam, inv } = __neonbay; inv.money = 1000; P.x = 1000 - 6.1; P.z = 1009.2 - 0.7; cam.yaw = Math.PI; });
+    check(await until(() => __neonbay.G.near.some(i => /private dance/.test(i.prompt))), 'no prompt at the host');
+    await press('KeyE');
+    check(await until(() => __neonbay.P.club && __neonbay.P.club.private), 'did not go through to the Pink Room');
+    const sat = await game(() => ({ x: __neonbay.P.x, z: __neonbay.P.z, money: __neonbay.inv.money }));
+    await page.keyboard.down('KeyW'); await page.waitForTimeout(800); await page.keyboard.up('KeyW');
+    const still = await game(f => Math.hypot(__neonbay.P.x - f.x, __neonbay.P.z - f.z) < 0.01 && __neonbay.P.sitting, sat);
+    check(sat.money === 850 && still, 'not sat down for $150: ' + JSON.stringify(sat));
+    await press('KeyE');
+    check(await until(() => __neonbay.P.club && !__neonbay.P.club.private && !__neonbay.P.sitting), 'did not go back to the floor');
+  });
+
   await step('changes settings from the pause menu', async () => {
     await press('KeyP');
     check(await until(() => __neonbay.G.state === 'paused'), 'P did not pause');

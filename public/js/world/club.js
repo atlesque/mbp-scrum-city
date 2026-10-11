@@ -102,6 +102,25 @@ export function clubLayout(at = CLUB_AT) {
     barFront: { x: BAR.x0 - 0.7 + at.x, z0: BAR.z0 + at.z, z1: BAR.z1 + at.z },
   };
 }
+// The Pink Room, for a private dance: a curtained doorway in the front wall, west of the exit, with a host beside it
+// who takes the money. Behind it, a small room of its own (in the club's scene, well away from the main floor): a
+// round platform with one pole, one dancer, and a velvet armchair facing it, where the player sits for the dance.
+export const PRIVATE = { price: 150, curtain: { x: -7.5, z: ROOM.z1 }, host: { x: -6.1, z: ROOM.z1 - 0.8 }, back: { x: -7.5, z: ROOM.z1 - 1.3, yaw: Math.PI } };
+export const VIP = { x0: -3.5, x1: 3.5, z0: -3.5, z1: 6, h: 3.4, at: { x: 0, z: 40 }, pole: { x: 0, z: -1.2 }, stage: { x0: -1.1, x1: 1.1, z0: -2.3, z1: -0.1, h: 0.25 }, seat: { x: -0.7, z: 2.4, top: 0.48 } };
+VIP.seat.yaw = Math.atan2(VIP.pole.x - VIP.seat.x, VIP.pole.z - VIP.seat.z); // a little to one side, so the camera over the shoulder sees past the player
+export function privateLayout(at = CLUB_AT) {
+  const o = { x: at.x + VIP.at.x, z: at.z + VIP.at.z };
+  const B = (x0, x1, z0, z1, y0, y1) => ({ x0: x0 + o.x, x1: x1 + o.x, z0: z0 + o.z, z1: z1 + o.z, y0, y1 });
+  const { x0, x1, z0, z1, h } = VIP, t = 1, S = VIP.stage;
+  const walls = [B(x0 - t, x1 + t, z0 - t, z0, 0, h + 1), B(x0 - t, x1 + t, z1, z1 + t, 0, h + 1), B(x0 - t, x0, z0, z1, 0, h + 1), B(x1, x1 + t, z0, z1, 0, h + 1)];
+  const ceiling = B(x0, x1, z0, z1, h, h + 0.6);
+  return {
+    private: true, area: B(x0, x1, z0, z1, 0, h), floor: 0, rails: [], walls, camRoof: { blocks: [...walls, ceiling] },
+    blocks: [...walls, ceiling, B(S.x0, S.x1, S.z0, S.z1, 0, h)],
+    seat: { x: o.x + VIP.seat.x, z: o.z + VIP.seat.z, yaw: VIP.seat.yaw, top: VIP.seat.top },
+  };
+}
+
 // keep a circle with its feet at height y out of everything in the room (layout from clubLayout), and inside its walls
 export function collideClub(o, r, y, layout) {
   const hit = collideRoofs(o, r, y, [layout]), A = layout.area, ox = o.x, oz = o.z;
