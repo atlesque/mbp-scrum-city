@@ -1,7 +1,14 @@
 {
- "version": "1.116",
+ "version": "1.117",
  "date": "2026-10-11",
  "entries": [
+  {
+   "v": "1.117",
+   "date": "2026-10-11",
+   "sha": "4181dca",
+   "pr": 111,
+   "title": "Opt-in multiplayer: share the city with up to 15 other players"
+  },
   {
    "v": "1.116",
    "date": "2026-10-11",
