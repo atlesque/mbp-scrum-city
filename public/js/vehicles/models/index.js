@@ -10,6 +10,7 @@ import modely from './modely.js';
 import { pimpstep } from './pimpstep.js';
 import police from './police.js';
 import sedan from './sedan.js';
+import { RETRO_CARS } from './retro.js';
 import t7 from './t7.js';
 
 // Every vehicle model in the game. To add one, write a model file next to these and list it here.
@@ -27,7 +28,7 @@ import t7 from './t7.js';
 //   crew       how many officers or soldiers get out when it arrives (default 2)
 //   siren      true when the player can switch a siren and flashing lights on (core/keymap.js 'siren'); sirenY: how high it sounds
 // Bikes also give spec / geos / wheel / decal / decalAt (see models/gs.js), e-steps spec / geos / wheel (models/estep.js); cars give mesh().
-export const VEHICLE_MODELS = Object.fromEntries([gs, t7, estep, sharestep, pimpstep, sedan, modely, police, modelyblue, eqa, bmw5, firetruck, army, heli].map(m => [m.id, m]));
+export const VEHICLE_MODELS = Object.fromEntries([...RETRO_CARS, gs, t7, estep, sharestep, pimpstep, sedan, modely, police, modelyblue, eqa, bmw5, firetruck, army, heli].map(m => [m.id, m]));
 
 // pick a model of a kind for traffic, weighted by traffic.weight
 export function pickTrafficModel(kind) {
@@ -36,3 +37,6 @@ export function pickTrafficModel(kind) {
   for (const m of list) { r -= m.traffic.weight; if (r <= 0) return m; }
   return list[0];
 }
+
+// Cycle the lots through civilian traffic models so parked cars offer the same variety as the roads.
+export const PARKED_CARS = Object.values(VEHICLE_MODELS).filter(m => m.kind === 'car' && m.traffic?.weight > 0).map(m => m.id);

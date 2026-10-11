@@ -48,7 +48,7 @@ export function buildClubFront({ plain, neon, sign }, s) {
   }
   const ry = s.yaw, f = '"Yellowtail", cursive';
   [x, z] = out(0.6); sign({ text: CLUB_NAME, x, y: 5.0, z, ry, w: Math.min(s.fw * 0.75, 8), color: '#ff4fd8', font: f });
-  [x, z] = out(0.62); sign({ text: 'Showgirls', x, y: 3.85, z, ry, w: 2.6, color: '#7ff3ff', font: '"Bowlby One", Impact, sans-serif' });
+  [x, z] = out(0.62); sign({ text: 'Showgirls · Cocktails', x, y: 3.85, z, ry, w: Math.min(s.fw * 0.65, 7), color: '#7ff3ff', font: '"Bowlby One", Impact, sans-serif' });
 }
 
 // Pick the building, take its own sign down and put the club's front on it (city.js, after the roofs).
@@ -77,6 +77,13 @@ export const SEATS = [
 ];
 export const DOOR = { x: 0, z: ROOM.z1 }; // the way back out, in the middle of the front wall
 export const ARRIVE = { x: 0, z: ROOM.z1 - 1.4, yaw: Math.PI }; // just in, facing the stage
+export const STAGE_TIP = { x: 0, z: 0.65, price: 20, cooldown: 3 };
+export const DJ = { x: -8.6, z: -7.4, front: { x: -8.6, z: -5.8 }, price: 25, cooldown: 5 };
+export const CLUB_TRACKS = [
+  { name: 'Neon House', sound: 'club-house' },
+  { name: 'Midnight Disco', sound: 'club-disco' },
+  { name: 'Havana After Dark', sound: 'club-salsa' },
+];
 export const BOUNCER = { x: -1.9, z: ROOM.z1 - 1.1 };
 
 // Everything the player bumps into, in world metres ({ x0, x1, z0, z1, y0, y1 }, like the blocks on a roof):
@@ -89,14 +96,15 @@ export function clubLayout(at = CLUB_AT) {
   const walls = [B(x0 - t, x1 + t, z0 - t, z0, 0, h + 1), B(x0 - t, x1 + t, z1, z1 + t, 0, h + 1), B(x0 - t, x0, z0, z1, 0, h + 1), B(x1, x1 + t, z0, z1, 0, h + 1)];
   const ceiling = B(x0, x1, z0, z1, h, h + 0.6);
   const stage = [STAGE, RUNWAY, TIP].map(s => B(s.x0, s.x1, s.z0, s.z1, 0, h));
+  const dj = B(DJ.x - 1.0, DJ.x + 1.0, DJ.z - 0.55, DJ.z + 0.55, 0, 1.1);
   const bar = B(BAR.x0, x1, BAR.z0, BAR.z1, 0, h);
   const booths = BOOTHS.flatMap(b => [B(b.x0, b.x1, b.z0, b.z1, 0, 0.95), B(b.table.x - 0.45, b.table.x + 0.45, b.z - 0.7, b.z + 0.7, 0, 0.78)]);
   const tables = TABLES.map(c => B(c.x - 0.45, c.x + 0.45, c.z - 0.45, c.z + 0.45, 0, 0.78));
   const seats = SEATS.map(s => B(s.x - 0.25, s.x + 0.25, s.z - 0.25, s.z + 0.25, 0, s.stool ? 0.8 : 0.5));
   const area = B(x0, x1, z0, z1, 0, h);
   return {
-    area, floor: 0, rails: [], walls, camRoof: { blocks: [...walls, ceiling, B(BAR.x0, BAR.x1, BAR.z0, BAR.z1, 0, BAR.h)] },
-    blocks: [...walls, ceiling, ...stage, bar, ...booths, ...tables, ...seats],
+    area, floor: 0, rails: [], walls, camRoof: { blocks: [...walls, ceiling, dj, B(BAR.x0, BAR.x1, BAR.z0, BAR.z1, 0, BAR.h)] },
+    blocks: [...walls, ceiling, ...stage, bar, dj, ...booths, ...tables, ...seats],
     door: { x: DOOR.x + at.x, z: DOOR.z + at.z }, arrive: { x: ARRIVE.x + at.x, z: ARRIVE.z + at.z, yaw: ARRIVE.yaw },
     // where the player orders at the bar: anywhere along the front of the counter
     barFront: { x: BAR.x0 - 0.7 + at.x, z0: BAR.z0 + at.z, z1: BAR.z1 + at.z },

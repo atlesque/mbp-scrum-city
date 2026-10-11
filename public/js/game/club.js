@@ -11,7 +11,7 @@ import { GB, UNIT, addGeo, box, cylG } from '../render/geometry.js';
 import { scene } from '../render/scene.js';
 import { makeCanvas, neonTexture } from '../render/textures.js';
 import { showBig, toast } from '../ui/hud.js';
-import { BAR, BOOTHS, BOUNCER, CLUB, CLUB_AT, CLUB_CLOSED_AT, CLUB_NAME, DOOR, POLES, PRIVATE, ROOM, ROUTINE, RUNWAY, SEATS, STAGE, TABLES, TIP, VIP, clubLayout, privateLayout, routineAt } from '../world/club.js';
+import { BAR, BOOTHS, BOUNCER, CLUB, CLUB_AT, CLUB_CLOSED_AT, CLUB_NAME, CLUB_TRACKS, DJ, STAGE_TIP, DOOR, POLES, PRIVATE, ROOM, ROUTINE, RUNWAY, SEATS, STAGE, TABLES, TIP, VIP, clubLayout, privateLayout, routineAt } from '../world/club.js';
 
 // ================= INSIDE THE VELVET FLAMINGO =================
 // E at the club's door fades out and puts the player in the club, a room drawn in a scene of its own (main.js
@@ -24,6 +24,7 @@ const ECHO = { wet: 0.3, delay: 0.03, tail: 0.55 }; // a small room with a hard 
 const BEAT = 0.5; // the house groove plays at 120 bpm: dancers and heads move to it
 export const LAYOUT = clubLayout(), PINK = privateLayout();
 let S = null; // the scene and everyone in it, once built
+export const clubShow = { time: 0, tipUntil: 0, requestUntil: 0, track: 0 };
 let held = null; // what was in the player's hand at the door
 
 // ---- the door in the street ----
@@ -44,6 +45,10 @@ export function spawnClubDoor(site) { return addEntity(Object.assign(Object.crea
 export function clubInteractions(p, near) {
   if (G.stairs) return;
   if (P.club === PINK) { near.push({ keys: ['use'], priority: 1, dist: 0, prompt: `Press <kbd>${kb('use')}</kbd> to head back to the floor`, run: () => fadeThen(backToFloor) }); return; }
+  const tipDist = Math.hypot(p.x - CLUB_AT.x - STAGE_TIP.x, p.z - CLUB_AT.z - STAGE_TIP.z);
+  if (tipDist < REACH) near.push({ keys: ['use'], priority: 2, dist: tipDist, prompt: `Press <kbd>${kb('use')}</kbd> to tip the stage ($${STAGE_TIP.price})`, run: tipStage });
+  const djDist = Math.hypot(p.x - CLUB_AT.x - DJ.front.x, p.z - CLUB_AT.z - DJ.front.z);
+  if (djDist < REACH) near.push({ keys: ['use'], priority: 2, dist: djDist, prompt: `Press <kbd>${kb('use')}</kbd> for a DJ request: ${CLUB_TRACKS[(clubShow.track + 1) % CLUB_TRACKS.length].name} ($${DJ.price})`, run: requestTrack });
   const hd = Math.hypot(p.x - (PRIVATE.host.x + CLUB_AT.x), p.z - (PRIVATE.host.z + CLUB_AT.z));
   if (hd < REACH) near.push({ keys: ['use'], priority: 1, dist: hd, prompt: `Press <kbd>${kb('use')}</kbd> for a private dance in the Pink Room ($${PRIVATE.price})`, run: () => { if (payPrivate()) fadeThen(intoPinkRoom); } });
   const L = LAYOUT, d = Math.hypot(p.x - L.door.x, p.z - (L.door.z - 0.9));
@@ -56,6 +61,38 @@ export function buyDrink() {
   inv.money -= DRINK.price; Sound.buy(); P.hp = Math.min(100, P.hp + DRINK.hp);
   toast(`One ${DRINK.name}, on the rocks. <b>+${DRINK.hp} health</b>`, 2.5); save();
   return true;
+}
+
+// These are approached on the floor, like the bar. Cooldowns use club time, so pauses freeze them.
+const canUseFloor = at => P.alive && G.state === 'play' && P.club === LAYOUT && !G.stairs
+  && Math.hypot(P.x - CLUB_AT.x - at.x, P.z - CLUB_AT.z - at.z) < REACH;
+export function tipStage() {
+  if (!canUseFloor(STAGE_TIP) || clubShow.time < clubShow.tipUntil) return false;
+  if (inv.money < STAGE_TIP.price) { Sound.deny(); toast('A stage tip is $20.', 2); return false; }
+  inv.money -= STAGE_TIP.price; clubShow.tipUntil = clubShow.time + STAGE_TIP.cooldown;
+  if (S) {
+    S.tipFlash = 3;
+    for (const p of S.patrons) p.cheer = 2.5;
+    for (const d of S.dancers) d.thanks = 2;
+    throwBills();
+  }
+  Sound.buy(); toast('The stage lights up. Thanks for the tip!', 2.5); save(); emit('club:tip', { price: STAGE_TIP.price }); return true;
+}
+export function requestTrack() {
+  if (!canUseFloor(DJ.front) || clubShow.time < clubShow.requestUntil) return false;
+  if (inv.money < DJ.price) { Sound.deny(); toast(`A DJ request is $${DJ.price}.`, 2); return false; }
+  inv.money -= DJ.price; clubShow.track = (clubShow.track + 1) % CLUB_TRACKS.length;
+  clubShow.requestUntil = clubShow.time + DJ.cooldown;
+  if (S) { S.tipFlash = 2; for (const p of S.patrons) p.cheer = 1.5; }
+  Sound.buy(); toast(`Now playing: ${CLUB_TRACKS[clubShow.track].name}`, 3); save(); return true;
+}
+function throwBills() {
+  // A fixed pool avoids adding geometry or materials every time the player tips.
+  for (let i = 0; i < S.bills.length; i++) {
+    const b = S.bills[i]; b.life = 2.8 + i * 0.07;
+    b.mesh.visible = true; b.mesh.position.set(STAGE_TIP.x, 1.2, STAGE_TIP.z - 0.5);
+    b.vx = (Math.random() - 0.5) * 1.7; b.vy = 2 + Math.random(); b.vz = -1.4 - Math.random();
+  }
 }
 
 // the host takes the money up front
@@ -217,6 +254,16 @@ function buildRoom() {
       for (let z = BAR.z0, k = 0; z < BAR.z1; z += 0.32, k++) box(neon, 0.1, 0.32, 0.1, x1 - 0.5, y + 0.18, z + 0.16, ['#ffb347', '#7cf29a', '#ff6b6b', '#4fb3ff', '#ffe066'][(k * 3 + Math.round(y * 10)) % 5]);
     }
   }
+  // The DJ booth: twin decks, mixer, headphones and a lit request sign beside the stage.
+  box(plain, 2, 1.05, 1.1, DJ.x, 0.525, DJ.z, '#170c20');
+  box(neon, 2.04, 0.06, 1.12, DJ.x, 1.07, DJ.z, '#ff3fa4');
+  for (const x of [DJ.x - 0.55, DJ.x + 0.55]) {
+    addGeo(plain, cylG(16), x, 1.12, DJ.z, 0.65, 0.06, 0.65, 0, 0, 0, '#19161e');
+    addGeo(neon, cylG(12), x, 1.16, DJ.z, 0.14, 0.02, 0.14, 0, 0, 0, '#3ff0ff');
+  }
+  for (let i = 0; i < 4; i++) box(neon, 0.035, 0.02, 0.18, DJ.x - 0.12 + i * 0.08, 1.12, DJ.z + 0.05, '#ffd23e');
+  // Small stacks of bills and tip trays along the stage lip make the tipping spot visible.
+  for (const x of [-1.3, 1.3]) { box(plain, 0.4, 0.04, 0.24, x, STAGE.h + 0.04, -0.7, '#d8a84a'); box(plain, 0.23, 0.035, 0.12, x, STAGE.h + 0.08, -0.7, '#80bb85'); }
   // booths: a velvet sofa along the wall, arms at either end, and a round table with a little lamp
   for (const b of BOOTHS) {
     box(plain, 1.2, 0.5, b.z1 - b.z0, -11.0, 0.25, b.z, '#8a0f3e'); box(plain, 0.5, 1.3, b.z1 - b.z0, -11.75, 0.65, b.z, '#6a0a30');
@@ -237,6 +284,8 @@ function buildRoom() {
   g.add(new THREE.Mesh(plain.geometry(), new THREE.MeshLambertMaterial({ vertexColors: true })), new THREE.Mesh(neon.geometry(), new THREE.MeshBasicMaterial({ vertexColors: true })));
   const sign = (text, color, font, w, x, y, z, ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w / 4), new THREE.MeshBasicMaterial({ map: neonTexture(text, color, font), transparent: true, depthWrite: false })); m.position.set(x, y, z); m.rotation.y = ry; g.add(m); };
   sign(CLUB_NAME, '#ff4fd8', '"Yellowtail", cursive', 5.6, 0, STAGE.h + 3.3, z0 + 0.16, 0);
+  sign('TIPS', '#ffd23e', '"Bowlby One", Impact, sans-serif', 0.9, 0, 0.34, TIP.z1 + 0.04, 0);
+  sign('DJ · REQUESTS', '#3ff0ff', '"Bowlby One", Impact, sans-serif', 2.2, DJ.x, 2.8, ROOM.z0 + 0.16, 0);
   sign('Bar', '#3ff0ff', '"Bowlby One", Impact, sans-serif', 2.2, x1 - 0.12, 3.5, (BAR.z0 + BAR.z1) / 2, -Math.PI / 2);
   sign('Private', '#ff7ad8', '"Yellowtail", cursive', 1.9, PRIVATE.curtain.x, 3.05, PRIVATE.curtain.z - 0.2, Math.PI);
   sign('Exit', '#5dff9e', '"Bowlby One", Impact, sans-serif', 1.3, DOOR.x, 2.75, DOOR.z - 0.14, Math.PI);
@@ -280,9 +329,13 @@ function buildRoom() {
   const host = at(makeWoman({ skin: SKIN[3], shirt: '#b0306a', pants: '#b0306a', hair: HAIR[0], hairStyle: 'long', shoes: '#2a2226' }), PRIVATE.host.x, 0, PRIVATE.host.z, Math.PI);
   { const m = sequinMat('#b0306a'); for (const o of host.body.children) if (o.isMesh && o.geometry === UNIT) o.material = m; const d = new THREE.Mesh(UNIT, m); d.scale.set(0.54, 0.8, 0.34); d.position.y = 0.52; host.body.add(d); }
   host.armR.rotation.set(-0.5, 0, 0.35); host.armL.rotation.set(-0.5, 0, -0.35);
+  const dj = at(makeWoman({ skin: SKIN[2], shirt: '#3fe0d0', pants: '#181420', hair: HAIR[0], hairStyle: 'short', glasses: true }), DJ.x, 0, DJ.z - 0.9, 0);
+  for (const side of [-1, 1]) { const pad = new THREE.Mesh(UNIT, charMat); pad.scale.set(0.065, 0.18, 0.14); pad.position.set(side * 0.17, 0.2, 0); dj.head.add(pad); }
+  const billGeo = new THREE.PlaneGeometry(0.22, 0.1), billMat = new THREE.MeshBasicMaterial({ color: '#91c78b', side: THREE.DoubleSide });
+  const bills = Array.from({ length: 10 }, () => { const mesh = new THREE.Mesh(billGeo, billMat); mesh.name = 'stage-tip-bill'; mesh.visible = false; g.add(mesh); return { mesh, life: 0 }; });
   const pink = buildPinkRoom(g);
   pink.c = at(makeDancer(PINK_DANCER), pink.pole.x, VIP.stage.h, pink.pole.z, 0);
-  S = { scene: sc, group: g, dancers, patrons, bouncer, barman, host, pink, spots, stageLight, ball, tinselMat, t: (Date.now() / 1000) % 3600 };
+  S = { scene: sc, group: g, dancers, patrons, bouncer, barman, host, dj, bills, tipFlash: 0, pink, spots, stageLight, ball, tinselMat, t: (Date.now() / 1000) % 3600 };
   return S;
 }
 // The Pink Room: walls in deep rose with a dado and a neon line, a mirrored back wall, a round platform with a pole,
@@ -324,7 +377,7 @@ function chair(plain, s) {
 const _c = new THREE.Color();
 export function updateClub(dt) {
   if (!S || !P.club) return;
-  S.t = (Date.now() / 1000) % 3600; const t = S.t, beat = Math.sin(t / BEAT * Math.PI * 2);
+  S.t = (Date.now() / 1000) % 3600; clubShow.time += dt; const t = S.t, beat = Math.sin(t / BEAT * Math.PI * 2);
   for (const d of S.dancers) poseDancer(d, t, dt, beat);
   if (P.club === PINK) {
     poseDancer(S.pink, t, dt, beat); S.pink.light.intensity = 8 + 2 * Math.max(0, beat);
@@ -332,6 +385,13 @@ export function updateClub(dt) {
     const c = P.c; c.legL.geometry = c.legR.geometry = seatedLegs(c); c.shadow.visible = false;
     c.legL.rotation.set(-0.1, 0, 0); c.legR.rotation.set(-0.1, 0, 0); c.armL.rotation.set(-0.9, 0, 0.1); c.armR.rotation.set(-0.9, 0, -0.1);
     c.root.position.y = PINK.seat.top + 0.06 - 0.9; c.head.rotation.x = 0.05 * Math.max(0, beat);
+  }
+  S.tipFlash = Math.max(0, S.tipFlash - dt);
+  S.dj.head.rotation.x = 0.12 * Math.max(0, beat); S.dj.armL.rotation.set(-1.1, 0, 0.12); S.dj.armR.rotation.set(-1.2, Math.sin(t * 2) * 0.3, -0.1);
+  for (const b of S.bills) if (b.life > 0) {
+    b.life -= dt; b.vy -= 3 * dt;
+    b.mesh.position.x += b.vx * dt; b.mesh.position.z += b.vz * dt; b.mesh.position.y = Math.max(STAGE.h + 0.03, b.mesh.position.y + b.vy * dt);
+    b.mesh.rotation.set(t * 2 + b.life, t + b.life, Math.sin(t * 3 + b.life)); b.mesh.visible = b.life > 0;
   }
   S.host.head.rotation.y = 0.3 * Math.sin(t * 0.4);
   for (const p of S.patrons) {
@@ -352,17 +412,20 @@ export function updateClub(dt) {
   const b = S.bouncer, want = Math.atan2(P.x - CLUB_AT.x - b.root.position.x, P.z - CLUB_AT.z - b.root.position.z);
   b.head.rotation.y = clamp(angDiff(b.root.rotation.y, want), -1.1, 1.1);
   // the lights drift round the colour wheel; the mirror ball turns
-  for (const s of S.spots) { _c.setHSL((s.hue + t * 0.05) % 1, 0.85, 0.6); s.l.color.copy(_c); s.beam.material.color.copy(_c); }
-  S.stageLight.intensity = 12 + 3 * Math.max(0, beat);
+  for (const s of S.spots) { _c.setHSL((s.hue + t * 0.05) % 1, 0.85, 0.6); s.l.color.copy(_c); s.beam.material.color.copy(_c); s.l.intensity = S.tipFlash > 0 || Math.floor(t / 12) % POLES.length === Math.round(s.hue * POLES.length) ? 48 : 22; }
+  S.stageLight.intensity = (S.tipFlash > 0 ? 22 : 12) + 3 * Math.max(0, beat);
   S.ball.rotation.y += dt * 0.8;
   S.tinselMat.color.setScalar(0.85 + 0.15 * Math.sin(t * 3.1));
   if (inv.cur !== 'fist') selectWeapon('fist'); // a number key in here takes nothing out
-  Sound.loops('spot', SPEAKERS);
+  Sound.loops('spot', clubSpeakers());
 }
 // the house groove from the two speakers by the stage
 const SPEAKERS = [...[-1, 1].map(sx => ({ key: 'club' + sx, sound: 'club-house', x: CLUB_AT.x + sx * 7.6, y: ROOM.h - 1.2, z: CLUB_AT.z + ROOM.z0 + 0.8, vol: 1.6, prof: { ref: 6, max: 60 } })),
   // and a little one in the Pink Room
   { key: 'clubPink', sound: 'club-house', x: CLUB_AT.x + VIP.at.x, y: VIP.h - 0.5, z: CLUB_AT.z + VIP.at.z + VIP.z0 + 0.4, vol: 1.2, prof: { ref: 3, max: 14 } }];
+
+// A request changes source keys too: audio loops are cached by key, so the old groove must be replaced.
+export const clubSpeakers = () => SPEAKERS.map(s => ({ ...s, sound: CLUB_TRACKS[clubShow.track].sound, key: `${s.key}:${clubShow.track}` }));
 
 // A dancer's pose for this moment of the routine (world/club.js routineAt). Going round the pole, the near side (the
 // body's +x, the left arm) faces it; climbing, sliding and leaning back, the dancer faces it with both hands on it.
@@ -392,4 +455,5 @@ function poseDancer(d, t, dt, beat) {
     c.body.rotation.x = -0.5 * lean; c.body.rotation.z = 0.08 * beat; c.head.rotation.x = -0.4 * lean;
     c.legL.rotation.x = 0.2 * lean; c.legR.rotation.x = -0.1 * lean;
   }
+  if (d.thanks > 0) { d.thanks -= dt; c.head.rotation.y = clamp(angDiff(c.root.rotation.y, Math.atan2(P.x - CLUB_AT.x - c.root.position.x, P.z - CLUB_AT.z - c.root.position.z)), -0.7, 0.7); }
 }
