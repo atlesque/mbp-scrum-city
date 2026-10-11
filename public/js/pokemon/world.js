@@ -6,7 +6,7 @@ import { addEntity, all, removeEntity } from '../entities/registry.js';
 import { emit } from '../render/effects.js';
 import { camera, scene } from '../render/scene.js';
 import { toast } from '../ui/hud.js';
-import { blocked, collide, isFree, onRoad, raySphere } from '../world/collision.js';
+import { blocked, collide, isFree, onRoad, rayBox } from '../world/collision.js';
 import { makePokemon, makeBall, disposeModel } from './models.js';
 import { catchChance, catchPokemon, gainExperience, randomEncounter, selectPokemon, SPECIES } from './team.js';
 
@@ -34,31 +34,33 @@ function stepToward(p, x, z, dt, speed) {
   if (d < 0.15) return false;
   const step = Math.min(d, speed * dt), ox = p.x, oz = p.z;
   // Slide along corners instead of walking into buildings.
-  p.x += dx / d * step; collide(p, 0.45, p);
-  p.z += dz / d * step; collide(p, 0.45, p);
+  p.x += dx / d * step; collide(p, p.radius, p);
+  p.z += dz / d * step; collide(p, p.radius, p);
   p.yaw = Math.atan2(dx, dz);
   return Math.hypot(p.x - ox, p.z - oz) > 0.005;
 }
-function validTarget(p, target) {
-  return active() && target?.alive && !target.removed && !target.vehicle && (target.y || 0) < 2 && distance(P, target) < 30 && distance(p, target) < 35;
+function validTarget(p, target, playerRange = 60) {
+  return active() && target?.alive && !target.removed && !target.vehicle && (target.y || 0) < 2 && distance(P, target) < playerRange && distance(p, target) < 35;
 }
 const Pokemon = {
   kind: 'pokemon', blipLayer: 2, surface: 'flesh',
   raycast(o, d, maxT) {
-    if (this.removed || this.catching || !this.root.visible) return null;
-    const t = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, this.x, this.baseScale, this.z, 0.7 * this.baseScale);
+    if (this.owned || this.removed || this.catching || !this.root.visible) return null;
+    const c = Math.cos(this.yaw), s = Math.sin(this.yaw), x = o.x - this.x, z = o.z - this.z, b = this.bounds;
+    const t = rayBox(x * c - z * s, o.y - this.root.position.y, x * s + z * c,
+      d.x * c - d.z * s, d.y, d.x * s + d.z * c, b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z);
     return t >= 0 && t < maxT ? { t } : null;
   },
   onShot(hit, damage) { this.hurt(damage); return { head: false }; },
-  blast(x, y, z, radius, damage) {
-    const d = Math.hypot(x - this.x, y - this.baseScale, z - this.z);
-    if (d < radius && !blocked(x, y, z, this.x, this.baseScale, this.z)) this.hurt(damage * (1 - d / radius));
+  blast(x, y, z, radius, damage, byPlayer = true) {
+    const d = Math.hypot(x - this.x, y - this.bodyY, z - this.z);
+    if (d < radius && !blocked(x, y, z, this.x, this.bodyY, this.z)) this.hurt(damage * (1 - d / radius), byPlayer);
   },
-  hurt(damage) {
-    if (this.removed || this.catching || !Number.isFinite(damage) || damage <= 0) return;
+  hurt(damage, byPlayer = true) {
+    if ((this.owned && byPlayer) || this.removed || this.catching || !Number.isFinite(damage) || damage <= 0) return;
     this.hp = Math.max(0, (this.record?.hp ?? this.hp) - damage);
     if (this.record) this.record.hp = this.hp;
-    emit(this.x, this.baseScale, this.z, 6, this.def.effect, 2, 0.3, 0.12);
+    emit(this.x, this.bodyY, this.z, 6, this.def.effect, 2, 0.3, 0.12);
     if (this.hp <= 0) {
       if (this.owned) { inv.pokemon.selected = -1; save(); }
       toast(`<em>${this.def.name}</em> fainted.${this.owned ? ' Heal at the Pokémon Center.' : ''}`);
@@ -69,14 +71,14 @@ const Pokemon = {
     this.showHealth();
   },
   showHealth() {
-    this.health.visible = this.hp < 100;
+    this.healthBar.visible = this.hp < 100;
     this.healthFill.scale.x = this.hp / 100;
-    this.health.quaternion.copy(this.root.quaternion).invert().multiply(camera.quaternion);
+    this.healthBar.quaternion.copy(this.root.quaternion).invert().multiply(camera.quaternion);
   },
   interaction(player) {
     if (!active() || this.catching || this.removed) return null;
     const dist = distance(this, player);
-    if (dist > 3 || blocked(player.x, 1, player.z, this.x, 0.9, this.z)) return null;
+    if (dist > 3 || blocked(player.x, 1, player.z, this.x, this.bodyY, this.z)) return null;
     return { keys: ['use'], priority: 2, dist,
       prompt: this.owned ? `<em>${this.def.name}</em> · Lv ${this.record.level || 1} · HP ${Math.ceil(this.record.hp)}/100 · <kbd>${kb('use')}</kbd> recall`
         : `<kbd>${kb('use')}</kbd> throw Poké Ball · <em>${this.def.name}</em> Lv ${this.level} · ${inv.pokemon.balls} balls · ${Math.round(catchChance(this.species, this.hp) * 100)}% catch · HP ${Math.ceil(this.hp)}/100`,
@@ -97,7 +99,7 @@ const Pokemon = {
     this.root.visible = true;
     if (this.catching) {
       const c = this.catching; c.t += dt; const t = Math.min(1, c.t / 0.65);
-      this.ball.position.set(c.from.x + (this.x - c.from.x) * t, 1 + Math.sin(t * Math.PI) * 1.5, c.from.z + (this.z - c.from.z) * t);
+      this.ball.position.set(c.from.x + (this.x - c.from.x) * t, 1 + (this.bodyY - 1) * t + Math.sin(t * Math.PI) * 1.5, c.from.z + (this.z - c.from.z) * t);
       this.ball.rotation.x += dt * 10; this.root.scale.setScalar(this.baseScale * (c.t > 0.65 ? Math.max(0, 1 - (c.t - 0.65) * 3) : 1));
       if (c.t > 1.1) {
         disposeModel(this.ball); this.ball = null; this.catching = null; this.root.scale.setScalar(this.baseScale);
@@ -114,8 +116,8 @@ const Pokemon = {
       const target = this.target;
       if (target) {
         const d = distance(this, target);
-        const clear = !blocked(this.x, 0.9, this.z, target.x, 1, target.z);
-        if (d > 3 || !clear) moving = stepToward(this, target.x, target.z, dt, this.def.speed);
+        const clear = !blocked(this.x, this.bodyY, this.z, target.x, 1, target.z);
+        if (d > this.def.attackRange || !clear) moving = stepToward(this, target.x, target.z, dt, this.def.speed * 1.8);
         else {
           this.yaw = Math.atan2(target.x - this.x, target.z - this.z);
           if (this.cooldown <= 0) {
@@ -123,20 +125,20 @@ const Pokemon = {
             const dir = new THREE.Vector3(target.x - this.x, 0, target.z - this.z).normalize();
             target.hurt(this.def.damage * (1 + ((this.record.level || 1) - 1) * 0.06), dir, true, 0.25, 'pokemon');
             // A short elemental trail, with no new projectile or collision system.
-            for (let i = 0; i < 5; i++) emit(this.x + (target.x - this.x) * i / 4, 1, this.z + (target.z - this.z) * i / 4, 2, this.def.effect, 1, 0.25, 0.12);
+            for (let i = 0; i < 5; i++) emit(this.x + (target.x - this.x) * i / 4, this.bodyY + (1 - this.bodyY) * i / 4, this.z + (target.z - this.z) * i / 4, 2, this.def.effect, 1, 0.25, 0.12);
             if (target.alive) this.record.hp = Math.max(0, this.record.hp - (target.def?.gun ? 12 : 6));
             if (this.record.hp <= 0) { toast(`<em>${this.def.name}</em> fainted. Heal at the <em>Pokémon Center</em>.`); inv.pokemon.selected = -1; removeEntity(this); save(); return; }
           }
         }
       } else if (distance(this, P) > 2.3) moving = stepToward(this, P.x, P.z, dt, this.def.speed * (distance(this, P) > 10 ? 1.6 : 1));
       // Catch up safely after long detours around buildings or teleports.
-      if (distance(this, P) > 20) { const s = freeNear(P.x, P.z, 2); if (s) Object.assign(this, s); }
+      if (!this.target && distance(this, P) > 20) { const s = freeNear(P.x, P.z, 2); if (s) Object.assign(this, s); }
     } else {
       this.wanderT -= dt;
       if (this.wanderT <= 0) { this.wanderT = 3 + Math.random() * 5; this.wander = freeNear(this.home.x, this.home.z, 7); }
       if (this.wander) moving = stepToward(this, this.wander.x, this.wander.z, dt, 1.2);
     }
-    this.root.position.set(this.x, moving ? Math.abs(Math.sin(G.time * 10)) * 0.12 : Math.sin(G.time * 2 + this.phase) * 0.025, this.z);
+    this.root.position.set(this.x, moving ? Math.abs(Math.sin(G.time * 10)) * Math.min(0.08, this.def.height * 0.1) : Math.sin(G.time * 2 + this.phase) * this.def.height * 0.01, this.z);
     this.root.rotation.y = this.yaw;
     if (this.record) this.hp = this.record.hp;
     this.showHealth();
@@ -148,10 +150,14 @@ const Pokemon = {
 export function spawnPokemon(species, x, z, record = null, level = null) {
   const def = SPECIES[species]; if (!def) throw new Error('Unknown Pokémon: ' + species);
   const root = makePokemon(species); root.position.set(x, 0, z); scene.add(root);
-  const health = new THREE.Group(); health.position.y = 2.7; health.visible = false; root.add(health);
-  const back = new THREE.Mesh(new THREE.BoxGeometry(1.04, 0.14, 0.03), new THREE.MeshBasicMaterial({ color: '#292535' })); health.add(back);
-  const healthFill = new THREE.Mesh(new THREE.BoxGeometry(1, 0.1, 0.04), new THREE.MeshBasicMaterial({ color: '#91ee94' })); healthFill.position.z = 0.025; health.add(healthFill);
-  return addEntity(Object.assign(Object.create(Pokemon), { species, def, root, health, healthFill, hp: record?.hp ?? 100, x, z, yaw: 0, owned: !!record, record, home: { x, z }, level: record?.level || level || def.minLevel, baseScale: root.scale.x, phase: Math.random() * 6, wanderT: 2, cooldown: 0, target: null, targetT: 0 }));
+  const bounds = root.children[0].geometry.boundingBox;
+  const bodyY = (bounds.min.y + bounds.max.y) / 2;
+  const radius = Math.max(0.15, Math.min(0.85, Math.max(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z) / 2));
+  const barWidth = Math.max(0.35, Math.min(1, def.height * 0.8));
+  const healthBar = new THREE.Group(); healthBar.position.y = bounds.max.y + 0.2; healthBar.visible = false; root.add(healthBar);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(barWidth + 0.04, 0.14, 0.03), new THREE.MeshBasicMaterial({ color: '#292535' })); healthBar.add(back);
+  const healthFill = new THREE.Mesh(new THREE.BoxGeometry(barWidth, 0.1, 0.04), new THREE.MeshBasicMaterial({ color: '#91ee94' })); healthFill.position.z = 0.025; healthBar.add(healthFill);
+  return addEntity(Object.assign(Object.create(Pokemon), { species, def, root, bounds, bodyY, radius, healthBar, healthFill, hp: record?.hp ?? 100, x, z, yaw: 0, owned: !!record, record, home: { x, z }, level: record?.level || level || def.minLevel, baseScale: root.scale.x, phase: Math.random() * 6, wanderT: 2, cooldown: 0, target: null, targetT: 0 }));
 }
 export function updatePokemon(dt) {
   const list = all('pokemon'), record = active() ? inv.pokemon.party[inv.pokemon.selected] : null;
@@ -172,7 +178,7 @@ export function updatePokemon(dt) {
 }
 on('npc:attacked', ({ npc, source }) => {
   if (source !== 'player') return;
-  for (const p of all('pokemon')) if (p.owned && validTarget(p, npc)) { p.target = npc; p.targetT = 12; }
+  for (const p of all('pokemon')) if (p.owned && validTarget(p, npc, 30)) { p.target = npc; p.targetT = 12; }
 });
 
 on('npc:killed', ({ npc, byPlayer }) => {

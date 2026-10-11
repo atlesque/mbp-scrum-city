@@ -99,7 +99,7 @@ it('battle XP evolves the partner and replaces its world model', () => {
 
 it('bullets hit Pokemon bodies, weakening increases catch chance and fainted wilds disappear', () => {
   const p = spawnPokemon('psyduck', 2, 0);
-  const origin = new THREE.Vector3(2, 1, 4), dir = new THREE.Vector3(0, 0, -1);
+  const origin = new THREE.Vector3(2, 0.4, 4), dir = new THREE.Vector3(0, 0, -1);
   const hit = p.raycast(origin, dir, 10);
   expect(hit.t).toBeGreaterThan(0);
   expect(p.raycast(origin, dir, 1)).toBeNull();
@@ -112,11 +112,11 @@ it('bullets hit Pokemon bodies, weakening increases catch chance and fainted wil
   expect(p.removed).toBe(true);
   expect(p.interaction(P)).toBeNull();
 });
-it('damage faints an owned partner without removing it from the saved team', () => {
+it('enemy damage faints an owned partner without removing it from the saved team', () => {
   const record = { species: 'sandshrew', hp: 100, level: 4, xp: 0 };
   inv.pokemon.party = [record]; inv.pokemon.selected = 0;
   const p = spawnPokemon(record.species, 2, 0, record);
-  p.blast(2, 1, 0, 4, 200, true);
+  p.blast(2, 0.3, 0, 4, 200, false);
   expect(record.hp).toBe(0);
   expect(inv.pokemon.selected).toBe(-1);
   expect(inv.pokemon.party).toHaveLength(1);
@@ -132,4 +132,34 @@ it('cannot damage an encounter during capture or catch an already fainted Pokemo
     expect(inv.pokemon.balls).toBe(4);
     expect(inv.pokemon.party).toHaveLength(1);
   } finally { random.mockRestore(); }
+});
+
+it('caught Pokemon neither block friendly shots nor take player bullets or explosions', () => {
+  const record = { species: 'pikachu', hp: 80, level: 4, xp: 0 };
+  inv.pokemon.party = [record]; inv.pokemon.selected = 0;
+  const p = spawnPokemon(record.species, 2, 0, record);
+  expect(p.raycast(new THREE.Vector3(2, 0.3, 4), new THREE.Vector3(0, 0, -1), 10)).toBeNull();
+  p.onShot({}, 1000); p.blast(2, 0.3, 0, 5, 1000, true); p.hurt(1000);
+  expect(record.hp).toBe(80);
+  expect(inv.pokemon.selected).toBe(0);
+  expect(p.removed).toBeUndefined();
+  expect(p.health).toBeUndefined(); // reserved for the repair tool's callable health trait
+});
+it('small Pokemon hitboxes match their visual size instead of a human-sized sphere', () => {
+  const p = spawnPokemon('pikachu', 2, 0);
+  const dir = new THREE.Vector3(0, 0, -1);
+  expect(p.raycast(new THREE.Vector3(2, 0.3, 4), dir, 10)).not.toBeNull();
+  expect(p.raycast(new THREE.Vector3(2, 1.5, 4), dir, 10)).toBeNull();
+});
+
+it('pursues and defeats a fleeing NPC instead of losing it or teleporting back to the player', () => {
+  const record = { species: 'bulbasaur', hp: 100, level: 1, xp: 0 };
+  inv.pokemon.party = [record]; inv.pokemon.selected = 0;
+  const partner = spawnPokemon(record.species, 0, -3, record);
+  const npc = { x: 0, z: 12, y: 0, hp: 80, alive: true, def: { runSpeed: 6.3 }, hurt(damage) { this.hp -= damage; this.alive = this.hp > 0; } };
+  emit('npc:attacked', { npc, source: 'player' });
+  for (let i = 0; i < 160 && npc.alive; i++) { npc.z += 6.3 * 0.05; partner.update(0.05); }
+  expect(npc.alive).toBe(false);
+  expect(partner.z).toBeGreaterThan(20);
+  expect(record.hp).toBeGreaterThan(0);
 });

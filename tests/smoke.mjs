@@ -206,7 +206,7 @@ try {
       inv.pokemon = { balls: 5, party: [], selected: -1 };
       P.x = 0; P.z = 0;
       const p = window.__wild = spawnPokemon('psyduck', P.x, P.z + 5);
-      p.update = () => {}; cam.yaw = P.yaw = 0; cam.pitch = 0;
+      p.update = () => {}; cam.yaw = P.yaw = 0; cam.pitch = -Math.atan2(1 - p.bodyY, 5);
       camTarget.set(P.x, 1, P.z); G.reloadT = 0; inv.cur = 'pistol'; inv.mag.pistol = 12;
       playerShoot();
       return Object.keys(SPECIES).length === 35 && p.hp > 0 && p.hp < 100 && catchChance(p.species, p.hp) > catchChance(p.species, 100);
@@ -224,12 +224,43 @@ try {
       const { P, inv, all, removeEntity } = __neonbay;
       const { spawnPokemon } = await import('/js/pokemon/world.js');
       const { ITEM_TYPES } = await import('/js/shops/items.js');
-      const partner = all('pokemon').find(p => p.owned); if (partner) partner.onShot({}, 1000);
+      const partner = all('pokemon').find(p => p.owned);
+      if (!partner) throw new Error('no partner to verify friendly-fire protection');
+      const hp = partner.record.hp;
+      partner.onShot({}, 1000); partner.blast(partner.x, partner.bodyY, partner.z, 5, 1000, true);
+      if (partner.record.hp !== hp || partner.removed) throw new Error('friendly fire damaged a caught Pokemon');
+      const { castBullet } = await import('/js/combat/combat.js');
+      const hit = castBullet(new THREE.Vector3(partner.x, partner.bodyY, partner.z + 3), new THREE.Vector3(0, 0, -1), 6);
+      if (hit.entity === partner) throw new Error('partner blocks friendly bullets');
+      partner.blast(partner.x, partner.bodyY, partner.z, 5, 1000, false);
       if (inv.pokemon.party[0].hp !== 0 || inv.pokemon.selected !== -1) throw new Error('partner did not faint');
       ITEM_TYPES.pokemonTeam.act({}, 'heal', { inv });
       if (inv.pokemon.party[0].hp !== 100) throw new Error('team healing failed');
       const wild = spawnPokemon('magnemite', P.x + 2, P.z); wild.onShot({}, 1000);
       if (!wild.removed) throw new Error('fainted wild stayed on map');
+      inv.pokemon = { balls: 5, party: [], selected: -1 }; for (const p of all('pokemon')) removeEntity(p);
+    });
+  });
+
+  await step('Pokemon partner pursues and attacks a fleeing NPC after a real pistol hit', async () => {
+    await game(async () => {
+      const { P, G, cam, inv, all, removeEntity, spawnNpc } = __neonbay;
+      const { spawnPokemon } = await import('/js/pokemon/world.js');
+      const { playerShoot } = await import('/js/combat/combat.js');
+      const { camTarget } = await import('/js/game/player.js');
+      for (const e of all()) if (['pokemon', 'npc', 'vehicle'].includes(e.kind)) removeEntity(e);
+      P.x = P.z = P.y = P.yaw = 0; cam.yaw = cam.pitch = 0; G.heat = G.wanted = 0;
+      const record = { species: 'bulbasaur', level: 1, xp: 0, hp: 100 };
+      inv.pokemon = { balls: 5, party: [record], selected: 0 };
+      window.__partner = spawnPokemon('bulbasaur', 0, -3, record);
+      window.__target = spawnNpc('civilian', 0, 12);
+      camTarget.set(0, 1, 0); G.reloadT = 0; inv.cur = 'pistol'; inv.mag.pistol = 12;
+      playerShoot();
+      if (!__target.alive || __target.hp >= __target.def.hp || __partner.target !== __target) throw new Error('real pistol hit did not assign the partner target');
+    });
+    check(await until(() => !__target.alive && __partner.record.xp > 0), 'partner never caught and attacked the fleeing civilian');
+    await game(() => {
+      const { inv, all, removeEntity } = __neonbay;
       inv.pokemon = { balls: 5, party: [], selected: -1 }; for (const p of all('pokemon')) removeEntity(p);
     });
   });
