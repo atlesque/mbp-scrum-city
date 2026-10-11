@@ -1,7 +1,14 @@
 {
- "version": "1.125",
+ "version": "1.126",
  "date": "2026-10-11",
  "entries": [
+  {
+   "v": "1.126",
+   "date": "2026-10-11",
+   "sha": "c42b0b8",
+   "pr": 121,
+   "title": "Fix repair tool crash when a Pokemon is nearby"
+  },
   {
    "v": "1.125",
    "date": "2026-10-11",
