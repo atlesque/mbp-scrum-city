@@ -1,7 +1,14 @@
 {
- "version": "1.119",
+ "version": "1.120",
  "date": "2026-10-11",
  "entries": [
+  {
+   "v": "1.120",
+   "date": "2026-10-11",
+   "sha": "2b21378",
+   "pr": 114,
+   "title": "Multiplayer crew: one wanted level, shared people and club, live map, no pausing"
+  },
   {
    "v": "1.119",
    "date": "2026-10-11",

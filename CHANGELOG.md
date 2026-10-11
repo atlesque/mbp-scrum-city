@@ -4,6 +4,7 @@ Written from the commits on main by `scripts/changelog.mjs`; every change merged
 
 ## 2026-10-11
 
+- **v1.120** Multiplayer crew: one wanted level, shared people and club, live map, no pausing ([#114](https://github.com/atlesque/mbp-scrum-city/pull/114))
 - **v1.119** Add courier driving jobs and repair-respray garages ([#115](https://github.com/atlesque/mbp-scrum-city/pull/115))
 - **v1.118** Exit to the title screen from the pause menu ([#113](https://github.com/atlesque/mbp-scrum-city/pull/113))
 - **v1.117** Opt-in multiplayer: share the city with up to 15 other players ([#111](https://github.com/atlesque/mbp-scrum-city/pull/111))
