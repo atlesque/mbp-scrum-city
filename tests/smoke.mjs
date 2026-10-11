@@ -160,6 +160,36 @@ try {
     });
   });
 
+  await step('Pokemon sounds synthesize cries and interaction cues through Web Audio', async () => {
+    await game(async () => {
+      const { Sound, P } = __neonbay;
+      const { SPECIES } = await import('/js/pokemon/team.js');
+      const { pokemonNotes } = await import('/js/data/pokemon-sounds.js');
+      const proto = (window.AudioContext || window.webkitAudioContext).prototype;
+      const original = proto.createOscillator; let voices = 0;
+      proto.createOscillator = function(...args) { voices++; return original.apply(this, args); };
+      try {
+        for (const cue of ['cry', 'throw', 'catch', 'escape', 'attack', 'recall', 'faint', 'heal', 'level', 'evolve']) {
+          const before = voices; Sound.pokemon(cue, SPECIES.pikachu);
+          if (voices - before !== pokemonNotes(cue, SPECIES.pikachu).length) throw new Error('missing audio voices for ' + cue);
+        }
+        const before = voices;
+        Sound.pokemon('cry', SPECIES.pikachu, { x: P.x + 100000, z: P.z, y: 0 });
+        if (voices !== before) throw new Error('distant cry should be inaudible');
+      } finally { proto.createOscillator = original; }
+      // Render a cry to real PCM, catching invalid envelopes or silent oscillator recipes.
+      const offline = new OfflineAudioContext(1, 44100, 44100);
+      for (const n of pokemonNotes('cry', SPECIES.pikachu)) {
+        const o = offline.createOscillator(), g = offline.createGain();
+        o.type = n.type; o.frequency.setValueAtTime(n.hz, n.at);
+        o.frequency.exponentialRampToValueAtTime(n.end, n.at + n.duration);
+        g.gain.value = 0.1; o.connect(g); g.connect(offline.destination); o.start(n.at); o.stop(n.at + n.duration);
+      }
+      const pcm = (await offline.startRendering()).getChannelData(0);
+      if (!pcm.every(Number.isFinite) || !pcm.some(v => Math.abs(v) > 0.01)) throw new Error('cry rendered silent or invalid audio');
+    });
+  });
+
   await step('Pokemon levels, evolutions and random wild encounters', async () => {
     await game(() => {
       const { P, inv, all, removeEntity } = __neonbay;

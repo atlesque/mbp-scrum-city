@@ -94,12 +94,17 @@ describe('service integration boundaries', () => {
       const v = car(id), original = v.mesh.m.geometry, source = original.attributes.color;
       const first = [source.getX(0), source.getY(0), source.getZ(0)];
       let painted = 0;
-      repaintCar(v); repaintCar(v);
-      const changed = v.mesh.m.geometry.attributes.color;
-      for (let i = 0; i < source.count; i++) {
-        const isPaint = Math.abs(source.getX(i) - first[0]) + Math.abs(source.getY(i) - first[1]) + Math.abs(source.getZ(i) - first[2]) < 0.001;
-        if (isPaint) { painted++; expect(changed.getX(i), id).not.toBe(source.getX(i)); }
-        else expect([changed.getX(i), changed.getY(i), changed.getZ(i)], id).toEqual([source.getX(i), source.getY(i), source.getZ(i)]);
+      // A second repaint may legitimately cycle back to the original body color.
+      // Each individual repaint must change the body, while preserving trim.
+      for (let pass = 0; pass < 2; pass++) {
+        const before = v.mesh.m.geometry.attributes.color.array.slice();
+        repaintCar(v);
+        const changed = v.mesh.m.geometry.attributes.color;
+        for (let i = 0; i < source.count; i++) {
+          const isPaint = Math.abs(source.getX(i) - first[0]) + Math.abs(source.getY(i) - first[1]) + Math.abs(source.getZ(i) - first[2]) < 0.001;
+          if (isPaint) { painted++; expect([changed.getX(i), changed.getY(i), changed.getZ(i)], id).not.toEqual(Array.from(before.slice(i * 3, i * 3 + 3))); }
+          else expect([changed.getX(i), changed.getY(i), changed.getZ(i)], id).toEqual([source.getX(i), source.getY(i), source.getZ(i)]);
+        }
       }
       expect(painted, id).toBeGreaterThan(source.count / 10);
       expect(v.mesh.m.geometry).not.toBe(original);

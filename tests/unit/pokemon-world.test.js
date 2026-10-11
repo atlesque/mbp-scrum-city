@@ -1,3 +1,4 @@
+import { Sound } from '../../public/js/core/audio.js';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { G, P, inv } from '../../public/js/core/state.js';
 import { all, removeEntity } from '../../public/js/entities/registry.js';
@@ -162,4 +163,28 @@ it('pursues and defeats a fleeing NPC instead of losing it or teleporting back t
   expect(npc.alive).toBe(false);
   expect(partner.z).toBeGreaterThan(20);
   expect(record.hp).toBeGreaterThan(0);
+});
+
+it('plays action cues only for successful actions, including battle and Center healing', () => {
+  const sound = vi.spyOn(Sound, 'pokemon');
+  const random = vi.spyOn(Math, 'random').mockReturnValue(0);
+  try {
+    const p = spawnPokemon('pikachu', 2, 0);
+    inv.pokemon.balls = 0; p.catch(); expect(sound).not.toHaveBeenCalled();
+    inv.pokemon.balls = 5; p.catch(); p.update(1.2);
+    expect(sound).toHaveBeenCalledWith('throw');
+    expect(sound).toHaveBeenCalledWith('catch', p.def);
+    updatePokemon(0.1);
+    const partner = all('pokemon').find(p => p.owned);
+    expect(sound).toHaveBeenCalledWith('cry', partner.def, expect.any(Object));
+    const npc = { x: partner.x + 1, z: partner.z, alive: true, hurt() {}, def: {} };
+    emit('npc:attacked', { npc, source: 'player' }); partner.update(0.1);
+    expect(sound).toHaveBeenCalledWith('attack', partner.def, partner);
+    sound.mockClear(); partner.hurt(200, true); expect(sound).not.toHaveBeenCalled();
+    partner.hurt(200, false); expect(sound).toHaveBeenCalledWith('faint', partner.def, partner);
+    emit('shop:purchase', { item: { type: 'pokemonTeam' }, action: 'heal' });
+    expect(sound).toHaveBeenCalledWith('heal');
+    emit('shop:purchase', { item: { type: 'pokemonTeam' }, action: 'evolve:0' });
+    expect(sound).toHaveBeenCalledWith('evolve');
+  } finally { sound.mockRestore(); random.mockRestore(); }
 });
