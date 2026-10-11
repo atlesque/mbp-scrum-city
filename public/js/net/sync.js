@@ -15,6 +15,7 @@ import { ghostOf, ghostsFrom, pruneGhosts } from './ghosts.js';
 import { MP, connected, onMessage, send } from './net.js';
 import { NPC_CHUNK, NPC_EVERY, NPC_SHARE_R, chunks, due, heatNews, packNpc, packShot, packState, unpackNpc } from './protocol.js';
 import { addRemote, allRemotes, dropRemote, remoteOf } from './remote.js';
+import { rideState } from './ride.js';
 
 // ================= MULTIPLAYER: THE GAME SIDE =================
 // Everyone in the room is one crew. What this game tells the room: where the player is, their shots and blasts, the
@@ -40,6 +41,7 @@ function tick() {
   // on the club's floor they're seen by the others in there; in the Pink Room by nobody
   const s = P.club === LAYOUT ? { ...packState(P, true), w: 2 } : packState(P, inWorld(), aimYaw);
   s.wl = G.wanted; s.sn = performance.now() - (G.seenAt || 0) < 700 ? 1 : 0;
+  const rd = s.w === 1 && rideState(); if (rd) Object.assign(s, rd); // a passenger's seat in a crewmate's vehicle
   if (G.wanted >= 5) { s.fr = Math.floor(G.fiveRun || 0); s.ft = Math.floor(G.fiveT || 0); }
   if (due(s, last, now - lastAt)) { send(s); last = s; lastAt = now; }
   if (now - npcAt >= NPC_EVERY) { npcAt = now; shareNpcs(); }
@@ -82,7 +84,7 @@ on('npc:shot', ({ npc, from, end }) => {
   send({ t: 'nshot', i: npc.nid, w: npc.def.gun, f: [r2(from.x), r2(from.y), r2(from.z)], h: [[r2(end.x), r2(end.y), r2(end.z)]] });
 });
 crew.others = () => connected() ? allRemotes().filter(r => r.alive && r.where === 1 && r.c.root.visible) : [];
-crew.online = connected;
+crew.online = connected; crew.me = () => MP.id || '';
 crew.hit = (r, d, zone) => send({ t: 'hit', to: r.id, d: Math.round(d * 10) / 10, z: zone });
 on('player:died', () => {
   if (!connected()) return;

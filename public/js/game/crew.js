@@ -11,6 +11,8 @@ export const crew = {
   hit: null,
   // in a room right now (net/sync.js)
   online: () => false,
+  // this player's id in the room
+  me: () => '',
 };
 
 // who a hunter at x, z goes after: the nearest of the crew still standing (the player when nobody is)

@@ -1,7 +1,14 @@
 {
- "version": "1.127",
+ "version": "1.128",
  "date": "2026-10-11",
  "entries": [
+  {
+   "v": "1.128",
+   "date": "2026-10-11",
+   "sha": "ee2a352",
+   "pr": 122,
+   "title": "Multiplayer: ride along in a crewmate's vehicle"
+  },
   {
    "v": "1.127",
    "date": "2026-10-11",
