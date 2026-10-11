@@ -90,7 +90,8 @@ on('settings:changed', ({ id }) => {
 
 export const settingsOpen = () => !$('settings').hidden;
 export function openSettings(overlay, startTab) {
-  if (startTab) tab = startTab;
+  // the title screen's What's new link opens on the changelog; Settings itself opens on the settings
+  tab = startTab || (tab === 'changes' ? 'sound' : tab);
   from = overlay; $(from).hidden = true; $('settings').hidden = false; render();
   setTimeout(() => $('setTabs').querySelector('[aria-selected="true"]').focus(), 20);
 }
