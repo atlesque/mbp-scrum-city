@@ -22,7 +22,8 @@ import { addRemote, allRemotes, dropRemote, remoteOf } from './remote.js';
 // one wanted level for all. The crew can't hurt each other. Traffic, the chopper, the tank and the UFO stay each
 // player's own.
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-const inWorld = () => (G.state === 'play' || G.state === 'dead' || G.state === 'map') && !P.club; // (a look at the map doesn't take them out of it)
+// (the city doesn't stop for the pause menu, the map or a shop in multiplayer, main.js, so they're still out in it)
+const inWorld = () => ['play', 'dead', 'map', 'paused', 'shop'].includes(G.state) && !P.club;
 const SEEN_FOR = 1.6; // seconds a crewmate's "they've seen me" lasts (they repeat it at least once a second)
 const r2 = n => Math.round(n * 100) / 100;
 let last = null, lastAt = 0, npcAt = 0, told = null, wasDead = false, nid = 0;
@@ -76,7 +77,13 @@ on('npc:shot', ({ npc, from, end }) => {
 });
 crew.others = () => connected() ? allRemotes().filter(r => r.alive && r.c.root.visible) : [];
 crew.hit = (r, d, zone) => send({ t: 'hit', to: r.id, d: Math.round(d * 10) / 10, z: zone });
-on('player:died', () => { if (connected()) send({ t: 'kill' }); });
+on('player:died', () => {
+  if (!connected()) return;
+  send({ t: 'kill' });
+  // wasted with the menu, the map or a shop open (the city kept going behind it): they close, for the wasted screen
+  for (const id of ['pause', 'worldMap', 'shop']) document.getElementById(id).hidden = true;
+  document.getElementById('hud').hidden = false; G.shop = null;
+});
 
 // ---- in ----
 onMessage('welcome', m => { for (const p of m.players) addRemote(p.id, p.name); });

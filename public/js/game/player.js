@@ -230,7 +230,7 @@ export const shieldingCab = () => P.vehicle?.K.shieldsDriver ? P.vehicle : null;
 // zone: where a bullet landed (combat/hitzones.js); a shot to the head rocks the camera harder.
 // Behind the wheel of a shielding cab nothing reaches the player: the hit lands on the vehicle instead.
 export function hurtPlayer(d, zone) {
-  if (!P.alive || G.state !== 'play') return;
+  if (!P.alive || (G.state !== 'play' && !G.away)) return; // (away: in a menu in multiplayer, where the city keeps going, main.js)
   const cab = shieldingCab(); if (cab) { if (d > 0) cab.damage(d, false); return; }
   if (P.armor > 0) { const a = Math.min(P.armor, d * 0.7); P.armor -= a; d -= a; }
   P.hp -= d; Sound.hurt(); cam.shake = Math.max(cam.shake, zone === 'head' ? 0.4 : 0.15);

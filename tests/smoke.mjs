@@ -1286,7 +1286,7 @@ try {
     check(await until(() => __neonbay.inv.cur === 'pistol', undefined, 3000), 'could not switch back to the pistol');
     await game(guns => { const { inv } = __neonbay; for (const [, id] of guns) if (id !== 'pistol') { delete inv.owned[id]; delete inv.ammo[id]; delete inv.mag[id]; } }, guns);
   });
-  await step('multiplayer: the crew shows up, shares its heat and its people, and rides a bike', async () => {
+  await step('multiplayer: the crew shows up, shares its heat and its people, rides a bike, and the city never pauses', async () => {
     // a stand-in for the room on the MBP Games service (net/net.js connects to it with WebSocket): it welcomes the player
     // with one other already in, and keeps what the game sends
     await game(async () => {
@@ -1330,6 +1330,16 @@ try {
     // they get on a bike: a copy of it rides along under them
     await game(({ x, z }) => { for (let i = 0; i < 3; i++) setTimeout(() => window.__mpSock.push({ t: 's', id: 'bot', w: 1, x, y: 0, z, yaw: 0, ms: 0, j: 0, g: 'pistol', a: 0, p: 0, th: 0, m: 0, al: 1, wl: 3, sn: 0, v: { m: 'gs', x, y: 0, z: z + i, yaw: 0, v: 8, st: 0, ay: null } }), i * 100); }, spot);
     check(await until(() => { const r = __neonbay.all('remote')[0]; return r.vehicle && r.vehicle.model.id === 'gs' && r.vehicle.remote; }, undefined, 5000), 'the other player is not on the bike');
+    // no pausing in the shared city: the menu opens over it, the city keeps going and the player can still be hit
+    await press('KeyP');
+    check(await until(() => __neonbay.G.state === 'paused'), 'P did not open the menu');
+    const away = await game(async () => {
+      const { G, P } = __neonbay, t0 = G.time, hp0 = P.hp; await new Promise(r => setTimeout(r, 600));
+      window.__mpSock.push({ t: 'hit', from: 'bot', to: 'me', d: 10, z: 'torso' });
+      return { ran: G.time - t0, hurt: hp0 - P.hp, title: document.getElementById('pauseTitle').textContent };
+    });
+    check(away.ran > 0.2 && away.hurt === 10 && away.title === 'Menu', 'the city stopped behind the menu: ' + JSON.stringify(away));
+    await press('KeyP');
     // leaving takes them, their bike and their people out of the world
     await game(async () => { (await import('/js/net/net.js')).leave(); window.WebSocket = window.__mpWS; });
     check(await game(() => __neonbay.all('remote').length === 0 && __neonbay.all('ghost').length === 0 && !__neonbay.all('vehicle').some(v => v.remote)), 'the other player stayed after leaving');
