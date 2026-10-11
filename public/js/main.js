@@ -16,6 +16,7 @@ import { all, count, entities, removeEntity } from './entities/registry.js';
 import { updateAmbience } from './game/ambience.js';
 import { clubScene, spawnClubDoor, updateClub } from './game/club.js';
 import { spawnCityServices, updateCityServicesHUD } from './game/city-services.js';
+import { worldEvents, startWorldEvent, stopWorldEvent, updateWorldEvents } from './game/world-events.js';
 import { countPlayTime } from './game/hint.js';
 import { makeJetpackPickup } from './game/jetpack.js';
 import { makeParachutePickup } from './game/parachute.js';
@@ -56,6 +57,7 @@ function frame(now) {
   // the world slows down while the weapon wheel is open; the camera and the HUD timers keep real time
   if (wheelOpen() && G.state !== 'play') closeWheel(false);
   const dt = wheelOpen() ? real * WHEEL_SLOW : real;
+  updateWorldEvents(dt);
   const live = G.state === 'play' || G.state === 'dead' || G.state === 'title';
   if (P.club && G.state === 'play') {
     // inside the club (game/club.js) the city waits outside, as it does while a shop's menu is open
@@ -161,7 +163,7 @@ async function start(data) {
 }
 try { window.claude && window.claude.hot && window.claude.hot.snapshot && window.claude.hot.snapshot(() => ({ inv: serialize(inv, stats), cur: inv.cur })); } catch (e) {}
 // ?debug exposes the game state to the console and to the smoke test
-if (/[?&]debug\b/.test(location.search)) window.__neonbay = { G, I, P, Sound, hurtPlayer, cam, inv, stats, entities, all, removeEntity, spawnVehicle, spawnNpc, spawnShop, lighting, ROOFS, CLUB };
+if (/[?&]debug\b/.test(location.search)) window.__neonbay = { worldEvents, startWorldEvent, stopWorldEvent, G, I, P, Sound, hurtPlayer, cam, inv, stats, entities, all, removeEntity, spawnVehicle, spawnNpc, spawnShop, lighting, ROOFS, CLUB };
 requestAnimationFrame(frame);
 const hot = window.claude && window.claude.hot;
 if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});

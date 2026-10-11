@@ -9,6 +9,7 @@ import { buildLandmark, landmarkAt } from './landmarks.js';
 import { bindProps, prop } from './props.js';
 import { ROOFS, buildRooftops, flatRoofs, roofSpots } from './rooftops.js';
 import { buildClub } from './club.js';
+import { recordEventBuilding, bindEventBuildings } from './event-destruction.js';
 
 // ================= WORLD =================
 const PASTEL = ['#f7a8c4', '#8fe3d6', '#ffd0a1', '#c9b3f2', '#a7e8a1', '#fff1c9', '#ffb3a7', '#9fd4ff', '#f4ece6', '#ffc6e7', '#b8f0e6', '#ffe0b3'];
@@ -71,6 +72,7 @@ function lamp(gb, ng, x, z, ry) {
 }
 function addSign(text, x, y, z, ry, w, color, font) { signs.push({ text, x, y, z, ry, w, color, font }); }
 function building(walls, plain, neon, x0, x1, z0, z1, h, style, face, signText) {
+  const gbs = [walls, plain, neon], start = gbs.map(gb => gb.p.length / 3), signStart = signs.length;
   const w = x1 - x0, d = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
   const col = spick(PASTEL), trim = srnd() < 0.6 ? '#fff6ee' : spick(PASTEL), neonC = spick(NEON);
   wallBox(walls, plain, cx, h / 2, cz, w, h, d, col);
@@ -107,7 +109,8 @@ function building(walls, plain, neon, x0, x1, z0, z1, h, style, face, signText) 
     const sw = Math.min(fw * 0.8, style === 'deco' ? 11 : 8);
     addSign(signText, fx + fn[0] * 0.35, style === 'deco' ? Math.min(h - 2.5, 8.5) : 5.2, fz + fn[1] * 0.35, ry, sw, spick(NEON), srnd() < 0.6 ? '"Yellowtail", cursive' : '"Bowlby One", Impact, sans-serif');
   }
-  addCollider(x0, x1, z0, z1, h, true);
+  const collider = addCollider(x0, x1, z0, z1, h, true);
+  recordEventBuilding(gbs, start, { x0, x1, z0, z1, h }, collider, signs.slice(signStart));
   if (!tiered) roofSpots.push({ x0, x1, z0, z1, h, face, col, trim, parapet });
 }
 export function buildWorld() {
@@ -240,6 +243,7 @@ export function buildWorld() {
   const meshes = [[walls, new THREE.Mesh(walls.geometry(), winMat)], [plain, new THREE.Mesh(plain.geometry(), plainMat)], [neon, new THREE.Mesh(neon.geometry(), neonMat)], [trees, new THREE.Mesh(trees.geometry(), plainMat)]];
   scene.add(...meshes.map(m => m[1]));
   bindProps(meshes);
+  bindEventBuildings(meshes);
 
   // water: faceted low-poly swell
   const wg = new THREE.PlaneGeometry(500, 900, 36, 64).toNonIndexed(); wg.rotateX(-Math.PI / 2); wg.translate(250 + 250, 0.1, 0);
@@ -254,7 +258,7 @@ export function buildWorld() {
   for (const s of signs) {
     const mat = new THREE.MeshBasicMaterial({ map: s.cross ? crossT : neonTexture(s.text, s.color, s.font), transparent: true, depthWrite: false });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(s.w, s.cross ? s.w : s.w / 4), mat);
-    m.position.set(s.x, s.y, s.z); m.rotation.y = s.ry; scene.add(m);
+    m.position.set(s.x, s.y, s.z); m.rotation.y = s.ry; scene.add(m); s.mesh = m;
   }
 }
 // what the ground is made of at x, z (combat/surface.js picks a bullet's sound by it): the sea past the waterline,

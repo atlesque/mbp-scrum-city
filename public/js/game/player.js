@@ -50,7 +50,7 @@ export function updatePlayer(dt) {
   if (v) {
     driveByPlayer(v, dt);
     if (P.vehicle) v.K.aim(v, P.c, aimingNow ? clamp(angDiff(v.yaw, cam.yaw), -2.4, 2.4) : null, cam.pitch);
-  } else if (P.tumble) tumble(dt); else walk(dt, aimingNow);
+  } else if (P.abducted) { P.moveSpeed = 0; P.jumpY = P.y; } else if (P.tumble) tumble(dt); else walk(dt, aimingNow);
   // weapon: a chopper fires its own guns (vehicles/heli-guns.js), and what's in hand waits until the player is out
   if (P.vehicle && P.vehicle.K.guns) { P.reload = null; P.vehicle.K.guns(P.vehicle, dt); } else if (!P.club) handWeapon(dt); // no weapons in the club
   if (!P.vehicle) {
