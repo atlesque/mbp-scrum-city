@@ -1,5 +1,6 @@
 import { aimArms, setGun, muzzleOf } from '../characters/character.js';
 import { Sound } from '../core/audio.js';
+import { emit as emitEvent } from '../core/events.js';
 import { HEAR } from '../core/spatial.js';
 import { blastShake, stackShake } from './shake.js';
 import { G, I, P, cam, inv } from '../core/state.js';
@@ -68,16 +69,17 @@ export function playerShoot() {
     const tgt = castShot(origin, dir, 300).p, rd = tgt.clone().sub(muz).normalize();
     fireRocket(muz, rd, st.dmg, st.blastMul);
   } else {
-    let hitAny = false, headAny = false;
+    let hitAny = false, headAny = false; const ends = [];
     for (let k = 0; k < w.pellets; k++) {
       const sp = spread * spreadMul;
       _d.copy(dir).add(new THREE.Vector3(rnd(-sp, sp), rnd(-sp, sp), rnd(-sp, sp))).normalize();
       const h = castBullet(origin, _d, w.range);
-      tracer(muz, h.p, false, w.laser);
+      tracer(muz, h.p, false, w.laser); ends.push(h.p);
       if (h.kind === 'entity') { const r = h.entity.onShot(h, st.dmg, _d); hitAny = true; if (r && r.head) headAny = true; }
       if (k < 3) bulletImpact(h); // a shotgun's first few pellets are plenty to hear
     }
     if (hitAny) { G.hitT = 0.12; const ch = $('crosshair'); ch.className = headAny ? 'head' : 'hit'; headAny ? Sound.head() : Sound.hit(); }
+    emitEvent('player:shot', { weapon: w.id, from: muz, ends });
   }
   crimeNoise();
 }
@@ -130,6 +132,7 @@ function hitsPlayer(o, d, maxT) {
 // ordnance: a rocket or grenade (not a vehicle going up), which wrecks vehicles close to it outright
 export function explosion(x, y, z, R, dmg, byPlayer, power = 1, ordnance = false) {
   boomFx(x, y, z, R * 0.7);
+  if (byPlayer && ordnance) emitEvent('player:boom', { x, y, z, R, dmg, power }); // other players see it too (net/sync.js)
   const dP = Math.hypot(x - P.x, z - P.z, Math.max(0, Math.abs(y - P.y) - 2)); // a blast in the street doesn't reach a roof
   Sound.boom(1.2, { x, y, z }, HEAR.boom);
   cam.shake = stackShake(cam.shake, blastShake(R, Math.hypot(x - P.x, z - P.z, y - P.y)));
