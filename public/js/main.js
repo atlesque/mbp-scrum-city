@@ -3,6 +3,7 @@ import './core/input.js';
 import './shops/shop.js';
 import './game/rewards.js';
 import './ui/settings.js';
+import './ui/exit.js';
 import { makeCharacter, setGun } from './characters/character.js';
 import { selectWeapon, updateRockets } from './combat/combat.js';
 import { updateThrown } from './combat/throwables.js';
