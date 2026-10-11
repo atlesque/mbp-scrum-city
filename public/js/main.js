@@ -16,6 +16,7 @@ import { WBY, WEAPONS, wStat } from './data/weapons.js';
 import { all, count, entities, removeEntity } from './entities/registry.js';
 import { updateAmbience } from './game/ambience.js';
 import { clubScene, spawnClubDoor, updateClub } from './game/club.js';
+import { spawnCityServices, updateCityServicesHUD } from './game/city-services.js';
 import { countPlayTime } from './game/hint.js';
 import { makeJetpackPickup } from './game/jetpack.js';
 import { makeParachutePickup } from './game/parachute.js';
@@ -87,7 +88,7 @@ function frame(now) {
     P.x = camera.position.x - 30; P.z = camera.position.z;
   } else if (G.state !== 'loading') {
     updateCamera(real);
-    updateHUD(); drawRadar();
+    updateHUD(); drawRadar(); updateCityServicesHUD();
   }
   if (G.toastT > 0) { G.toastT -= real; if (G.toastT <= 0) $('toast').classList.remove('show'); }
   if (G.bigT > 0) { G.bigT -= real; if (G.bigT <= 0) $('bigText').classList.remove('show'); }
@@ -122,7 +123,7 @@ async function start(data) {
   try { await Promise.race([Promise.all([document.fonts.load('80px "Yellowtail"'), document.fonts.load('80px "Bowlby One"')]), new Promise(r => setTimeout(r, 2500))]); } catch (e) {}
   await loadLandmarkModels();
   await loadStep(0.5, 'Pouring Ocean Drive');
-  buildWorld(); buildLighting();
+  buildWorld(); buildLighting(); spawnCityServices();
   await loadStep(0.7, 'Planting the palm trees');
   buildMap(); load(data);
   P.c = makeCharacter({ skin: '#eab48f', shirt: '#2fb8c9', pa: '#ff6fae', pb: '#f6f1e7', pants: '#f4f0e6', hair: '#3a2416', hairStyle: 'mullet', glasses: true, shoes: '#f6f1e7' });
