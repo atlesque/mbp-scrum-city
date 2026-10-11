@@ -1,7 +1,14 @@
 {
- "version": "1.118",
+ "version": "1.119",
  "date": "2026-10-11",
  "entries": [
+  {
+   "v": "1.119",
+   "date": "2026-10-11",
+   "sha": "277b0c9",
+   "pr": 115,
+   "title": "Add courier driving jobs and repair-respray garages"
+  },
   {
    "v": "1.118",
    "date": "2026-10-11",
