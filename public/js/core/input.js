@@ -15,6 +15,7 @@ import { drawWeaponIcon, showRadio, toast } from '../ui/hud.js';
 import { closeSettings, settingsOpen } from '../ui/settings.js';
 import { cycleHeliGun, flyingHeli, HELI_GUN_ORDER, pickHeliGun, reloadHeliGun } from '../vehicles/heli-guns.js';
 import { closeWheel, openWheel, wheelMove, wheelOpen, wheelScroll } from '../ui/wheel.js';
+import { closeMap, mapKey, openMap } from '../ui/worldmap.js';
 import { toggleSiren } from '../vehicles/vehicle.js';
 import { SPAWN } from '../world/city.js';
 
@@ -52,6 +53,8 @@ document.addEventListener('keydown', e => {
   if (G.state === 'play' && (act === 'jump' || ['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code))) e.preventDefault();
   if (settingsOpen()) { if (e.code === 'Escape') { e.preventDefault(); closeSettings(); } return; }
   if (G.state === 'shop') { if (act === 'use' || e.code === 'Escape') { e.preventDefault(); closeShop(); } return; }
+  // the world map (ui/worldmap.js) pans with the movement keys, so they are tracked as held while it is open
+  if (G.state === 'map') { if (act || /^(Tab|Arrow)/.test(e.code)) e.preventDefault(); if (act === 'map' || act === 'pause' || e.code === 'Escape') closeMap(); else { keys[e.code] = true; mapKey(e); } return; }
   if (G.state === 'paused') { if (e.code === 'Enter' || act === 'pause') resumeGame(); return; }
   if (G.state !== 'play') return;
   keys[e.code] = true;
@@ -59,6 +62,7 @@ document.addEventListener('keydown', e => {
   if (act === 'reload') { if (heli) reloadHeliGun(heli); else startReload(); }
   if ((act === 'ride' || act === 'use') && P.alive) interact(act);
   if (act === 'siren') toggleSiren();
+  if (act === 'map') { e.preventDefault(); closeWheel(false); openMap(); return; }
   if (act === 'radio') { const on = Sound.toggleMusic(); showRadio(on ? 'Neon FM 86.0' : 'Radio off'); }
   if (act === 'pause' || (e.code === 'Escape' && I.noLock)) pauseGame();
   // hold for the weapon wheel (ui/wheel.js); a quick tap steps through the fists and melee weapons

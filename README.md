@@ -22,6 +22,7 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 - Eight buildings around the city have a lit **Roof** door at street level (green squares on the radar). Press `E` there to take the stairs up to a fenced rooftop with a view over the city, and `E` at the stair hut's **Exit** door to come back down. VAC Gent, the Belpaire and the Herman Teirlinck have one too. A sniper rifle waits on every roof with a door, the rocket launcher on top of the Herman Teirlinck's tower, a jetpack on the Belpaire, and a parachute (a yellow paraglider) on each of the three. Like enemy drops, they are lost when you get wasted. A parachute is good for one jump; the roof has a new one a minute after you took it.
 - The **Velvet Flamingo**, a cabaret club with a pink neon sign and a red carpet, has a door on an Ocean Drive block near the spawn (a pink square on the radar). Press `E` at the door to go inside: a room of its own with three dancers in sequinned club outfits working the poles on the stage, a bar, booths and tables full of regulars, a bouncer by the door and a house groove from the speakers. Press `E` at the bar for a Flamingo Fizz ($20, +15 health), and `E` at the door to go back out. While you are inside, the city waits for you as it does while a gun shop's menu is open (traffic, the law and your stars stay as they were), and it's fists only: the bouncer turns you away at 4 stars or more.
 - Every flat roof can be stood on. Press `Space` again in the air to double jump, jump over a roof's railings or up onto them, and hop across to the next roof. Whatever stands on a roof can be climbed too, up to the Belpaire's pergola (bring the jetpack); a fall of more than about 5 m hurts. With the jetpack on, hold `Space` in the air to fly; let go and you drop, a little softer than without it at first but just as hard from high up, so hold it again to brake before you land. With a parachute on, jump off and press `Space` again in the air (once the double jump is spent, or straight away when you are already falling fast) to open it; you float down at a soft 4 m/s, steer with `WASD`, and the chute is spent when you land.
+- **World map** (`M`, or **Map** in the pause menu): the whole city with the radar's markers and the names of places. Click anywhere to set a waypoint; the radar points to it until you arrive.
 - Dying sends you to City General with a 10% hospital bill.
 - **Guest or account.** Play as a guest and your progress (cash, guns, upgrades, ammo) saves in this browser. Or press **Sign in or create account** on the title screen (or **Sign in** in the pause menu): you get an email link, no password, for an MBP Games account that works across every MBP game. Signed in, your progress saves to the account every 5 minutes, every time you get wasted, and when you close the page, so it follows you to any device. The first time you sign in, guest progress moves into the account, unless the account already has progress, which then wins.
 - **Multiplayer (opt-in).** Single player is the default. Press **Multiplayer** on the title screen, pick a name and **Join the city** to share it with up to 15 other players: you see each other walk, ride and drive, shoot each other (and each other's cars), and a kill shows who wasted whom. Traffic, people, police and your wanted level stay your own. The pause menu says who's in and has **Leave the city**; if you were in last time, the game takes you back in when it loads. There is one city for everyone, and when it's full (16) you play on alone.
@@ -29,7 +30,7 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 
 ## Controls
 
-These are the QWERTY defaults; the AZERTY preset uses ZQSD to move, A for melee and M (right of L) for the radio, and every key except the mouse, 1–9 and Esc can be changed under Settings → Controls. The arrow keys always move too.
+These are the QWERTY defaults; the AZERTY preset uses ZQSD to move, A for melee and M (right of L) for the world map, and every key except the mouse, 1–9 and Esc can be changed under Settings → Controls. The arrow keys always move too.
 
 | Key | Action |
 | --- | --- |
@@ -49,7 +50,8 @@ These are the QWERTY defaults; the AZERTY preset uses ZQSD to move, A for melee 
 | T | Take out the repair tool, once you have one (hold left click on a vehicle up close to fix it) |
 | R | Reload |
 | H | Siren and flashing lights on / off (police car, fire truck) |
-| M | Toggle the radio (Neon FM builds up with your wanted level: synths only at zero stars, drums from one star, more layers up to five) |
+| N | Toggle the radio (Neon FM builds up with your wanted level: synths only at zero stars, drums from one star, more layers up to five) |
+| M | World map: the whole city, north up, with everything the radar shows plus the names of the hospital, landmarks, gun shops and the club. The city waits while it is open. Drag or WASD to pan, scroll or + / − to zoom, click to set a waypoint (a purple diamond on the radar until you get there), click it again, right click or Backspace to clear it. M or Esc closes it; the pause menu has a **Map** button too. |
 | Esc / P | Pause |
 
 ## Project layout
@@ -151,3 +153,11 @@ Deploys run automatically through the Cloudflare Pages GitHub integration (proje
 There is no build step. Pages serves the `public/` directory as is.
 
 Because file URLs never change, `public/_headers` sends `Cache-Control: no-cache` so browsers revalidate every file on each load and pick up a new deploy straight away (unchanged files come back as a small 304).
+
+### Version and changelog
+
+Every change merged into `main` is one version: the 112th is v1.112. After each push to `main` the Changelog workflow
+(`.github/workflows/changelog.yml`) runs `scripts/changelog.mjs`, which reads main's history (the PR title from each merge
+or squash commit) and writes `public/changelog.json` and `CHANGELOG.md`, then commits them back as `Changelog: v1.N`.
+That commit deploys like any other. The title screen and the settings footer show the version in small text, and the
+settings "What's new" tab lists the changes. Don't edit either file by hand; `npm run changelog` rebuilds them locally.
