@@ -1,6 +1,6 @@
 // Screen shake from explosions: bigger blasts shake harder and reach further, and the shake fades with distance.
 export const SHAKE = {
-  reachMul: 4,   // a blast is felt out to this many blast radii (rocket 40 m, car 36 m, bike 24 m)
+  reachMul: 4,   // a blast is felt out to this many blast radii (rocket 24 m, car 36 m, bike 24 m)
   falloff: 1.5,  // > 1 drops off quickly away from the blast, so only nearby ones really rattle the camera
   refR: 10,      // blast radius that shakes at full strength (a rocket)
   minSize: 0.5, maxSize: 1.4,
