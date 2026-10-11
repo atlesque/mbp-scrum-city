@@ -107,8 +107,8 @@ export function fireRocket(from, dir, dmg, blastMul = 1, shooter = null) {
   const m = new THREE.Mesh(PGEO, pmat('#5b6a3a')); m.scale.set(0.16, 0.16, 0.7); m.position.copy(from); m.lookAt(from.clone().add(dir)); scene.add(m);
   rockets.push({ m, p: from.clone(), d: dir.clone(), life: 5, dmg, blastMul, shooter, speed: shooter ? ENEMY_ROCKET_SPEED : 70 });
 }
-// rockets hit wider and throw bodies and vehicles further than a car going up
-export const ENEMY_ROCKET_SPEED = 34, ROCKET_BLAST_R = 10, ROCKET_POWER = 1.7;
+// rockets throw bodies and vehicles further than a car going up, over a tighter 6 m splash (× the launcher's blastMul)
+export const ENEMY_ROCKET_SPEED = 34, ROCKET_BLAST_R = 6, ROCKET_POWER = 1.7;
 export function updateRockets(dt) {
   for (let i = rockets.length - 1; i >= 0; i--) {
     const r = rockets[i], step = r.speed * dt; r.life -= dt;
