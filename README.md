@@ -28,6 +28,12 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 - **Multiplayer (opt-in).** Single player is the default. Press **Multiplayer** on the title screen, pick a name and **Join the city** to share it with up to 15 other players: you see each other walk, ride and drive, shoot each other (and each other's cars), and a kill shows who wasted whom. Traffic, people, police and your wanted level stay your own. The pause menu says who's in and has **Leave the city**; if you were in last time, the game takes you back in when it loads. There is one city for everyone, and when it's full (16) you play on alone.
 - **Settings** (pause menu or title screen): sound on/off, effects, music and city ambience volume, render quality, draw distance, animated waves, mouse sensitivity, invert look, field of view, camera shake, crowd and traffic density, km/h or mph, and the keys: a QWERTY or AZERTY preset, then any action rebound by clicking it and pressing the new key (a key already in use swaps over). On a first visit in Chrome or Edge an AZERTY keyboard is detected and picked for you. Settings save in this browser, separately from game progress.
 
+## City driving jobs and services
+
+- **Neon Express** (gold **D** on the radar/map, southern parking lot at 25, 125): bring a civilian car or motorcycle with no wanted stars and press `E` inside the gold depot ring. Deliver to three gold road rings within 1:50. Stop in each ring in the original vehicle with no wanted stars. The job panel shows the destination, distance and time; its gold radar marker remains separate from your manual waypoint. Return to the depot and press `E` to cancel. Leaving your ride lets the clock run; death, fire, a wreck or a missed deadline ends the job. Successful runs pay $450 plus time and vehicle-condition bonuses. Repairing mid-run does not erase damage penalties. Routes rotate on subsequent runs.
+- **Spray & Go** (cyan **G**, parking lot at 75, -75): stop a civilian car in the cyan bay and press `E` for a $300 repair and respray. It clears up to three wanted stars after you break line of sight and the escape timer has advanced at least three seconds. Emergency vehicles, burning cars, wrecks and four-star pursuits are refused. Fresh paint has a 12-second cooldown. `F` still exits the car in either service bay.
+- Jobs and paint belong to the current session. Job earnings and garage costs use the existing cash save; no save migration is required.
+
 ## Controls
 
 These are the QWERTY defaults; the AZERTY preset uses ZQSD to move, A for melee and M (right of L) for the world map, and every key except the mouse, 1–9 and Esc can be changed under Settings → Controls. The arrow keys always move too.
@@ -131,6 +137,7 @@ Alongside the code in `public/`: the favicon set, `site.webmanifest`, the share 
 
 ```bash
 npm test             # unit tests (Vitest): rules, shop items, save migration, registry cross-checks
+node tests/city-services-smoke.mjs # bounded courier/garage gameplay check (single browser)
 npm run test:smoke   # plays the game in headless Chromium: walk, drive, ride, shoot, carjack, shop, go up to a roof, a 5-star chase
 npm run test:smoke -- tank reload   # only the smoke steps whose names contain those words
 npm run shots -- shots/roof --at roof:0 --time day,night --cam game,side   # screenshots for a PR (options at the top of tests/shots.mjs)
