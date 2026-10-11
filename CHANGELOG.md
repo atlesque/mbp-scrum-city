@@ -4,6 +4,7 @@ Written from the commits on main by `scripts/changelog.mjs`; every change merged
 
 ## 2026-10-11
 
+- **v1.113** Version number and What's new changelog, written from main's commits ([#108](https://github.com/atlesque/mbp-scrum-city/pull/108))
 - **v1.112** Add the Velvet Flamingo, an SFW cabaret club you can walk into ([#107](https://github.com/atlesque/mbp-scrum-city/pull/107))
 
 ## 2026-10-10

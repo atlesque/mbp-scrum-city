@@ -1,7 +1,14 @@
 {
- "version": "1.112",
+ "version": "1.113",
  "date": "2026-10-11",
  "entries": [
+  {
+   "v": "1.113",
+   "date": "2026-10-11",
+   "sha": "02411e5",
+   "pr": 108,
+   "title": "Version number and What's new changelog, written from main's commits"
+  },
   {
    "v": "1.112",
    "date": "2026-10-11",
