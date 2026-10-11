@@ -1,5 +1,5 @@
 // Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, shoot a chopper's pilot and fly the chopper off, get shelled by the army's tank and blow it up, hold five stars into the secret sixth and take a laser rifle off an alien, snipe through the scope, throw a car with a rocket,
-// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, buy the repair tool and fix a car with it, ram a bike, ride a bike over a car, pull a wheelie, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, go into the club and back out, change settings and remap keys. Fails on any page error or broken step.
+// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, buy the repair tool and fix a car with it, ram a bike, ride a bike over a car, pull a wheelie, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, go into the club and back out, open the world map and set a waypoint, change settings and remap keys. Fails on any page error or broken step.
 // Run with `npm run test:smoke`, which splits the steps over a few browsers at once (tests/smoke-all.mjs). This file is one of
 // those browsers: `node tests/smoke.mjs` runs every step in one, in order.
 // SMOKE_ONLY=tank,reload runs only the steps whose names contain one of those words (case-insensitive), after the boot;
@@ -43,11 +43,11 @@ async function reset() {
   await game(async () => {
     const { G, P, I, cam, all, removeEntity } = __neonbay;
     const { exitVehicle, respawn } = await import('/js/game/player.js'), { selectWeapon } = await import('/js/combat/combat.js'), { dropChute } = await import('/js/game/parachute.js');
-    for (const id of ['pause', 'settings', 'shop', 'wheel']) { const el = document.getElementById(id); if (el) el.hidden = true; }
+    for (const id of ['pause', 'settings', 'shop', 'wheel', 'worldMap']) { const el = document.getElementById(id); if (el) el.hidden = true; }
     // a step that failed part-way can leave the player at the wheel, and every step after it would fail to get on anything
     if (P.vehicle) { P.vehicle.v = 0; P.vx = P.vz = 0; exitVehicle(false); }
     dropChute();
-    P.tumble = null; P.bailFrom = null; P.alive = true; G.state = 'play'; G.shop = null;
+    P.tumble = null; P.bailFrom = null; P.alive = true; G.state = 'play'; G.shop = null; G.waypoint = null;
     // respawn clears the law, the army, the chopper, the tank and the UFO, and stands the player at the spawn point
     respawn();
     for (const k of Object.keys(window)) if (k.startsWith('__') && k !== '__neonbay') { const e = window[k]; if (e && e.kind && !e.removed) removeEntity(e); delete window[k]; }
@@ -853,6 +853,41 @@ try {
     check(await until(() => !__neonbay.P.club), 'did not come back out');
     const out = await game(() => { const { P, inv, CLUB } = __neonbay; return { d: Math.hypot(P.x - CLUB.site.street.x, P.z - CLUB.site.street.z), cur: inv.cur }; });
     check(out.d < 1.5 && out.cur === 'pistol', 'did not come back out to the street with the pistol: ' + JSON.stringify(out));
+  });
+
+  await step('opens the world map, pans and zooms it, and drops a waypoint the radar follows', async () => {
+    const view = () => game(async () => (await import('/js/ui/worldmap.js')).mapView());
+    await press('Tab');
+    check(await until(() => __neonbay.G.state === 'map'), 'Tab did not open the map');
+    check(await page.isVisible('#worldMap') && !(await page.isVisible('#hud')), 'the map is not showing in place of the HUD');
+    const t0 = await game(() => __neonbay.G.time); await page.waitForTimeout(500);
+    check(await game(t0 => __neonbay.G.time === t0, t0), 'the city kept running behind the map');
+    const box = await page.locator('#mapCanvas').boundingBox(), mx = box.x + box.width / 2, my = box.y + box.height / 2;
+    const v0 = await view();
+    await page.mouse.move(mx, my); await page.mouse.wheel(0, -400); await page.waitForTimeout(200);
+    const v1 = await view();
+    check(v1.zoom > v0.zoom, 'scrolling did not zoom in: ' + JSON.stringify([v0, v1]));
+    await page.mouse.down(); await page.mouse.move(mx + 120, my + 60, { steps: 6 }); await page.mouse.up();
+    const v2 = await view();
+    check(v2.cx < v1.cx && v2.cz < v1.cz, 'dragging did not pan the map: ' + JSON.stringify([v1, v2]));
+    await page.mouse.click(mx + 80, my);
+    const wp = await game(() => __neonbay.G.waypoint);
+    check(wp && Math.abs(wp.x - (v2.cx + 80 / v2.zoom)) < 2 && Math.abs(wp.z - v2.cz) < 2, 'clicking did not drop the waypoint there: ' + JSON.stringify({ wp, v2 }));
+    await press('Tab');
+    check(await until(() => __neonbay.G.state === 'play'), 'Tab did not close the map');
+    check(await page.isVisible('#hud') && !(await page.isVisible('#worldMap')), 'the HUD did not come back');
+    await page.waitForTimeout(300);
+    check(await game(() => !!__neonbay.G.waypoint), 'the waypoint went before the player got there');
+    await game(() => { const { P, G } = __neonbay; P.x = G.waypoint.x + 3; P.z = G.waypoint.z; });
+    check(await until(() => !__neonbay.G.waypoint), 'the radar did not drop the waypoint once reached');
+    await press('KeyP');
+    check(await until(() => __neonbay.G.state === 'paused'), 'P did not pause');
+    await page.click('#pauseMapBtn');
+    check(await until(() => __neonbay.G.state === 'map'), 'the pause menu\'s Map button did not open the map');
+    await page.keyboard.press('Escape');
+    check(await until(() => __neonbay.G.state === 'paused') && await page.isVisible('#pause'), 'Esc did not go back to the pause menu');
+    await page.click('#resumeBtn');
+    check(await until(() => __neonbay.G.state === 'play'), 'did not resume');
   });
 
   await step('changes settings from the pause menu', async () => {

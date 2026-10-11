@@ -1,13 +1,15 @@
-import { P, cam } from '../core/state.js';
+import { G, P, cam } from '../core/state.js';
 import { entities } from '../entities/registry.js';
 import { $, angDiff } from '../core/util.js';
 import { makeCanvas } from '../render/textures.js';
 import { SPAWN, parkRects } from './city.js';
 import { ROADS, tallBoxes } from './collision.js';
+import { reachedWaypoint } from './mapview.js';
 
 // ================= MAP / RADAR =================
-const MAP = { x0: -260, z0: -260, s: 2, size: 1120 };
+export const MAP = { x0: -260, z0: -260, s: 2, size: 1120 };
 let mapCanvas;
+export const mapImage = () => mapCanvas; // the full-screen map (ui/worldmap.js) draws the same picture
 export function buildMap() {
   mapCanvas = makeCanvas(MAP.size, MAP.size); const x = mapCanvas.getContext('2d');
   const R = (wx, wz, w, h, c) => { x.fillStyle = c; x.fillRect((wx - MAP.x0) * MAP.s, (wz - MAP.z0) * MAP.s, w * MAP.s, h * MAP.s); };
@@ -39,7 +41,8 @@ export function drawRadar() {
       let [bx, by] = toR(wx, wz); const dx = bx - Rr, dy = by - Rr, d = Math.hypot(dx, dy);
       if (d > Rr - 10) { if (!edge) return; bx = Rr + dx / d * (Rr - 12); by = Rr + dy / d * (Rr - 12); }
       c.fillStyle = col; c.strokeStyle = '#000'; c.lineWidth = 3;
-      if (shape === 'sq') { c.fillRect(bx - size, by - size, size * 2, size * 2); c.strokeRect(bx - size, by - size, size * 2, size * 2); }
+      if (shape === 'dia') { c.beginPath(); c.moveTo(bx, by - size); c.lineTo(bx + size, by); c.lineTo(bx, by + size); c.lineTo(bx - size, by); c.closePath(); c.fill(); c.stroke(); }
+      else if (shape === 'sq') { c.fillRect(bx - size, by - size, size * 2, size * 2); c.strokeRect(bx - size, by - size, size * 2, size * 2); }
       else { c.beginPath(); c.arc(bx, by, size, 0, 7); c.fill(); c.stroke(); }
     },
     // a letter that stays pinned to the rim when out of range
@@ -56,6 +59,9 @@ export function drawRadar() {
   // hospital cross
   { const [bx, by] = toR(SPAWN.x, SPAWN.z); if (Math.hypot(bx - Rr, by - Rr) < Rr - 10) { c.fillStyle = '#fff'; c.fillRect(bx - 9, by - 3, 18, 6); c.fillRect(bx - 3, by - 9, 6, 18); c.fillStyle = '#ff3344'; c.fillRect(bx - 7, by - 2, 14, 4); c.fillRect(bx - 2, by - 7, 4, 14); } }
   for (; i < blips.length; i++) blips[i].blip(radar);
+  // the waypoint set on the world map (ui/worldmap.js), pinned to the rim while it is out of range, gone once reached
+  if (reachedWaypoint(G.waypoint, P.x, P.z)) G.waypoint = null;
+  if (G.waypoint) radar.dot(G.waypoint.x, G.waypoint.z, '#c77dff', 12, true, 'dia');
   // player arrow
   c.save(); c.translate(Rr, Rr); c.rotate(-angDiff(cam.yaw, P.yaw));
   c.beginPath(); c.moveTo(0, -16); c.lineTo(11, 12); c.lineTo(0, 6); c.lineTo(-11, 12); c.closePath(); c.fillStyle = '#fff'; c.strokeStyle = '#000'; c.lineWidth = 4; c.stroke(); c.fill(); c.restore();

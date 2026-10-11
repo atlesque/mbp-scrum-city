@@ -8,7 +8,8 @@ export const stats = { kills: 0, cops: 0, best: 0, earned: 0, played: 0, fiveSta
 export const keys = {};
 // mutable game-wide values, shared across modules
 export const G = {
-  state: 'loading', // loading | title | play | paused | shop | dead
+  state: 'loading', // loading | title | play | paused | shop | map | dead
+  waypoint: null, // { x, z } set on the world map (ui/worldmap.js), shown on the radar until reached
   time: 0,
   wanted: 0,
   heat: 0,
