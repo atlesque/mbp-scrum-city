@@ -1,4 +1,3 @@
-import { spawnSecretJet } from './world/secret-jet.js';
 import './three.js'; // first, so every module below sees the THREE global
 import './core/input.js';
 import './shops/shop.js';
@@ -18,6 +17,7 @@ import { all, count, entities, removeEntity } from './entities/registry.js';
 import { updateAmbience } from './game/ambience.js';
 import { clubScene, spawnClubDoor, updateClub } from './game/club.js';
 import { spawnCityServices, updateCityServicesHUD } from './game/city-services.js';
+import { spawnSecretJet } from './world/secret-jet.js';
 import { worldEvents, startWorldEvent, stopWorldEvent, updateWorldEvents } from './game/world-events.js';
 import { countPlayTime } from './game/hint.js';
 import { makeJetpackPickup } from './game/jetpack.js';
