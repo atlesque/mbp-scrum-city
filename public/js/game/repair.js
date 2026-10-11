@@ -30,7 +30,8 @@ export function boxDist(p, h) {
 export function findTarget(p, yaw, ents) {
   let best = null, bd = REPAIR.reach;
   for (const e of ents) {
-    const h = e.health && e.health(); if (!h) continue;
+    // typeof: a Pokemon's health is its HP bar mesh, not a function
+    const h = typeof e.health === 'function' && e.health(); if (!h) continue;
     if (Math.abs((p.y || 0) - h.y) > REPAIR.lift) continue;
     const n = boxDist(p, h); if (n.d > bd) continue;
     // standing right against it, any way the player faces will do
