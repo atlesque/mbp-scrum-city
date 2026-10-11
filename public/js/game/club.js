@@ -11,7 +11,7 @@ import { GB, UNIT, addGeo, box, cylG } from '../render/geometry.js';
 import { scene } from '../render/scene.js';
 import { makeCanvas, neonTexture } from '../render/textures.js';
 import { showBig, toast } from '../ui/hud.js';
-import { BAR, BOOTHS, BOUNCER, CLUB, CLUB_AT, CLUB_CLOSED_AT, CLUB_NAME, DOOR, POLES, ROOM, ROUTINE, RUNWAY, SEATS, STAGE, TABLES, TIP, clubLayout, routineAt } from '../world/club.js';
+import { BAR, BOOTHS, BOUNCER, CLUB, CLUB_AT, CLUB_CLOSED_AT, CLUB_NAME, DOOR, POLES, PRIVATE, ROOM, ROUTINE, RUNWAY, SEATS, STAGE, TABLES, TIP, VIP, clubLayout, privateLayout, routineAt } from '../world/club.js';
 
 // ================= INSIDE THE VELVET FLAMINGO =================
 // E at the club's door fades out and puts the player in the club, a room drawn in a scene of its own (main.js
@@ -22,7 +22,7 @@ const REACH = 1.8;
 export const DRINK = { name: 'Flamingo Fizz', price: 20, hp: 15 };
 const ECHO = { wet: 0.3, delay: 0.03, tail: 0.55 }; // a small room with a hard floor (Sound.room)
 const BEAT = 0.5; // the house groove plays at 120 bpm: dancers and heads move to it
-export const LAYOUT = clubLayout();
+export const LAYOUT = clubLayout(), PINK = privateLayout();
 let S = null; // the scene and everyone in it, once built
 let held = null; // what was in the player's hand at the door
 
@@ -43,6 +43,9 @@ export function spawnClubDoor(site) { return addEntity(Object.assign(Object.crea
 // what the player can use inside: the door back out, and the bar (game/interact.js asks this instead of the city)
 export function clubInteractions(p, near) {
   if (G.stairs) return;
+  if (P.club === PINK) { near.push({ keys: ['use'], priority: 1, dist: 0, prompt: `Press <kbd>${kb('use')}</kbd> to head back to the floor`, run: () => fadeThen(backToFloor) }); return; }
+  const hd = Math.hypot(p.x - (PRIVATE.host.x + CLUB_AT.x), p.z - (PRIVATE.host.z + CLUB_AT.z));
+  if (hd < REACH) near.push({ keys: ['use'], priority: 1, dist: hd, prompt: `Press <kbd>${kb('use')}</kbd> for a private dance in the Pink Room ($${PRIVATE.price})`, run: () => { if (payPrivate()) fadeThen(intoPinkRoom); } });
   const L = LAYOUT, d = Math.hypot(p.x - L.door.x, p.z - (L.door.z - 0.9));
   if (d < REACH) near.push({ keys: ['use'], priority: 1, dist: d, prompt: `Press <kbd>${kb('use')}</kbd> to head back out`, run: () => goThrough(false) });
   const b = L.barFront, bd = Math.abs(p.x - b.x);
@@ -55,14 +58,32 @@ export function buyDrink() {
   return true;
 }
 
+// the host takes the money up front
+export function payPrivate() {
+  if (inv.money < PRIVATE.price) { Sound.deny(); toast(`A private dance is $${PRIVATE.price}. Come back with some cash.`, 2.5); return false; }
+  inv.money -= PRIVATE.price; Sound.buy(); save();
+  return true;
+}
 // a short fade to black hides the move, as on the roof stairs
-function goThrough(inside) {
+function fadeThen(fn) {
   if (G.stairs) return;
   G.stairs = true; $('fade').classList.add('on');
-  setTimeout(() => {
-    G.stairs = false; $('fade').classList.remove('on');
-    if (P.alive && !P.vehicle) { if (inside) enterClub(); else leaveClub(); }
-  }, 280);
+  setTimeout(() => { G.stairs = false; $('fade').classList.remove('on'); if (P.alive && !P.vehicle) fn(); }, 280);
+}
+const goThrough = inside => fadeThen(inside ? enterClub : leaveClub);
+// through the curtain: sat in the armchair in front of the Pink Room's pole until E takes you back out to the floor
+export function intoPinkRoom() {
+  if (!P.club) return;
+  build(); P.club = PINK; stand(PINK.seat.x, PINK.seat.z, PINK.seat.yaw); P.sitting = true; cam.pitch = 0.05;
+  if (S.pink) S.pink.offset = -S.t; // the dance starts from the top
+}
+export function backToFloor() {
+  if (P.club !== PINK) return;
+  standUp(); P.club = LAYOUT; stand(PRIVATE.back.x + CLUB_AT.x, PRIVATE.back.z + CLUB_AT.z, PRIVATE.back.yaw);
+}
+function standUp() {
+  if (!P.sitting) return;
+  P.sitting = false; const c = P.c; c.legL.geometry = c.legR.geometry = c.legGeo; c.shadow.visible = true;
 }
 const stand = (x, z, yaw) => {
   P.x = x; P.z = z; P.y = P.floor = 0; P.vy = 0; P.grounded = true; P.vx = P.vz = 0; P.moveSpeed = 0; P.roof = null;
@@ -82,7 +103,7 @@ export function enterClub() {
 // back on the pavement in front of the door, facing the street (also what respawn does if it comes to that)
 export function leaveClub() {
   if (!P.club) return;
-  P.club = null; scene.add(P.c.root); if (held && inv.owned[held]) selectWeapon(held); held = null;
+  standUp(); P.club = null; scene.add(P.c.root); if (held && inv.owned[held]) selectWeapon(held); held = null;
   const s = CLUB.site; if (s) stand(s.street.x, s.street.z, s.yaw);
   Object.assign(I, { mouseL: false, mouseR: false, clickQ: 0 });
   Sound.hush(); $('radarWrap').style.visibility = '';
@@ -104,18 +125,43 @@ function sequinMat(base) {
   const t = new THREE.CanvasTexture(c); t.magFilter = THREE.NearestFilter;
   return (sequinCache[base] = new THREE.MeshLambertMaterial({ map: t, emissive: col.clone().multiplyScalar(0.35) }));
 }
-// The dancers: club outfits, all covered up. Sequinned tops with matching shorts, or a sequinned dress over them,
-// and boots. The torso and the dress take the sequins.
+// The dancers (and the one in the Pink Room): sequinned bikinis (a top with a band round the back, and bottoms
+// over the hips) and knee boots. Everything a bikini covers stays covered.
 const DANCERS = [
   { skin: SKIN[1], hair: HAIR[2], hairStyle: 'long', outfit: '#ff3fa4', boots: '#f4f0f6' },
-  { skin: SKIN[4], hair: HAIR[0], hairStyle: 'bigafro', outfit: '#9b5bff', dress: true, boots: '#2a2226' },
+  { skin: SKIN[4], hair: HAIR[0], hairStyle: 'bigafro', outfit: '#9b5bff', boots: '#2a2226' },
   { skin: SKIN[2], hair: HAIR[3], hairStyle: 'long', outfit: '#ffd23e', boots: '#2a2226' },
 ];
+const PINK_DANCER = { skin: SKIN[0], hair: HAIR[1], hairStyle: 'long', outfit: '#3fe0d0', boots: '#f4f0f6' };
+// Everyone in the club is a woman: the character with narrower shoulders, a slimmer waist over the hips, slimmer
+// arms and legs, and a touch of make-up (lipstick, lashes) and gold earrings.
+const FACE = (() => {
+  const g = new GB();
+  box(g, 0.1, 0.03, 0.012, 0, 0.14, 0.156, '#c8235a'); // lipstick
+  for (const x of [-0.07, 0.07]) box(g, 0.07, 0.016, 0.012, x, 0.3, 0.153, '#140a10'); // lashes
+  for (const x of [-0.162, 0.162]) box(g, 0.025, 0.05, 0.025, x, 0.2, 0.03, '#ffd23e'); // earrings
+  return g.geometry();
+})();
+export function makeWoman(L) {
+  const c = makeCharacter(L);
+  const torso = c.body.children.find(m => m.isMesh && m.geometry === UNIT);
+  torso.scale.set(0.42, 0.6, 0.26);
+  const chest = new THREE.Mesh(UNIT, torso.material); chest.scale.set(0.36, 0.17, 0.07); chest.position.set(0, 1.33, 0.15); c.body.add(chest);
+  for (const [arm, s] of [[c.armL, 1], [c.armR, -1]]) { arm.position.x = s * 0.29; arm.scale.set(0.8, 1, 0.82); }
+  for (const [leg, s] of [[c.legL, 1], [c.legR, -1]]) { leg.position.x = s * 0.11; leg.scale.set(0.86, 1, 0.9); }
+  c.head.add(new THREE.Mesh(FACE, charMat));
+  return c;
+}
+const HAIRDOS = ['long', 'long', 'long', 'bigafro', 'afro', 'short'];
+const womanLook = () => ({ ...randomLook(), hairStyle: pick(HAIRDOS), glasses: Math.random() < 0.15 });
 function makeDancer(o) {
-  const c = makeCharacter({ skin: o.skin, shirt: o.outfit, pants: o.outfit, shorts: true, hair: o.hair, hairStyle: o.hairStyle, shoes: o.boots });
-  const mat = sequinMat(o.outfit);
-  for (const m of c.body.children) if (m.isMesh && m.geometry === UNIT) m.material = mat;
-  if (o.dress) { const d = new THREE.Mesh(UNIT, mat); d.scale.set(0.56, 0.36, 0.36); d.position.y = 0.78; c.body.add(d); }
+  const c = makeWoman({ skin: o.skin, shirt: o.skin, pants: o.skin, hair: o.hair, hairStyle: o.hairStyle, shoes: o.boots });
+  const mat = sequinMat(o.outfit), chest = c.body.children.filter(m => m.isMesh && m.geometry === UNIT)[1];
+  chest.material = mat; chest.scale.set(0.38, 0.15, 0.08); // the bikini top
+  const piece = (w, h, d, y, z = 0) => { const m = new THREE.Mesh(UNIT, mat); m.scale.set(w, h, d); m.position.set(0, y, z); c.body.add(m); return m; };
+  piece(0.43, 0.06, 0.27, 1.35); // its band round the back
+  piece(0.5, 0.13, 0.29, 0.94); // the bottoms
+  piece(0.2, 0.08, 0.02, 0.89, 0.145); // narrowing to the front
   // boots up to the knee
   const bg = new GB(); box(bg, 0.18, 0.3, 0.2, 0, -0.68, 0, o.boots);
   for (const leg of [c.legL, c.legR]) leg.add(new THREE.Mesh(bg.geometry(), charMat));
@@ -178,12 +224,18 @@ function build() {
   for (const s of SEATS) chair(plain, s);
   // speakers at the stage's corners and a sign over the stage
   for (const sx of [-1, 1]) { box(plain, 0.7, 1.1, 0.6, sx * 7.6, h - 1.2, z0 + 0.6, '#0c0c10'); addGeo(plain, cylG(12), sx * 7.6, h - 1.25, z0 + 0.91, 0.4, 0.02, 0.4, Math.PI / 2, 0, 0, '#3a3a44'); }
+  // the Pink Room's doorway: a velvet curtain in a gold frame, Private over it
+  { const c = PRIVATE.curtain;
+    box(plain, 2.2, 2.7, 0.12, c.x, 1.35, c.z - 0.06, '#d8a84a');
+    for (let k = 0; k < 9; k++) box(plain, 0.2, 2.45, 0.08 + (k % 2) * 0.04, c.x - 0.8 + k * 0.2, 1.23, c.z - 0.16, k % 2 ? '#a3125a' : '#7a0a44');
+  }
   // the door out, with Exit over it
   box(plain, 2, 2.5, 0.1, DOOR.x, 1.25, DOOR.z - 0.05, '#1a1020'); box(neon, 1.6, 2.2, 0.06, DOOR.x, 1.1, DOOR.z - 0.11, '#5a1838');
   g.add(new THREE.Mesh(plain.geometry(), new THREE.MeshLambertMaterial({ vertexColors: true })), new THREE.Mesh(neon.geometry(), new THREE.MeshBasicMaterial({ vertexColors: true })));
   const sign = (text, color, font, w, x, y, z, ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w / 4), new THREE.MeshBasicMaterial({ map: neonTexture(text, color, font), transparent: true, depthWrite: false })); m.position.set(x, y, z); m.rotation.y = ry; g.add(m); };
   sign(CLUB_NAME, '#ff4fd8', '"Yellowtail", cursive', 5.6, 0, STAGE.h + 3.3, z0 + 0.16, 0);
   sign('Bar', '#3ff0ff', '"Bowlby One", Impact, sans-serif', 2.2, x1 - 0.12, 3.5, (BAR.z0 + BAR.z1) / 2, -Math.PI / 2);
+  sign('Private', '#ff7ad8', '"Yellowtail", cursive', 1.9, PRIVATE.curtain.x, 3.05, PRIVATE.curtain.z - 0.2, Math.PI);
   sign('Exit', '#5dff9e', '"Bowlby One", Impact, sans-serif', 1.3, DOOR.x, 2.75, DOOR.z - 0.14, Math.PI);
   // a mirror ball over the floor
   const ball = new THREE.Mesh(new THREE.IcosahedronGeometry(0.32, 1), new THREE.MeshLambertMaterial({ color: '#d8d4e8', emissive: '#4a4458', flatShading: true }));
@@ -216,13 +268,43 @@ function build() {
     return at(c, x, top + 0.06 - 0.9, z, yaw);
   };
   const patrons = [];
-  for (const s of SEATS) if (Math.random() < 0.75) patrons.push({ c: sit(makeCharacter(randomLook()), s.x, s.z, s.yaw, s.stool ? 0.8 : 0.5), t: Math.random() * 9, cheer: 0 });
-  for (const b of BOOTHS) for (const dz of [-0.75, 0.75]) if (Math.random() < 0.7) patrons.push({ c: sit(makeCharacter(randomLook()), -10.75, b.z + dz, Math.PI / 2, 0.5), t: Math.random() * 9, cheer: 0 });
-  const bouncer = at(makeCharacter({ skin: SKIN[4], shirt: '#141418', longSleeve: true, sleeve: '#141418', pants: '#141418', hairStyle: 'bald', hair: HAIR[0], glasses: true, tie: true, shoes: '#0c0c0e', scale: 1.14 }), BOUNCER.x, 0, BOUNCER.z, Math.PI / 2);
+  for (const s of SEATS) if (Math.random() < 0.75) patrons.push({ c: sit(makeWoman(womanLook()), s.x, s.z, s.yaw, s.stool ? 0.8 : 0.5), t: Math.random() * 9, cheer: 0 });
+  for (const b of BOOTHS) for (const dz of [-0.75, 0.75]) if (Math.random() < 0.7) patrons.push({ c: sit(makeWoman(womanLook()), -10.75, b.z + dz, Math.PI / 2, 0.5), t: Math.random() * 9, cheer: 0 });
+  const bouncer = at(makeWoman({ skin: SKIN[4], shirt: '#141418', longSleeve: true, sleeve: '#141418', pants: '#141418', hairStyle: 'short', hair: HAIR[0], glasses: true, tie: true, shoes: '#0c0c0e', scale: 1.1 }), BOUNCER.x, 0, BOUNCER.z, Math.PI / 2);
   bouncer.armL.rotation.set(-1.25, 0, -0.8); bouncer.armR.rotation.set(-1.25, 0, 0.8); // arms folded
-  const barman = { c: at(makeCharacter({ skin: pick(SKIN), shirt: '#f2f2f2', longSleeve: true, pants: '#1a1a22', vest: '#1a1a22', tie: true, hair: pick(HAIR), hairStyle: 'short' }), 10.4, 0, 1, -Math.PI / 2), z: 1, to: 1, wait: 2 };
-  S = { scene: sc, group: g, dancers, patrons, bouncer, barman, spots, stageLight, ball, tinselMat, t: 0 };
+  const barman = { c: at(makeWoman({ skin: pick(SKIN), shirt: '#f2f2f2', longSleeve: true, pants: '#1a1a22', vest: '#1a1a22', tie: true, hair: pick(HAIR), hairStyle: 'long' }), 10.4, 0, 1, -Math.PI / 2), z: 1, to: 1, wait: 2 };
+  // the host by the Pink Room's curtain, in a long sequinned dress
+  const host = at(makeWoman({ skin: SKIN[3], shirt: '#b0306a', pants: '#b0306a', hair: HAIR[0], hairStyle: 'long', shoes: '#2a2226' }), PRIVATE.host.x, 0, PRIVATE.host.z, Math.PI);
+  { const m = sequinMat('#b0306a'); for (const o of host.body.children) if (o.isMesh && o.geometry === UNIT) o.material = m; const d = new THREE.Mesh(UNIT, m); d.scale.set(0.54, 0.8, 0.34); d.position.y = 0.52; host.body.add(d); }
+  host.armR.rotation.set(-0.5, 0, 0.35); host.armL.rotation.set(-0.5, 0, -0.35);
+  const pink = buildPinkRoom(g);
+  pink.c = at(makeDancer(PINK_DANCER), pink.pole.x, VIP.stage.h, pink.pole.z, 0);
+  S = { scene: sc, group: g, dancers, patrons, bouncer, barman, host, pink, spots, stageLight, ball, tinselMat, t: 0 };
   return S;
+}
+// The Pink Room: walls in deep rose with a dado and a neon line, a mirrored back wall, a round platform with a pole,
+// an armchair facing it and a soft rose light over the pole
+function buildPinkRoom(g) {
+  const plain = new GB(), neon = new GB(), o = VIP.at, { x0, x1, z0, z1, h } = VIP, W = x1 - x0, D = z1 - z0, mz = o.z + (z0 + z1) / 2, P2 = { x: o.x + VIP.pole.x, z: o.z + VIP.pole.z };
+  box(plain, W, 0.1, D, o.x, -0.05, mz, '#3a1030'); box(plain, W, 0.2, D, o.x, h + 0.1, mz, '#1a0614');
+  for (const [cx, cz, w, d] of [[o.x, o.z + z0 - 0.1, W, 0.2], [o.x, o.z + z1 + 0.1, W, 0.2], [o.x + x0 - 0.1, mz, 0.2, D], [o.x + x1 + 0.1, mz, 0.2, D]]) {
+    box(plain, w, h, d, cx, h / 2, cz, '#6a1a48'); box(plain, w + 0.04, 1, d + 0.04, cx, 0.5, cz, '#2a0820');
+    box(neon, w > 1 ? w - 0.1 : 0.04, 0.05, d > 1 ? d - 0.1 : 0.04, cx + (w > 1 ? 0 : Math.sign(o.x - cx) * 0.12), h - 0.35, cz + (d > 1 ? 0 : Math.sign(mz - cz) * 0.12), '#ff6fc2');
+  }
+  box(neon, W - 1, 2, 0.04, o.x, 1.8, o.z + z0 + 0.03, '#3a2240'); // the mirror
+  const st = VIP.stage;
+  addGeo(plain, cylG(18), P2.x, st.h / 2, P2.z, st.x1 - st.x0, st.h, st.z1 - st.z0, 0, 0, 0, '#140810');
+  addGeo(neon, cylG(18), P2.x, st.h - 0.02, P2.z, st.x1 - st.x0 + 0.04, 0.03, st.z1 - st.z0 + 0.04, 0, 0, 0, '#ff3fa4');
+  addGeo(plain, cylG(10), P2.x, (st.h + h) / 2, P2.z, 0.08, h - st.h, 0.08, 0, 0, 0, '#e9e4f2');
+  // the armchair
+  const s = { x: o.x + VIP.seat.x, z: o.z + VIP.seat.z };
+  const ry = VIP.seat.yaw - Math.PI, bx = -Math.sin(VIP.seat.yaw), bz = -Math.cos(VIP.seat.yaw), ax = Math.cos(VIP.seat.yaw), az = -Math.sin(VIP.seat.yaw);
+  box(plain, 0.9, 0.45, 0.8, s.x, 0.22, s.z, '#8a0f3e', ry); box(plain, 0.9, 0.9, 0.2, s.x + bx * 0.4, 0.7, s.z + bz * 0.4, '#6a0a30', ry);
+  for (const k of [-0.45, 0.45]) box(plain, 0.16, 0.65, 0.8, s.x + ax * k, 0.33, s.z + az * k, '#6a0a30', ry);
+  g.add(new THREE.Mesh(plain.geometry(), new THREE.MeshLambertMaterial({ vertexColors: true })), new THREE.Mesh(neon.geometry(), new THREE.MeshBasicMaterial({ vertexColors: true })));
+  const l = new THREE.PointLight('#ff6fb8', 9, 8, 1.6); l.position.set(P2.x, h - 0.3, P2.z + 0.6); g.add(l);
+  const fill = new THREE.PointLight('#a060ff', 4, 8, 1.6); fill.position.set(s.x, h - 0.4, s.z); g.add(fill);
+  return { pole: P2, floor: st.h, offset: 0, phase: 0, light: l };
 }
 function table(plain, neon, x, z) {
   addGeo(plain, cylG(14), x, 0.75, z, 0.9, 0.05, 0.9, 0, 0, 0, '#1a0a1e'); addGeo(plain, cylG(8), x, 0.37, z, 0.1, 0.74, 0.1, 0, 0, 0, '#d8a84a');
@@ -241,12 +323,20 @@ export function updateClub(dt) {
   if (!S || !P.club) return;
   S.t += dt; const t = S.t, beat = Math.sin(t / BEAT * Math.PI * 2);
   for (const d of S.dancers) poseDancer(d, t, dt, beat);
+  if (P.club === PINK) {
+    poseDancer(S.pink, t, dt, beat); S.pink.light.intensity = 8 + 2 * Math.max(0, beat);
+    // the player sits back in the armchair
+    const c = P.c; c.legL.geometry = c.legR.geometry = seatedLegs(c); c.shadow.visible = false;
+    c.legL.rotation.set(-0.1, 0, 0); c.legR.rotation.set(-0.1, 0, 0); c.armL.rotation.set(-0.9, 0, 0.1); c.armR.rotation.set(-0.9, 0, -0.1);
+    c.root.position.y = PINK.seat.top + 0.06 - 0.9; c.head.rotation.x = 0.05 * Math.max(0, beat);
+  }
+  S.host.head.rotation.y = 0.3 * Math.sin(t * 0.4);
   for (const p of S.patrons) {
     const c = p.c; c.head.rotation.x = 0.07 * Math.max(0, beat);
     if (p.cheer > 0) { p.cheer -= dt; c.armR.rotation.set(-2.9 + Math.sin(t * 9) * 0.3, 0, -0.2); if (p.cheer <= 0) c.armR.rotation.set(-0.9, 0, -0.1); }
     else if ((p.t -= dt) <= 0) { p.t = 4 + Math.random() * 10; p.cheer = 1 + Math.random(); }
   }
-  // the barman works his way along the counter, stopping to polish it
+  // the barmaid works her way along the counter, stopping to polish it
   const m = S.barman;
   if (m.wait > 0) { m.wait -= dt; m.c.armR.rotation.set(-1.2, Math.sin(t * 6) * 0.4, 0); m.c.legL.rotation.x = m.c.legR.rotation.x = 0; }
   else {
@@ -267,13 +357,15 @@ export function updateClub(dt) {
   Sound.loops('spot', SPEAKERS);
 }
 // the house groove from the two speakers by the stage
-const SPEAKERS = [-1, 1].map(sx => ({ key: 'club' + sx, sound: 'club-house', x: CLUB_AT.x + sx * 7.6, y: ROOM.h - 1.2, z: CLUB_AT.z + ROOM.z0 + 0.8, vol: 1.6, prof: { ref: 6, max: 60 } }));
+const SPEAKERS = [...[-1, 1].map(sx => ({ key: 'club' + sx, sound: 'club-house', x: CLUB_AT.x + sx * 7.6, y: ROOM.h - 1.2, z: CLUB_AT.z + ROOM.z0 + 0.8, vol: 1.6, prof: { ref: 6, max: 60 } })),
+  // and a little one in the Pink Room
+  { key: 'clubPink', sound: 'club-house', x: CLUB_AT.x + VIP.at.x, y: VIP.h - 0.5, z: CLUB_AT.z + VIP.at.z + VIP.z0 + 0.4, vol: 1.2, prof: { ref: 3, max: 14 } }];
 
 // A dancer's pose for this moment of the routine (world/club.js routineAt). Going round the pole, the near side (the
 // body's +x, the left arm) faces it; climbing, sliding and leaning back, the dancer faces it with both hands on it.
 function poseDancer(d, t, dt, beat) {
   const c = d.c, m = routineAt((t + d.offset) / ROUTINE), p = d.pole;
-  c.root.position.set(p.x + Math.sin(m.a) * m.r, STAGE.h, p.z + Math.cos(m.a) * m.r); // in the room's own metres
+  c.root.position.set(p.x + Math.sin(m.a) * m.r, d.floor ?? STAGE.h, p.z + Math.cos(m.a) * m.r); // in the room's own metres
   const round = m.move === 'walk' || m.move === 'spin';
   c.root.rotation.y = m.a + (round ? Math.PI / 2 : Math.PI);
   c.body.position.y = m.lift; c.body.rotation.set(0, 0, 0); c.head.rotation.set(0, 0, 0);

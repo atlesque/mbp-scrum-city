@@ -94,7 +94,7 @@ export const landDamage = vy => Math.max(0, -vy - SAFE_LAND) * LAND_HURT;
 // or a hut or air-con unit on one; world/rooftops.js), P.roof the roof that top is on (null in the street).
 function walk(dt, aimingNow) {
   let ix = 0, iz = 0;
-  if (!G.stairs) { // standing still while the screen is black
+  if (!G.stairs && !P.sitting) { // standing still while the screen is black, or sat down (the club's Pink Room)
     if (held('forward')) iz += 1; if (held('back')) iz -= 1;
     if (held('left')) ix -= 1; if (held('right')) ix += 1;
   }
@@ -119,7 +119,7 @@ function walk(dt, aimingNow) {
   }
   // jump, and once more in the air (v²/2g puts the top of the first at about 1.6 m); with the jetpack, hold Space to fly;
   // with a parachute packed, Space in the air opens it once the jump can't do anything else (game/parachute.js)
-  const space = held('jump') && !G.stairs, press = space && !P.spaceHeld; P.spaceHeld = space;
+  const space = held('jump') && !G.stairs && !P.sitting, press = space && !P.spaceHeld; P.spaceHeld = space;
   if (press && P.grounded) { P.vy = JUMP_V; P.grounded = false; P.jumps = 1; }
   else if (press && opensChute(P.chute, P.jumps || 0, P.vy, P.jetpack && P.jetpack.fuel > 0)) openChute();
   else if (press && (P.jumps || 0) < 2) { P.vy = Math.max(P.vy, AIR_JUMP_V); P.jumps = 2; }
@@ -248,7 +248,7 @@ export function updateCamera(dt) {
   if (Math.abs(camera.fov - cam.fov) > 0.01) { camera.fov = cam.fov; camera.updateProjectionMatrix(); }
   const cp = Math.cos(cam.pitch), d = new THREE.Vector3(Math.sin(cam.yaw) * cp, Math.sin(cam.pitch), Math.cos(cam.yaw) * cp);
   const right = new THREE.Vector3(-Math.cos(cam.yaw), 0, Math.sin(cam.yaw));
-  camTarget.set(P.x, (P.alive ? P.y : 0) + (C ? C.height : 1.62), P.z);
+  camTarget.set(P.x, (P.alive ? P.y : 0) + (C ? C.height : P.sitting ? 1.2 : 1.62), P.z); // sat down in the club's Pink Room: lower
   cameraRoof(P.club ? P.club.camRoof : P.roof);
   camTarget.addScaledVector(right, stepShoulder(arm, camTarget.x, camTarget.y, camTarget.z, cam.yaw, cam.pitch, aim ? 0.7 : 0.55, cam.dist, dt));
   stepArm(arm, camTarget.x, camTarget.y, camTarget.z, cam.yaw, cam.pitch, cam.dist, C ? C.minArm : 1.4, dt);

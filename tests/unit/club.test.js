@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { DRINK, LAYOUT, buyDrink, clubInteractions } from '../../public/js/game/club.js';
+import { DRINK, LAYOUT, PINK, buyDrink, clubInteractions, payPrivate } from '../../public/js/game/club.js';
 import { G, P, inv } from '../../public/js/core/state.js';
-import { BAR, CLUB_AT, CLUB_CLOSED_AT, MOVES, POLES, ROOM, ROUTINE, SEATS, STAGE, clubLayout, collideClub, onClubFace, pickClubSite, routineAt } from '../../public/js/world/club.js';
+import { BAR, CLUB_AT, CLUB_CLOSED_AT, MOVES, POLES, PRIVATE, ROOM, VIP, ROUTINE, SEATS, STAGE, clubLayout, collideClub, onClubFace, pickClubSite, routineAt } from '../../public/js/world/club.js';
 import { surfaceAt } from '../../public/js/world/rooftops.js';
 
 const building = (x0, z0, o = {}) => ({ x0, x1: x0 + 14, z0, z1: z0 + 14, h: 12, face: 'n', col: '#fff', trim: '#fff', parapet: {}, ...o });
@@ -65,6 +65,33 @@ describe('inside the club', () => {
   it('puts every pole on the stage', () => {
     for (const p of POLES) expect(surfaceAt(CLUB_AT.x + p.x, CLUB_AT.z + p.z, 0, [LAYOUT]).floor).toBe(0); // walled off, never stood on
     for (const p of POLES) expect(p.z < -1.4).toBe(true);
+  });
+});
+
+describe('the Pink Room', () => {
+  it('has the host by its curtain take $' + PRIVATE.price + ' up front, and turn you away without it', () => {
+    const near = []; P.club = LAYOUT; Object.assign(P, { x: CLUB_AT.x + PRIVATE.host.x, z: CLUB_AT.z + PRIVATE.host.z - 0.6, y: 0 });
+    clubInteractions(P, near);
+    expect(near.some(i => /private dance/.test(i.prompt))).toBe(true);
+    inv.money = 200; expect(payPrivate()).toBe(true); expect(inv.money).toBe(200 - PRIVATE.price);
+    inv.money = 100; expect(payPrivate()).toBe(false); expect(inv.money).toBe(100);
+  });
+  it('is a room of its own, away from the main floor, with a free armchair facing its pole', () => {
+    const seat = PINK.seat, A = LAYOUT.area;
+    expect(seat.x > A.x1 || seat.x < A.x0 || seat.z > A.z1 || seat.z < A.z0).toBe(true);
+    const o = { x: seat.x, z: seat.z }; expect(collideClub(o, 0.38, 0, PINK)).toBe(false);
+    const pole = { x: CLUB_AT.x + VIP.at.x + VIP.pole.x, z: CLUB_AT.z + VIP.at.z + VIP.pole.z };
+    expect(Math.atan2(pole.x - seat.x, pole.z - seat.z)).toBeCloseTo(seat.yaw); // looking straight at it
+  });
+  it('offers only the way back to the floor while you sit in it', () => {
+    const near = []; P.club = PINK; Object.assign(P, { x: PINK.seat.x, z: PINK.seat.z, y: 0 });
+    clubInteractions(P, near); P.club = null;
+    expect(near.map(i => i.prompt)).toHaveLength(1);
+    expect(near[0].prompt).toMatch(/back to the floor/);
+  });
+  it('leaves room to stand at the host and come back out through the curtain', () => {
+    const L = clubLayout(), b = { x: CLUB_AT.x + PRIVATE.back.x, z: CLUB_AT.z + PRIVATE.back.z };
+    expect(collideClub(b, 0.38, 0, L)).toBe(false);
   });
 });
 
