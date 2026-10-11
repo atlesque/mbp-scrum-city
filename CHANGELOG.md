@@ -4,7 +4,8 @@ Written from the commits on main by `scripts/changelog.mjs`; every change merged
 
 ## 2026-10-11
 
-- **v1.128** Multiplayer: ride along in a crewmate's vehicle ([#122](https://github.com/atlesque/mbp-scrum-city/pull/122))
+- **v1.129** Merge remote-tracking branch 'origin/main' into feat/roadblocks-stealable-tank
+- **v1.128** Add police roadblocks, stealable tanks and a secret fighter jet
 - **v1.127** Synchronize multiplayer incidents with server snapshots and auto-collect cash rain
 - **v1.126** Fix repair tool crash when a Pokemon is nearby ([#121](https://github.com/atlesque/mbp-scrum-city/pull/121))
 - **v1.125** Add varied world events with independent overlapping schedules
