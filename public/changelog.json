@@ -1,7 +1,14 @@
 {
- "version": "1.123",
+ "version": "1.124",
  "date": "2026-10-11",
  "entries": [
+  {
+   "v": "1.124",
+   "date": "2026-10-11",
+   "sha": "d4a5fa4",
+   "pr": 119,
+   "title": "Add club stage tipping, DJ requests and four retro cars"
+  },
   {
    "v": "1.123",
    "date": "2026-10-11",
