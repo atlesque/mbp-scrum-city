@@ -4,6 +4,7 @@ Written from the commits on main by `scripts/changelog.mjs`; every change merged
 
 ## 2026-10-11
 
+- **v1.124** Add club stage tipping, DJ requests and four retro cars ([#119](https://github.com/atlesque/mbp-scrum-city/pull/119))
 - **v1.123** Keep respray regression checks fast and compare consecutive colors
 - **v1.122** Merge remote-tracking branch 'origin/main' into feat/pokemon-companions
 - **v1.121** Add Pokemon cries and interaction sounds
