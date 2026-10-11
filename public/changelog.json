@@ -1,7 +1,14 @@
 {
- "version": "1.130",
+ "version": "1.131",
  "date": "2026-10-11",
  "entries": [
+  {
+   "v": "1.131",
+   "date": "2026-10-11",
+   "sha": "baa6709",
+   "pr": 124,
+   "title": "Test that main.js imports three.js first"
+  },
   {
    "v": "1.130",
    "date": "2026-10-11",
