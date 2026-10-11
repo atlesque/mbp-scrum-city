@@ -10,6 +10,7 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/ja
 export function serve(port = 0) {
   const server = http.createServer(async (req, res) => {
     let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+    path = path.replace(/^\/v\/[^/]+\//, '/'); // the per-deploy module path, like public/_redirects
     if (path.endsWith('/')) path += 'index.html';
     const file = normalize(join(ROOT, path));
     if (!file.startsWith(ROOT)) { res.writeHead(403).end(); return; }
