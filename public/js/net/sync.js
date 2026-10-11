@@ -40,6 +40,7 @@ function tick() {
   // on the club's floor they're seen by the others in there; in the Pink Room by nobody
   const s = P.club === LAYOUT ? { ...packState(P, true), w: 2 } : packState(P, inWorld(), aimYaw);
   s.wl = G.wanted; s.sn = performance.now() - (G.seenAt || 0) < 700 ? 1 : 0;
+  if (G.wanted >= 5) { s.fr = Math.floor(G.fiveRun || 0); s.ft = Math.floor(G.fiveT || 0); }
   if (due(s, last, now - lastAt)) { send(s); last = s; lastAt = now; }
   if (now - npcAt >= NPC_EVERY) { npcAt = now; shareNpcs(); }
 }
@@ -106,6 +107,12 @@ onMessage('s', m => {
   // someone new in the crew: whoever is more wanted brings their heat
   if (!r.heard) { r.heard = true; if (wl > G.wanted) take(wl); }
   r.wl = wl;
+  // the five star clocks are the crew's too: everyone's tick at the same pace, so the longest one is the crew's streak (and
+  // the UFO comes for all of them at once)
+  if (wl >= 5 && G.wanted >= 5) {
+    if (Number.isFinite(m.fr)) G.fiveRun = Math.max(G.fiveRun || 0, clamp(m.fr, 0, 1e6));
+    if (Number.isFinite(m.ft) && wl === G.wanted) G.fiveT = Math.max(G.fiveT || 0, clamp(m.ft, 0, 1e6));
+  }
 });
 onMessage('shot', m => {
   const r = remoteOf(m.id); if (!r) return;

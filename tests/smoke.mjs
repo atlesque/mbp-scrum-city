@@ -1382,6 +1382,13 @@ try {
       respawn(); const { P } = __neonbay; return { d: Math.hypot(P.x - SPAWN.x, P.z - SPAWN.z), r: SAFE_R };
     });
     check(away2.d >= away2.r, 'came in next to the crew\'s cop: ' + JSON.stringify(away2));
+    // two minutes into the crew's five star streak: this player's clock and count to the sixth star take it up
+    const five = await game(async () => {
+      window.__mpSock.push({ t: 'wanted', id: 'bot', l: 5, h: 100 });
+      window.__mpSock.push({ t: 's', id: 'bot', w: 1, x: 0, y: 0, z: 0, yaw: 0, ms: 0, j: 0, g: 'pistol', a: 0, p: 0, th: 0, m: 0, al: 1, wl: 5, sn: 0, fr: 120, ft: 120 });
+      const { G } = __neonbay; return { w: G.wanted, run: G.fiveRun, t: G.fiveT };
+    });
+    check(five.w === 5 && five.run >= 120 && five.t >= 120, 'the crew\'s five star clock was not shared: ' + JSON.stringify(five));
     // leaving takes them, their bike and their people out of the world
     await game(async () => { (await import('/js/net/net.js')).leave(); window.WebSocket = window.__mpWS; });
     check(await game(() => __neonbay.all('remote').length === 0 && __neonbay.all('ghost').length === 0 && !__neonbay.all('vehicle').some(v => v.remote)), 'the other player stayed after leaving');

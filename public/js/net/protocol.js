@@ -10,6 +10,7 @@
 //   g   what's in hand (a weapon id)   a   1 while aiming   p  aim pitch   th 1 two-handed   m  melee ready pose
 //   al  1 alive, 0 down
 //   wl  their wanted level (the crew's)       sn  1 while someone hunting the crew has them in sight
+//   fr, ft  at five stars or more: the crew's streak there and its count to the sixth star (seconds, game/wanted.js)
 //   v   while riding: { m: model id, x, y, z, yaw, v: speed, st: steer, ay: aim yaw from the vehicle's nose or null,
 //       r / l: a chopper's rotor speed and 1 when it's landed, pp: a bike's wheelie angle }
 export const NAME_MAX = 16;
