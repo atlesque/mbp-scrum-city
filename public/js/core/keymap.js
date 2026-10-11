@@ -2,7 +2,7 @@
 // The keyboard actions a player can rebind, the QWERTY and AZERTY presets, and how a key is named on screen.
 // Keys are stored as KeyboardEvent.code, which names the physical key by where it sits on a US keyboard,
 // so the key under the left hand that reads Z on an AZERTY board is 'KeyW'. A preset therefore keeps the
-// same hand position on both layouts; what changes is the name shown for each key, and the radio,
+// same hand position on both layouts; what changes is the name shown for each key, and the world map,
 // which follows the letter M (it sits right of L on an AZERTY board).
 // To add an action: add a row here, then read held('<id>') or compare actionFor(e.code) where it matters (core/controls.js).
 export const ACTIONS = [
@@ -20,10 +20,12 @@ export const ACTIONS = [
   { id: 'tool', label: 'Repair tool', group: 'Actions' },
   { id: 'radio', label: 'Radio on / off', group: 'Actions' },
   { id: 'siren', label: 'Siren on / off (police car, fire truck)', group: 'Actions' },
+  { id: 'map', label: 'World map', group: 'Actions' },
   { id: 'pause', label: 'Pause', group: 'Actions' },
 ];
-const QWERTY = { forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD', sprint: 'ShiftLeft', jump: 'Space', wheelie: 'KeyC', use: 'KeyE', ride: 'KeyF', reload: 'KeyR', melee: 'KeyQ', tool: 'KeyT', radio: 'KeyM', siren: 'KeyH', pause: 'KeyP' };
-export const PRESETS = { qwerty: QWERTY, azerty: { ...QWERTY, radio: 'Semicolon' } };
+const QWERTY = { forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD', sprint: 'ShiftLeft', jump: 'Space', wheelie: 'KeyC', use: 'KeyE', ride: 'KeyF', reload: 'KeyR', melee: 'KeyQ', tool: 'KeyT', radio: 'KeyN', siren: 'KeyH', map: 'KeyM', pause: 'KeyP' };
+const OLD_RADIO = { qwerty: 'KeyM', azerty: 'Semicolon' }; // the radio's key before the world map had it
+export const PRESETS = { qwerty: QWERTY, azerty: { ...QWERTY, map: 'Semicolon' } };
 // keys that work alongside the binding and can't be changed
 export const ALT = { forward: 'ArrowUp', back: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight', sprint: 'ShiftRight' };
 // Esc always pauses or backs out, and the number row always picks a weapon
@@ -51,6 +53,8 @@ export function keyLabel(code, layout = 'qwerty') {
 // a key bound twice keeps its first action and the later one goes back to the preset (or stays empty).
 export function sanitizeBinds(raw, layout = 'qwerty') {
   const preset = PRESETS[layout] || QWERTY, out = {}, used = new Set();
+  // saved before the world map took the M key: a radio still on its old M goes to the new radio key, so M opens the map
+  if (raw && typeof raw === 'object' && !('map' in raw) && raw.radio === OLD_RADIO[layout]) raw = { ...raw, radio: undefined };
   for (const { id } of ACTIONS) {
     const v = raw && typeof raw === 'object' ? raw[id] : undefined;
     out[id] = typeof v === 'string' && /^[A-Za-z0-9]{1,24}$/.test(v) && !isReserved(v) && !used.has(v) ? v : null;
