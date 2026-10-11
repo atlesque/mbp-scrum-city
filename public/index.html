@@ -191,6 +191,12 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 .acct-note{color:var(--cash)}
 .linkbtn{pointer-events:auto;font:inherit;color:var(--cyan);background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
 .linkbtn:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.mp-box{margin-top:0}
+.mp-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center}
+.mp-row input{pointer-events:auto;font:inherit;font-size:14px;color:var(--ink);background:rgba(18,10,30,.7);border:1px solid var(--cyan);border-radius:4px;padding:6px 9px;width:14ch}
+.mp-row input:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.mp-row input:disabled{opacity:.6}
+.mp-row .sbtn{flex:0 0 auto}
 .mobile-note{display:none;color:var(--sun);font-weight:700}
 @media (max-width:760px),(pointer:coarse){.mobile-note{display:block}}
 #pause .panel,#wasted .panel{text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center}
@@ -358,7 +364,12 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
       <p class="mobile-note">Built for desktop with a mouse and keyboard.</p>
       <noscript><p class="mobile-note">Turn on JavaScript to play.</p></noscript>
       <button id="playBtn" class="btn" disabled>Loading the city…</button>
-      <div class="menu-row"><button id="signInBtn" class="sbtn cy menu-btn" hidden>Sign in or create account</button><button id="titleSettingsBtn" class="sbtn cy menu-btn">Settings</button></div>
+      <div class="menu-row"><button id="signInBtn" class="sbtn cy menu-btn" hidden>Sign in or create account</button><button id="mpBtn" class="sbtn cy menu-btn" aria-controls="mpBox" aria-expanded="false">Multiplayer</button><button id="titleSettingsBtn" class="sbtn cy menu-btn">Settings</button></div>
+      <div id="mpBox" class="acct-box mp-box" hidden>
+        <div class="mp-row"><label for="mpName" class="small">Your name</label><input id="mpName" type="text" autocomplete="nickname" spellcheck="false"><button id="mpGo" class="sbtn">Join the city</button></div>
+        <p id="mpStatus" class="small" aria-live="polite"></p>
+        <p id="mpList" class="small"></p>
+      </div>
       <div id="acctBox" class="acct-box" aria-live="polite"></div>
       <p class="version" id="titleVersion"></p>
     </div>
@@ -372,6 +383,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
       <button id="pauseSettingsBtn" class="sbtn cy menu-btn">Settings</button>
       <p class="small" id="pauseStats"></p>
       <p class="small" id="pauseAcct"></p>
+      <p class="small" id="pauseMp"></p>
     </div>
   </section>
 

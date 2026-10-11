@@ -16,6 +16,8 @@
 //   roof:up           { roof }                          took the stairs from a street door to its roof (world/rooftops.js)
 //   roof:down         { roof }
 //   settings:changed  { id, value }                    the player changed something on the Settings screen
+//   player:shot       { weapon, from, ends }           the player's gun went off: the muzzle and where each pellet stopped (net/sync.js)
+//   player:boom       { x, y, z, R, dmg, power }       the player's rocket or grenade burst (net/sync.js)
 const handlers = new Map();
 
 export function on(name, fn) {

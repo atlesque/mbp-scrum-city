@@ -30,6 +30,7 @@ import { camera, renderer, scene, sky } from './render/scene.js';
 import { spawnShop } from './shops/shop.js';
 import { finishSignIn, initAccount, playLabel } from './ui/account.js';
 import { updateHUD } from './ui/hud.js';
+import { initMultiplayer } from './ui/multiplayer.js';
 import { WHEEL_SLOW, closeWheel, wheelOpen } from './ui/wheel.js';
 import { updateEngineSound } from './vehicles/engine.js';
 import './vehicles/firetruck.js'; // sends the fire brigade to crash fires
@@ -148,6 +149,7 @@ async function start(data) {
   for (let i = 0; i < 30; i++) { const s = findSpot(5, 80, false, false); if (s) spawnNpc('civilian', s.x, s.z); }
   await loadStep(0.95, 'Checking your MBP Games account');
   await initAccount(signingIn); // may swap the local save for the account's copy
+  initMultiplayer(); // opt-in shared city (net/); joins again if the player had it on last time
   G.state = 'title';
   const b = $('playBtn'); b.disabled = false; b.textContent = playLabel();
   setInterval(() => { if (G.state === 'play') save(); }, 5000);

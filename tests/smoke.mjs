@@ -1,5 +1,5 @@
 // Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, shoot a chopper's pilot and fly the chopper off, get shelled by the army's tank and blow it up, hold five stars into the secret sixth and take a laser rifle off an alien, snipe through the scope, throw a car with a rocket,
-// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, buy the repair tool and fix a car with it, ram a bike, ride a bike over a car, pull a wheelie, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, go into the club and back out, open the world map and set a waypoint, change settings and remap keys, see the version and What's new on the title screen. Fails on any page error or broken step.
+// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, buy the repair tool and fix a car with it, ram a bike, ride a bike over a car, pull a wheelie, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, go into the club and back out, open the world map and set a waypoint, change settings and remap keys, see the version and What's new on the title screen, meet another player in multiplayer. Fails on any page error or broken step.
 // Run with `npm run test:smoke`, which splits the steps over a few browsers at once (tests/smoke-all.mjs). This file is one of
 // those browsers: `node tests/smoke.mjs` runs every step in one, in order.
 // SMOKE_ONLY=tank,reload runs only the steps whose names contain one of those words (case-insensitive), after the boot;
@@ -1285,6 +1285,42 @@ try {
     await press('Digit1');
     check(await until(() => __neonbay.inv.cur === 'pistol', undefined, 3000), 'could not switch back to the pistol');
     await game(guns => { const { inv } = __neonbay; for (const [, id] of guns) if (id !== 'pistol') { delete inv.owned[id]; delete inv.ammo[id]; delete inv.mag[id]; } }, guns);
+  });
+  await step('multiplayer: another player shows up, takes a bullet, hits back and rides a bike', async () => {
+    // a stand-in for the room on the MBP Games service (net/net.js connects to it with WebSocket): it welcomes the player
+    // with one other already in, and keeps what the game sends
+    await game(async () => {
+      window.__mpWS = window.WebSocket; window.__mpSent = [];
+      window.WebSocket = class { constructor() { this.readyState = 0; window.__mpSock = this; setTimeout(() => { this.readyState = 1; this.onopen(); }, 0); }
+        send(t) { const m = t.startsWith('{') ? JSON.parse(t) : t; window.__mpSent.push(m); if (m.t === 'hello') setTimeout(() => this.push({ t: 'welcome', id: 'me', max: 16, players: [{ id: 'bot', name: 'Bot' }] }), 0); }
+        push(m) { this.onmessage({ data: JSON.stringify(m) }); } close() { this.readyState = 3; this.onclose({ code: 1000 }); } };
+      (await import('/js/net/net.js')).join();
+    });
+    check(await until(() => __neonbay.all('remote').length === 1, undefined, 5000), 'the other player was not added');
+    // they stand 6 m ahead of the player
+    const spot = await game(() => { const { P } = __neonbay, x = P.x + Math.sin(P.yaw) * 6, z = P.z + Math.cos(P.yaw) * 6;
+      for (let i = 0; i < 3; i++) setTimeout(() => window.__mpSock.push({ t: 's', id: 'bot', w: 1, x, y: 0, z, yaw: 0, ms: 0, j: 0, g: 'pistol', a: 0, p: 0, th: 0, m: 0, al: 1 }), i * 100);
+      return { x, z }; });
+    check(await until(() => __neonbay.all('remote')[0].c.root.visible, undefined, 5000), 'the other player never appeared');
+    check(await game(() => __mpSent.some(m => m.t === 's' && m.w === 1)), 'the game did not send where the player is');
+    // a bullet at them is a hit for their game, and the shot goes out for everyone to see
+    const hit = await game(async ({ x, z }) => {
+      const { P } = __neonbay, { castBullet, playerShoot } = await import('/js/combat/combat.js');
+      const o = new THREE.Vector3(P.x, 1.3, P.z), h = castBullet(o, new THREE.Vector3(x, 1.3, z).sub(o).normalize(), 40);
+      if (h.kind === 'entity') h.entity.onShot(h, 20, null);
+      playerShoot();
+      return { kind: h.entity && h.entity.kind, sent: __mpSent.filter(m => m.t === 'hit' || m.t === 'shot').map(m => m.t + ':' + (m.to || '')) };
+    }, spot);
+    check(hit.kind === 'remote' && hit.sent.includes('hit:bot') && hit.sent.includes('shot:'), 'shooting the other player: ' + JSON.stringify(hit));
+    // their bullet lands on the player here
+    await game(() => window.__mpSock.push({ t: 'hit', from: 'bot', to: 'me', d: 20, z: 'torso' }));
+    check(await game(() => __neonbay.P.hp) === 80, 'their hit did not hurt the player');
+    // they get on a bike: a copy of it rides along under them
+    await game(({ x, z }) => { for (let i = 0; i < 3; i++) setTimeout(() => window.__mpSock.push({ t: 's', id: 'bot', w: 1, x, y: 0, z, yaw: 0, ms: 0, j: 0, g: 'pistol', a: 0, p: 0, th: 0, m: 0, al: 1, v: { m: 'gs', x, y: 0, z: z + i, yaw: 0, v: 8, st: 0, ay: null } }), i * 100); }, spot);
+    check(await until(() => { const r = __neonbay.all('remote')[0]; return r.vehicle && r.vehicle.model.id === 'gs' && r.vehicle.remote; }, undefined, 5000), 'the other player is not on the bike');
+    // leaving takes them and their bike out of the world
+    await game(async () => { (await import('/js/net/net.js')).leave(); window.WebSocket = window.__mpWS; });
+    check(await game(() => __neonbay.all('remote').length === 0 && !__neonbay.all('vehicle').some(v => v.remote)), 'the other player stayed after leaving');
   });
 } finally {
   await close();

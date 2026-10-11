@@ -1,5 +1,6 @@
 import { bulletImpact, castBullet, castShot, crimeNoise, fireRocket } from '../combat/combat.js';
 import { Sound } from '../core/audio.js';
+import { emit as emitEvent } from '../core/events.js';
 import { G, I, P, cam } from '../core/state.js';
 import { $, clamp, rnd } from '../core/util.js';
 import { WBY } from '../data/weapons.js';
@@ -75,6 +76,7 @@ function shootMinigun(v, g, W) {
   _d.copy(dir).add(new THREE.Vector3(rnd(-W.spread, W.spread), rnd(-W.spread, W.spread), rnd(-W.spread, W.spread))).normalize();
   const h = castBullet(origin, _d, W.range);
   tracer(from, h.p, false); muzzleFlash(from); Sound.shot('minigun', 1, 0); bulletImpact(h);
+  emitEvent('player:shot', { weapon: 'minigun', from, ends: [h.p] });
   cam.shake = Math.max(cam.shake, W.recoil * 20);
   if (h.kind === 'entity') {
     const r = h.entity.onShot(h, W.dmg, _d);
