@@ -121,12 +121,13 @@ export function chunks(list, n) { const out = []; for (let i = 0; i < list.lengt
 // ---- the crew's heat ----
 // Everyone in the room is one crew with one wanted level. Heat this game adds goes out as 'heat' { v } and is added
 // everywhere; a level this game's own rules set (a star fading, the sixth star) goes out as 'wanted' { l, h }. A player
-// who respawns, or joins, takes the crew's level instead of resetting it for everyone.
-//   last: { heat, wanted } as last told; now: { heat, wanted }; respawned: the level just went to 0 by respawning
+// who respawns, exits to the title or joins takes the crew's level instead of resetting it for everyone.
+//   last: { heat, wanted } as last told; now: { heat, wanted }; quiet: this player is down, out on the title screen or
+//   just back from there, so their own level isn't the crew's news
 // -> the messages to send, if any
-export function heatNews(last, now, respawned) {
+export function heatNews(last, now, quiet) {
   const out = [];
-  if (respawned) return out;
+  if (quiet) return out;
   if (now.heat > last.heat + 1e-6 && now.wanted >= last.wanted) out.push({ t: 'heat', v: r2(now.heat - last.heat) });
   if (now.wanted !== last.wanted) out.push({ t: 'wanted', l: now.wanted, h: r2(now.heat) });
   return out;

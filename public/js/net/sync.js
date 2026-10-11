@@ -27,7 +27,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 const inWorld = () => ['play', 'dead', 'map', 'paused', 'shop'].includes(G.state) && !P.club;
 const SEEN_FOR = 1.6; // seconds a crewmate's "they've seen me" lasts (they repeat it at least once a second)
 const r2 = n => Math.round(n * 100) / 100;
-let last = null, lastAt = 0, npcAt = 0, told = null, wasDead = false, nid = 0;
+let last = null, lastAt = 0, npcAt = 0, told = null, wasOff = false, nid = 0;
 
 // ---- out ----
 function tick() {
@@ -47,13 +47,13 @@ setInterval(tick, 50); // (it keeps going while paused, so the others see the pl
 
 // the crew's heat: what this game added, and a level its own rules set (protocol.js heatNews)
 function shareHeat() {
-  const nowH = { heat: G.heat, wanted: G.wanted }, dead = G.state === 'dead';
-  if (!told) { told = nowH; wasDead = dead; return; }
-  const respawned = wasDead && !dead && G.wanted === 0; wasDead = dead;
-  for (const m of heatNews(told, nowH, respawned)) send(m);
+  const nowH = { heat: G.heat, wanted: G.wanted }, off = G.state === 'dead' || G.state === 'title';
+  if (!told) { told = nowH; wasOff = off; return; }
+  // the hospital, or Exit to title (ui/exit.js), clears this player's heat, not the crew's; coming back, they take it up again
+  const back = wasOff && !off; wasOff = off;
+  for (const m of heatNews(told, nowH, off || back)) send(m);
   told = nowH;
-  // back from the hospital: the crew is still wanted
-  if (respawned) { const l = Math.max(0, ...allRemotes().map(r => r.wl || 0)); if (l) take(l); }
+  if (back) { const l = Math.max(0, ...allRemotes().map(r => r.wl || 0)); if (l > G.wanted) take(l); }
 }
 // a level from the crew, without sending it back
 function take(l, h) { setWanted(l, h ?? Math.max(G.heat, HEAT[Math.min(l, 5)] || 0)); told = { heat: G.heat, wanted: G.wanted }; }
