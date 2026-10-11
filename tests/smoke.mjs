@@ -1,5 +1,5 @@
 // Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, shoot a chopper's pilot and fly the chopper off, get shelled by the army's tank and blow it up, hold five stars into the secret sixth and take a laser rifle off an alien, snipe through the scope, throw a car with a rocket,
-// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, buy the repair tool and fix a car with it, ram a bike, ride a bike over a car, pull a wheelie, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, go into the club and back out, open the world map and set a waypoint, change settings and remap keys, see the version and What's new on the title screen, meet another player in multiplayer. Fails on any page error or broken step.
+// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, buy the repair tool and fix a car with it, ram a bike, ride a bike over a car, pull a wheelie, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, go into the club and back out, open the world map and set a waypoint, change settings and remap keys, exit to the title screen and play again, see the version and What's new on the title screen, meet another player in multiplayer. Fails on any page error or broken step.
 // Run with `npm run test:smoke`, which splits the steps over a few browsers at once (tests/smoke-all.mjs). This file is one of
 // those browsers: `node tests/smoke.mjs` runs every step in one, in order.
 // SMOKE_ONLY=tank,reload runs only the steps whose names contain one of those words (case-insensitive), after the boot;
@@ -43,7 +43,8 @@ async function reset() {
   await game(async () => {
     const { G, P, I, cam, all, removeEntity } = __neonbay;
     const { exitVehicle, respawn } = await import('/js/game/player.js'), { selectWeapon } = await import('/js/combat/combat.js'), { dropChute } = await import('/js/game/parachute.js');
-    for (const id of ['pause', 'settings', 'shop', 'wheel', 'worldMap']) { const el = document.getElementById(id); if (el) el.hidden = true; }
+    for (const id of ['pause', 'settings', 'shop', 'wheel', 'worldMap', 'title']) { const el = document.getElementById(id); if (el) el.hidden = true; }
+    document.getElementById('hud').hidden = false; // a step that failed on the title screen
     // a step that failed part-way can leave the player at the wheel, and every step after it would fail to get on anything
     if (P.vehicle) { P.vehicle.v = 0; P.vx = P.vz = 0; exitVehicle(false); }
     dropChute();
@@ -914,6 +915,30 @@ try {
     check(await until(() => __neonbay.G.state === 'paused') && await page.isVisible('#pause'), 'Esc did not go back to the pause menu');
     await page.click('#resumeBtn');
     check(await until(() => __neonbay.G.state === 'play'), 'did not resume');
+  });
+
+  await step('exits to the title screen from the pause menu and plays again', async () => {
+    const id = await game(() => {
+      const { P, G, spawnVehicle } = __neonbay, v = spawnVehicle('sedan', P.x + 3, P.z, P.yaw);
+      G.wanted = 3; G.heat = 3; return (v.testId = Math.random());
+    });
+    await game(async id => { const { enterVehicle } = await import('/js/game/player.js'); enterVehicle(__neonbay.all('vehicle').find(v => v.testId === id)); }, id);
+    check(await game(() => !!__neonbay.P.vehicle), 'did not get in the car');
+    await press('KeyP');
+    check(await until(() => __neonbay.G.state === 'paused'), 'P did not pause');
+    await page.click('#pauseExitBtn');
+    check(await page.isVisible('#exitAsk'), 'Exit to title did not ask first');
+    await page.click('#exitNo');
+    check(!(await page.isVisible('#exitAsk')) && await page.isVisible('#pauseExitBtn') && await game(() => __neonbay.G.state === 'paused'), 'Stay did not keep the game paused');
+    await page.click('#pauseExitBtn'); await page.click('#exitYes');
+    check(await until(() => __neonbay.G.state === 'title'), 'Exit did not go to the title screen');
+    check(await page.isVisible('#title') && !(await page.isVisible('#pause')) && !(await page.isVisible('#hud')), 'the title screen is not showing on its own');
+    const after = await game(() => ({ veh: !!__neonbay.P.vehicle, wanted: __neonbay.G.wanted, alive: __neonbay.P.alive }));
+    check(!after.veh && after.wanted === 0 && after.alive, 'the game was not left clean: ' + JSON.stringify(after));
+    await page.click('#playBtn');
+    check(await until(() => __neonbay.G.state === 'play'), 'Play did not start again');
+    check(await page.isVisible('#hud') && !(await page.isVisible('#title')), 'the HUD did not come back');
+    check(!(await game(() => __neonbay.Sound.dimmed)), 'the sound stayed dimmed after playing again');
   });
 
   await step('changes settings from the pause menu', async () => {

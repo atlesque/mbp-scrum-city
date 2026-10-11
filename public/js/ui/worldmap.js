@@ -8,6 +8,7 @@ import { SHOP_TYPES } from '../shops/types.js';
 import { toast } from './hud.js';
 import { SPAWN, shopSpots } from '../world/city.js';
 import { CLUB, CLUB_NAME } from '../world/club.js';
+import { COURIER, GARAGE } from '../data/city-services.js';
 import { LANDMARK_SITES } from '../world/landmarks.js';
 import { MAP, mapImage } from '../world/radar.js';
 import { clampView, openView, panBy, toScreen, toWorld, zoomAt } from '../world/mapview.js';
@@ -20,6 +21,7 @@ import { clampView, openView, panBy, toScreen, toWorld, zoomAt } from '../world/
 // shows on the radar shows here too; the names of places come from the lists below.
 const BLIP = 0.62; // blips are sized for the radar's 400 px canvas shown at 200 px; this is their size here per unit
 const LEGEND = [
+  ['D', COURIER.color, 'Courier depot'], ['G', GARAGE.color, 'Repair & respray'], ['sq', COURIER.color, 'Delivery stop'],
   ['cross', '#ff3344', 'Hospital'], ['$', '#ff4fa3', 'Bullet Bros. Guns'], ['sq', '#ff4fd8', CLUB_NAME],
   ['sq', '#5dff9e', 'Roof door'], ['sq', '#ff9a3e', 'Jetpack'], ['sq', '#ff5a3c', 'Parachute'],
   ['sq', '#ff5a7a', 'Health'], ['sq', '#5ec8ff', 'Armor'], ['dot', '#ff3b4e', 'Law'], ['wp', '#c77dff', 'Waypoint'],
@@ -27,7 +29,7 @@ const LEGEND = [
 const CREW_ROW = ['dot', '#b8ff3e', 'Your crew']; // (only while there's someone else in the city)
 const LANDMARK_NAMES = { vac: 'VAC Gent', belpaire: 'Belpaire', teirlinck: 'Herman Teirlinck' };
 function places() {
-  const out = [{ x: SPAWN.x, z: SPAWN.z - 10, name: 'City General' }];
+  const out = [COURIER, GARAGE, { x: SPAWN.x, z: SPAWN.z - 10, name: 'City General' }];
   for (const s of LANDMARK_SITES) out.push({ x: -175 + s.block[0] * 50, z: -175 + s.block[1] * 50, name: LANDMARK_NAMES[s.type] || s.type });
   for (const s of shopSpots) out.push({ x: s.x, z: s.z, name: SHOP_TYPES[s.type].name });
   if (CLUB.site) out.push({ x: CLUB.site.door.x, z: CLUB.site.door.z, name: CLUB_NAME });
@@ -139,7 +141,7 @@ export function diamond(c, x, y, r, col) {
 function buildLegend() {
   const rows = [...LEGEND]; if (all('remote').length) rows.splice(rows.length - 1, 0, CREW_ROW);
   $('mapLegend').innerHTML = rows.map(([shape, col, name]) => {
-    const m = shape === '$' ? `<b style="color:${col}">$</b>` : shape === 'cross' ? '<b class="mk-cross">+</b>'
+    const m = ['$', 'D', 'G'].includes(shape) ? `<b style="color:${col}">${shape}</b>` : shape === 'cross' ? '<b class="mk-cross">+</b>'
       : `<i class="mk-${shape}" style="background:${col}"></i>`;
     return `<li>${m}<span>${name}</span></li>`;
   }).join('');

@@ -14,7 +14,7 @@ export function updateInteraction() {
   if (P.alive && G.state === 'play' && !P.tumble) { // nothing to grab while rolling down the road
     if (P.vehicle) near.push(leave);
     else if (P.club) clubInteractions(P, near); // inside the club only its door and its bar
-    else for (const e of entities) { if (!e.interaction || (P.y > 2 && !e.onRoof)) continue; const it = e.interaction(P); if (it) near.push(it); }
+    if (!P.club) for (const e of entities) { if ((P.vehicle && !e.inVehicle) || !e.interaction || (P.y > 2 && !e.onRoof)) continue; const it = e.interaction(P); if (it) near.push(it); }
   }
   near.sort(better); G.near = near;
   const best = near[0], pr = $('prompt');
