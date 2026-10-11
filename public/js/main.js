@@ -36,6 +36,7 @@ import { WHEEL_SLOW, closeWheel, wheelOpen } from './ui/wheel.js';
 import { updateEngineSound } from './vehicles/engine.js';
 import './vehicles/firetruck.js'; // sends the fire brigade to crash fires
 import { spawnTrafficBike, spawnTrafficCar } from './vehicles/traffic.js';
+import { PARKED_CARS } from './vehicles/models/index.js';
 import { spawnVehicle } from './vehicles/vehicle.js';
 import { loadLandmarkModels } from './world/landmarks.js';
 import { updateProps } from './world/props.js';
@@ -141,7 +142,7 @@ async function start(data) {
   for (const r of ROOFS) if (r.gunAt) makeRoofGun(r.gun, r.gunAt.x, r.floor, r.gunAt.z, got => { selectWeapon(got); save(); });
   for (const r of ROOFS) if (r.jetpackAt) makeJetpackPickup(r.jetpackAt.x, r.floor, r.jetpackAt.z);
   for (const r of ROOFS) if (r.chuteAt) makeParachutePickup(r.chuteAt.x, r.floor, r.chuteAt.z);
-  lotSpots.forEach((s, i) => { spawnVehicle(i % 3 ? 'sedan' : 'modely', s.x, s.z, s.yaw).home = true; });
+  lotSpots.forEach((s, i) => { spawnVehicle(PARKED_CARS[i % PARKED_CARS.length], s.x, s.z, s.yaw).home = true; });
   P.x = 230; P.z = -40;
   for (let i = 0; i < 26; i++) spawnTrafficCar(false);
   for (let i = 0; i < 4; i++) spawnTrafficBike();

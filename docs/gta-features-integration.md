@@ -33,3 +33,9 @@ Manual tour: open the map and find gold D/cyan G; take an ordinary car to D, sta
 
 
 Validation at handoff: `npm test` passed all 496 tests across 59 files. The bounded browser check passed with no page/console errors; screenshots of the courier HUD and garage were visually inspected. The full legacy smoke suite was not repeated in this clone to avoid competing with the Pokémon run; run the complete combined suite before any eventual merge.
+
+## Club and car follow-up
+
+`feat/club-and-cars` builds on the GTA services commit. It adds physical stage tipping with bills, performer acknowledgements and crowd/light reactions; a paid DJ request booth with three working music grooves; and four traffic/parked models (Comet Turbo, Stallion V8, Palm Estate, Neon Cab) with distinct geometry and handling. It preserves the existing private room, bar, door, combat restrictions and key bindings.
+
+After integrating the GTA services commit, fetch `feat/club-and-cars` from this clone or GitHub and cherry-pick its follow-up commit. Retain Pokémon initialization when reconciling the small `main.js` parking-model change. This follow-up does not edit Pokémon code or the original checkout. Validation: 512 unit tests, plus `node tests/club-cars-smoke.mjs` for physical interactions and all four new cars. The full combined smoke remains an integration check before merge.
