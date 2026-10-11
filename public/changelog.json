@@ -1,7 +1,14 @@
 {
- "version": "1.122",
+ "version": "1.123",
  "date": "2026-10-11",
  "entries": [
+  {
+   "v": "1.123",
+   "date": "2026-10-11",
+   "sha": "894591c",
+   "pr": null,
+   "title": "Let aiming and shooting pass through Pokemon"
+  },
   {
    "v": "1.122",
    "date": "2026-10-11",

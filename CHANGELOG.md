@@ -4,6 +4,7 @@ Written from the commits on main by `scripts/changelog.mjs`; every change merged
 
 ## 2026-10-11
 
+- **v1.123** Let aiming and shooting pass through Pokemon
 - **v1.122** Merge remote-tracking branch 'upstream/main' into feat/random-world-events
 - **v1.121** Integrate disasters and club cars with latest main
 - **v1.120** Add random world disasters, atomic breath and spatial sounds
