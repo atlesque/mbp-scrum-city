@@ -125,14 +125,14 @@ function sequinMat(base) {
   const t = new THREE.CanvasTexture(c); t.magFilter = THREE.NearestFilter;
   return (sequinCache[base] = new THREE.MeshLambertMaterial({ map: t, emissive: col.clone().multiplyScalar(0.35) }));
 }
-// The dancers (and the one in the Pink Room): club outfits, all covered up. Sequinned tops with matching shorts, or a sequinned dress over them,
-// and boots. The torso and the dress take the sequins.
+// The dancers (and the one in the Pink Room): sequinned bikinis (a top with a band round the back, and bottoms
+// over the hips) and knee boots. Everything a bikini covers stays covered.
 const DANCERS = [
   { skin: SKIN[1], hair: HAIR[2], hairStyle: 'long', outfit: '#ff3fa4', boots: '#f4f0f6' },
-  { skin: SKIN[4], hair: HAIR[0], hairStyle: 'bigafro', outfit: '#9b5bff', dress: true, boots: '#2a2226' },
+  { skin: SKIN[4], hair: HAIR[0], hairStyle: 'bigafro', outfit: '#9b5bff', boots: '#2a2226' },
   { skin: SKIN[2], hair: HAIR[3], hairStyle: 'long', outfit: '#ffd23e', boots: '#2a2226' },
 ];
-const PINK_DANCER = { skin: SKIN[0], hair: HAIR[1], hairStyle: 'long', outfit: '#3fe0d0', dress: true, boots: '#f4f0f6' };
+const PINK_DANCER = { skin: SKIN[0], hair: HAIR[1], hairStyle: 'long', outfit: '#3fe0d0', boots: '#f4f0f6' };
 // Everyone in the club is a woman: the character with narrower shoulders, a slimmer waist over the hips, slimmer
 // arms and legs, and a touch of make-up (lipstick, lashes) and gold earrings.
 const FACE = (() => {
@@ -155,10 +155,13 @@ export function makeWoman(L) {
 const HAIRDOS = ['long', 'long', 'long', 'bigafro', 'afro', 'short'];
 const womanLook = () => ({ ...randomLook(), hairStyle: pick(HAIRDOS), glasses: Math.random() < 0.15 });
 function makeDancer(o) {
-  const c = makeWoman({ skin: o.skin, shirt: o.outfit, pants: o.outfit, shorts: true, hair: o.hair, hairStyle: o.hairStyle, shoes: o.boots });
-  const mat = sequinMat(o.outfit);
-  for (const m of c.body.children) if (m.isMesh && m.geometry === UNIT) m.material = mat;
-  if (o.dress) { const d = new THREE.Mesh(UNIT, mat); d.scale.set(0.56, 0.36, 0.36); d.position.y = 0.78; c.body.add(d); }
+  const c = makeWoman({ skin: o.skin, shirt: o.skin, pants: o.skin, hair: o.hair, hairStyle: o.hairStyle, shoes: o.boots });
+  const mat = sequinMat(o.outfit), chest = c.body.children.filter(m => m.isMesh && m.geometry === UNIT)[1];
+  chest.material = mat; chest.scale.set(0.38, 0.15, 0.08); // the bikini top
+  const piece = (w, h, d, y, z = 0) => { const m = new THREE.Mesh(UNIT, mat); m.scale.set(w, h, d); m.position.set(0, y, z); c.body.add(m); return m; };
+  piece(0.43, 0.06, 0.27, 1.35); // its band round the back
+  piece(0.5, 0.13, 0.29, 0.94); // the bottoms
+  piece(0.2, 0.08, 0.02, 0.89, 0.145); // narrowing to the front
   // boots up to the knee
   const bg = new GB(); box(bg, 0.18, 0.3, 0.2, 0, -0.68, 0, o.boots);
   for (const leg of [c.legL, c.legR]) leg.add(new THREE.Mesh(bg.geometry(), charMat));
