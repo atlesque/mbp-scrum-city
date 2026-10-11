@@ -102,7 +102,7 @@ export const Sound = (() => {
   // A voice whose source drops out fades and is freed. Each voice estimates how fast its source closes on the
   // listener for a touch of Doppler.
   const LOOPS = {
-    disaster: { max: 1, prof: { ref: 45, max: 420 }, make: makeDisaster },
+    disaster: { max: 8, prof: { ref: 45, max: 420 }, make: makeDisaster },
     siren: { max: 3, prof: HEAR.siren, make: makeSiren },
     rotor: { max: 2, prof: HEAR.rotor, make: makeRotor },
     tank: { max: 1, prof: HEAR.tank, make: makeTank },
@@ -144,10 +144,10 @@ export const Sound = (() => {
     const mix = ctx.createGain(), osc = ctx.createOscillator(), trem = ctx.createGain();
     osc.type = s.id === 'ufo' ? 'sine' : 'sawtooth'; osc.frequency.value = hz;
     const low = ctx.createBiquadFilter(); low.type = 'lowpass'; low.frequency.value = 350;
-    trem.gain.value = .16; osc.connect(low); low.connect(trem); trem.connect(mix);
+    trem.gain.value = ['cashrain', 'fireworks'].includes(s.id) ? .035 : .16; osc.connect(low); low.connect(trem); trem.connect(mix);
     const n = ctx.createBufferSource(); n.buffer = noise; n.loop = true;
     const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = wind; f.Q.value = .6;
-    const ng = ctx.createGain(); ng.gain.value = s.id === 'ufo' ? .12 : .6;
+    const ng = ctx.createGain(); ng.gain.value = ['cashrain', 'fireworks'].includes(s.id) ? .025 : s.id === 'ufo' ? .12 : .6;
     n.connect(f); f.connect(ng); ng.connect(mix);
     const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = rate; lg.gain.value = depth;
     lfo.connect(lg); lg.connect(osc.frequency);
@@ -179,6 +179,19 @@ export const Sound = (() => {
       for (let i = 0; i < 5; i++) tone(o, t + i * .16, 'sine', 240 + i * 150, 1200 + i * 180, .65, .3, .08);
     } else if (id === 'eruption') {
       tone(o, t, 'sine', 70, 22, 2, .7, .05); nz(o, t, 2, 'lowpass', 550, .8, .9);
+    } else if (id === 'firework') {
+      nz(o, t, .08, 'highpass', 3200, .8, .7); nz(o, t + .08, .55, 'bandpass', 1800, .6, .3);
+    } else if (id === 'steam') {
+      nz(o, t, 1.3, 'highpass', 2200, .6, .55); tone(o, t, 'sine', 1300, 700, .8, .12, .1);
+    } else if (id === 'thunder' || id === 'quake') {
+      nz(o, t, 2.5, 'lowpass', id === 'quake' ? 170 : 900, .7, .9);
+      tone(o, t, 'sine', id === 'quake' ? 45 : 95, 22, 2.5, .6, .02);
+    } else if (id === 'alienblast') {
+      tone(o, t, 'sawtooth', 1900, 95, .8, .35, .05); nz(o, t, .7, 'bandpass', 2200, .8, .6);
+    } else if (id === 'orbitalcharge') {
+      tone(o, t, 'sawtooth', 60, 2400, 3, .4, .2); tone(o, t, 'sine', 100, 3200, 3, .35, .15);
+    } else if (id === 'orbitalblast') {
+      tone(o, t, 'sawtooth', 180, 20, 2.5, .55, .02); nz(o, t, 2.5, 'lowpass', 4500, .6, .9);
     } else if (id === 'warning') {
       for (let i = 0; i < 3; i++) tone(o, t + i * .35, 'triangle', 660, 880, .24, .25, .02);
     }

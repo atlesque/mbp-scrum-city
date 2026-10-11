@@ -1,3 +1,4 @@
+import { EVENTS, INTENSITY } from '../data/world-events.js';
 import { Sound } from '../core/audio.js';
 import { G, P, cam } from '../core/state.js';
 import { on } from '../core/events.js';
@@ -10,26 +11,22 @@ import { emit as particles } from '../render/effects.js';
 import { showBig, toast } from '../ui/hud.js';
 import { isFree, ROADS, tallBoxes, rayBox } from '../world/collision.js';
 import { props, breakProp } from '../world/props.js';
-import { eventModel, fallingRock, disposeEvent, beamBetween } from '../world/event-models.js';
+import { eventModel, fallingRock, disposeEvent, beamBetween, eventStrike, cashBundle } from '../world/event-models.js';
 import { damageBuildings, updateBuildings } from '../world/event-destruction.js';
 import { exitVehicle, hurtPlayer } from './player.js';
+import { reward } from './pickups.js';
 import { strapOnChute } from './parachute.js';
 
-export const EVENTS = {
-  ufo: { name: 'ALIEN ABDUCTION', warning: 8, duration: 27, hint: 'Dodge the green beam! If caught, use your parachute after the drop.' },
-  godzilla: { name: 'GODZILLA', warning: 10, duration: 48, hint: 'Clear the streets! Blue dorsal plates mean atomic breath is charging.' },
-  tsunami: { name: 'TSUNAMI', warning: 12, duration: 36, hint: 'A wave is approaching from the ocean! Get above 14 metres.' },
-  volcano: { name: 'VOLCANIC ERUPTION', warning: 10, duration: 44, hint: 'A volcano is rising! Keep away from the crater and red impact circles.' },
-  meteors: { name: 'METEOR SHOWER', warning: 8, duration: 36, hint: 'Watch the red impact circles and keep moving!' },
-  tornado: { name: 'TORNADO', warning: 10, duration: 40, hint: 'Stay clear of the funnel! It tears up cars and throws you into the air.' },
-};
-export const worldEvents = { active: null, wait: 90, previous: null };
+export { EVENTS, INTENSITY } from '../data/world-events.js';
+export const worldEvents = { active: new Map(), timers: Object.fromEntries(Object.entries(EVENTS).map(([id, def]) => {
+  const [min, max] = INTENSITY[def.intensity].initial; return [id, min + Math.random() * (max - min)];
+})) };
 const outdoors = () => G.state === 'play' && P.alive && !P.club && !G.stairs;
 const road = x => ROADS.reduce((a, b) => Math.abs(x - b) < Math.abs(x - a) ? b : a);
 const rand = (a, b) => a + Math.random() * (b - a);
 const sheltered = () => tallBoxes.some(b => P.x > b.x0 && P.x < b.x1 && P.z > b.z0 && P.z < b.z1 && b.h > P.y + 2);
 export function startWorldEvent(id) {
-  if (!EVENTS[id] || worldEvents.active || !outdoors()) return false;
+  if (!EVENTS[id] || worldEvents.active.has(id) || !outdoors()) return false;
   const model = eventModel(id), e = { id, ...model, t: -EVENTS[id].warning, pulse: 0, spawn: 0, rocks: [], captured: false, released: false, x: road(P.x), z: clamp(P.z - 65, -175, 80), yaw: 0 };
   if (id === 'ufo') { e.x = P.x; e.z = P.z; e.g.position.set(e.x, 30, e.z); }
   if (id === 'volcano') {
@@ -38,33 +35,38 @@ export function startWorldEvent(id) {
   }
   if (id === 'tsunami') e.g.position.set(285, 0, 0);
   if (id === 'godzilla' || id === 'tornado') e.g.position.set(e.x, 0, e.z);
+  if (['cashrain', 'fireworks', 'steam', 'thunderstorm', 'earthquake', 'invasion', 'orbital'].includes(id)) {
+    e.z = clamp(road(P.z), -150, 150); e.g.position.set(e.x, 0, e.z);
+  }
+  if (id === 'cashrain') setupCash(e);
+  if (id === 'thunderstorm') e.strikes = [];
   e.kind = 'worldevent'; e.blipLayer = 5;
-  e.blip = radar => radar.dot(e.g.position.x, e.id === 'tsunami' ? P.z : e.z, '#ff805c', 12, true, 'dia');
+  e.blip = radar => radar.dot(e.g.position.x, e.id === 'tsunami' ? P.z : e.z, INTENSITY[EVENTS[id].intensity].color, 12, true, 'dia');
   e.dispose = () => disposeEvent(e.g);
-  if (id === 'ufo' || id === 'godzilla') {
-    e.hp = id === 'ufo' ? 600 : 12000;
+  if (id === 'ufo' || id === 'godzilla' || id === 'invasion') {
+    e.hp = id === 'ufo' ? 600 : id === 'invasion' ? 3500 : 12000;
     e.raycast = (o, d, maxT) => {
-      const p = e.g.position, ufo = id === 'ufo';
-      const t = rayBox(o.x, o.y, o.z, d.x, d.y, d.z, p.x - 9, p.y + (ufo ? -2 : 0), p.z - 6, p.x + 9, p.y + (ufo ? 4 : 42), p.z + 12);
+      const p = e.g.position, ufo = id === 'ufo', invasion = id === 'invasion', w = invasion ? 25 : 9;
+      const t = rayBox(o.x, o.y, o.z, d.x, d.y, d.z, p.x - w, p.y + (invasion ? 62 : ufo ? -2 : 0), p.z - w, p.x + w, p.y + (invasion ? 78 : ufo ? 4 : 42), p.z + w);
       return t < maxT ? { t } : null;
     };
     const damage = d => {
-      if (worldEvents.active !== e) return;
+      if (worldEvents.active.get(e.id) !== e) return;
       e.hp -= d;
-      if (e.hp <= 0) { stopWorldEvent(); toast(id === 'ufo' ? 'UFO driven away! The tractor beam is broken.' : 'Godzilla retreats into the ocean!', 5); }
+      if (e.hp <= 0) { stopWorldEvent(e.id); toast(id === 'ufo' ? 'UFO driven away! The tractor beam is broken.' : id === 'invasion' ? 'Mothership driven away! The invasion is over.' : 'Godzilla driven away!', 5); }
     };
     e.onShot = (hit, d) => { damage(d); return { head: false }; };
     e.onRocket = damage;
     e.blast = (x, y, z, r, d, byPlayer) => {
       if (!byPlayer) return;
-      const distance = Math.hypot(x - e.x, z - e.z, Math.max(0, Math.abs(y - (id === 'ufo' ? e.g.position.y : 20)) - (id === 'ufo' ? 3 : 20)));
+      const distance = Math.hypot(x - e.x, z - e.z, Math.max(0, Math.abs(y - (id === 'ufo' ? e.g.position.y : id === 'invasion' ? 70 : 20)) - (id === 'ufo' ? 3 : id === 'invasion' ? 8 : 20)));
       if (distance < r) damage(d * (1 - distance / r));
     };
   }
-  scene.add(e.g); addEntity(e); worldEvents.active = e;
+  scene.add(e.g); addEntity(e); worldEvents.active.set(id, e);
   Sound.disasterCue('warning');
   if (id === 'godzilla') Sound.disasterCue('roar', { x: e.x, y: 30, z: e.z });
-  showBig(EVENTS[id].name, '#8ce8ff'); toast(`<b>${EVENTS[id].name}</b> — ${EVENTS[id].hint}`, EVENTS[id].warning);
+  showBig(`${INTENSITY[EVENTS[id].intensity].label} · ${EVENTS[id].name}`, INTENSITY[EVENTS[id].intensity].color); toast(`<b>${INTENSITY[EVENTS[id].intensity].label} · ${EVENTS[id].name}</b> — ${EVENTS[id].hint}`, EVENTS[id].warning);
   return true;
 }
 function release(e) {
@@ -73,30 +75,44 @@ function release(e) {
   e.released = true;
   if (P.alive && G.state === 'play') toast(`They dropped you! Press <b>${kb('jump')}</b> to open your parachute!`, 7);
 }
-export function stopWorldEvent() {
-  const e = worldEvents.active;
-  if (!e) return;
-  release(e); removeEntity(e); Sound.loops('disaster', []);
-  worldEvents.previous = e.id; worldEvents.active = null; worldEvents.wait = rand(120, 240);
+// No id means cancel every event (death/debug); an id cancels only its own incident.
+export function stopWorldEvent(id) {
+  const events = id === undefined ? [...worldEvents.active.values()] : [worldEvents.active.get(id)].filter(Boolean);
+  for (const e of events) {
+    release(e); removeEntity(e); worldEvents.active.delete(e.id);
+    worldEvents.timers[e.id] = rand(...INTENSITY[EVENTS[e.id].intensity].cooldown);
+  }
+  eventAudio();
 }
-on('player:died', stopWorldEvent);
+on('player:died', () => stopWorldEvent());
+function eventAudio() {
+  Sound.loops('disaster', outdoors() ? [...worldEvents.active.values()].map(e => ({
+    key: e, id: e.id, x: e.g.position.x, y: e.id === 'ufo' ? e.g.position.y : 3,
+    z: e.id === 'tsunami' ? P.z : e.g.position.z, vol: e.t < 0 ? .3 : .8,
+    charge: e.id === 'godzilla' && e.t % 12 >= 5 && e.t % 12 < 11 ? Math.min(1, (e.t % 12 - 5) / 3) : 0,
+  })) : []);
+}
 export function updateWorldEvents(dt) {
   if (!P.alive || G.state === 'dead') { stopWorldEvent(); return; }
-  if (!outdoors()) { Sound.loops('disaster', []); return; }
+  if (!outdoors()) { eventAudio(); return; }
   updateBuildings(dt);
-  if (!worldEvents.active) {
-    worldEvents.wait -= dt;
-    if (worldEvents.wait <= 0) {
-      const ids = Object.keys(EVENTS).filter(id => id !== worldEvents.previous);
-      startWorldEvent(ids[Math.floor(Math.random() * ids.length)]);
-    }
-    return;
+  // Newly started events receive their whole warning; each inactive clock advances independently.
+  const running = [...worldEvents.active.values()];
+  for (const id of Object.keys(EVENTS)) if (!worldEvents.active.has(id)) {
+    worldEvents.timers[id] -= dt;
+    if (worldEvents.timers[id] <= 0) startWorldEvent(id);
   }
-  const e = worldEvents.active; e.t += dt;
-  Sound.loops('disaster', [{ key: e, id: e.id, x: e.g.position.x, y: e.id === 'ufo' ? e.g.position.y : 3,
-    z: e.id === 'tsunami' ? P.z : e.g.position.z, vol: e.t < 0 ? .3 : .8,
-    charge: e.id === 'godzilla' && e.t % 12 >= 5 && e.t % 12 < 11 ? Math.min(1, (e.t % 12 - 5) / 3) : 0 }]);
-  if (e.t > EVENTS[e.id].duration) { stopWorldEvent(); toast('The danger has passed. The city is recovering.', 4); return; }
+  for (const e of running) {
+    if (worldEvents.active.get(e.id) !== e) continue;
+    updateEvent(e, dt);
+  }
+  eventAudio();
+}
+function updateEvent(e, dt) {
+  e.t += dt;
+  if (e.t > EVENTS[e.id].duration) {
+    stopWorldEvent(e.id); toast(`${EVENTS[e.id].name} has ended.`, 4); return;
+  }
   if (e.id === 'ufo') updateUfo(e, dt);
   if (e.id === 'volcano') e.g.position.y = -22 + clamp((e.t + 10) / 14, 0, 1) * 22;
   if (e.t < 0) return;
@@ -105,11 +121,19 @@ export function updateWorldEvents(dt) {
   else if (e.id === 'tsunami') updateWave(e, dt);
   else if (e.id === 'tornado') updateTornado(e, dt);
   else if (e.id === 'volcano' || e.id === 'meteors') updateRocks(e, dt);
+  else if (e.id === 'cashrain') updateCash(e);
+  else if (e.id === 'fireworks') updateFireworks(e);
+  else if (e.id === 'steam') updateSteam(e);
+  else if (e.id === 'thunderstorm') updateStorm(e, dt);
+  else if (e.id === 'earthquake') updateQuake(e);
+  else if (e.id === 'invasion') updateInvasion(e, dt);
+  else if (e.id === 'orbital') updateOrbital(e);
 }
+
 function blast(e, x, y, z, radius, damage, collapse = false) {
   explosion(x, y, z, radius, damage, false, 1.4);
   // A fatal blast can synchronously stop the event through player:died.
-  if (collapse && worldEvents.active === e) damageBuildings(x, z, radius);
+  if (collapse && worldEvents.active.get(e.id) === e) damageBuildings(x, z, radius);
 }
 function updateUfo(e, dt) {
   if (!e.captured) {
@@ -160,7 +184,7 @@ function updateGodzilla(e, dt) {
     beamBetween(e.breath, a, b); beamBetween(e.core, a, b);
     if (e.pulse <= 0) {
       e.pulse = .45;
-      for (let i = 1; i <= 7 && worldEvents.active === e; i++) {
+      for (let i = 1; i <= 7 && worldEvents.active.get(e.id) === e; i++) {
         const q = segment.from.clone().lerp(segment.to, i / 7);
         blast(e, q.x, q.y, q.z, 7, 65, q.y < 18);
       }
@@ -216,7 +240,7 @@ function updateRocks(e, dt) {
       // Release each projectile immediately, keeping memory bounded through long sessions.
       disposeEvent(r.rock); disposeEvent(r.ring);
       blast(e, r.x, r.y, r.z, lava ? 9 : 14, lava ? 100 : 180, true);
-      if (worldEvents.active !== e) return;
+      if (worldEvents.active.get(e.id) !== e) return;
     }
   }
   if (lava && e.pulse <= 0) {
@@ -224,5 +248,143 @@ function updateRocks(e, dt) {
     if (Math.floor(e.t) % 4 === 0) Sound.disasterCue('eruption', { x: e.x, y: 10, z: e.z });
     particles(e.x, 23, e.z, 10, '#ff6b19', 8, 1.2, .7, 1, 1);
     blast(e, e.x, 1, e.z, 23, 40);
+  }
+}
+
+function setupCash(e) {
+  e.bundles = [];
+  for (let i = 0; i < 12; i++) {
+    let x, z;
+    for (let attempt = 0; attempt < 20; attempt++) {
+      x = clamp(e.x + rand(-18, 18), -195, 240); z = clamp(e.z + rand(-18, 18), -195, 195);
+      if (isFree(x, z, .8)) break;
+    }
+    if (!isFree(x, z, .8)) continue;
+    const mesh = cashBundle(e.g), height = rand(15, 35);
+    mesh.position.set(x - e.x, height, z - e.z);
+    e.bundles.push({ mesh, x, z, height, collected: false });
+  }
+  const available = b => !P.abducted && !P.tumble && !b.collected && b.mesh.position.y <= 1.5 && Math.hypot(P.x - b.x, P.z - b.z) < 2 && P.y < 2;
+  e.interaction = () => {
+    if (!outdoors() || e.t < 0 || P.vehicle) return null;
+    const b = e.bundles.find(available); if (!b) return null;
+    return { keys: ['use'], priority: 2, dist: Math.hypot(P.x - b.x, P.z - b.z), prompt: `Press <kbd>${kb('use')}</kbd> to collect $25`, run() {
+      if (worldEvents.active.get(e.id) !== e || !outdoors() || P.vehicle || !available(b)) return;
+      b.collected = true; b.mesh.visible = false; reward(b.x, b.z, 25, 'Cash rain');
+    } };
+  };
+}
+function updateCash(e) {
+  for (const b of e.bundles) {
+    b.mesh.position.y = Math.max(.5, b.height - e.t * 5);
+    b.mesh.rotation.y = e.t * 1.5;
+  }
+}
+function updateFireworks(e) {
+  if (e.pulse > 0) return;
+  e.pulse = 2.5;
+  const x = e.x + rand(-15, 15), z = e.z + rand(-15, 15), y = rand(25, 50);
+  const color = ['#ff6cae', '#5af5ff', '#ffdb66', '#b99bff'][Math.floor(rand(0, 4))];
+  particles(x, y, z, 36, color, 12, 1.8, .18, -4, 0);
+  particles(x, y, z, 12, '#fff6df', 5, .6, .14, -2, 0);
+  Sound.disasterCue('firework', { x, y, z });
+}
+function updateSteam(e) {
+  const pulse = e.pulse <= 0;
+  if (pulse) e.pulse = .6;
+  for (let i = 0; i < e.vents.length; i++) {
+    const v = e.vents[i], phase = (e.t + i * 1.1) % 6, active = phase >= 2 && phase < 3.5;
+    v.jet.visible = active; v.ring.material.opacity = phase < 2 ? .4 + .4 * Math.sin(phase * 8) ** 2 : .2;
+    if (active && !v.active) Sound.disasterCue('steam', { x: e.x + v.x, y: 1, z: e.z + v.z });
+    v.active = active;
+    if (!active || !pulse) continue;
+    const x = e.x + v.x, z = e.z + v.z;
+    for (const a of all('vehicle')) if (Math.hypot(a.x - x, a.z - z) < 3 && (a.y || 0) < 8 && !a.dead) a.damage(8, false);
+    if (Math.hypot(P.x - x, P.z - z) < 3 && P.y < 8 && !P.vehicle) {
+      hurtPlayer(5);
+      if (worldEvents.active.get(e.id) !== e) return;
+      P.grounded = false; P.vy = 12; P.jumps = 2;
+    }
+  }
+}
+function updateStorm(e, dt) {
+  if (e.spawn <= 0 && e.t < EVENTS[e.id].duration - 4) {
+    e.spawn = 3;
+    const x = clamp(e.x + rand(-65, 65), -195, 240), z = clamp(e.z + rand(-65, 65), -195, 195);
+    const y = tallBoxes.reduce((h, b) => x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1 ? Math.max(h, b.h + 1) : h, .2);
+    e.strikes.push({ ...eventStrike(e.g, x - e.x, y, z - e.z, 8, '#b9ddff'), x, y, z, age: 0, hit: false });
+  }
+  for (const s of [...e.strikes]) {
+    s.age += dt; s.ring.material.opacity = .3 + .5 * Math.sin(s.age * 7) ** 2;
+    if (s.age >= 3 && !s.hit) {
+      s.hit = true; s.beam.visible = true;
+      Sound.disasterCue('thunder', { x: s.x, y: s.y, z: s.z });
+      blast(e, s.x, s.y, s.z, 8, 80);
+      if (worldEvents.active.get(e.id) !== e) return;
+    }
+    if (s.age >= 3.5) { e.strikes.splice(e.strikes.indexOf(s), 1); disposeEvent(s.g); }
+  }
+}
+function updateQuake(e) {
+  const distance = Math.hypot(P.x - e.x, P.z - e.z);
+  if (distance < 110) cam.shake = Math.max(cam.shake, .9 * (1 - distance / 110));
+  for (let i = 0; i < e.faults.length; i++) {
+    const f = e.faults[i], u = ((e.t + i * .3) % 3) / 3;
+    f.ring.scale.setScalar(.2 + u); f.ring.material.opacity = 1 - u;
+  }
+  if (e.pulse > 0) return; e.pulse = 3;
+  Sound.disasterCue('quake', { x: e.x, y: 0, z: e.z });
+  for (const f of e.faults) {
+    blast(e, e.x + f.x, 1, e.z + f.z, 24, 75, true);
+    if (worldEvents.active.get(e.id) !== e) return;
+  }
+}
+function updateInvasion(e, dt) {
+  for (let i = 0; i < e.craft.length; i++) {
+    const c = e.craft[i], angle = i * Math.PI * 2 / 5 + e.t * .12;
+    c.ship.position.set(Math.sin(angle) * 60, 45 + Math.sin(e.t + i) * 4, Math.cos(angle) * 60);
+    c.ship.rotation.y += dt;
+    const clock = e.t - i * .8;
+    if (clock < 0) { c.ring.visible = c.beam.visible = false; continue; }
+    const cycle = Math.floor(clock / 7), phase = clock % 7;
+    if (c.cycle !== cycle) {
+      c.cycle = cycle; c.hit = false;
+      c.target = new THREE.Vector3(c.ship.position.x, .2, c.ship.position.z);
+      c.g.position.copy(c.target);
+    }
+    c.ring.visible = phase < 4; c.ring.material.opacity = .35 + .4 * Math.sin(phase * 7) ** 2;
+    c.beam.visible = phase >= 3 && phase < 4;
+    if (c.beam.visible) {
+      beamBetween(c.beam, c.ship.position.clone().sub(c.target), new THREE.Vector3());
+      if (!c.hit) {
+        c.hit = true; Sound.disasterCue('alienblast', { x: e.x + c.target.x, y: 2, z: e.z + c.target.z });
+        blast(e, e.x + c.target.x, 1, e.z + c.target.z, 16, 150, true);
+        if (worldEvents.active.get(e.id) !== e) return;
+      }
+    }
+  }
+}
+function updateOrbital(e) {
+  const phase = e.t % 10, cycle = Math.floor(e.t / 10);
+  // Keep each enormous target fixed for the whole windup so it can be escaped on foot.
+  if (e.orbitCycle !== cycle) {
+    e.orbitCycle = cycle; e.orbitHit = false; e.orbitCharge = false;
+    e.targetX = e.x + (cycle === 0 ? 0 : cycle === 1 ? 55 : -55); e.targetZ = e.z + (cycle === 2 ? 35 : 0);
+  }
+  e.ring.position.set(e.targetX - e.x, .25, e.targetZ - e.z);
+  e.ring.material.opacity = .35 + .4 * Math.sin(e.t * 6) ** 2;
+  e.beam.visible = e.core.visible = phase >= 7;
+  if (phase >= 4 && !e.orbitCharge) {
+    e.orbitCharge = true; Sound.disasterCue('orbitalcharge', { x: e.targetX, y: 50, z: e.targetZ });
+    toast('ORBITAL CANNON CHARGING — clear the enormous red circle!', 3);
+  }
+  if (phase >= 7) {
+    const a = new THREE.Vector3(0, 110, 0), b = new THREE.Vector3(e.targetX - e.x, 1, e.targetZ - e.z);
+    beamBetween(e.beam, a, b); beamBetween(e.core, a, b);
+    if (!e.orbitHit) {
+      e.orbitHit = true; Sound.disasterCue('orbitalblast', { x: e.targetX, y: 1, z: e.targetZ });
+      blast(e, e.targetX, 2, e.targetZ, 60, 450, true);
+      if (Math.hypot(P.x - e.targetX, P.z - e.targetZ) < 150) cam.shake = Math.max(cam.shake, 1.2);
+    }
   }
 }
