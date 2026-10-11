@@ -1365,6 +1365,16 @@ try {
     });
     check(away.ran > 0 && away.hurt === 10 && away.title === 'Menu', 'the city stopped behind the menu: ' + JSON.stringify(away));
     await press('KeyP');
+    // its own people near them go out to them, but not while its tab is in the background (no frames, so they'd be statues)
+    check(await until(() => __mpSent.some(m => m.t === 'npcs'), undefined, 5000), 'the people near the other player were not shared');
+    const frozen = await game(async () => {
+      const raf = window.requestAnimationFrame; let held = null; window.requestAnimationFrame = f => { held = f; return 0; };
+      await new Promise(r => setTimeout(r, 300)); const n0 = __mpSent.length; await new Promise(r => setTimeout(r, 1000));
+      const sent = __mpSent.slice(n0).filter(m => m.t === 'npcs').length;
+      window.requestAnimationFrame = raf; if (held) raf(held);
+      return sent;
+    });
+    check(frozen === 0, `people were shared ${frozen} times with the game's frames stopped`);
     // leaving takes them, their bike and their people out of the world
     await game(async () => { (await import('/js/net/net.js')).leave(); window.WebSocket = window.__mpWS; });
     check(await game(() => __neonbay.all('remote').length === 0 && __neonbay.all('ghost').length === 0 && !__neonbay.all('vehicle').some(v => v.remote)), 'the other player stayed after leaving');

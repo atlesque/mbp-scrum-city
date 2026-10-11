@@ -27,7 +27,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 const inWorld = () => ['play', 'dead', 'map', 'paused', 'shop'].includes(G.state) && !P.club;
 const SEEN_FOR = 1.6; // seconds a crewmate's "they've seen me" lasts (they repeat it at least once a second)
 const r2 = n => Math.round(n * 100) / 100;
-let last = null, lastAt = 0, npcAt = 0, told = null, wasOff = false, nid = 0;
+let last = null, lastAt = 0, npcAt = 0, told = null, wasOff = false, nid = 0, npcTime = -1;
 
 // ---- out ----
 function tick() {
@@ -58,9 +58,12 @@ function shareHeat() {
 // a level from the crew, without sending it back
 function take(l, h) { setWanted(l, h ?? Math.max(G.heat, HEAT[Math.min(l, 5)] || 0)); told = { heat: G.heat, wanted: G.wanted }; }
 
-// the people this game runs, near anyone else in the crew
+// the people this game runs, near anyone else in the crew. Only while its city is running: in a tab in the background the
+// browser stops drawing frames, so its people stand frozen. Sharing them then would leave the crew with statues (and keep
+// their own games from bringing out people of their own); once they're no longer sent, they go (net/ghosts.js).
 function shareNpcs() {
-  if (!inWorld()) return;
+  const running = G.time !== npcTime; npcTime = G.time;
+  if (!inWorld() || !running) return;
   const others = allRemotes().filter(r => r.where === 1); if (!others.length) return;
   const near = all('npc').filter(n => !n.vehicle && others.some(r => Math.hypot(n.x - r.x, n.z - r.z) < NPC_SHARE_R));
   for (const n of near) if (!n.nid) n.nid = ++nid;
