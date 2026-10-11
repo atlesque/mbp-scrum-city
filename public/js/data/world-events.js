@@ -12,7 +12,7 @@ export const EVENTS = {
   volcano: { intensity: 'severe', name: 'VOLCANIC ERUPTION', warning: 10, duration: 44, hint: 'A volcano is rising! Keep away from the crater and red impact circles.' },
   meteors: { intensity: 'severe', name: 'METEOR SHOWER', warning: 8, duration: 36, hint: 'Watch the red impact circles and keep moving!' },
   tornado: { intensity: 'severe', name: 'TORNADO', warning: 10, duration: 40, hint: 'Stay clear of the funnel! It tears up cars and throws you into the air.' },
-  cashrain: { intensity: 'mild', name: 'CASH RAIN', warning: 4, duration: 28, hint: 'Money is falling nearby! Walk up to a landed bundle and collect it.' },
+  cashrain: { intensity: 'mild', name: 'CASH RAIN', warning: 4, duration: 28, hint: 'Money is falling nearby! Run or drive over a landed bundle to collect it.' },
   fireworks: { intensity: 'mild', name: 'STREET FIREWORKS', warning: 4, duration: 24, hint: 'A harmless neighbourhood celebration — look up and enjoy the show!' },
   steam: { intensity: 'moderate', name: 'BURST STEAM MAINS', warning: 6, duration: 30, hint: 'Watch the glowing vents! Steam jets burn and launch you into the air.' },
   thunderstorm: { intensity: 'moderate', name: 'LIGHTNING STORM', warning: 8, duration: 38, hint: 'Lightning is targeting the glowing circles. Move before they strike!' },

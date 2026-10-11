@@ -1,3 +1,4 @@
+vi.mock('../../public/js/net/net.js', () => ({ MP: { state: 'off' }, connected: () => false, send: vi.fn(), onMessage() {}, onStatus() {} }));
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { G, P, inv } from '../../public/js/core/state.js';
 import { worldEvents, EVENTS, INTENSITY, startWorldEvent, stopWorldEvent, updateWorldEvents } from '../../public/js/game/world-events.js';
@@ -20,14 +21,15 @@ it('gives smaller incidents shorter breaks while every major disaster retains 2â
   expect(INTENSITY.mild.cooldown[1]).toBeLessThan(INTENSITY.catastrophic.cooldown[0]);
   for (const def of Object.values(EVENTS)) if (['severe', 'catastrophic'].includes(def.intensity)) expect(INTENSITY[def.intensity].cooldown).toEqual([120, 240]);
 });
-it('lets the player collect landed cash once and rejects an old prompt after cancellation', () => {
+it('automatically collects landed cash on foot or in a car once, with no use prompt', () => {
   inv.money = 0; startWorldEvent('cashrain'); const e = worldEvents.active.get('cashrain');
-  e.t = 10; updateWorldEvents(.1);
-  const b = e.bundles[0]; P.x = b.x; P.z = b.z;
-  const prompt = e.interaction(P); expect(prompt).toBeTruthy();
-  prompt.run(); prompt.run(); expect(inv.money).toBe(25);
-  const other = e.bundles.find(b => !b.collected); P.x = other.x; P.z = other.z;
-  const stale = e.interaction(P); stopWorldEvent(); stale.run(); expect(inv.money).toBe(25);
+  const b = e.bundles[0]; e.bundles = [b]; P.x = b.x; P.z = b.z; P.y = 0;
+  e.t = 0; updateWorldEvents(.1); expect(inv.money).toBe(0);
+  e.t = 10; updateWorldEvents(.1); updateWorldEvents(.1);
+  expect(inv.money).toBe(25); expect(e.interaction).toBeUndefined();
+  b.collected = false; b.mesh.visible = true; P.vehicle = { v: 0 };
+  updateWorldEvents(.1); expect(inv.money).toBe(50);
+  stopWorldEvent(); updateWorldEvents(.1); expect(inv.money).toBe(50);
 });
 it('keeps fireworks harmless to nearby people, cars and the player', () => {
   const damage = vi.fn(), target = addEntity({ kind: 'vehicle', x: 0, z: 0, blast: damage });

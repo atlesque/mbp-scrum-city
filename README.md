@@ -153,6 +153,8 @@ npm run shots -- shots/roof --at roof:0 --time day,night --cam game,side   # scr
 
 The registry tests catch a typo in a new vehicle, NPC or shop (an unknown kind, behaviour, weapon or item type). Opening the game with `?debug` exposes its state as `window.__neonbay`. The smoke test splits its steps over two browsers at once and resets the player before every step, so one broken step fails alone; `SMOKE_ONLY="<step name>|<step name>" node tests/smoke.mjs` reruns exact steps in one browser. `node tests/camera-shots.mjs` screenshots the follow camera in a narrow alley, on foot and in a car, and prints how far it stays from the walls. CI runs the unit tests on every pull request. The smoke test is too slow and timing-sensitive for shared CI runners, so it runs locally instead: `npm run test:smoke` must pass on your machine before a pull request is merged (run `npx playwright install chromium` once first).
 
+With the matching `mbp-games` backend deployed, the server schedules multiplayer world events for the whole room, with shared locations, attack patterns, boss health and UFO victims. Players joining mid-event catch up to the same timeline. Cash rain collects automatically on foot or in a vehicle, and each bundle pays only one player. Single-player events and clients connected to an older backend keep their local independent timers.
+
 ## Develop and deploy
 
 ```bash

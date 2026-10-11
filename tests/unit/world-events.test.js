@@ -1,3 +1,4 @@
+vi.mock('../../public/js/net/net.js', () => ({ MP: { state: 'off' }, connected: () => false, send: vi.fn(), onMessage() {}, onStatus() {} }));
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { G, P } from '../../public/js/core/state.js';
 import { scene } from '../../public/js/render/scene.js';

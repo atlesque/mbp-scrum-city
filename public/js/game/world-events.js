@@ -1,3 +1,5 @@
+import { seeded, cashLayout } from '../data/event-random.js';
+import { MP, connected, send, onMessage, onStatus } from '../net/net.js';
 import { EVENTS, INTENSITY } from '../data/world-events.js';
 import { Sound } from '../core/audio.js';
 import { G, P, cam } from '../core/state.js';
@@ -7,8 +9,8 @@ import { clamp } from '../core/util.js';
 import { all, addEntity, removeEntity } from '../entities/registry.js';
 import { explosion } from '../combat/combat.js';
 import { scene } from '../render/scene.js';
-import { emit as particles } from '../render/effects.js';
-import { showBig, toast } from '../ui/hud.js';
+import { emit as emitParticles } from '../render/effects.js';
+import { showBig as displayBig, toast as displayToast } from '../ui/hud.js';
 import { isFree, ROADS, tallBoxes, rayBox } from '../world/collision.js';
 import { props, breakProp } from '../world/props.js';
 import { eventModel, fallingRock, disposeEvent, beamBetween, eventStrike, cashBundle } from '../world/event-models.js';
@@ -18,15 +20,42 @@ import { reward } from './pickups.js';
 import { strapOnChute } from './parachute.js';
 
 export { EVENTS, INTENSITY } from '../data/world-events.js';
-export const worldEvents = { active: new Map(), timers: Object.fromEntries(Object.entries(EVENTS).map(([id, def]) => {
+export const worldEvents = { active: new Map(), shared: false, timers: Object.fromEntries(Object.entries(EVENTS).map(([id, def]) => {
   const [min, max] = INTENSITY[def.intensity].initial; return [id, min + Math.random() * (max - min)];
 })) };
 const outdoors = () => G.state === 'play' && P.alive && !P.club && !G.stairs;
 const road = x => ROADS.reduce((a, b) => Math.abs(x - b) < Math.abs(x - a) ? b : a);
-const rand = (a, b) => a + Math.random() * (b - a);
+let randomEvent = null, replaying = false;
+const rand = (a, b) => a + (randomEvent?.random ? randomEvent.random() : Math.random()) * (b - a);
+const particles = (...args) => { if (!replaying) emitParticles(...args); };
+const toast = (...args) => { if (!replaying) displayToast(...args); };
+const showBig = (...args) => { if (!replaying) displayBig(...args); };
+const cue = (...args) => { if (!replaying) Sound.disasterCue(...args); };
+let sharedOffset = 0;
+const networked = () => worldEvents.shared && (connected() || MP.state === 'connecting');
+// The room owns starts/ends. Local death and menus never remove shared incidents.
+let lastNetworkState = MP.state;
+onStatus(() => { if (MP.state !== lastNetworkState) { lastNetworkState = MP.state; stopWorldEvent(); if (MP.state === 'off' || MP.state === 'error' || MP.state === 'full') worldEvents.shared = false; } });
+onMessage('events', packet => {
+  worldEvents.shared = true;
+  sharedOffset = packet.now - Date.now();
+  const active = packet.active.filter(e => EVENTS[e.id]);
+  for (const e of [...worldEvents.active.values()]) if (!active.some(a => a.key === e.shared?.key)) stopWorldEvent(e.id);
+  for (const data of active) {
+    let e = worldEvents.active.get(data.id);
+    if (!e) { startWorldEvent(data.id, data); e = worldEvents.active.get(data.id); }
+    e.shared = data; if (Number.isFinite(data.hp)) e.hp = data.hp;
+    if (e.bundles) for (const b of e.bundles) if (data.collected.includes(b.index)) { b.collected = true; b.mesh.visible = false; }
+  }
+});
+onMessage('evaward', m => {
+  const e = worldEvents.active.get('cashrain'), b = e?.bundles.find(b => b.index === m.i);
+  if (!b || e.shared?.key !== m.key || e.awarded?.has(m.i)) return;
+  (e.awarded ||= new Set()).add(m.i); b.collected = true; b.mesh.visible = false; reward(b.x, b.z, 25, 'Cash rain');
+});
 const sheltered = () => tallBoxes.some(b => P.x > b.x0 && P.x < b.x1 && P.z > b.z0 && P.z < b.z1 && b.h > P.y + 2);
-export function startWorldEvent(id) {
-  if (!EVENTS[id] || worldEvents.active.has(id) || !outdoors()) return false;
+export function startWorldEvent(id, shared = null) {
+  if (!EVENTS[id] || worldEvents.active.has(id) || (!shared && (networked() || !outdoors()))) return false;
   const model = eventModel(id), e = { id, ...model, t: -EVENTS[id].warning, pulse: 0, spawn: 0, rocks: [], captured: false, released: false, x: road(P.x), z: clamp(P.z - 65, -175, 80), yaw: 0 };
   if (id === 'ufo') { e.x = P.x; e.z = P.z; e.g.position.set(e.x, 30, e.z); }
   if (id === 'volcano') {
@@ -38,7 +67,13 @@ export function startWorldEvent(id) {
   if (['cashrain', 'fireworks', 'steam', 'thunderstorm', 'earthquake', 'invasion', 'orbital'].includes(id)) {
     e.z = clamp(road(P.z), -150, 150); e.g.position.set(e.x, 0, e.z);
   }
-  if (id === 'cashrain') setupCash(e);
+  if (shared) {
+    e.shared = shared; e.random = seeded(shared.seed); e.x = shared.x; e.z = shared.z; e.anchorX = shared.x;
+    e.g.position.set(e.x, id === 'ufo' ? 30 : id === 'volcano' ? -22 : 0, e.z);
+    if (id === 'tsunami') e.g.position.set(285, 0, 0);
+  }
+  if (shared && !worldEvents.roofs) worldEvents.roofs = tallBoxes.map(b => ({ ...b }));
+  if (id === 'cashrain') { randomEvent = e; setupCash(e); randomEvent = null; }
   if (id === 'thunderstorm') e.strikes = [];
   e.kind = 'worldevent'; e.blipLayer = 5;
   e.blip = radar => radar.dot(e.g.position.x, e.id === 'tsunami' ? P.z : e.z, INTENSITY[EVENTS[id].intensity].color, 12, true, 'dia');
@@ -52,6 +87,7 @@ export function startWorldEvent(id) {
     };
     const damage = d => {
       if (worldEvents.active.get(e.id) !== e) return;
+      if (e.shared) { send({ t: 'evhit', key: e.shared.key, d }); return; }
       e.hp -= d;
       if (e.hp <= 0) { stopWorldEvent(e.id); toast(id === 'ufo' ? 'UFO driven away! The tractor beam is broken.' : id === 'invasion' ? 'Mothership driven away! The invasion is over.' : 'Godzilla driven away!', 5); }
     };
@@ -64,8 +100,8 @@ export function startWorldEvent(id) {
     };
   }
   scene.add(e.g); addEntity(e); worldEvents.active.set(id, e);
-  Sound.disasterCue('warning');
-  if (id === 'godzilla') Sound.disasterCue('roar', { x: e.x, y: 30, z: e.z });
+  cue('warning');
+  if (id === 'godzilla') cue('roar', { x: e.x, y: 30, z: e.z });
   showBig(`${INTENSITY[EVENTS[id].intensity].label} · ${EVENTS[id].name}`, INTENSITY[EVENTS[id].intensity].color); toast(`<b>${INTENSITY[EVENTS[id].intensity].label} · ${EVENTS[id].name}</b> — ${EVENTS[id].hint}`, EVENTS[id].warning);
   return true;
 }
@@ -84,7 +120,10 @@ export function stopWorldEvent(id) {
   }
   eventAudio();
 }
-on('player:died', () => stopWorldEvent());
+on('player:died', () => {
+  if (!networked()) stopWorldEvent();
+  else { const e = worldEvents.active.get('ufo'); if (e) { e.victimLost = true; release(e); } }
+});
 function eventAudio() {
   Sound.loops('disaster', outdoors() ? [...worldEvents.active.values()].map(e => ({
     key: e, id: e.id, x: e.g.position.x, y: e.id === 'ufo' ? e.g.position.y : 3,
@@ -93,6 +132,20 @@ function eventAudio() {
   })) : []);
 }
 export function updateWorldEvents(dt) {
+  if (networked()) {
+    updateBuildings(dt);
+    for (const e of [...worldEvents.active.values()]) {
+      if (!e.shared) { stopWorldEvent(e.id); continue; }
+      const target = Math.min(EVENTS[e.id].duration, (Date.now() + sharedOffset - e.shared.start) / 1000 - EVENTS[e.id].warning);
+      // Fixed steps and a per-incident RNG keep trajectories identical regardless of frame rate.
+      // Catch-up renders history without replaying old damage, sounds or rewards.
+      replaying = !outdoors() || target - e.t > .5;
+      randomEvent = e;
+      while (e.t + 1 / 30 <= target + 1e-7) updateEvent(e, 1 / 30);
+      randomEvent = null; replaying = false;
+    }
+    eventAudio(); return;
+  }
   if (!P.alive || G.state === 'dead') { stopWorldEvent(); return; }
   if (!outdoors()) { eventAudio(); return; }
   updateBuildings(dt);
@@ -131,11 +184,29 @@ function updateEvent(e, dt) {
 }
 
 function blast(e, x, y, z, radius, damage, collapse = false) {
-  explosion(x, y, z, radius, damage, false, 1.4);
+  if (!replaying) explosion(x, y, z, radius, damage, false, 1.4);
   // A fatal blast can synchronously stop the event through player:died.
   if (collapse && worldEvents.active.get(e.id) === e) damageBuildings(x, z, radius);
 }
 function updateUfo(e, dt) {
+  if (e.shared) {
+    const capture = e.shared.capture, elapsed = capture ? e.t - capture.at : -1;
+    e.g.position.set(capture ? capture.x : e.x, elapsed >= 0 ? 18 + capture.y + clamp(elapsed / 7, 0, 1) * (95 - capture.y) + Math.max(0, elapsed - 8) * 16 : 30 + Math.sin(e.t) * 1.5, capture ? capture.z : e.z);
+    if (!capture && MP.id === e.shared.target && !replaying && e.t >= 0 && e.t < 9 && Math.hypot(P.x - e.x, P.z - e.z) < 4.5 && P.y < 4 && !sheltered() && !P.tumble && !P.abducted && isFree(P.x, P.z, .5)) {
+      if (!e.grabSent || e.t - e.grabSent > 1) { e.grabSent = e.t; send({ t: 'evgrab', key: e.shared.key }); }
+    }
+    if (capture && elapsed >= 0 && elapsed < 8 && MP.id === e.shared.target && !e.victimLost && outdoors()) {
+      if (P.abducted !== e) {
+        if (P.vehicle) exitVehicle(false);
+        P.abducted = e; P.grounded = false; P.vx = P.vz = P.vy = 0; P.roof = null; P.floor = 0; strapOnChute(true);
+        cue('abduct', { x: capture.x, y: 20, z: capture.z });
+      }
+      P.x = capture.x; P.z = capture.z; P.y = capture.y + clamp(elapsed / 7, 0, 1) * (95 - capture.y); P.jumpY = P.y;
+    } else if (P.abducted === e) release(e);
+    e.beam.visible = elapsed < 8 && e.t < 18;
+    e.beam.position.y = -e.g.position.y / 2; e.beam.scale.y = e.g.position.y; e.g.rotation.y += dt * .45;
+    return;
+  }
   if (!e.captured) {
     // Deliberately slower than sprinting: you can run out of the beam.
     const dx = P.x - e.x, dz = P.z - e.z, d = Math.hypot(dx, dz), k = Math.min(1, dt * 3 / Math.max(d, .01));
@@ -147,7 +218,7 @@ function updateUfo(e, dt) {
       if (!isFree(P.x, P.z, .5)) return;
       e.x = P.x; e.z = P.z; e.captured = true; e.captureT = e.t; e.baseY = P.y;
       P.abducted = e; P.grounded = false; P.vx = P.vz = P.vy = 0; P.roof = null; P.floor = 0;
-      Sound.disasterCue('abduct', { x: e.x, y: 20, z: e.z });
+      cue('abduct', { x: e.x, y: 20, z: e.z });
       strapOnChute(true);
       toast('Tractor beam locked! The aliens left you a parachute…', 5);
     }
@@ -173,9 +244,9 @@ function updateGodzilla(e, dt) {
   if (!charging && !firing) e.z += dt * 4;
   e.g.position.set(e.x, Math.sin(e.t * 4) * .35, e.z);
   e.breath.visible = e.core.visible = firing;
-  if (charging && !e.charging) { Sound.disasterCue('charge', { x: e.x, y: 30, z: e.z }); toast('GODZILLA IS CHARGING ATOMIC BREATH — get out of the blue beam’s path!', 3); }
+  if (charging && !e.charging) { cue('charge', { x: e.x, y: 30, z: e.z }); toast('GODZILLA IS CHARGING ATOMIC BREATH — get out of the blue beam’s path!', 3); }
   e.charging = charging;
-  if (firing && !e.firing) Sound.disasterCue('beam', { x: e.x, y: 30, z: e.z });
+  if (firing && !e.firing) cue('beam', { x: e.x, y: 30, z: e.z });
   e.firing = firing;
   if (firing) {
     const segment = breathSegment(e.x, e.z, e.yaw, (cycle - 8) / 3);
@@ -198,17 +269,18 @@ function updateWave(e, dt) {
   e.g.position.x = 285 - e.t * 15;
   if (e.pulse > 0) return; e.pulse = .5;
   const x = e.g.position.x;
+  if (replaying) return;
   for (const p of props) if (!p.broken && Math.abs(p.x - x) < 13) breakProp(p, -1, 0, 12);
   for (const a of all()) if (a.blast && Math.abs(a.x - x) < 13 && (a.y || 0) < 14) a.blast(a.x, 2, a.z, 12, 35, false);
   if (Math.abs(P.x - x) < 13 && P.y < 14) { hurtPlayer(20); if (P.vehicle) P.vehicle.v *= .5; else P.x = Math.max(-207, P.x - 3); cam.shake = Math.max(cam.shake, .45); }
 }
 function updateTornado(e, dt) {
-  e.x = clamp(road(P.x) + Math.sin(e.t * .16) * 24, -185, 230); e.z += dt * 4;
+  e.x = clamp((e.shared ? e.anchorX : road(P.x)) + Math.sin(e.t * .16) * 24, -185, 230); e.z += dt * 4;
   e.g.position.set(e.x, 0, e.z); e.g.rotation.y += dt * 4;
   e.rings.forEach((r, i) => { r.position.x = Math.sin(e.t * 3 + i * .4) * i * .18; });
   if (e.pulse <= 0) {
     e.pulse = .65; blast(e, e.x, 3, e.z, 13, 45, true);
-    if (P.alive && !P.vehicle && Math.hypot(P.x - e.x, P.z - e.z) < 11 && P.y < 28) {
+    if (!replaying && P.alive && !P.vehicle && Math.hypot(P.x - e.x, P.z - e.z) < 11 && P.y < 28) {
       P.grounded = false; P.vy = 22; P.jumps = 2;
     }
   }
@@ -217,12 +289,12 @@ function updateRocks(e, dt) {
   const lava = e.id === 'volcano';
   if (e.spawn <= 0 && e.t < EVENTS[e.id].duration - 5) {
     e.spawn = lava ? .9 : 1.3;
-    if (!lava) Sound.disasterCue('meteor', { x: P.x, y: 50, z: P.z });
+    if (!lava) cue('meteor', { x: e.shared ? e.x : P.x, y: 50, z: e.shared ? e.z : P.z });
     let x, z;
     if (lava) { const a = rand(0, Math.PI * 2), r = rand(24, 85); x = e.x + Math.sin(a) * r; z = e.z + Math.cos(a) * r; }
-    else { x = clamp(P.x + rand(-50, 50), -195, 240); z = clamp(P.z + rand(-50, 50), -195, 195); }
+    else { x = clamp((e.shared ? e.x : P.x) + rand(-50, 50), -195, 240); z = clamp((e.shared ? e.z : P.z) + rand(-50, 50), -195, 195); }
     // Impact markers land on roofs as well as streets.
-    const y = tallBoxes.reduce((h, b) => x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1 ? Math.max(h, b.h + 1) : h, .2);
+    const y = (e.shared ? worldEvents.roofs : tallBoxes).reduce((h, b) => x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1 ? Math.max(h, b.h + 1) : h, .2);
     const r = { ...fallingRock(e.g, lava), x, z, y, t: 0 };
     r.ring.position.set(x, y, z).sub(e.g.position);
     r.from = new THREE.Vector3(lava ? e.x : x - 25, 100, lava ? e.z : z - 15);
@@ -245,7 +317,7 @@ function updateRocks(e, dt) {
   }
   if (lava && e.pulse <= 0) {
     e.pulse = 1;
-    if (Math.floor(e.t) % 4 === 0) Sound.disasterCue('eruption', { x: e.x, y: 10, z: e.z });
+    if (Math.floor(e.t) % 4 === 0) cue('eruption', { x: e.x, y: 10, z: e.z });
     particles(e.x, 23, e.z, 10, '#ff6b19', 8, 1.2, .7, 1, 1);
     blast(e, e.x, 1, e.z, 23, 40);
   }
@@ -253,33 +325,31 @@ function updateRocks(e, dt) {
 
 function setupCash(e) {
   e.bundles = [];
+  const layout = e.shared ? cashLayout(e.x, e.z, e.shared.seed) : null;
   for (let i = 0; i < 12; i++) {
     let x, z;
-    for (let attempt = 0; attempt < 20; attempt++) {
-      x = clamp(e.x + rand(-18, 18), -195, 240); z = clamp(e.z + rand(-18, 18), -195, 195);
+    for (let attempt = 0; attempt < (e.shared ? 1 : 20); attempt++) {
+      x = clamp(e.x + (e.shared ? rand(-4, 4) : rand(-18, 18)), -195, 240); z = clamp(e.z + rand(-18, 18), -195, 195);
       if (isFree(x, z, .8)) break;
     }
-    if (!isFree(x, z, .8)) continue;
-    const mesh = cashBundle(e.g), height = rand(15, 35);
+    if (!e.shared && !isFree(x, z, .8)) continue;
+    if (layout) { x = layout[i].x; z = layout[i].z; }
+    const mesh = cashBundle(e.g), height = layout ? layout[i].height : rand(15, 35);
     mesh.position.set(x - e.x, height, z - e.z);
-    e.bundles.push({ mesh, x, z, height, collected: false });
+    e.bundles.push({ index: i, mesh, x, z, height, collected: false });
   }
-  const available = b => !P.abducted && !P.tumble && !b.collected && b.mesh.position.y <= 1.5 && Math.hypot(P.x - b.x, P.z - b.z) < 2 && P.y < 2;
-  e.interaction = () => {
-    if (!outdoors() || e.t < 0 || P.vehicle) return null;
-    const b = e.bundles.find(available); if (!b) return null;
-    return { keys: ['use'], priority: 2, dist: Math.hypot(P.x - b.x, P.z - b.z), prompt: `Press <kbd>${kb('use')}</kbd> to collect $25`, run() {
-      if (worldEvents.active.get(e.id) !== e || !outdoors() || P.vehicle || !available(b)) return;
-      b.collected = true; b.mesh.visible = false; reward(b.x, b.z, 25, 'Cash rain');
-    } };
-  };
 }
 function updateCash(e) {
   for (const b of e.bundles) {
     b.mesh.position.y = Math.max(.5, b.height - e.t * 5);
     b.mesh.rotation.y = e.t * 1.5;
+    if (replaying || !outdoors() || b.collected || b.mesh.position.y > 1.5 || P.y >= 2 || P.abducted || P.tumble || Math.hypot(P.x - b.x, P.z - b.z) >= 1.2) continue;
+    if (e.shared) {
+      if (b.requestAt === undefined || e.t - b.requestAt >= 1) { b.requestAt = e.t; send({ t: 'evcash', key: e.shared.key, i: b.index }); }
+    } else { b.collected = true; b.mesh.visible = false; reward(b.x, b.z, 25, 'Cash rain'); }
   }
 }
+
 function updateFireworks(e) {
   if (e.pulse > 0) return;
   e.pulse = 2.5;
@@ -287,7 +357,7 @@ function updateFireworks(e) {
   const color = ['#ff6cae', '#5af5ff', '#ffdb66', '#b99bff'][Math.floor(rand(0, 4))];
   particles(x, y, z, 36, color, 12, 1.8, .18, -4, 0);
   particles(x, y, z, 12, '#fff6df', 5, .6, .14, -2, 0);
-  Sound.disasterCue('firework', { x, y, z });
+  cue('firework', { x, y, z });
 }
 function updateSteam(e) {
   const pulse = e.pulse <= 0;
@@ -295,10 +365,11 @@ function updateSteam(e) {
   for (let i = 0; i < e.vents.length; i++) {
     const v = e.vents[i], phase = (e.t + i * 1.1) % 6, active = phase >= 2 && phase < 3.5;
     v.jet.visible = active; v.ring.material.opacity = phase < 2 ? .4 + .4 * Math.sin(phase * 8) ** 2 : .2;
-    if (active && !v.active) Sound.disasterCue('steam', { x: e.x + v.x, y: 1, z: e.z + v.z });
+    if (active && !v.active) cue('steam', { x: e.x + v.x, y: 1, z: e.z + v.z });
     v.active = active;
     if (!active || !pulse) continue;
     const x = e.x + v.x, z = e.z + v.z;
+    if (replaying) continue;
     for (const a of all('vehicle')) if (Math.hypot(a.x - x, a.z - z) < 3 && (a.y || 0) < 8 && !a.dead) a.damage(8, false);
     if (Math.hypot(P.x - x, P.z - z) < 3 && P.y < 8 && !P.vehicle) {
       hurtPlayer(5);
@@ -311,14 +382,14 @@ function updateStorm(e, dt) {
   if (e.spawn <= 0 && e.t < EVENTS[e.id].duration - 4) {
     e.spawn = 3;
     const x = clamp(e.x + rand(-65, 65), -195, 240), z = clamp(e.z + rand(-65, 65), -195, 195);
-    const y = tallBoxes.reduce((h, b) => x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1 ? Math.max(h, b.h + 1) : h, .2);
+    const y = (e.shared ? worldEvents.roofs : tallBoxes).reduce((h, b) => x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1 ? Math.max(h, b.h + 1) : h, .2);
     e.strikes.push({ ...eventStrike(e.g, x - e.x, y, z - e.z, 8, '#b9ddff'), x, y, z, age: 0, hit: false });
   }
   for (const s of [...e.strikes]) {
     s.age += dt; s.ring.material.opacity = .3 + .5 * Math.sin(s.age * 7) ** 2;
     if (s.age >= 3 && !s.hit) {
       s.hit = true; s.beam.visible = true;
-      Sound.disasterCue('thunder', { x: s.x, y: s.y, z: s.z });
+      cue('thunder', { x: s.x, y: s.y, z: s.z });
       blast(e, s.x, s.y, s.z, 8, 80);
       if (worldEvents.active.get(e.id) !== e) return;
     }
@@ -333,7 +404,7 @@ function updateQuake(e) {
     f.ring.scale.setScalar(.2 + u); f.ring.material.opacity = 1 - u;
   }
   if (e.pulse > 0) return; e.pulse = 3;
-  Sound.disasterCue('quake', { x: e.x, y: 0, z: e.z });
+  cue('quake', { x: e.x, y: 0, z: e.z });
   for (const f of e.faults) {
     blast(e, e.x + f.x, 1, e.z + f.z, 24, 75, true);
     if (worldEvents.active.get(e.id) !== e) return;
@@ -357,7 +428,7 @@ function updateInvasion(e, dt) {
     if (c.beam.visible) {
       beamBetween(c.beam, c.ship.position.clone().sub(c.target), new THREE.Vector3());
       if (!c.hit) {
-        c.hit = true; Sound.disasterCue('alienblast', { x: e.x + c.target.x, y: 2, z: e.z + c.target.z });
+        c.hit = true; cue('alienblast', { x: e.x + c.target.x, y: 2, z: e.z + c.target.z });
         blast(e, e.x + c.target.x, 1, e.z + c.target.z, 16, 150, true);
         if (worldEvents.active.get(e.id) !== e) return;
       }
@@ -375,14 +446,14 @@ function updateOrbital(e) {
   e.ring.material.opacity = .35 + .4 * Math.sin(e.t * 6) ** 2;
   e.beam.visible = e.core.visible = phase >= 7;
   if (phase >= 4 && !e.orbitCharge) {
-    e.orbitCharge = true; Sound.disasterCue('orbitalcharge', { x: e.targetX, y: 50, z: e.targetZ });
+    e.orbitCharge = true; cue('orbitalcharge', { x: e.targetX, y: 50, z: e.targetZ });
     toast('ORBITAL CANNON CHARGING — clear the enormous red circle!', 3);
   }
   if (phase >= 7) {
     const a = new THREE.Vector3(0, 110, 0), b = new THREE.Vector3(e.targetX - e.x, 1, e.targetZ - e.z);
     beamBetween(e.beam, a, b); beamBetween(e.core, a, b);
     if (!e.orbitHit) {
-      e.orbitHit = true; Sound.disasterCue('orbitalblast', { x: e.targetX, y: 1, z: e.targetZ });
+      e.orbitHit = true; cue('orbitalblast', { x: e.targetX, y: 1, z: e.targetZ });
       blast(e, e.targetX, 2, e.targetZ, 60, 450, true);
       if (Math.hypot(P.x - e.targetX, P.z - e.targetZ) < 150) cam.shake = Math.max(cam.shake, 1.2);
     }

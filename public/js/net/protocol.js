@@ -1,8 +1,11 @@
 // ================= MULTIPLAYER: WHAT GOES OVER THE WIRE =================
 // The pure part of multiplayer (no sockets, no meshes), so it can be tested on its own. The room on the server
-// (github.com/atlesque/mbp-games, src/room.js) only relays: each game is the authority on its own player, sends
+// (github.com/atlesque/mbp-games, src/room.js) relays player actions: each game is the authority on its own player, sends
 // where they are a few times a second, and tells the others about its shots, blasts and kills. Damage is decided
 // by the shooter and applied by whoever was hit.
+//
+// World incidents are server-owned: events snapshots synchronize their seeds, locations, timing, health and outcomes.
+// evhit/evgrab/evcash request changes; evaward grants an accepted cash collection.
 //
 // A state message ('s') is short keys to keep it small:
 //   w   1 while the player is out in the city (0 on the title screen, paused, or inside the club)
