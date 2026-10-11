@@ -245,6 +245,20 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 
 /* Shop */
 #shop{background:rgba(23,12,40,.7)}
+#worldMap{position:absolute;inset:0;background:#2e2344;z-index:8}
+#mapCanvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab}
+#mapCanvas.dragging{cursor:grabbing}
+#worldMap .map-title{position:absolute;left:22px;top:12px;margin:0;font-family:var(--f-script);font-size:52px;color:var(--cyan);text-shadow:0 0 14px rgba(62,240,255,.6),3px 3px 0 #000;pointer-events:none}
+#mapLegend{position:absolute;left:22px;bottom:22px;margin:0;padding:12px 14px;list-style:none;background:var(--panel);border-left:4px solid var(--pink);display:grid;gap:5px;font-size:14px;font-weight:600;pointer-events:none}
+#mapLegend li{display:flex;align-items:center;gap:9px}
+#mapLegend li>*:first-child{width:14px;flex:none;text-align:center;font-family:var(--f-hud);font-style:normal}
+#mapLegend i{display:inline-block;height:12px;box-sizing:border-box;border:2px solid #000}
+#mapLegend .mk-dot{border-radius:50%}
+#mapLegend .mk-wp{transform:rotate(45deg) scale(.85)}
+#mapLegend .mk-cross{color:#ff3344;text-shadow:0 0 2px #fff,0 0 2px #fff}
+#mapHelp{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);margin:0;padding:8px 14px;background:var(--panel);font-size:14px;font-weight:600;white-space:nowrap;pointer-events:none}
+#mapHelp kbd{font-family:var(--f-hud);color:var(--pink)}
+#mapClose{position:absolute;right:22px;top:16px}
 .shop-panel{width:100%;max-width:980px;max-height:100%;overflow:auto;background:var(--panel);border:2px solid var(--pink);border-radius:8px;box-shadow:0 0 40px rgba(255,79,163,.35);padding:20px 22px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px}
 .shop-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px 20px}
 .shop-head h2{margin:0;font-family:var(--f-script);font-size:52px;color:var(--pink);text-shadow:0 0 14px rgba(255,79,163,.7),3px 3px 0 #000;line-height:1}
@@ -321,7 +335,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
     <div id="bigText" class="outline"></div>
     <div id="speedo" hidden><b id="kmh" class="outline">000</b><span class="u" id="spdUnit">km/h</span><div class="bar bk"><b id="vehHp"></b></div><span class="u"><span id="vehName">R 1300 GS</span> · <kbd data-kb="ride">F</kbd> off<span id="vehWheelie" hidden> · <kbd data-kb="wheelie">C</kbd> wheelie</span><span id="vehSiren" hidden> · <kbd data-kb="siren">H</kbd> siren</span></span></div>
     <canvas id="wheel" hidden></canvas>
-    <div id="hint"><kbd data-kb="ride">F</kbd> ride / drive · <kbd>1</kbd>–<kbd>0</kbd> / scroll switch · <kbd data-kb="melee">Q</kbd> weapon wheel · <kbd data-kb="reload">R</kbd> reload · <kbd data-kb="radio">M</kbd> radio · <kbd>Esc</kbd> pause</div>
+    <div id="hint"><kbd data-kb="ride">F</kbd> ride / drive · <kbd>1</kbd>–<kbd>0</kbd> / scroll switch · <kbd data-kb="melee">Q</kbd> weapon wheel · <kbd data-kb="reload">R</kbd> reload · <kbd data-kb="radio">N</kbd> radio · <kbd data-kb="map">M</kbd> map · <kbd>Esc</kbd> pause</div>
   </div>
 
   <section id="title" class="overlay">
@@ -354,10 +368,19 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
     <div class="panel">
       <h2>Paused</h2>
       <button id="resumeBtn" class="btn">Back to the streets</button>
+      <button id="pauseMapBtn" class="sbtn cy menu-btn">Map</button>
       <button id="pauseSettingsBtn" class="sbtn cy menu-btn">Settings</button>
       <p class="small" id="pauseStats"></p>
       <p class="small" id="pauseAcct"></p>
     </div>
+  </section>
+
+  <section id="worldMap" hidden>
+    <canvas id="mapCanvas"></canvas>
+    <h2 class="map-title">Scrum City</h2>
+    <ul id="mapLegend"></ul>
+    <p id="mapHelp"></p>
+    <button id="mapClose" class="sbtn cy">Close</button>
   </section>
 
   <section id="settings" class="overlay" hidden>
