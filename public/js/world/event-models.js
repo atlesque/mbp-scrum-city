@@ -45,6 +45,49 @@ export function eventModel(id) {
       const flow = box(g, mat('#ff5c12', true), 1.4, 25, .45, Math.sin(a) * 12, 11, Math.cos(a) * 12);
       flow.rotation.set(Math.cos(a) * .6, a, -Math.sin(a) * .6);
     }
+  } else if (id === 'cashrain') {
+    const balloon = mesh(g, new THREE.SphereGeometry(1, 12, 8), mat('#8be6a4'), 0, 28, 0); balloon.scale.set(5, 2, 2);
+    box(g, mat('#d2aa42'), 2, 1, 2, 0, 25, 0);
+  } else if (id === 'fireworks') {
+    for (const x of [-2, 0, 2]) mesh(g, new THREE.CylinderGeometry(.3, .4, 1.2, 8), mat('#cc3976'), x, .6, 0);
+  } else if (id === 'steam') {
+    parts.vents = [];
+    for (let i = 0; i < 6; i++) {
+      const z = (i - 2.5) * 12;
+      const ring = mesh(g, new THREE.RingGeometry(2.6, 3, 24), mat('#ffca6e', true, .65), 0, .18, z); ring.rotation.x = -Math.PI / 2;
+      const jet = mesh(g, new THREE.CylinderGeometry(.8, 2.2, 10, 8, 1, true), mat('#d6eafa', true, .45), 0, 5, z); jet.visible = false;
+      mesh(g, new THREE.CylinderGeometry(1.4, 1.4, .2, 12), mat('#6c6e80'), 0, .1, z);
+      parts.vents.push({ x: 0, z, ring, jet, active: false });
+    }
+  } else if (id === 'thunderstorm') {
+    for (let i = 0; i < 8; i++) {
+      const cloud = mesh(g, new THREE.IcosahedronGeometry(14, 1), mat('#514a6b'), Math.sin(i * 2.4) * 30, 65 + i % 3 * 4, Math.cos(i * 2.4) * 25); cloud.scale.y = .35;
+    }
+  } else if (id === 'earthquake') {
+    parts.faults = [];
+    for (let i = 0; i < 6; i++) {
+      const x = (i % 2 ? 1 : -1) * 35, z = (Math.floor(i / 2) - 1) * 35;
+      for (let j = 0; j < 7; j++) { const crack = box(g, mat('#f17347', true), 1.2, .12, 9, x + Math.sin(j * 2) * 2, .22, z - 25 + j * 8); crack.rotation.y = Math.sin(j * 2) * .25; }
+      const ring = mesh(g, new THREE.RingGeometry(23, 24, 48), mat('#ff9857', true, .65), x, .25, z); ring.rotation.x = -Math.PI / 2;
+      parts.faults.push({ x, z, ring });
+    }
+  } else if (id === 'invasion') {
+    const mother = eventModel('ufo'); mother.beam.visible = false; mother.g.position.y = 70; mother.g.scale.setScalar(2.2); g.add(mother.g);
+    parts.craft = [];
+    for (let i = 0; i < 5; i++) {
+      const saucer = eventModel('ufo'); saucer.beam.visible = false; saucer.g.scale.setScalar(.5); g.add(saucer.g);
+      const strike = eventStrike(g, 0, .2, 0, 11, '#8cffb3', 45);
+      strike.ring.visible = false;
+      saucer.g.position.set(Math.sin(i * Math.PI * 2 / 5) * 60, 45, Math.cos(i * Math.PI * 2 / 5) * 60);
+      parts.craft.push({ ship: saucer.g, ...strike, cycle: -1, hit: false });
+    }
+  } else if (id === 'orbital') {
+    mesh(g, new THREE.IcosahedronGeometry(12, 1), mat('#635b7a'), 0, 110, 0);
+    const halo = mesh(g, new THREE.TorusGeometry(20, 2, 8, 24), mat('#ff597a', true), 0, 110, 0); halo.rotation.x = Math.PI / 2;
+    for (const x of [-26, 26]) box(g, mat('#3d7185'), 23, 1.5, 12, x, 110, 0);
+    parts.ring = mesh(g, new THREE.RingGeometry(58, 60, 64), mat('#ff496c', true, .7), 0, .25, 0); parts.ring.rotation.x = -Math.PI / 2;
+    parts.beam = mesh(g, new THREE.CylinderGeometry(6, 14, 1, 16, 1, true), mat('#ff597a', true, .65)); parts.beam.visible = false;
+    parts.core = mesh(g, new THREE.CylinderGeometry(2, 5, 1, 12), mat('#fff0e5', true)); parts.core.visible = false;
   } else if (id === 'tornado') {
     parts.rings = [];
     const cloud = mat('#9e92b1', true, .5);
@@ -73,4 +116,18 @@ export function beamBetween(mesh, from, to) {
   mesh.position.copy(from).addScaledVector(d, .5);
   mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize());
   mesh.scale.y = d.length();
+}
+
+export function cashBundle(g) {
+  const bundle = new THREE.Group(); g.add(bundle);
+  box(bundle, mat('#7fe890'), .8, .3, .45, 0, 0, 0);
+  box(bundle, mat('#fff0c7'), .2, .32, .46, 0, 0, 0);
+  return bundle;
+}
+// Each strike owns its marker and beam, so cancellation and impact release the whole effect together.
+export function eventStrike(parent, x, y, z, radius, color, height = 100) {
+  const g = new THREE.Group(); parent.add(g); g.position.set(x, y, z);
+  const ring = mesh(g, new THREE.RingGeometry(radius - .5, radius, 32), mat(color, true, .65)); ring.rotation.x = -Math.PI / 2;
+  const beam = mesh(g, new THREE.CylinderGeometry(.4, 1.2, 1, 8), mat(color, true), 0, height / 2, 0); beam.scale.y = height; beam.visible = false;
+  return { g, ring, beam };
 }

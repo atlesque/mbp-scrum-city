@@ -18,7 +18,7 @@ try {
     const { P, G, all, removeEntity } = __neonbay;
     for (const e of all()) if (e.kind === 'npc' || e.kind === 'vehicle') removeEntity(e);
     Object.assign(P, { x: 0, z: -100, y: 0, floor: 0, hp: 100, armor: 0, vx: 0, vz: 0 });
-    G.wanted = G.heat = 0; __neonbay.worldEvents.wait = 999;
+    G.wanted = G.heat = 0; for (const id of Object.keys(__neonbay.worldEvents.timers)) __neonbay.worldEvents.timers[id] = 999;
   });
   assert(await game(() => __neonbay.startWorldEvent('ufo')));
   await game(() => { eventsModule.updateWorldEvents(8); eventsModule.updateWorldEvents(7); });
@@ -40,7 +40,7 @@ try {
       const { P, G, startWorldEvent, worldEvents, cam } = __neonbay;
       G.state = 'play'; P.alive = true; P.hp = 100; P.x = -50; P.z = -100; P.y = P.floor = 0; P.vx = P.vz = 0;
       startWorldEvent(id);
-      const e = worldEvents.active;
+      const e = worldEvents.active.get(id);
       if (id === 'godzilla') {
         const b = (await import('/js/world/event-destruction.js')).eventBuildings.find(b => !b.protected);
         e.x = (b.x0 + b.x1) / 2; e.z = (b.z0 + b.z1) / 2 - 70;
@@ -58,21 +58,21 @@ try {
     })), `${id} generated no audible waveform`);
     assert(await game(() => __neonbay.Sound.voices().disaster === 1), `${id} has no sound voice`);
     if (id === 'godzilla') {
-      assert(await game(() => __neonbay.worldEvents.active.breath.visible));
+      assert(await game(() => __neonbay.worldEvents.active.get('godzilla').breath.visible));
       assert(await game(async () => (await import('/js/world/event-destruction.js')).eventBuildings.some(b => b.broken)), 'atomic breath did not collapse any buildings');
     }
     if (id === 'volcano') assert(await game(() => {
-      const e = __neonbay.worldEvents.active, p = e.rocks[0].ring.getWorldPosition(new THREE.Vector3());
+      const e = __neonbay.worldEvents.active.get('volcano'), p = e.rocks[0].ring.getWorldPosition(new THREE.Vector3());
       return Math.abs(p.x - e.rocks[0].x) < .01 && Math.abs(p.z - e.rocks[0].z) < .01;
     }), 'volcano impact marker has a double world offset');
     if (process.env.EVENT_SHOTS) await page.screenshot({ path: `${process.env.EVENT_SHOTS}/${id}.png` });
     await game(() => {
-      const { G, worldEvents, stopWorldEvent, Sound } = __neonbay, t = worldEvents.active.t;
+      const { G, worldEvents, stopWorldEvent, Sound } = __neonbay, t = [...worldEvents.active.values()][0].t;
       G.state = 'paused'; eventsModule.updateWorldEvents(2);
-      if (worldEvents.active.t !== t || Sound.voices().disaster !== 0) throw new Error('pause did not freeze event/silence loop');
+      if ([...worldEvents.active.values()][0].t !== t || Sound.voices().disaster !== 0) throw new Error('pause did not freeze event/silence loop');
       G.state = 'play'; stopWorldEvent();
       for (const a of eventAnalysers) a.disconnect(); eventAnalysers.length = 0;
-      if (worldEvents.active || Sound.voices().disaster) throw new Error('event leaked after cleanup');
+      if (worldEvents.active.size || Sound.voices().disaster) throw new Error('event leaked after cleanup');
     });
     console.log(`ok ${id}: visible geometry, spatial sound, hazard update, pause and cleanup`);
   }

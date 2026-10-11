@@ -1,7 +1,21 @@
 {
- "version": "1.123",
+ "version": "1.125",
  "date": "2026-10-11",
  "entries": [
+  {
+   "v": "1.125",
+   "date": "2026-10-11",
+   "sha": "dffbbc9",
+   "pr": null,
+   "title": "Add varied world events with independent overlapping schedules"
+  },
+  {
+   "v": "1.124",
+   "date": "2026-10-11",
+   "sha": "6e25f95",
+   "pr": 120,
+   "title": "Multiplayer: no frozen people, a safe spawn, and a shared five-star clock"
+  },
   {
    "v": "1.123",
    "date": "2026-10-11",
