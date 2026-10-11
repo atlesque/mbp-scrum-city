@@ -1,7 +1,8 @@
+import { freshTeam } from '../pokemon/team.js';
 // Player, camera, inventory and the other values many modules read and write.
 export const P = { x: 0, z: 0, y: 0, vy: 0, yaw: 0, hp: 100, armor: 0, alive: true, c: null, moveSpeed: 0, aiming: false, aimPitch: 0, twoHand: false, lastShot: -9, grounded: true, vehicle: null, roof: null };
 export const cam = { yaw: Math.PI, pitch: -0.08, dist: 4.6, shake: 0, fov: 70 };
-export const inv = { money: 500, owned: { fist: true, pistol: true }, lvl: { pistol: 0 }, mag: { pistol: 12 }, ammo: {}, found: {}, cur: 'pistol' };
+export const inv = { money: 500, pokemon: freshTeam(), owned: { fist: true, pistol: true }, lvl: { pistol: 0 }, mag: { pistol: 12 }, ammo: {}, found: {}, cur: 'pistol' };
 // played: seconds of play, counted up to HINT_FOR (game/hint.js); fiveStar: lifetime seconds spent at five stars, the player's
 // five star heat highscore (synced with the rest of the save)
 export const stats = { kills: 0, cops: 0, best: 0, earned: 0, played: 0, fiveStar: 0 };

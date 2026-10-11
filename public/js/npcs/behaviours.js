@@ -1,6 +1,7 @@
 import { bulletImpact, castBullet, fireRocket } from '../combat/combat.js';
 import { rollZone, zoneDamage } from '../combat/hitzones.js';
 import { Sound } from '../core/audio.js';
+import { emit as emitEvent } from '../core/events.js';
 import { at } from '../core/spatial.js';
 import { G, P } from '../core/state.js';
 import { lerp, rnd } from '../core/util.js';
@@ -8,6 +9,7 @@ import { animateChar, muzzleOf } from '../characters/character.js';
 import { startSwing, tickSwing } from '../characters/swing.js';
 import { SIGHT_EVERY, aimFalloff, newSight, reactTo } from '../combat/sight.js';
 import { removeEntity } from '../entities/registry.js';
+import { crew, nearestOf } from '../game/crew.js';
 import { hurtPlayer } from '../game/player.js';
 import { setGun } from '../characters/character.js';
 import { TRUCK, spray } from '../vehicles/firetruck.js';
@@ -77,10 +79,13 @@ export const BEHAVIOURS = {
   hunt: {
     init(e) { Object.assign(e, { los: false, losT: 0, sight: newSight(), fireT: rnd(0.8, 1.6), burst: 0, burstT: 0, strafe: Math.random() < 0.5 ? 1 : -1, strafeT: rnd(1, 3), stuck: 0, detourT: 0, dx: 0, dz: 0, leaving: false }); },
     update(e, dt) {
-      const def = e.def, dx = P.x - e.x, dz = P.z - e.z, dist = Math.hypot(dx, dz) || 1;
+      // T: who they're after, the player or someone else in their crew (game/crew.js)
+      if (e.losT <= 0 || !e.tgt || e.tgt.removed) e.tgt = nearestOf(e.x, e.z);
+      const T = e.tgt, ty = T.y || 0;
+      const def = e.def, dx = T.x - e.x, dz = T.z - e.z, dist = Math.hypot(dx, dz) || 1;
       if (def.leaveBelow && G.wanted < def.leaveBelow) e.leaving = true;
       e.losT -= dt;
-      if (e.losT <= 0) { e.los = P.alive && dist < 90 && !blocked(e.x, 1.5, e.z, P.x, P.y + 1.3, P.z); e.losT = SIGHT_EVERY; }
+      if (e.losT <= 0) { e.los = T.alive && dist < 90 && !blocked(e.x, 1.5, e.z, T.x, ty + 1.3, T.z); e.losT = SIGHT_EVERY; }
       if (e.leaving) {
         e.aiming = false; moveActor(e, -dx / dist, -dz / dist, def.speed * 0.8, dt, e.r); faceTo(e, Math.atan2(-dx, -dz), dt);
         animateChar(e, dt); e.place();
@@ -100,14 +105,14 @@ export const BEHAVIOURS = {
       }
       if (moveActor(e, mx, mz, spd, dt, e.r)) { e.stuck += dt; if (e.stuck > 0.4 && e.detourT <= 0) { const s = Math.random() < 0.5 ? 1 : -1; e.dx = -dz / dist * s; e.dz = dx / dist * s; e.detourT = rnd(0.8, 1.6); e.stuck = 0; } }
       else e.stuck = 0;
-      e.aiming = e.los && dist < def.range * 1.15 && P.alive;
-      if (e.aiming) { faceTo(e, Math.atan2(dx, dz), dt, 12); e.aimPitch = Math.atan2(P.y + 1.2 - 1.4, dist); }
+      e.aiming = e.los && dist < def.range * 1.15 && T.alive;
+      if (e.aiming) { faceTo(e, Math.atan2(dx, dz), dt, 12); e.aimPitch = Math.atan2(ty + 1.2 - 1.4, dist); }
       else if (Math.abs(mx) + Math.abs(mz) > 0.01) faceTo(e, Math.atan2(mx, mz), dt, 8);
       // firing: only at a player in view, after a short reaction; at most five people open fire at once
       const ready = reactTo(e.sight, e.aiming, dt);
       if (!e.aiming) e.burst = 0;
       e.fireT -= dt;
-      if (e.burst > 0) { e.burstT -= dt; if (e.burstT <= 0) { e.burst--; e.burstT = def.gap; shootAtPlayer(e, dist); } }
+      if (e.burst > 0) { e.burstT -= dt; if (e.burstT <= 0) { e.burst--; e.burstT = def.gap; shootAt(e, T, dist); } }
       else if (e.fireT <= 0 && ready && dist < def.range && dist > (def.minRange || 0) && G.shootersNow < 5) { G.shootersNow++; e.burst = def.burst; e.burstT = 0; e.fireT = def.rate * rnd(0.8, 1.3); }
       animateChar(e, dt); e.place();
     },
@@ -178,12 +183,13 @@ const DOUSE_AT = 4;
 // how fast someone sinks down a UFO's beam, m/s
 export const BEAM_SINK = 5;
 
-function shootAtPlayer(e, dist) {
-  if (!P.alive) return;
+// a shot at the player, or at someone else in their crew (whose own game takes the damage, net/sync.js)
+function shootAt(e, T, dist) {
+  if (!T.alive) return;
   const from = muzzleOf(e.c).clone();
-  const sprint = P.moveSpeed > 6 ? 0.55 : P.moveSpeed > 1 ? 0.8 : 1;
+  const sp = T.moveSpeed || 0, sprint = sp > 6 ? 0.55 : sp > 1 ? 0.8 : 1;
   const chance = e.def.acc * 1.1 * aimFalloff(dist) * sprint;
-  const target = new THREE.Vector3(P.x, P.y + 1.2, P.z);
+  const target = new THREE.Vector3(T.x, (T.y || 0) + 1.2, T.z);
   const hit = Math.random() < chance && !blocked(from.x, from.y, from.z, target.x, target.y, target.z);
   if (!hit) target.add(new THREE.Vector3(rnd(-1.6, 1.6), rnd(-0.9, 1.2), rnd(-1.6, 1.6)));
   const laser = WBY[e.def.gun].laser;
@@ -191,9 +197,14 @@ function shootAtPlayer(e, dist) {
   Sound.shot(e.def.gun, 0.7, at(e, 1.3));
   // a rocket flies at where they aim, on target or off; the blast does the damage
   if (e.def.rocket) { fireRocket(from, target.sub(from).normalize(), e.def.dmg, 1, e); return; }
-  if (hit) { tracer(from, target, true, laser); const zone = rollZone(); hurtPlayer(zoneDamage(e.def.dmg, zone), zone); Sound.impact('flesh', 1, target); return; }
-  // a miss flies on past the player into whatever is behind them, and lands there with its own sound
-  const d = target.clone().sub(from), h = castBullet(from, d.normalize(), from.distanceTo(target) + 40, e);
-  tracer(from, h.kind === 'none' ? target : h.p, true, laser); bulletImpact(h);
-  if (dist < 12) Sound.ting(0.5, at(target, 1.3));
+  if (hit) {
+    tracer(from, target, true, laser); const zone = rollZone(), dmg = zoneDamage(e.def.dmg, zone);
+    if (T === P) hurtPlayer(dmg, zone); else if (crew.hit) crew.hit(T, dmg, zone);
+    Sound.impact('flesh', 1, target); emitEvent('npc:shot', { npc: e, from, end: target }); return;
+  }
+  // a miss flies on past them into whatever is behind, and lands there with its own sound
+  const d = target.clone().sub(from), h = castBullet(from, d.normalize(), from.distanceTo(target) + 40, e), end = h.kind === 'none' ? target : h.p;
+  tracer(from, end, true, laser); bulletImpact(h);
+  if (dist < 12 && T === P) Sound.ting(0.5, at(target, 1.3));
+  emitEvent('npc:shot', { npc: e, from, end });
 }

@@ -9,6 +9,7 @@
 //   x y z yaw     feet and facing      ms  walking speed (m/s, drives the leg swing)   j  height of a jump
 //   g   what's in hand (a weapon id)   a   1 while aiming   p  aim pitch   th 1 two-handed   m  melee ready pose
 //   al  1 alive, 0 down
+//   wl  their wanted level (the crew's)       sn  1 while someone hunting the crew has them in sight
 //   v   while riding: { m: model id, x, y, z, yaw, v: speed, st: steer, ay: aim yaw from the vehicle's nose or null,
 //       r / l: a chopper's rotor speed and 1 when it's landed, pp: a bike's wheelie angle }
 export const NAME_MAX = 16;
@@ -46,7 +47,7 @@ export function due(s, last, sinceLast) {
   if (sinceLast >= IDLE_EVERY) return true;
   if (sinceLast < SEND_EVERY) return false;
   if (!last) return true;
-  if (s.w !== last.w || s.al !== last.al || s.g !== last.g || s.a !== last.a || !s.v !== !last.v) return true;
+  if (s.w !== last.w || s.al !== last.al || s.g !== last.g || s.a !== last.a || !s.v !== !last.v || s.wl !== last.wl || s.sn !== last.sn) return true;
   const moved = Math.hypot((s.x ?? 0) - (last.x ?? 0), (s.y ?? 0) - (last.y ?? 0), (s.z ?? 0) - (last.z ?? 0)) > 0.02;
   return moved || Math.abs((s.yaw ?? 0) - (last.yaw ?? 0)) > 0.01 || Math.abs((s.p ?? 0) - (last.p ?? 0)) > 0.01 || !!(s.v && (s.v.v || last.v.v));
 }
@@ -97,4 +98,37 @@ export function lookFor(id) {
 export function packShot(weapon, from, ends) {
   const p = v => [r2(v.x), r2(v.y), r2(v.z)];
   return { t: 'shot', w: weapon, f: p(from), h: ends.slice(0, 8).map(p) };
+}
+
+// ---- the people in the city ----
+// Each game runs the people it spawned; the ones near another player go out a few times a second (every NPC_EVERY) in
+// 'npcs' messages of at most NPC_CHUNK people, and that player's game draws them (net/ghosts.js). One person is
+//   [i, type, look seed, x, y, z, yaw, walking speed, flags, gun or 0, aim pitch]
+// i numbers them within the sending game; flags: 1 alive, 2 aiming, 4 panicking, 8 two-handed.
+export const NPC_EVERY = 0.25, NPC_LAG = 0.35, NPC_SHARE_R = 120, NPC_CHUNK = 24, NPC_STALE = 1.2;
+export function packNpc(n) {
+  const f = (n.alive ? 1 : 0) | (n.aiming ? 2 : 0) | (n.panic ? 4 : 0) | (n.twoHand ? 8 : 0);
+  return [n.nid, n.type, n.seed ?? 1, r2(n.x), r2(n.y || 0), r2(n.z), r3(n.yaw), r2(n.moveSpeed || 0), f, (n.alive && n.c && n.c.gunId) || 0, r3(n.aimPitch || 0)];
+}
+// back into an id, a type, a seed and a state that sample() can blend
+export function unpackNpc(a) {
+  if (!Array.isArray(a) || a.length < 11 || ![a[0], a[2], a[3], a[4], a[5], a[6], a[7], a[8]].every(Number.isFinite)) return null;
+  const f = a[8];
+  return { i: a[0], type: String(a[1]), seed: a[2], s: { w: 1, x: a[3], y: a[4], z: a[5], yaw: a[6], ms: a[7], al: f & 1, a: (f & 2) >> 1, pn: (f & 4) >> 2, th: (f & 8) >> 3, g: a[9] || null, p: Number(a[10]) || 0 } };
+}
+export function chunks(list, n) { const out = []; for (let i = 0; i < list.length; i += n) out.push(list.slice(i, i + n)); return out; }
+
+// ---- the crew's heat ----
+// Everyone in the room is one crew with one wanted level. Heat this game adds goes out as 'heat' { v } and is added
+// everywhere; a level this game's own rules set (a star fading, the sixth star) goes out as 'wanted' { l, h }. A player
+// who respawns, exits to the title or joins takes the crew's level instead of resetting it for everyone.
+//   last: { heat, wanted } as last told; now: { heat, wanted }; quiet: this player is down, out on the title screen or
+//   just back from there, so their own level isn't the crew's news
+// -> the messages to send, if any
+export function heatNews(last, now, quiet) {
+  const out = [];
+  if (quiet) return out;
+  if (now.heat > last.heat + 1e-6 && now.wanted >= last.wanted) out.push({ t: 'heat', v: r2(now.heat - last.heat) });
+  if (now.wanted !== last.wanted) out.push({ t: 'wanted', l: now.wanted, h: r2(now.heat) });
+  return out;
 }

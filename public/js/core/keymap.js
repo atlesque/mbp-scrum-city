@@ -13,7 +13,7 @@ export const ACTIONS = [
   { id: 'sprint', label: 'Sprint, boost', group: 'Move' },
   { id: 'jump', label: 'Jump, handbrake, jetpack, climb (chopper)', group: 'Move' },
   { id: 'wheelie', label: 'Wheelie (hold, on a motorcycle), descend (chopper)', group: 'Move' },
-  { id: 'use', label: 'Gun shop, roof doors', group: 'Actions' },
+  { id: 'use', label: 'Shops, roof doors, catch Pokémon', group: 'Actions' },
   { id: 'ride', label: 'Ride, drive, get out', group: 'Actions' },
   { id: 'reload', label: 'Reload', group: 'Actions' },
   { id: 'melee', label: 'Weapon wheel (hold), fists and melee (tap)', group: 'Actions' },
@@ -22,8 +22,9 @@ export const ACTIONS = [
   { id: 'siren', label: 'Siren on / off (police car, fire truck)', group: 'Actions' },
   { id: 'map', label: 'World map', group: 'Actions' },
   { id: 'pause', label: 'Pause', group: 'Actions' },
+  { id: 'pokemon', label: 'Switch Pokémon partner / recall', group: 'Actions' },
 ];
-const QWERTY = { forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD', sprint: 'ShiftLeft', jump: 'Space', wheelie: 'KeyC', use: 'KeyE', ride: 'KeyF', reload: 'KeyR', melee: 'KeyQ', tool: 'KeyT', radio: 'KeyN', siren: 'KeyH', map: 'KeyM', pause: 'KeyP' };
+const QWERTY = { forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD', sprint: 'ShiftLeft', jump: 'Space', wheelie: 'KeyC', use: 'KeyE', ride: 'KeyF', reload: 'KeyR', melee: 'KeyQ', tool: 'KeyT', radio: 'KeyN', siren: 'KeyH', map: 'KeyM', pause: 'KeyP', pokemon: 'KeyB' };
 const OLD_RADIO = { qwerty: 'KeyM', azerty: 'Semicolon' }; // the radio's key before the world map had it
 export const PRESETS = { qwerty: QWERTY, azerty: { ...QWERTY, map: 'Semicolon' } };
 // keys that work alongside the binding and can't be changed

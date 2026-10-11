@@ -29,7 +29,7 @@ export const WEAPONS = [
   { id: 'minigun', name: 'Minigun', price: 15000, dmg: 30, rate: 0.045, mag: 250, spread: 0.05, range: 150, auto: true, pellets: 1, ammoPrice: 800, ammoPack: 500, recoil: 0.004, reload: 3.0, up: 6000, twoHand: true, spin: true, upDmg: 0.6, upRate: 0.15 },
   { id: 'rpg', name: 'Rocket Launcher', price: 25000, dmg: 420, rate: 1.1, mag: 1, spread: 0.004, range: 300, auto: false, pellets: 1, ammoPrice: 600, ammoPack: 5, recoil: 0.07, reload: 1.6, up: 8000, rocket: true, twoHand: true, upDmg: 0.5, upBlast: 0.25 },
   // bolt-action with a two-step scope (combat/scope.js): wild from the hip, pin-point through the glass (scopeSpread)
-  { id: 'sniper', name: 'Magnum Sniper', price: 9000, dmg: 140, rate: 1.4, mag: 10, spread: 0.05, scopeSpread: 0.0006, range: 300, auto: false, pellets: 1, ammoPrice: 400, ammoPack: 20, recoil: 0.09, reload: 3.0, up: 3000, twoHand: true, scope: true },
+  { id: 'sniper', name: 'Magnum Sniper', price: 9000, dmg: 140, rate: 1.4, mag: 10, spread: 0.05, scopeSpread: 0.0006, range: 300, auto: false, pellets: 1, ammoPrice: 400, ammoPack: 20, recoil: 0.045, reload: 3.0, up: 3000, twoHand: true, scope: true },
   // Thrown weapons (combat/throwables.js) aren't sold: they come off fallen soldiers and feds. There's no magazine,
   // inv.ammo holds how many are left and ammoPack is how many one pickup gives. Throwing the last one puts it away.
   //   grenade  bounces, then goes off after fuse seconds with a blast of radius blast

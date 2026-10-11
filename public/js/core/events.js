@@ -1,6 +1,7 @@
 // Tiny event bus so systems can react to what happens in the game without importing each other.
 //
 // Events the game emits:
+//   npc:attacked      { npc, source }                   player or Pokémon damage; partners assist player attacks
 //   npc:killed        { npc, byPlayer, dir, vehicle }   vehicle: what the NPC was riding, if anything
 //   vehicle:wrecked   { vehicle, byPlayer }
 //   vehicle:burning   { vehicle, crash }                caught fire; crash: a collision did it, so it burns long (vehicles/firetruck.js)
@@ -18,6 +19,8 @@
 //   settings:changed  { id, value }                    the player changed something on the Settings screen
 //   player:shot       { weapon, from, ends }           the player's gun went off: the muzzle and where each pellet stopped (net/sync.js)
 //   player:boom       { x, y, z, R, dmg, power }       the player's rocket or grenade burst (net/sync.js)
+//   npc:shot          { npc, from, end }               someone hunting the crew fired (net/sync.js shows it to the others)
+//   npc:boom          { x, y, z, R, dmg, power }       a rocket fired at the crew burst (net/sync.js)
 const handlers = new Map();
 
 export function on(name, fn) {

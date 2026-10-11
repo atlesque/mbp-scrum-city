@@ -6,13 +6,13 @@ import { eventBuildings, recordEventBuilding, bindEventBuildings, damageBuilding
 import { addEntity, removeEntity } from '../../public/js/entities/registry.js';
 let occupant;
 afterEach(() => { eventBuildings.length = ROOFS.length = SURFACES.length = 0; if (occupant) removeEntity(occupant); });
-function building(protectedRoof = false) {
+function building(protectedRoof = false, storefront = false) {
   const bounds = { x0: 10, x1: 20, z0: 10, z1: 20, h: 30 }, collider = { ...bounds };
   const gb = new GB(); box(gb, 10, 30, 10, 15, 15, 15, '#ffffff');
   const mesh = new THREE.Mesh(gb.geometry());
   const surface = plainRoof(bounds, 30.6); SURFACES.push(surface);
   if (protectedRoof) ROOFS.push(surface);
-  recordEventBuilding([gb], [0], bounds, collider, []); bindEventBuildings([[gb, mesh]]);
+  recordEventBuilding([gb], [0], bounds, collider, []); bindEventBuildings([[gb, mesh]], storefront ? [bounds] : []);
   return { mesh, surface, collider };
 }
 it('collapses geometry and collision together, then restores the exact original mesh away from the player', () => {
@@ -29,5 +29,10 @@ it('collapses geometry and collision together, then restores the exact original 
 });
 it('preserves buildings with accessible roof escape routes', () => {
   const { collider } = building(true); damageBuildings(15, 15, 100);
+  expect(eventBuildings[0].broken).toBe(false); expect(collider.h).toBe(30);
+});
+
+it('preserves repurposed club and Pokemon Center buildings even without a roof door', () => {
+  const { collider } = building(false, true); damageBuildings(15, 15, 100);
   expect(eventBuildings[0].broken).toBe(false); expect(collider.h).toBe(30);
 });

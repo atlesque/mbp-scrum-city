@@ -10,10 +10,10 @@ export function recordEventBuilding(gbs, start, bounds, collider, signs) {
   eventBuildings.push({ ...bounds, collider, pieces, signs, broken: false, age: 0 });
 }
 const overlaps = (a, b) => a.x0 < b.x1 && a.x1 > b.x0 && a.z0 < b.z1 && a.z1 > b.z0;
-export function bindEventBuildings(meshes) {
+export function bindEventBuildings(meshes, protectedSites = []) {
   const by = new Map(meshes);
   for (const b of eventBuildings) {
-    b.protected = ROOFS.some(r => overlaps(b, r.area));
+    b.protected = ROOFS.some(r => overlaps(b, r.area)) || protectedSites.some(s => s && overlaps(b, s));
     b.surfaces = SURFACES.filter(r => overlaps(b, r.area)).map(s => ({ s, floor: s.floor, blocks: s.blocks }));
     for (const q of b.pieces) {
       q.mesh = by.get(q.gb); delete q.gb;

@@ -11,7 +11,7 @@ import { spawnTrafficBike, spawnTrafficCar } from '../vehicles/traffic.js';
 const busy = n => Math.round(n * (DENSITY[settings.density] || 1));
 export const POPULATION = [
   { id: 'civilians', perTick: 4, target: () => busy(G.wanted >= 3 ? 26 : 38),
-    counts: e => e.kind === 'npc' && e.type === 'civilian' && e.alive,
+    counts: e => (e.kind === 'npc' || e.kind === 'ghost') && e.type === 'civilian' && e.alive, // (another player's people nearby count too)
     spawn: () => { const s = findSpot(G.state === 'title' ? 10 : 45, 95, G.state !== 'title', false); return s && spawnNpc('civilian', s.x, s.z); } },
   { id: 'traffic', perTick: 1, target: () => busy(22),
     counts: e => e.kind === 'vehicle' && e.model.kind === 'car' && e.mode === 'traffic' && !e.dead,
