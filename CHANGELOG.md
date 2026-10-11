@@ -4,6 +4,7 @@ Written from the commits on main by `scripts/changelog.mjs`; every change merged
 
 ## 2026-10-11
 
+- **v1.123** Halve the sniper rifle's recoil ([#118](https://github.com/atlesque/mbp-scrum-city/pull/118))
 - **v1.122** Smaller rocket splash radius (10 m → 6 m) ([#117](https://github.com/atlesque/mbp-scrum-city/pull/117))
 - **v1.121** Add blocky Pokemon encounters, companions, evolutions and Center ([#116](https://github.com/atlesque/mbp-scrum-city/pull/116))
 - **v1.120** Multiplayer crew: one wanted level, shared people and club, live map, no pausing ([#114](https://github.com/atlesque/mbp-scrum-city/pull/114))
