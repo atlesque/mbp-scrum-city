@@ -4,13 +4,11 @@ Written from the commits on main by `scripts/changelog.mjs`; every change merged
 
 ## 2026-10-11
 
-- **v1.124** Add club stage tipping, DJ requests and four retro cars ([#119](https://github.com/atlesque/mbp-scrum-city/pull/119))
-- **v1.123** Keep respray regression checks fast and compare consecutive colors
-- **v1.122** Merge remote-tracking branch 'origin/main' into feat/pokemon-companions
-- **v1.121** Add Pokemon cries and interaction sounds
-- **v1.120** Merge remote-tracking branch 'origin/main' into feat/pokemon-companions
-- **v1.119** Fix Pokemon friendly fire, Pokedex scale and combat pursuit
-- **v1.118** Add blocky Pokemon encounters, companions, evolutions and Center
+- **v1.122** Merge remote-tracking branch 'upstream/main' into feat/random-world-events
+- **v1.121** Integrate disasters and club cars with latest main
+- **v1.120** Add random world disasters, atomic breath and spatial sounds
+- **v1.119** Add club stage tipping, DJ requests and four retro cars
+- **v1.118** Add courier driving jobs and repair-respray garages
 - **v1.117** Opt-in multiplayer: share the city with up to 15 other players ([#111](https://github.com/atlesque/mbp-scrum-city/pull/111))
 - **v1.116** Club: the dancers wear sequinned bikinis ([#112](https://github.com/atlesque/mbp-scrum-city/pull/112))
 - **v1.115** Club: women in the Velvet Flamingo, and a private dance in the Pink Room ([#110](https://github.com/atlesque/mbp-scrum-city/pull/110))
