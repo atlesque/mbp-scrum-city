@@ -1,7 +1,14 @@
 {
- "version": "1.121",
+ "version": "1.122",
  "date": "2026-10-11",
  "entries": [
+  {
+   "v": "1.122",
+   "date": "2026-10-11",
+   "sha": "d1494f8",
+   "pr": 117,
+   "title": "Smaller rocket splash radius (10 m → 6 m)"
+  },
   {
    "v": "1.121",
    "date": "2026-10-11",
