@@ -44,12 +44,13 @@ export const SPOTS = {
   fountain: { sound: AMB.fountain, vol: 0.6, prof: { ref: 3, max: 30 } },
   disco: { sound: 'club-disco', wall: 420, vol: 0.5, prof: { ref: 3, max: 32 } },
   salsa: { sound: 'club-salsa', wall: 650, vol: 0.5, prof: { ref: 3, max: 32 } },
+  cabaret: { sound: 'club-house', wall: 500, vol: 0.5, prof: { ref: 3, max: 32 } }, // the Velvet Flamingo (game/club.js)
   arcade: { sound: 'arcade', wall: 2400, vol: 0.18, prof: { ref: 2, max: 18 } },
   radio: { sound: 'radio', vol: 0.5, prof: { ref: 2, max: 24 } },
   neon: { sound: 'neon-buzz', vol: 0.08, prof: { ref: 1.5, max: 10 }, night: true },
 };
-// the shops whose sign says what plays inside: Miami bars and Club 86 play salsa, the disco disco
-export const SIGN_SPOTS = { Disco: 'disco', 'Club 86': 'salsa', Bar: 'salsa', Arcade: 'arcade' };
+// the shops whose sign says what plays inside: Miami bars and Club 86 play salsa, the disco disco, the Velvet Flamingo house
+export const SIGN_SPOTS = { Disco: 'disco', 'Club 86': 'salsa', Bar: 'salsa', Arcade: 'arcade', 'Velvet Flamingo': 'cabaret' };
 // every place in the city that makes a sound, from what buildWorld laid out: a fountain in the middle of each park,
 // a radio in each beach hut, a groove at the door under a club's, bar's or arcade's sign, a buzz at every neon sign
 export function placeSpots(signList, parks, huts) {
