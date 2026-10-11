@@ -485,7 +485,8 @@ window.loadingScreen = (() => {
 const build = fetch('/changelog.json', { cache: 'no-store' }).then(r => r.json()).then(c => String(c.version || '')).catch(() => '');
 Promise.all([build, ldArt.ready]).then(([v]) => {
   const load = src => { const s = document.createElement('script'); s.type = 'module'; s.src = src; document.body.append(s); return s; };
-  window.__build = /^[\w.-]+$/.test(v) ? v : '';
+  // ?debug keeps the plain /js/ path: the smoke test and shot scripts import modules from /js/ by hand
+  window.__build = /^[\w.-]+$/.test(v) && !/[?&]debug\b/.test(location.search) ? v : '';
   if (window.__build) load(`/v/${window.__build}/js/main.js`).onerror = () => { window.__build = ''; load('/js/main.js'); };
   else load('/js/main.js');
   setTimeout(() => { if (!window.THREE) { document.getElementById('playBtn').textContent = 'Could not load the 3D engine'; loadingScreen.fail('Could not load the 3D engine'); } }, 8000);
