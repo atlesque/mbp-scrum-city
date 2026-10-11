@@ -1,3 +1,4 @@
+import { cyclePartner } from '../pokemon/world.js';
 import { curWeapon, cycleWeapon, selectWeapon, startReload } from '../combat/combat.js';
 import { toggleScope } from '../combat/scope.js';
 import { Sound } from './audio.js';
@@ -61,6 +62,7 @@ document.addEventListener('keydown', e => {
   const heli = flyingHeli(); // flying a chopper, the reload key and the number row work its guns (vehicles/heli-guns.js)
   if (act === 'reload') { if (heli) reloadHeliGun(heli); else startReload(); }
   if ((act === 'ride' || act === 'use') && P.alive) interact(act);
+  if (act === 'pokemon' && !e.repeat) cyclePartner();
   if (act === 'siren') toggleSiren();
   if (act === 'map') { e.preventDefault(); closeWheel(false); openMap(); return; }
   if (act === 'radio') { const on = Sound.toggleMusic(); showRadio(on ? 'Neon FM 86.0' : 'Radio off'); }

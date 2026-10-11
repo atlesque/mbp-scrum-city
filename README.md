@@ -5,6 +5,8 @@ A low-poly 80s beach-city shooter that runs in desktop browsers. Shoot for cash,
 **Live:** https://mbp-scrum-city.atlesque.dev (also https://mbp-scrum-city.pages.dev)
 
 ## Gameplay
+- **Pokémon:** 35 species across 14 families, including Pikachu, the starters, Caterpie, Weedle, Oddish, Psyduck, Sandshrew, Diglett and Magnemite wander random free ground around the city, marked by green radar dots. They use flat-shaded box models to match the world. Start with five Poké Balls; approach within 3 m and press `E` to throw one (species-dependent catch chance, one ball per attempt). Shoot Pokémon to weaken them: their health bar appears, and lower HP increases catch chance. Fainted wild Pokémon disappear; caught Pokémon keep their remaining HP and can be healed at the Center. Carry up to six Pokémon. Wild levels vary by species and evolutionary stage; evolved forms are rarer. Partners earn XP from NPCs you defeat together, become stronger up to level 50 and evolve at their level thresholds. Pikachu evolves with a $300 Thunder Stone and Gloom with a $300 Leaf Stone purchased at the Center. Levels, XP and evolved forms persist in your save.
+- Visit the red-roofed **Pokémon Center** (red ✚ on the radar and map, in a randomly chosen existing building, separate from the hospital). Press `E` at its door to buy five balls for $100, heal your team for free, or select a partner. `B` cycles healthy partners, then recalls; it can be rebound in Settings. Your selected partner follows on foot and uses its elemental move against NPCs you hit, stopping when they die or move too far away. Opponents retaliate during these exchanges; fainted partners need Center healing. Partners wait while you drive, use roofs or enter the club. Balls, catches, health and selection save with your progress; older saves receive the starter balls.
 
 - Taking people down drops cash and raises your wanted level (1–5 stars).
 - Each star brings tougher enemies: police, police cars, SWAT, federal agents with a helicopter, then soldiers and minigun heavies.
@@ -44,7 +46,7 @@ These are the QWERTY defaults; the AZERTY preset uses ZQSD to move, A for melee 
 | Mouse | Look and aim (click to capture the mouse) |
 | Left click / right click | Shoot (or punch and swing a melee weapon; every third punch is a kick) / zoom aim (with the sniper rifle, right click steps the scope through 2.25x, 9x and back out) |
 | Shift / Space | Sprint / jump (again in the air to double jump, or to open a parachute; hold it to fly with the jetpack) |
-| E | Enter a gun shop, take the stairs to a roof and back down, go into the club and back out, order at its bar |
+| E | Catch a nearby wild Pokémon, enter a Pokémon Center or gun shop, take the stairs to a roof and back down, go into the club and back out, order at its bar |
 | F | Get on or off a motorcycle, get in or out of a car or a downed police chopper, pull a driver out of their car (in the air, jump out of the chopper under a parachute) |
 | On a bike: W / S, A / D, Shift, Space | Throttle / brake, lean, boost, rear brake. You can still shoot. |
 | On a bike: hold C with W | Wheelie. Off the gas or on the rear brake the front comes down; boost while up and it climbs until it loops over and throws you off. |
@@ -57,6 +59,7 @@ These are the QWERTY defaults; the AZERTY preset uses ZQSD to move, A for melee 
 | R | Reload |
 | H | Siren and flashing lights on / off (police car, fire truck) |
 | N | Toggle the radio (Neon FM builds up with your wanted level: synths only at zero stars, drums from one star, more layers up to five) |
+| B | Switch Pokémon partner; after the last healthy partner, recall |
 | M | World map: the whole city, north up, with everything the radar shows plus the names of the hospital, landmarks, gun shops and the club. The city waits while it is open. Drag or WASD to pan, scroll or + / − to zoom, click to set a waypoint (a purple diamond on the radar until you get there), click it again, right click or Backspace to clear it. M or Esc closes it; the pause menu has a **Map** button too. |
 | Esc / P | Pause |
 
@@ -71,6 +74,7 @@ public/js/
   entities/          the registry every person, vehicle, pickup and shop lives in
   vehicles/          the shared vehicle layer: vehicle.js, kinds/ (bike, step, car, truck, heli), models/, traffic, helicopter
   npcs/              NPC_TYPES, behaviours (wander, hunt, ride) and the Npc entity
+  pokemon/           blocky models, catch/team save rules, wild encounters and follower combat AI
   shops/             SHOP_TYPES, item types and the shop entity and menu
   game/              player, follow camera, interaction prompts, rewards, wanted level, population, pickups
   world/             city layout, collision, radar, landmarks and .glb models

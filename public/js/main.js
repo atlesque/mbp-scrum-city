@@ -48,6 +48,8 @@ import { CLUB } from './world/club.js';
 import { ROOFS } from './world/rooftops.js';
 import { buildMap, drawRadar } from './world/radar.js';
 
+import { updatePokemon } from './pokemon/world.js';
+
 // ================= MAIN LOOP =================
 let last = performance.now();
 function frame(now) {
@@ -77,6 +79,7 @@ function frame(now) {
     updateRockets(dt); updateThrown(dt); updateProps(dt); updateParts(dt); updateFx(dt); updateLighting(dt);
     if (G.state !== 'title') updateWanted(dt);
     managePopulation(dt);
+    if (G.state === 'play') updatePokemon(dt);
     // water swell
     if (settings.water) {
       const pos = waterMesh.geometry.attributes.position, arr = pos.array;

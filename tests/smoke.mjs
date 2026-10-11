@@ -101,6 +101,140 @@ try {
   await page.waitForTimeout(1000);
   booted = true;
 
+  await step('Pokemon Center, catching, following and battle support', async () => {
+    await game(async () => {
+      const { CENTER } = await import('/js/world/pokemon-center.js');
+      const { signs } = await import('/js/world/city.js');
+      const { roofSpots } = await import('/js/world/rooftops.js');
+      if (!signs.some(s => s.text === 'City General') || !roofSpots.some(b => b.x0 === CENTER.site.x0 && b.z0 === CENTER.site.z0)) throw new Error('Center must use an ordinary building and preserve the hospital');
+      const { P, inv, all, removeEntity } = __neonbay;
+      inv.pokemon = { balls: 5, party: [], selected: -1 };
+      const center = all('shop').find(e => e.type === 'pokemoncenter');
+      P.x = center.x; P.z = center.z;
+      inv.money = 500;
+      for (const e of all('pokemon')) removeEntity(e);
+    });
+    await clearLane();
+    check(await until(() => __neonbay.G.near.some(i => i.prompt?.includes('Pokémon Center'))), 'no Center door prompt');
+    await press('KeyE');
+    check(await until(() => __neonbay.G.state === 'shop'), 'Center did not open');
+    await page.click('#shopGrid button[data-a="buy"]');
+    check(await game(() => __neonbay.inv.pokemon.balls === 10 && __neonbay.inv.money === 400), 'ball purchase failed');
+    await page.click('#shopClose');
+    // Deterministic species catch roll; keep the rest of the live world random.
+    await game(async () => {
+      const { P, all, removeEntity } = __neonbay;
+      const { spawnPokemon } = await import('/js/pokemon/world.js');
+      P.x = -25; P.z = 0;
+      for (const e of all('pokemon')) removeEntity(e);
+      const p = window.__wild = spawnPokemon('pikachu', P.x + 2, P.z);
+      const run = p.catch;
+      p.catch = function () { const random = Math.random; try { Math.random = () => 0; run.call(this); } finally { Math.random = random; } };
+    });
+    await clearLane();
+    check(await until(() => __neonbay.G.near[0]?.prompt?.includes('throw Poké Ball')), 'no catch prompt');
+    await press('KeyE');
+    check(await until(() => window.__wild.removed && __neonbay.inv.pokemon.party.length === 1), 'Pokemon was not caught');
+    check(await until(() => __neonbay.all('pokemon').some(p => p.owned)), 'caught Pokemon did not follow');
+    const hp = await game(async () => {
+      const { P, spawnNpc, all } = __neonbay;
+      const partner = all('pokemon').find(p => p.owned);
+      const n = window.__target = spawnNpc('civilian', partner.x, partner.z + 2);
+      n.hp = 100; n.update = function () { this.place(); };
+      n.hurt(1, new THREE.Vector3(0, 0, 1), true);
+      return n.hp;
+    });
+    check(await until(hp => window.__target.hp < hp, hp), 'partner did not help attack the NPC');
+    await press('KeyB');
+    check(await until(() => !__neonbay.all('pokemon').some(p => p.owned)), 'partner did not recall');
+    await press('KeyB');
+    check(await until(() => __neonbay.all('pokemon').some(p => p.owned)), 'team key did not send the partner out');
+    await game(async () => {
+      const { save, load } = await import('/js/core/save.js');
+      save(); const inv = __neonbay.inv;
+      const before = JSON.stringify(inv.pokemon);
+      inv.pokemon = { balls: 0, party: [], selected: -1 }; load();
+      if (JSON.stringify(inv.pokemon) !== before) throw new Error('Pokemon save did not round-trip');
+      for (const p of __neonbay.all('pokemon')) if (p.owned) __neonbay.removeEntity(p);
+      inv.pokemon = { balls: 5, party: [], selected: -1 };
+    });
+  });
+
+  await step('Pokemon levels, evolutions and random wild encounters', async () => {
+    await game(() => {
+      const { P, inv, all, removeEntity } = __neonbay;
+      P.x = -25; P.z = 0;
+      for (const p of all('pokemon')) removeEntity(p);
+      inv.pokemon = { balls: 5, party: [{ species: 'charmander', level: 15, xp: 299, hp: 100 }], selected: 0 };
+    });
+    await clearLane();
+    check(await until(() => __neonbay.all('pokemon').some(p => p.owned && p.species === 'charmander')), 'no starter partner');
+    await game(() => {
+      const { all, spawnNpc } = __neonbay, p = all('pokemon').find(p => p.owned);
+      const n = window.__target = spawnNpc('civilian', p.x + 1, p.z); n.hp = 1;
+      n.hurt(1, new THREE.Vector3(1, 0, 0), true);
+    });
+    check(await until(() => __neonbay.inv.pokemon.party[0].level === 16 && __neonbay.all('pokemon').some(p => p.owned && p.species === 'charmeleon')), 'battle did not level up and evolve the model');
+    check(await until(() => __neonbay.all('pokemon').some(p => !p.owned && p.level >= 1)), 'no natural random wild spawns');
+    await game(() => {
+      const { P, G, inv, all, removeEntity } = __neonbay, center = all('shop').find(s => s.type === 'pokemoncenter');
+      for (const p of all('pokemon')) removeEntity(p);
+      inv.pokemon = { balls: 5, party: [{ species: 'pikachu', level: 7, xp: 11, hp: 50 }], selected: -1 };
+      inv.money = 500; G.heat = 0; G.wanted = 0;
+      P.x = center.x; P.z = center.z;
+    });
+    check(await until(() => __neonbay.G.near.some(i => i.prompt?.includes('Pokémon Center'))), 'no Center prompt');
+    await press('KeyE');
+    check(await until(() => __neonbay.G.state === 'shop'), 'Center did not open');
+    await page.click('#shopGrid button[data-a="evolve:0"]');
+    check(await game(() => __neonbay.inv.pokemon.party[0].species === 'raichu' && __neonbay.inv.pokemon.party[0].level === 7 && __neonbay.inv.money === 200), 'Thunder Stone evolution failed');
+    await page.click('#shopGrid button[data-a="heal"]');
+    await page.click('#shopGrid button[data-a="select:0"]');
+    await page.click('#shopClose');
+    check(await until(() => __neonbay.all('pokemon').some(p => p.owned && p.species === 'raichu' && p.record.hp === 100)), 'evolved partner did not appear healed');
+    await game(() => { __neonbay.inv.pokemon = { balls: 5, party: [], selected: -1 }; for (const p of __neonbay.all('pokemon')) if (p.owned) __neonbay.removeEntity(p); });
+  });
+
+  await step('Pokemon can be shot, weakened and caught across the expanded roster', async () => {
+    await clearLane();
+    check(await game(async () => {
+      const { P, G, cam, inv, all, removeEntity } = __neonbay;
+      const { SPECIES, catchChance } = await import('/js/pokemon/team.js');
+      const { spawnPokemon } = await import('/js/pokemon/world.js');
+      const { playerShoot } = await import('/js/combat/combat.js');
+      const { camTarget } = await import('/js/game/player.js');
+      for (const p of all('pokemon')) removeEntity(p);
+      inv.pokemon = { balls: 5, party: [], selected: -1 };
+      P.x = 0; P.z = 0;
+      const p = window.__wild = spawnPokemon('psyduck', P.x, P.z + 5);
+      p.update = () => {}; cam.yaw = P.yaw = 0; cam.pitch = 0;
+      camTarget.set(P.x, 1, P.z); G.reloadT = 0; inv.cur = 'pistol'; inv.mag.pistol = 12;
+      playerShoot();
+      return Object.keys(SPECIES).length === 35 && p.hp > 0 && p.hp < 100 && catchChance(p.species, p.hp) > catchChance(p.species, 100);
+    }), 'pistol did not weaken a new Pokemon');
+    await game(() => {
+      const { P } = __neonbay; P.x = __wild.x; P.z = __wild.z - 2;
+      const random = Math.random; Math.random = () => 0;
+      try { __wild.catch(); } finally { Math.random = random; }
+      if (!__wild.catching) throw new Error('capture refused: ' + JSON.stringify({ prompt: __wild.interaction(P), P: {x:P.x,z:P.z,y:P.y,alive:P.alive,club:!!P.club,roof:!!P.roof,vehicle:!!P.vehicle}, wild:{x:__wild.x,z:__wild.z,owned:__wild.owned,removed:__wild.removed}, state:__neonbay.G.state }));
+    });
+    // Restore its animation update after holding it still for the shot.
+    await game(() => { delete __wild.update; });
+    check(await until(() => __wild.removed && __neonbay.inv.pokemon.party[0]?.species === 'psyduck' && __neonbay.inv.pokemon.party[0]?.hp < 100), 'weakened Pokemon was not caught at its remaining health: ' + JSON.stringify(await game(() => ({ catching: __wild.catching, removed: __wild.removed, hp: __wild.hp, party: __neonbay.inv.pokemon.party, errors: __neonbay.G.state }))));
+    await game(async () => {
+      const { P, inv, all, removeEntity } = __neonbay;
+      const { spawnPokemon } = await import('/js/pokemon/world.js');
+      const { ITEM_TYPES } = await import('/js/shops/items.js');
+      const partner = all('pokemon').find(p => p.owned); if (partner) partner.onShot({}, 1000);
+      if (inv.pokemon.party[0].hp !== 0 || inv.pokemon.selected !== -1) throw new Error('partner did not faint');
+      ITEM_TYPES.pokemonTeam.act({}, 'heal', { inv });
+      if (inv.pokemon.party[0].hp !== 100) throw new Error('team healing failed');
+      const wild = spawnPokemon('magnemite', P.x + 2, P.z); wild.onShot({}, 1000);
+      if (!wild.removed) throw new Error('fainted wild stayed on map');
+      inv.pokemon = { balls: 5, party: [], selected: -1 }; for (const p of all('pokemon')) removeEntity(p);
+    });
+  });
+
   await step('walks', async () => {
     const from = await game(() => ({ x: __neonbay.P.x, z: __neonbay.P.z }));
     await page.keyboard.down('KeyW');
@@ -454,7 +588,7 @@ try {
 
   await step('buys armor at the gun shop', async () => {
     await game(() => {
-      const { P, G, inv, all } = __neonbay, s = all('shop')[0];
+      const { P, G, inv, all } = __neonbay, s = all('shop').find(s => s.type === 'gunshop');
       G.wanted = 0; G.heat = 0; inv.money = 5000; P.armor = 0; P.x = s.x; P.z = s.z;
     });
     await clearVehicles(...await game(() => [__neonbay.P.x, __neonbay.P.z]));
@@ -470,7 +604,7 @@ try {
 
   await step('buys the repair tool, fixes a shot-up car and puts out a burning one', async () => {
     await game(() => {
-      const { P, G, inv, all } = __neonbay, s = all('shop')[0];
+      const { P, G, inv, all } = __neonbay, s = all('shop').find(s => s.type === 'gunshop');
       G.wanted = 0; G.heat = 0; inv.money = 5000; delete inv.owned.repair; P.x = s.x; P.z = s.z;
     });
     await clearVehicles(...await game(() => [__neonbay.P.x, __neonbay.P.z]));

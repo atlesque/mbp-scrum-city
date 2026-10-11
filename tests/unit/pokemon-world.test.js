@@ -1,0 +1,135 @@
+import { beforeEach, expect, it, vi } from 'vitest';
+import { G, P, inv } from '../../public/js/core/state.js';
+import { all, removeEntity } from '../../public/js/entities/registry.js';
+import { emit } from '../../public/js/core/events.js';
+import { addCollider, colliders, HASH, tallBoxes } from '../../public/js/world/collision.js';
+import { catchChance, freshTeam } from '../../public/js/pokemon/team.js';
+import { spawnPokemon, updatePokemon, cyclePartner } from '../../public/js/pokemon/world.js';
+
+beforeEach(() => {
+  for (const e of all('pokemon')) removeEntity(e);
+  colliders.length = tallBoxes.length = 0; HASH.clear();
+  inv.pokemon = freshTeam();
+  Object.assign(G, { state: 'play', time: 0 });
+  Object.assign(P, { x: 0, z: 0, y: 0, alive: true, club: null, vehicle: null, roof: null });
+});
+it('wild encounters offer a catch only close by with line of sight', () => {
+  const p = spawnPokemon('pikachu', 2, 0);
+  expect(p.interaction(P).prompt).toContain('Pikachu');
+  P.x = -10; expect(p.interaction(P)).toBeNull();
+  P.x = 0; addCollider(0.8, 1.2, -1, 1, 5, true);
+  expect(p.interaction(P)).toBeNull();
+});
+it('a selected partner follows and switches when team selection changes', () => {
+  inv.pokemon.party = [{ species: 'pikachu', hp: 100 }, { species: 'squirtle', hp: 100 }];
+  inv.pokemon.selected = 0;
+  updatePokemon(0.1);
+  let partner = all('pokemon').find(p => p.owned);
+  P.x = 8;
+  const before = Math.hypot(partner.x - P.x, partner.z - P.z);
+  partner.update(0.5);
+  expect(Math.hypot(partner.x - P.x, partner.z - P.z)).toBeLessThan(before);
+  cyclePartner(); updatePokemon(0.1);
+  partner = all('pokemon').find(p => p.owned);
+  expect(partner.species).toBe('squirtle');
+  expect(all('pokemon').filter(p => p.owned)).toHaveLength(1);
+});
+it('helps against an attacked NPC, respects walls and stops for death or a faint', () => {
+  inv.pokemon.party = [{ species: 'charmander', hp: 100 }]; inv.pokemon.selected = 0;
+  updatePokemon(0.1);
+  const partner = all('pokemon').find(p => p.owned);
+  const npc = { x: partner.x + 2, z: partner.z, y: 0, hp: 100, alive: true, def: { gun: 'pistol' }, hurt(dmg) { this.hp -= dmg; } };
+  emit('npc:attacked', { npc, source: 'player' });
+  partner.update(0.1); expect(npc.hp).toBeLessThan(100);
+  const hp = npc.hp;
+  addCollider(partner.x + 0.8, partner.x + 1.2, partner.z - 1, partner.z + 1, 5, true);
+  partner.update(2); expect(npc.hp).toBe(hp);
+  npc.alive = false; partner.update(0.1); expect(partner.target).toBeNull();
+  inv.pokemon.party[0].hp = 0; updatePokemon(0.1);
+  expect(all('pokemon').filter(p => p.owned)).toHaveLength(0);
+});
+it('recalls partners while dead or indoors and keeps wild population bounded', () => {
+  inv.pokemon.party = [{ species: 'pikachu', hp: 100 }]; inv.pokemon.selected = 0;
+  for (let i = 0; i < 25; i++) updatePokemon(1);
+  expect(all('pokemon').filter(p => !p.owned).length).toBeLessThanOrEqual(16);
+  P.alive = false; updatePokemon(0.1);
+  expect(all('pokemon').some(p => p.owned)).toBe(false);
+});
+
+it('does not double-spend during a throw and removes a successful encounter', () => {
+  const p = spawnPokemon('pikachu', 2, 0);
+  const random = vi.spyOn(Math, 'random').mockReturnValue(0);
+  try {
+    p.catch(); p.catch();
+    expect(inv.pokemon.balls).toBe(4);
+    expect(inv.pokemon.party).toHaveLength(1);
+    p.update(1.2);
+    expect(p.removed).toBe(true);
+    expect(p.ball).toBeNull();
+  } finally { random.mockRestore(); }
+});
+it('an escaped Pokemon stays catchable and empty balls cannot start a throw', () => {
+  const p = spawnPokemon('squirtle', 2, 0);
+  const random = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+  try {
+    p.catch(); p.update(1.2);
+    expect(p.removed).toBeUndefined();
+    expect(p.root.scale.x).toBe(1);
+    expect(p.interaction(P)).not.toBeNull();
+    inv.pokemon.balls = 0; p.catch();
+    expect(p.catching).toBeNull();
+    expect(inv.pokemon.party).toHaveLength(0);
+  } finally { random.mockRestore(); }
+});
+
+it('battle XP evolves the partner and replaces its world model', () => {
+  const record = { species: 'charmander', hp: 100, level: 15, xp: 299 };
+  inv.pokemon.party = [record]; inv.pokemon.selected = 0;
+  updatePokemon(0.1);
+  const partner = all('pokemon').find(p => p.owned);
+  const npc = { x: partner.x + 2, z: partner.z, alive: true, def: { hp: 80 } };
+  emit('npc:attacked', { npc, source: 'player' });
+  emit('npc:killed', { npc, byPlayer: true });
+  expect(record.species).toBe('charmeleon');
+  expect(record.level).toBe(16);
+  updatePokemon(0.1);
+  expect(partner.removed).toBe(true);
+  expect(all('pokemon').find(p => p.owned).species).toBe('charmeleon');
+});
+
+it('bullets hit Pokemon bodies, weakening increases catch chance and fainted wilds disappear', () => {
+  const p = spawnPokemon('psyduck', 2, 0);
+  const origin = new THREE.Vector3(2, 1, 4), dir = new THREE.Vector3(0, 0, -1);
+  const hit = p.raycast(origin, dir, 10);
+  expect(hit.t).toBeGreaterThan(0);
+  expect(p.raycast(origin, dir, 1)).toBeNull();
+  const healthy = catchChance(p.species, 100);
+  p.onShot(hit, 50, dir);
+  expect(p.hp).toBe(50);
+  expect(p.interaction(P).prompt).toContain('HP 50/100');
+  expect(catchChance(p.species, p.hp)).toBeGreaterThan(healthy);
+  p.onShot(hit, 100, dir);
+  expect(p.removed).toBe(true);
+  expect(p.interaction(P)).toBeNull();
+});
+it('damage faints an owned partner without removing it from the saved team', () => {
+  const record = { species: 'sandshrew', hp: 100, level: 4, xp: 0 };
+  inv.pokemon.party = [record]; inv.pokemon.selected = 0;
+  const p = spawnPokemon(record.species, 2, 0, record);
+  p.blast(2, 1, 0, 4, 200, true);
+  expect(record.hp).toBe(0);
+  expect(inv.pokemon.selected).toBe(-1);
+  expect(inv.pokemon.party).toHaveLength(1);
+  expect(p.removed).toBe(true);
+});
+it('cannot damage an encounter during capture or catch an already fainted Pokemon', () => {
+  const p = spawnPokemon('pikachu', 2, 0);
+  const random = vi.spyOn(Math, 'random').mockReturnValue(0);
+  try {
+    p.catch(); p.onShot({}, 1000, new THREE.Vector3());
+    expect(p.hp).toBe(100);
+    p.update(1.2); p.catch();
+    expect(inv.pokemon.balls).toBe(4);
+    expect(inv.pokemon.party).toHaveLength(1);
+  } finally { random.mockRestore(); }
+});
