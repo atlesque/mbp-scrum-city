@@ -1369,6 +1369,8 @@ try {
     check(await until(() => __mpSent.some(m => m.t === 'npcs'), undefined, 5000), 'the people near the other player were not shared');
     const frozen = await game(async () => {
       const raf = window.requestAnimationFrame; let held = null; window.requestAnimationFrame = f => { held = f; return 0; };
+      // (the frame already asked for still runs: wait for it, then for one more share to go by)
+      for (let i = 0; i < 100 && !held; i++) await new Promise(r => setTimeout(r, 50));
       await new Promise(r => setTimeout(r, 300)); const n0 = __mpSent.length; await new Promise(r => setTimeout(r, 1000));
       const sent = __mpSent.slice(n0).filter(m => m.t === 'npcs').length;
       window.requestAnimationFrame = raf; if (held) raf(held);
