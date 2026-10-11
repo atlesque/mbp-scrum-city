@@ -1,7 +1,14 @@
 {
- "version": "1.126",
+ "version": "1.127",
  "date": "2026-10-11",
  "entries": [
+  {
+   "v": "1.127",
+   "date": "2026-10-11",
+   "sha": "b5a78b9",
+   "pr": null,
+   "title": "Synchronize multiplayer incidents with server snapshots and auto-collect cash rain"
+  },
   {
    "v": "1.126",
    "date": "2026-10-11",
