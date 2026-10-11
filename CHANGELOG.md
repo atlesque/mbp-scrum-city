@@ -4,6 +4,7 @@ Written from the commits on main by `scripts/changelog.mjs`; every change merged
 
 ## 2026-10-11
 
+- **v1.130** Fresh JS after every deploy, a reload offer for open tabs, and the game boots again ([#123](https://github.com/atlesque/mbp-scrum-city/pull/123))
 - **v1.129** Merge remote-tracking branch 'origin/main' into feat/roadblocks-stealable-tank
 - **v1.128** Add police roadblocks, stealable tanks and a secret fighter jet
 - **v1.127** Synchronize multiplayer incidents with server snapshots and auto-collect cash rain

@@ -1,7 +1,14 @@
 {
- "version": "1.129",
+ "version": "1.130",
  "date": "2026-10-11",
  "entries": [
+  {
+   "v": "1.130",
+   "date": "2026-10-11",
+   "sha": "4b55508",
+   "pr": 123,
+   "title": "Fresh JS after every deploy, a reload offer for open tabs, and the game boots again"
+  },
   {
    "v": "1.129",
    "date": "2026-10-11",

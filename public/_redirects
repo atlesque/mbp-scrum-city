@@ -1,0 +1,4 @@
+# Cloudflare Pages redirects (https://developers.cloudflare.com/pages/configuration/redirects/).
+# index.html loads the game from /v/<version>/js/main.js, so every deploy's modules have their own
+# URLs and no browser reuses JS cached from an older deploy. This serves those URLs from public/.
+/v/:build/* /:splat 200

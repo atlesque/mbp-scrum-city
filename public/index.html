@@ -375,6 +375,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
       </div>
       <div id="acctBox" class="acct-box" aria-live="polite"></div>
       <p class="version" id="titleVersion"></p>
+      <p class="small update-note" hidden><b></b> is out. <button class="linkbtn">Reload</button> to get it (your progress is saved).</p>
     </div>
   </section>
 
@@ -390,6 +391,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
       <p class="small" id="pauseStats"></p>
       <p class="small" id="pauseAcct"></p>
       <p class="small" id="pauseMp"></p>
+      <p class="small update-note" hidden><b></b> is out. <button class="linkbtn">Reload</button> to get it (your progress is saved).</p>
     </div>
   </section>
 
@@ -477,9 +479,16 @@ window.loadingScreen = (() => {
 
 <script>
 // The game code only starts downloading once the loading poster is on screen.
-ldArt.ready.then(() => {
-  const s = document.createElement('script'); s.type = 'module'; s.src = '/js/main.js';
-  document.body.append(s);
+// Each deploy loads its modules from its own path, /v/<version>/js/ (public/_redirects maps it back
+// to /js/), so JS a browser cached from an older deploy is never reused. ui/update.js offers a reload
+// to tabs left open across a deploy.
+const build = fetch('/changelog.json', { cache: 'no-store' }).then(r => r.json()).then(c => String(c.version || '')).catch(() => '');
+Promise.all([build, ldArt.ready]).then(([v]) => {
+  const load = src => { const s = document.createElement('script'); s.type = 'module'; s.src = src; document.body.append(s); return s; };
+  // ?debug keeps the plain /js/ path: the smoke test and shot scripts import modules from /js/ by hand
+  window.__build = /^[\w.-]+$/.test(v) && !/[?&]debug\b/.test(location.search) ? v : '';
+  if (window.__build) load(`/v/${window.__build}/js/main.js`).onerror = () => { window.__build = ''; load('/js/main.js'); };
+  else load('/js/main.js');
   setTimeout(() => { if (!window.THREE) { document.getElementById('playBtn').textContent = 'Could not load the 3D engine'; loadingScreen.fail('Could not load the 3D engine'); } }, 8000);
 });
 </script>
