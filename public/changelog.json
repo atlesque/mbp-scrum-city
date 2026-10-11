@@ -1,7 +1,14 @@
 {
- "version": "1.124",
+ "version": "1.125",
  "date": "2026-10-11",
  "entries": [
+  {
+   "v": "1.125",
+   "date": "2026-10-11",
+   "sha": "dffbbc9",
+   "pr": null,
+   "title": "Add varied world events with independent overlapping schedules"
+  },
   {
    "v": "1.124",
    "date": "2026-10-11",

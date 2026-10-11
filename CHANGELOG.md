@@ -4,6 +4,7 @@ Written from the commits on main by `scripts/changelog.mjs`; every change merged
 
 ## 2026-10-11
 
+- **v1.125** Add varied world events with independent overlapping schedules
 - **v1.124** Multiplayer: no frozen people, a safe spawn, and a shared five-star clock ([#120](https://github.com/atlesque/mbp-scrum-city/pull/120))
 - **v1.123** Let aiming and shooting pass through Pokemon
 - **v1.122** Merge remote-tracking branch 'upstream/main' into feat/random-world-events
