@@ -1,5 +1,5 @@
 // Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, shoot a chopper's pilot and fly the chopper off, get shelled by the army's tank and blow it up, hold five stars into the secret sixth and take a laser rifle off an alien, snipe through the scope, throw a car with a rocket,
-// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, buy the repair tool and fix a car with it, ram a bike, ride a bike over a car, pull a wheelie, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, go into the club and back out, change settings and remap keys. Fails on any page error or broken step.
+// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, buy the repair tool and fix a car with it, ram a bike, ride a bike over a car, pull a wheelie, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, go into the club and back out, change settings and remap keys, see the version and What's new on the title screen. Fails on any page error or broken step.
 // Run with `npm run test:smoke`, which splits the steps over a few browsers at once (tests/smoke-all.mjs). This file is one of
 // those browsers: `node tests/smoke.mjs` runs every step in one, in order.
 // SMOKE_ONLY=tank,reload runs only the steps whose names contain one of those words (case-insensitive), after the boot;
@@ -87,6 +87,14 @@ try {
     });
     check(m, 'the test model did not load');
     check(m.meshes === 5 && m.colliders === 1 && m.lambert, 'unexpected model: ' + JSON.stringify(m));
+  });
+  await step("shows the version on the title screen and opens What's new", async () => {
+    check(await until(() => /^v1\.\d+ · /.test(document.getElementById('titleVersion').textContent)), 'no version on the title screen');
+    await page.click('#whatsNewBtn');
+    check(await page.isVisible('#settings') && await page.locator('#setBody .changelog li').count() > 50, 'What\'s new did not list the changes');
+    check(/^v1\.\d+/.test(await page.textContent('#setVersion')), 'no version in the settings footer');
+    await page.click('#setBack');
+    check(await page.isVisible('#title'), 'Back did not return to the title screen');
   });
   await page.click('#playBtn');
   await page.waitForTimeout(1000);
