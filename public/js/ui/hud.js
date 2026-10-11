@@ -21,7 +21,8 @@ export function updateHUD() {
   const teamHud = $('pokemonHud');
   if (teamHud.textContent !== teamText) teamHud.textContent = teamText;
   // flying a chopper, its own guns are shown instead of the one in hand
-  const heli = flyingHeli(), hg = heli && heliGunHud(heli);
+  const heli = flyingHeli(), tank = P.vehicle?.K.tracks && P.vehicle;
+  const hg = heli ? heliGunHud(heli) : tank ? { name: 'Tank cannon', icon: 'rpg', ammo: tank.cannonT > 0 ? 'Reloading ' + tank.cannonT.toFixed(1) + 's' : 'READY<span>/∞</span>' } : null;
   const w = curWeapon(), mag = inv.mag[w.id] || 0;
   const ammoStr = hg ? hg.ammo : w.melee ? '' : w.tool ? `${Math.round(tool.charge / REPAIR.charge * 100)}<span>%</span>` : w.thrown ? `${inv.ammo[w.id] || 0}` : G.reloadT > 0 ? 'Reloading' : `${mag}<span>/${w.infinite ? '∞' : (inv.ammo[w.id] || 0)}</span>`;
   const name = hg ? hg.name : w.name, icon = hg ? hg.icon : inv.cur;

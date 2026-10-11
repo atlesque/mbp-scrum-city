@@ -25,7 +25,7 @@ describe('vehicle toughness', () => {
   it('a grenade landing next to any car or the drivable fire truck sets it off', () => {
     const g = WBY.grenade;
     // bikes need a real canvas for their decals; they take the same blast() as cars
-    for (const id of Object.keys(VEHICLE_MODELS).filter(id => VEHICLE_MODELS[id].kind !== 'bike')) {
+    for (const id of Object.keys(VEHICLE_MODELS).filter(id => !['bike', 'tank'].includes(VEHICLE_MODELS[id].kind))) {
       const v = parked(id); v.blast(v.x + g.blast * 0.45, 1, v.z, g.blast, g.dmg, true, true);
       expect(v.burnT, id).toBeGreaterThan(0);
     }

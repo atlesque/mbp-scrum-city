@@ -1,3 +1,4 @@
+import { repairTires } from '../vehicles/tires.js';
 import { kb } from '../core/controls.js';
 import { emit, on } from '../core/events.js';
 import { G, P, inv, stats } from '../core/state.js';
@@ -86,7 +87,7 @@ export function repaintCar(v) {
 }
 export function useGarage() {
   const reason = garageReason(); if (reason) { toast(reason, 3); return false; }
-  const v = P.vehicle; repaintCar(v); inv.money -= GARAGE.price; v.hp = v.model.hp; v.resprayUntil = G.time + GARAGE.cooldown;
+  const v = P.vehicle; repaintCar(v); inv.money -= GARAGE.price; v.hp = v.model.hp; repairTires(v); v.resprayUntil = G.time + GARAGE.cooldown;
   if (G.wanted) {
     G.wanted = G.heat = G.lostT = G.fiveT = G.fiveRun = 0;
     for (const n of all('npc')) if (n.faction === 'law') n.leaving = true;

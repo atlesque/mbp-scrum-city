@@ -1390,6 +1390,50 @@ try {
     await game(() => { __neonbay.removeEntity(__tank); __neonbay.P.hp = 100; });
   });
 
+  await step('police roadblocks puncture tyres and a stolen tank crushes barricades', async () => {
+    const result = await game(async () => {
+      const { G, P, all, removeEntity, spawnVehicle } = __neonbay;
+      const { spawnRoadblock, clearRoadblocks } = await import('/js/game/roadblocks.js');
+      const { spawnTank, takeTank } = await import('/js/vehicles/tank.js');
+      clearRoadblocks();
+      for (const e of all()) if (['npc', 'vehicle', 'tank'].includes(e.kind)) removeEntity(e);
+      Object.assign(G, { wanted: 4, heat: 80, spawnT: 999 });
+      Object.assign(P, { x: 2.5, z: 0, y: 0, alive: true, hp: 100, vehicle: null });
+      const r = spawnRoadblock(0, 75, 0, true), car = spawnVehicle('sedan', 0, 64, 0);
+      r.update(0.1); car.z = 72; r.update(0.1);
+      const flat = car.tiresFlat === true; car.repair(20);
+      const repaired = car.tiresFlat === false;
+      const ai = spawnTank(); Object.assign(ai, { x: 0, z: 0, v: 0 });
+      const tank = takeTank(ai), stolen = P.vehicle === tank && ai.removed;
+      Object.assign(tank, { x: 3.8, z: 70, yaw: 0, v: 6 });
+      tank.K.drive(tank, 0.1, { throttle: true });
+      return { flat, repaired, stolen, crushed: r.removed };
+    });
+    check(result.flat && result.repaired, 'spike strip or tyre repair failed');
+    check(result.stolen && result.crushed, 'tank theft or barricade crushing failed');
+  });
+
+  await step('finds the secret jet fighter, boards it and takes off', async () => {
+    await game(async () => {
+      const { G, P, all, removeEntity } = __neonbay;
+      for (const e of all()) if (['npc', 'vehicle'].includes(e.kind)) removeEntity(e);
+      const { spawnSecretJet } = await import('/js/world/secret-jet.js');
+      const jet = window.__fighter = spawnSecretJet();
+      Object.assign(G, { wanted: 0, heat: 0, spawnT: 999 });
+      Object.assign(P, { x: jet.x + 2.5, z: jet.z, y: 0.1, hp: 100 });
+    });
+    check(await until(() => (__neonbay.G.near[0] || {}).prompt?.includes('Ghost fighter')), 'no fighter boarding prompt');
+    await press('KeyF');
+    check(await until(() => __neonbay.P.vehicle === __fighter), 'could not board fighter');
+    await page.keyboard.down('KeyW'); await page.keyboard.down('Space');
+    const airborne = await until(() => __fighter.y > 8 && !__fighter.landed, undefined, 30000);
+    await page.keyboard.up('KeyW'); await page.keyboard.up('Space');
+    check(airborne, 'fighter did not take off');
+    check(await game(() => !!__fighter.guns && __neonbay.P.chute && !__fighter.mesh.gear.visible), 'weapons, parachute or retracting gear missing');
+    await press('KeyF');
+    check(await until(() => !__neonbay.P.vehicle), 'could not eject');
+  });
+
   await step('glows the minimap red while wanted', async () => {
     const glow = () => game(() => { const w = document.getElementById('radarWrap'); return { heat: +w.style.getPropertyValue('--heat'), pulse: w.classList.contains('pulse') }; });
     await game(() => { const { G } = __neonbay; G.heat = 100; G.wanted = 5; });

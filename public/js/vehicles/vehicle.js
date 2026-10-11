@@ -1,3 +1,6 @@
+import { jet } from './kinds/jet.js';
+import { repairTires } from './tires.js';
+import { tank } from './kinds/tank.js';
 import { Sound } from '../core/audio.js';
 import { HEAR, at, beside } from '../core/spatial.js';
 import { emit as emitEvent } from '../core/events.js';
@@ -24,7 +27,7 @@ import { burntMat } from './materials.js';
 import { VEHICLE_MODELS } from './models/index.js';
 
 // How each kind of vehicle drives, seats its rider and gets hit. See kinds/bike.js for the full list of fields.
-export const KINDS = { bike, step, car, truck, heli };
+export const KINDS = { bike, step, car, truck, heli, tank, jet };
 
 // Crash fires. A vehicle set alight by a collision burns for its kind's fx.crashFuse seconds before it goes up, long
 // enough for the fire brigade to get there (vehicles/firetruck.js). Shooting it or a blast still sets it off sooner:
@@ -121,8 +124,9 @@ const Vehicle = {
       emitEvent('vehicle:doused', { vehicle: this });
       return true;
     }
-    const max = this.model.hp; if (this.hp >= max) return false;
+    const max = this.model.hp; if (this.hp >= max) return repairTires(this);
     this.hp = Math.min(max, this.hp + max * REPAIR.rate * dt);
+    if (this.hp >= max) repairTires(this);
     return true;
   },
   health() {
@@ -151,9 +155,9 @@ const Vehicle = {
   onShot(hit, dmg, dir) {
     if (hit.occupant && this.driver && this.driver.alive) { emit(hit.p.x, hit.p.y, hit.p.z, 4, '#cfe6ff', 4, 0.3, 0.05); return this.driver.onShot(hit, dmg, dir); }
     // the bodywork soaks up bullets; once it's burning, each shot brings the bang closer as before
-    this.damage(this.burnT > 0 ? dmg : dmg * TOUGH.shot, true); emit(hit.p.x, hit.p.y, hit.p.z, 3, '#ffe9a8', 5, 0.25, 0.06); return { head: false };
+    this.damage(this.burnT > 0 ? dmg : dmg * (this.K.armor?.shot ?? TOUGH.shot), true); emit(hit.p.x, hit.p.y, hit.p.z, 3, '#ffe9a8', 5, 0.25, 0.06); return { head: false };
   },
-  onRocket() { this.damage(999, true); },
+  onRocket(dmg) { this.damage(this.K.armor ? dmg * this.K.armor.blast : 999, true); },
   // after every blast() has landed: wrecks, and vehicles the blast set burning, get thrown (see knock.js); rockets throw harder
   fling(x, y, z, R, power) {
     if (!(this.dead || this.burnT > 0) || this.driver === P) return;
@@ -162,7 +166,7 @@ const Vehicle = {
     else this.K.knock(this, (this.kvx || 0) + t.vx, (this.kvz || 0) + t.vz, t.up);
   },
   // (a chopper up in the air is only reached by a blast up there with it)
-  blast(x, y, z, R, dmg, byPlayer, ordnance) { const d = Math.hypot(this.x - x, this.z - z, this.K.flies ? Math.max(0, Math.abs(y - this.y - 1) - 1.5) : 0); if (d < R && !this.dead) this.damage(blastDamage(this, d, R, dmg, 40, ordnance), byPlayer ? 'boom' : false); },
+  blast(x, y, z, R, dmg, byPlayer, ordnance) { const d = Math.hypot(this.x - x, this.z - z, this.K.flies ? Math.max(0, Math.abs(y - this.y - 1) - 1.5) : 0); if (d < R && !this.dead) this.damage(this.K.armor ? dmg * (1 - d / R) * this.K.armor.blast : blastDamage(this, d, R, dmg, 40, ordnance), byPlayer ? 'boom' : false); },
   // a vehicle just rammed flies through whatever hit it, and one just bailed out of rolls on past the player
   pushOut(o, r) { return !(this.ghostT > G.time) && !(o === P && P.bailFrom === this && P.bailT > G.time) && this.K.pushOut(this, o, r); },
   blip(radar) { if (this.driver !== P && !this.dead) this.K.blip(this, radar); },
@@ -271,6 +275,7 @@ export function driveByPlayer(v, dt) {
     return;
   }
   K.drive(v, dt, controls());
+  for (const r of all('roadblock')) r.ram(v);
   // pulled a bike's wheelie up too far: it goes over backwards and throws the rider off
   if (v.looped) { v.looped = false; exitVehicle(true); toast('Looped it! Ease off the boost to hold a wheelie.', 2.5); return; }
   if (K.ridesOver) mount(v);

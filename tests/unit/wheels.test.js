@@ -5,8 +5,8 @@ import { KINDS } from '../../public/js/vehicles/vehicle.js';
 import { rolling, spinWheels, wheelAt } from '../../public/js/vehicles/wheels.js';
 
 describe('spinning wheels', () => {
-  // (a chopper stands on skids)
-  for (const [id, m] of Object.entries(VEHICLE_MODELS).filter(([, m]) => m.kind !== 'heli')) it(`${id} names its wheels`, () => {
+  // Aircraft landing gear and tank tracks do not use the road-wheel animation.
+  for (const [id, m] of Object.entries(VEHICLE_MODELS).filter(([, m]) => ['bike', 'step', 'car', 'truck'].includes(m.kind))) it(`${id} names its wheels`, () => {
     const mesh = KINDS[m.kind].build({ model: { ...m, decal: () => new THREE.MeshBasicMaterial() } }); // decals need a canvas
     expect(mesh.wheels.length).toBe({ bike: 2, step: 2, car: 4, truck: 6 }[m.kind]);
     for (const w of mesh.wheels) {

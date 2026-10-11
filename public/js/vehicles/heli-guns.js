@@ -72,7 +72,7 @@ const muzzle = (v, p) => heliPoint(v.x, v.y + SKID, v.z, v.yaw, p, _from);
 
 function shootMinigun(v, g, W) {
   g.mag.minigun--; g.cd = W.rate; P.lastShot = G.time;
-  const from = muzzle(v, GUN_TIP).clone(), dir = aimDir(), origin = camTarget.clone();
+  const from = muzzle(v, v.K.gunTip || GUN_TIP).clone(), dir = aimDir(), origin = camTarget.clone();
   _d.copy(dir).add(new THREE.Vector3(rnd(-W.spread, W.spread), rnd(-W.spread, W.spread), rnd(-W.spread, W.spread))).normalize();
   const h = castBullet(origin, _d, W.range);
   tracer(from, h.p, false); muzzleFlash(from); Sound.shot('minigun', 1, 0); bulletImpact(h);
@@ -87,7 +87,7 @@ function shootMinigun(v, g, W) {
 function shootRocket(v, g) {
   const W = HELI_GUNS.rockets; if (g.mag.rockets <= 0) return;
   g.mag.rockets--; P.lastShot = G.time;
-  const from = muzzle(v, PODS[g.pod]).clone(); g.pod = 1 - g.pod;
+  const from = muzzle(v, (v.K.pods || PODS)[g.pod]).clone(); g.pod = 1 - g.pod;
   const tgt = castShot(camTarget.clone(), aimDir(), 300).p;
   fireRocket(from, tgt.sub(from).normalize(), W.dmg, 1);
   muzzleFlash(from, true); Sound.shot('rpg', 1, 0);
@@ -98,5 +98,5 @@ function shootRocket(v, g) {
 // what the HUD shows for the gun in use: { id, name, icon, ammo }
 export function heliGunHud(v) {
   const g = armHeli(v), W = HELI_GUNS[g.cur];
-  return { id: W.id, name: W.name, icon: W.icon, ammo: g.reloadT > 0 ? 'Reloading' : `${g.mag[g.cur]}<span>/∞</span>` };
+  return { id: W.id, name: v.K.jet ? W.name.replace('Chopper', 'Jet') : W.name, icon: W.icon, ammo: g.reloadT > 0 ? 'Reloading' : `${g.mag[g.cur]}<span>/∞</span>` };
 }

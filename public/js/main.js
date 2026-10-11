@@ -1,3 +1,4 @@
+import { spawnSecretJet } from './world/secret-jet.js';
 import './three.js'; // first, so every module below sees the THREE global
 import './core/input.js';
 import './shops/shop.js';
@@ -154,6 +155,7 @@ async function start(data) {
   for (const r of ROOFS) if (r.jetpackAt) makeJetpackPickup(r.jetpackAt.x, r.floor, r.jetpackAt.z);
   for (const r of ROOFS) if (r.chuteAt) makeParachutePickup(r.chuteAt.x, r.floor, r.chuteAt.z);
   lotSpots.forEach((s, i) => { spawnVehicle(PARKED_CARS[i % PARKED_CARS.length], s.x, s.z, s.yaw).home = true; });
+  spawnSecretJet();
   P.x = 230; P.z = -40;
   for (let i = 0; i < 26; i++) spawnTrafficCar(false);
   for (let i = 0; i < 4; i++) spawnTrafficBike();

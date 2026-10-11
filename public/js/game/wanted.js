@@ -1,3 +1,4 @@
+import { updateRoadblocks } from './roadblocks.js';
 import { Sound } from '../core/audio.js';
 import { emit } from '../core/events.js';
 import { at } from '../core/spatial.js';
@@ -68,6 +69,7 @@ export function holdFive(dt) {
   emit('wanted:up', { level: 6 });
 }
 export function updateWanted(dt) {
+  updateRoadblocks(dt);
   const starsEl = $('stars');
   // the five star heat highscore: every second alive at five stars (or the secret sixth) counts, for good
   if (G.wanted >= 5 && G.state === 'play') { stats.fiveStar = (stats.fiveStar || 0) + dt; G.fiveRun += dt; }
@@ -99,6 +101,7 @@ export function updateWanted(dt) {
   Sound.loops('siren', sirenSources());
   Sound.loops('rotor', rotorSources());
   Sound.loops('tank', tankSources());
+  Sound.loops('jet', G.state === 'play' ? all('vehicle').filter(v => v.K.jet && !v.dead && v.engine > 0.05).map(v => ({ key: v, ...at(v, 1), vol: v.engine * 0.5, speed: v.speed })) : []);
   Sound.loops('ufo', ufoSources());
   Sound.setIntensity(G.wanted);
 }
@@ -118,7 +121,7 @@ export const SIREN_VOL = 0.09, ROTOR_VOL = 0.5;
 export function rotorSources() {
   if (G.state !== 'play') return [];
   const out = all('heli').map(h => ({ key: h, ...at(h, 1), vol: ROTOR_VOL * (h.spin ?? 1) }));
-  for (const v of all('vehicle')) if (v.K.flies && !v.dead && v.rotor > 0.05) out.push({ key: v, x: v.x, y: v.y + 2, z: v.z, vol: ROTOR_VOL * v.rotor });
+  for (const v of all('vehicle')) if (v.K.flies && !v.K.jet && !v.dead && v.rotor > 0.05) out.push({ key: v, x: v.x, y: v.y + 2, z: v.z, vol: ROTOR_VOL * v.rotor });
   return out;
 }
 // the tank's engine and tracks, louder as it gets going; wrecks are silent

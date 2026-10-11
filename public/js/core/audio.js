@@ -104,6 +104,7 @@ export const Sound = (() => {
   const LOOPS = {
     disaster: { max: 8, prof: { ref: 45, max: 420 }, make: makeDisaster },
     siren: { max: 3, prof: HEAR.siren, make: makeSiren },
+    jet: { max: 2, prof: HEAR.rotor, make: makeJet },
     rotor: { max: 2, prof: HEAR.rotor, make: makeRotor },
     tank: { max: 1, prof: HEAR.tank, make: makeTank },
     ufo: { max: 1, prof: HEAR.ufo, make: makeUfo },
@@ -138,6 +139,14 @@ export const Sound = (() => {
     for (const [key, v] of map) if (!keep.has(key)) drop(map, key, v, t);
   }
   function drop(map, key, v, t) { map.delete(key); v.gain.gain.setTargetAtTime(0, t, 0.15); setTimeout(() => { v.stop(); v.pan.disconnect(); }, 1500); }
+  // A steady turbine whine over filtered exhaust noise, placed through the effects mix.
+  function makeJet() {
+    const out = ctx.createGain(), osc = ctx.createOscillator(), hiss = ctx.createBufferSource(), f = ctx.createBiquadFilter();
+    osc.type = 'sawtooth'; const g = ctx.createGain(); g.gain.value = 0.12; osc.connect(g); g.connect(out);
+    hiss.buffer = noise; hiss.loop = true; f.type = 'lowpass'; f.frequency.value = 1800; hiss.connect(f);
+    const ng = ctx.createGain(); ng.gain.value = 0.6; f.connect(ng); ng.connect(out); osc.start(); hiss.start();
+    return { out, set(s, dop, t) { osc.frequency.setTargetAtTime((180 + (s.speed || 0) * 9) * dop, t, 0.1); f.frequency.setTargetAtTime(1800 + (s.speed || 0) * 35, t, 0.1); }, stop() { osc.stop(); hiss.stop(); } };
+  }
   // Moving disaster voices share the existing distance, Doppler, pause and cleanup rules.
   function makeDisaster(s) {
     const [hz, wind, rate, depth] = EVENT_LOOPS[s.id];

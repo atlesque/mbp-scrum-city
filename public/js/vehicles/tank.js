@@ -1,3 +1,7 @@
+import { TANK_HP } from '../data/tank.js';
+export { TANK_HP } from '../data/tank.js';
+import { kb } from '../core/controls.js';
+import { spawnVehicle } from './vehicle.js';
 import { charMat } from '../characters/character.js';
 import { explosion, fireRocket } from '../combat/combat.js';
 import { SIGHT_EVERY, newSight, reactTo } from '../combat/sight.js';
@@ -7,7 +11,7 @@ import { G, P, cam } from '../core/state.js';
 import { angDiff, clamp, lerp, rnd } from '../core/util.js';
 import { addEntity, all, removeEntity } from '../entities/registry.js';
 import { reward } from '../game/pickups.js';
-import { hurtPlayer } from '../game/player.js';
+import { enterVehicle, hurtPlayer } from '../game/player.js';
 import { addHeat } from '../game/wanted.js';
 import { emit, muzzleFlash } from '../render/effects.js';
 import { GB, addGeo, box, cylG, hexa, tube } from '../render/geometry.js';
@@ -21,7 +25,7 @@ import { burntMat } from './materials.js';
 // stops to shell them with its cannon once it has them in sight. Bullets barely scratch the armour; it takes about four
 // direct rockets (or a few cars going up beside it) to stop. It goes up bigger than the chopper and leaves a burnt-out
 // wreck in the road, its turret blown off its ring.
-export const TANK_HP = 2400;
+
 // bullets glance off: a rifle round does a tenth of its damage
 export const BULLET_ARMOR = 0.1;
 // half width and half length of the hull, and the turret: where it turns, how high, and how big it is
@@ -93,6 +97,13 @@ const Tank = {
     if (t.los) G.seenNow = true;
     if (t.leaving && dist > 110) removeTank(TANK_COOLDOWN);
     pose(t, dt);
+  },
+  interaction(p) {
+    if (p.vehicle || !p.alive || this.dead || this.removed || Math.abs(this.v) > 2.5 || (p.y || 0) > 2) return null;
+    const dx = p.x - this.x, dz = p.z - this.z, c = Math.cos(this.yaw), s = Math.sin(this.yaw);
+    const dist = Math.hypot(Math.max(0, Math.abs(dx * c - dz * s) - HW), Math.max(0, Math.abs(dx * s + dz * c) - HL));
+    if (dist > 1.5) return null;
+    return { keys: ['ride'], priority: 1, dist, prompt: `Press <kbd>${kb('ride')}</kbd> to steal the army tank`, run: () => takeTank(this) };
   },
   raycast(o, d, maxT) {
     const t = this;
@@ -329,4 +340,13 @@ export function removeTank(cooldown, wrecks = false) {
   if (wrecks) for (const t of all('tank')) removeEntity(t);
   G.tank = null;
   if (cooldown != null) G.tankT = cooldown;
+}
+
+// Convert the army AI into a normal driveable vehicle; the next army tank uses its usual cooldown.
+export function takeTank(t) {
+  if (G.state !== 'play' || !t.interaction(P)) return null;
+  const v = spawnVehicle('tank', t.x, t.z, t.yaw);
+  v.hp = t.hp; v.turretYaw = t.turretYaw; v.pitch = t.pitch;
+  removeEntity(t); G.tankT = TANK_COOLDOWN;
+  addHeat(10); enterVehicle(v); return v;
 }

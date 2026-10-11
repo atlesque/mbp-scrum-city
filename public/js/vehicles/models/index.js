@@ -1,3 +1,5 @@
+import jet from './jet.js';
+import tank from './tank.js';
 import army from './army.js';
 import gs from './gs.js';
 import heli from './heli.js';
@@ -28,7 +30,7 @@ import t7 from './t7.js';
 //   crew       how many officers or soldiers get out when it arrives (default 2)
 //   siren      true when the player can switch a siren and flashing lights on (core/keymap.js 'siren'); sirenY: how high it sounds
 // Bikes also give spec / geos / wheel / decal / decalAt (see models/gs.js), e-steps spec / geos / wheel (models/estep.js); cars give mesh().
-export const VEHICLE_MODELS = Object.fromEntries([...RETRO_CARS, gs, t7, estep, sharestep, pimpstep, sedan, modely, police, modelyblue, eqa, bmw5, firetruck, army, heli].map(m => [m.id, m]));
+export const VEHICLE_MODELS = Object.fromEntries([...RETRO_CARS, gs, t7, estep, sharestep, pimpstep, sedan, modely, police, modelyblue, eqa, bmw5, firetruck, army, heli, tank, jet].map(m => [m.id, m]));
 
 // pick a model of a kind for traffic, weighted by traffic.weight
 export function pickTrafficModel(kind) {
