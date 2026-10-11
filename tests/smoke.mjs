@@ -225,13 +225,13 @@ try {
     await game(() => { __neonbay.inv.pokemon = { balls: 5, party: [], selected: -1 }; for (const p of __neonbay.all('pokemon')) if (p.owned) __neonbay.removeEntity(p); });
   });
 
-  await step('Pokemon can be shot, weakened and caught across the expanded roster', async () => {
+  await step('Pokemon allow aiming through wilds and remain catchable across the expanded roster', async () => {
     await clearLane();
     check(await game(async () => {
       const { P, G, cam, inv, all, removeEntity } = __neonbay;
-      const { SPECIES, catchChance } = await import('/js/pokemon/team.js');
+      const { SPECIES } = await import('/js/pokemon/team.js');
       const { spawnPokemon } = await import('/js/pokemon/world.js');
-      const { playerShoot } = await import('/js/combat/combat.js');
+      const { playerShoot, castShot } = await import('/js/combat/combat.js');
       const { camTarget } = await import('/js/game/player.js');
       for (const p of all('pokemon')) removeEntity(p);
       inv.pokemon = { balls: 5, party: [], selected: -1 };
@@ -239,18 +239,19 @@ try {
       const p = window.__wild = spawnPokemon('psyduck', P.x, P.z + 5);
       p.update = () => {}; cam.yaw = P.yaw = 0; cam.pitch = -Math.atan2(1 - p.bodyY, 5);
       camTarget.set(P.x, 1, P.z); G.reloadT = 0; inv.cur = 'pistol'; inv.mag.pistol = 12;
+      const aim = castShot(camTarget, new THREE.Vector3(0, Math.sin(cam.pitch), Math.cos(cam.pitch)), 20);
       playerShoot();
-      return Object.keys(SPECIES).length === 35 && p.hp > 0 && p.hp < 100 && catchChance(p.species, p.hp) > catchChance(p.species, 100);
-    }), 'pistol did not weaken a new Pokemon');
+      return Object.keys(SPECIES).length === 35 && p.hp === 100 && aim.entity !== p;
+    }), 'wild Pokemon intercepted aiming or the pistol shot');
     await game(() => {
       const { P } = __neonbay; P.x = __wild.x; P.z = __wild.z - 2;
       const random = Math.random; Math.random = () => 0;
       try { __wild.catch(); } finally { Math.random = random; }
       if (!__wild.catching) throw new Error('capture refused: ' + JSON.stringify({ prompt: __wild.interaction(P), P: {x:P.x,z:P.z,y:P.y,alive:P.alive,club:!!P.club,roof:!!P.roof,vehicle:!!P.vehicle}, wild:{x:__wild.x,z:__wild.z,owned:__wild.owned,removed:__wild.removed}, state:__neonbay.G.state }));
     });
-    // Restore its animation update after holding it still for the shot.
+    // Restore its animation update after holding it still for the click-through check.
     await game(() => { delete __wild.update; });
-    check(await until(() => __wild.removed && __neonbay.inv.pokemon.party[0]?.species === 'psyduck' && __neonbay.inv.pokemon.party[0]?.hp < 100), 'weakened Pokemon was not caught at its remaining health: ' + JSON.stringify(await game(() => ({ catching: __wild.catching, removed: __wild.removed, hp: __wild.hp, party: __neonbay.inv.pokemon.party, errors: __neonbay.G.state }))));
+    check(await until(() => __wild.removed && __neonbay.inv.pokemon.party[0]?.species === 'psyduck' && __neonbay.inv.pokemon.party[0]?.hp === 100), 'Pokemon was not caught at full health: ' + JSON.stringify(await game(() => ({ catching: __wild.catching, removed: __wild.removed, hp: __wild.hp, party: __neonbay.inv.pokemon.party, errors: __neonbay.G.state }))));
     await game(async () => {
       const { P, inv, all, removeEntity } = __neonbay;
       const { spawnPokemon } = await import('/js/pokemon/world.js');

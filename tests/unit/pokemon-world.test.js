@@ -1,7 +1,8 @@
+import { castBullet, castShot } from '../../public/js/combat/combat.js';
 import { Sound } from '../../public/js/core/audio.js';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { G, P, inv } from '../../public/js/core/state.js';
-import { all, removeEntity } from '../../public/js/entities/registry.js';
+import { addEntity, all, removeEntity } from '../../public/js/entities/registry.js';
 import { emit } from '../../public/js/core/events.js';
 import { addCollider, colliders, HASH, tallBoxes } from '../../public/js/world/collision.js';
 import { catchChance, freshTeam } from '../../public/js/pokemon/team.js';
@@ -98,12 +99,9 @@ it('battle XP evolves the partner and replaces its world model', () => {
   expect(all('pokemon').find(p => p.owned).species).toBe('charmeleon');
 });
 
-it('bullets hit Pokemon bodies, weakening increases catch chance and fainted wilds disappear', () => {
+it('damage increases catch chance and fainted wilds disappear', () => {
   const p = spawnPokemon('psyduck', 2, 0);
-  const origin = new THREE.Vector3(2, 0.4, 4), dir = new THREE.Vector3(0, 0, -1);
-  const hit = p.raycast(origin, dir, 10);
-  expect(hit.t).toBeGreaterThan(0);
-  expect(p.raycast(origin, dir, 1)).toBeNull();
+  const dir = new THREE.Vector3(0, 0, -1), hit = {};
   const healthy = catchChance(p.species, 100);
   p.onShot(hit, 50, dir);
   expect(p.hp).toBe(50);
@@ -146,11 +144,18 @@ it('caught Pokemon neither block friendly shots nor take player bullets or explo
   expect(p.removed).toBeUndefined();
   expect(p.health).toBeUndefined(); // reserved for the repair tool's callable health trait
 });
-it('small Pokemon hitboxes match their visual size instead of a human-sized sphere', () => {
-  const p = spawnPokemon('pikachu', 2, 0);
-  const dir = new THREE.Vector3(0, 0, -1);
-  expect(p.raycast(new THREE.Vector3(2, 0.3, 4), dir, 10)).not.toBeNull();
-  expect(p.raycast(new THREE.Vector3(2, 1.5, 4), dir, 10)).toBeNull();
+it('aim and bullet rays pass through every wild Pokemon to the target behind it', () => {
+  const target = addEntity({ kind: 'test-target', raycast: (o, d, max) => max > 6 ? { t: 6 } : null });
+  try {
+    for (const species of ['pikachu', 'psyduck', 'charizard']) {
+      const p = spawnPokemon(species, 2, 0);
+      const origin = new THREE.Vector3(2, p.bodyY, 4), dir = new THREE.Vector3(0, 0, -1);
+      expect(castShot(origin, dir, 10).entity, species).toBe(target);
+      expect(castBullet(origin, dir, 10).entity, species).toBe(target);
+      expect(p.interaction(P)?.keys).toContain('use');
+      removeEntity(p);
+    }
+  } finally { removeEntity(target); }
 });
 
 it('pursues and defeats a fleeing NPC instead of losing it or teleporting back to the player', () => {

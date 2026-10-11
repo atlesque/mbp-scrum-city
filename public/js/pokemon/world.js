@@ -7,7 +7,7 @@ import { addEntity, all, removeEntity } from '../entities/registry.js';
 import { emit } from '../render/effects.js';
 import { camera, scene } from '../render/scene.js';
 import { toast } from '../ui/hud.js';
-import { blocked, collide, isFree, onRoad, rayBox } from '../world/collision.js';
+import { blocked, collide, isFree, onRoad } from '../world/collision.js';
 import { makePokemon, makeBall, disposeModel } from './models.js';
 import { catchChance, catchPokemon, gainExperience, randomEncounter, selectPokemon, SPECIES } from './team.js';
 
@@ -45,13 +45,9 @@ function validTarget(p, target, playerRange = 60) {
 }
 const Pokemon = {
   kind: 'pokemon', blipLayer: 2, surface: 'flesh',
-  raycast(o, d, maxT) {
-    if (this.owned || this.removed || this.catching || !this.root.visible) return null;
-    const c = Math.cos(this.yaw), s = Math.sin(this.yaw), x = o.x - this.x, z = o.z - this.z, b = this.bounds;
-    const t = rayBox(x * c - z * s, o.y - this.root.position.y, x * s + z * c,
-      d.x * c - d.z * s, d.y, d.x * s + d.z * c, b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z);
-    return t >= 0 && t < maxT ? { t } : null;
-  },
+  // Pokémon never intercept the crosshair or clicks aimed at the city behind them.
+  // Catching remains a proximity interaction on the use key.
+  raycast() { return null; },
   onShot(hit, damage) { this.hurt(damage); return { head: false }; },
   blast(x, y, z, radius, damage, byPlayer = true) {
     const d = Math.hypot(x - this.x, y - this.bodyY, z - this.z);
