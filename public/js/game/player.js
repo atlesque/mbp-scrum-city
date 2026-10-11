@@ -24,11 +24,13 @@ import { removeUfo } from '../vehicles/ufo.js';
 import { answersHeat, driveByPlayer, sirenOn } from '../vehicles/vehicle.js';
 import { SPAWN } from '../world/city.js';
 import { collide, wallHit } from '../world/collision.js';
+import { collideClub } from '../world/club.js';
 import { ceilingAt, collideRoofs, surfaceAt } from '../world/rooftops.js';
 import { BAIL, bailDamage, bailLaunch, hopLaunch, tumbleStep } from './bailout.js';
 import { PITCH_MAX, PITCH_MIN, cameraRoof, stepArm, stepShoulder } from './camera.js';
 import { JET, jetFx, jetStep, refuel, takeOffJetpack } from './jetpack.js';
 import { PARA, chuteFx, chuteStep, dropChute, openChute, opensChute, poseHang, strapOnChute } from './parachute.js';
+import { leaveClub } from './club.js';
 import { updateInteraction } from './interact.js';
 import { resetTool, updateTool } from './repair.js';
 
@@ -41,7 +43,7 @@ export function updatePlayer(dt) {
   const sens = (G.scope ? 0.0022 * scopeFov(1, G.scope) : I.mouseR ? 0.0013 : 0.0022) * settings.sensitivity, sensY = settings.invertY ? -sens : sens;
   if (I.mouseDX || I.mouseDY) P.lookT = G.time;
   cam.yaw -= I.mouseDX * sens; cam.pitch = clamp(cam.pitch - I.mouseDY * sensY, PITCH_MIN, PITCH_MAX); I.mouseDX = I.mouseDY = 0;
-  const aimingNow = I.mouseR || G.scope > 0 || I.mouseL || I.clickQ > 0 || G.time - P.lastShot < 0.7;
+  const aimingNow = !P.club && (I.mouseR || G.scope > 0 || I.mouseL || I.clickQ > 0 || G.time - P.lastShot < 0.7); // nothing to aim inside the club
   P.aiming = aimingNow;
   P.aimPitch = cam.pitch;
   const v = P.vehicle;
@@ -50,7 +52,7 @@ export function updatePlayer(dt) {
     if (P.vehicle) v.K.aim(v, P.c, aimingNow ? clamp(angDiff(v.yaw, cam.yaw), -2.4, 2.4) : null, cam.pitch);
   } else if (P.tumble) tumble(dt); else walk(dt, aimingNow);
   // weapon: a chopper fires its own guns (vehicles/heli-guns.js), and what's in hand waits until the player is out
-  if (P.vehicle && P.vehicle.K.guns) { P.reload = null; P.vehicle.K.guns(P.vehicle, dt); } else handWeapon(dt);
+  if (P.vehicle && P.vehicle.K.guns) { P.reload = null; P.vehicle.K.guns(P.vehicle, dt); } else if (!P.club) handWeapon(dt); // no weapons in the club
   if (!P.vehicle) {
     // separation from people
     for (const a of all('npc')) { if (!onFoot(a) || P.y > 1) continue; const dx = a.x - P.x, dz = a.z - P.z, d = Math.hypot(dx, dz); if (d < 0.75 && d > 0.001) { const k = (0.75 - d) * 0.5; a.x += dx / d * k; a.z += dz / d * k; P.x -= dx / d * k; P.z -= dz / d * k; } }
@@ -105,10 +107,12 @@ function walk(dt, aimingNow) {
   P.vx = lerp(P.vx || 0, mx * speed, Math.min(1, dt * 12)); P.vz = lerp(P.vz || 0, mz * speed, Math.min(1, dt * 12));
   const ox = P.x, oz = P.z; P.x += P.vx * dt; P.z += P.vz * dt;
   // buildings and props stop the feet only where they reach up to them; railings only while the feet are below the top rail
-  collide(P, 0.38, null, P.y); collideRoofs(P, 0.38, P.y);
+  // inside the club (game/club.js) its room is all there is
+  const room = P.club && [P.club];
+  if (room) collideClub(P, 0.38, P.y, P.club); else { collide(P, 0.38, null, P.y); collideRoofs(P, 0.38, P.y); }
   P.moveSpeed = Math.hypot(P.x - ox, P.z - oz) / Math.max(dt, 1e-4);
-  const { floor, roof } = surfaceAt(P.x, P.z, P.y);
-  P.floor = floor; P.roof = roof;
+  const { floor, roof } = surfaceAt(P.x, P.z, P.y, room || undefined);
+  P.floor = floor; P.roof = room ? null : roof;
   if (P.grounded) {
     if (P.y > floor + 0.05) { P.grounded = false; P.vy = 0; P.jumps = 1; } // walked off an edge: one jump left in the air
     else P.y = floor; // stepped up or down a little
@@ -123,7 +127,7 @@ function walk(dt, aimingNow) {
     if (P.chute && P.chute.open) P.vy = chuteStep(P.vy, dt, GRAVITY);
     else if (P.jetpack) P.vy = jetStep(P.jetpack, P.vy, space && !press, dt, GRAVITY);
     else P.vy -= GRAVITY * dt;
-    const head = ceilingAt(P.x, P.z, P.y) - 1.8;
+    const head = ceilingAt(P.x, P.z, P.y, room || undefined) - 1.8;
     P.y += P.vy * dt;
     if (P.vy > 0 && P.y > head) { P.y = Math.max(floor, head); P.vy = 0; } // bumped the head on something overhead
     if (P.y <= floor) land(floor);
@@ -245,7 +249,7 @@ export function updateCamera(dt) {
   const cp = Math.cos(cam.pitch), d = new THREE.Vector3(Math.sin(cam.yaw) * cp, Math.sin(cam.pitch), Math.cos(cam.yaw) * cp);
   const right = new THREE.Vector3(-Math.cos(cam.yaw), 0, Math.sin(cam.yaw));
   camTarget.set(P.x, (P.alive ? P.y : 0) + (C ? C.height : 1.62), P.z);
-  cameraRoof(P.roof);
+  cameraRoof(P.club ? P.club.camRoof : P.roof);
   camTarget.addScaledVector(right, stepShoulder(arm, camTarget.x, camTarget.y, camTarget.z, cam.yaw, cam.pitch, aim ? 0.7 : 0.55, cam.dist, dt));
   stepArm(arm, camTarget.x, camTarget.y, camTarget.z, cam.yaw, cam.pitch, cam.dist, C ? C.minArm : 1.4, dt);
   const ap = Math.cos(arm.pitch);
@@ -275,6 +279,7 @@ export function die() {
   emit('player:died', { fee });
 }
 export function respawn() {
+  leaveClub(); // (respawn puts the player at the hospital just after)
   for (const e of all()) if ((e.kind === 'npc' && e.faction === 'law') || answersHeat(e) || (e.kind === 'vehicle' && e.dead)) removeEntity(e);
   removeHeli(); removeTank(null, true); removeUfo(null);
   G.wanted = 0; G.heat = 0; G.lostT = 0; G.heliT = 15; G.tankT = 6; G.fiveT = 0; G.ufoT = 2;

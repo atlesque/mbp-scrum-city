@@ -7,7 +7,8 @@ import { ROADS, addCollider } from './collision.js';
 import { buildEdges } from './edges.js';
 import { buildLandmark, landmarkAt } from './landmarks.js';
 import { bindProps, prop } from './props.js';
-import { buildRooftops, flatRoofs, roofSpots } from './rooftops.js';
+import { ROOFS, buildRooftops, flatRoofs, roofSpots } from './rooftops.js';
+import { buildClub } from './club.js';
 
 // ================= WORLD =================
 const PASTEL = ['#f7a8c4', '#8fe3d6', '#ffd0a1', '#c9b3f2', '#a7e8a1', '#fff1c9', '#ffb3a7', '#9fd4ff', '#f4ece6', '#ffc6e7', '#b8f0e6', '#ffe0b3'];
@@ -229,6 +230,7 @@ export function buildWorld() {
   for (let z = -200; z <= 200; z += 34) { ring(-238, z); ring(-280, z); }
   healthSpots.push([210, -40], [212, 90]); armorSpots.push([214, 20]);
   buildRooftops({ plain, neon, sign: s => signs.push(s) }, SPAWN);
+  buildClub({ plain, neon, sign: s => signs.push(s) }, roofSpots, ROOFS, signs, SPAWN); // the Velvet Flamingo moves into one of the others
   buildEdges(plain);
 
   const [wt, we, lw] = windowTextures(); lightWindows = lw;

@@ -363,6 +363,18 @@ export const Sound = (() => {
         hitAt(c, o, t, 'triangle', root, 0, E * 0.9, 0.45); hitAt(c, o, t + E, 'triangle', root * 2, 0, E * 0.9, 0.4);
       }
     }],
+    // the Velvet Flamingo's house groove (game/club.js), heard inside: a soft kick on every beat, a finger snap on
+    // two and four, an open hat on the offbeats, a round bass walking Dm7 to Bbmaj7, and a warm pad over it
+    'club-house': [8 * BEAT, (c, o) => {
+      for (let b = 0; b < 8; b++) {
+        const t = b * BEAT, root = b < 4 ? 73.4 : 58.3;
+        hitAt(c, o, t, 'sine', 110, 40, 0.38, 0.85);
+        if (b % 2) hitAt(c, o, t, 'highpass', 2600, 1.4, 0.09, 0.3);
+        hitAt(c, o, t + E, 'highpass', 7000, 0.7, 0.12, 0.13);
+        hitAt(c, o, t + E, 'triangle', root, 0, E * 0.85, 0.5); hitAt(c, o, t + E * 1.5, 'triangle', root * 1.5, 0, E * 0.4, 0.3);
+      }
+      for (const [t0, chord] of [[0, [293.7, 349.2, 440, 523.3]], [4 * BEAT, [233.1, 293.7, 349.2, 440]]]) for (const f of chord) hitAt(c, o, t0, 'sawtooth', f, 0, 4 * BEAT * 0.95, 0.025);
+    }],
     // a Latin bar: the son clave (3-2), the tumbao bass pushing ahead of the beat, congas on four and its "and",
     // and a piano montuno over C and G
     'club-salsa': [8 * BEAT, (c, o) => {
@@ -521,6 +533,8 @@ export const Sound = (() => {
       const k = foot ? RADIO_ON_FOOT : 1; if (k === radioK) return; radioK = k;
       if (ctx) musLvl.gain.setTargetAtTime(musicLevel(), ctx.currentTime, 0.6);
     },
+    // indoors (the club): Neon FM goes quiet under the place's own music, until onFoot sets it again outside
+    indoors() { radioK = 0; if (ctx) musLvl.gain.setTargetAtTime(musicLevel(), ctx.currentTime, 0.4); },
     get radio() { return radioK; },
     // the sirens, rotors, passing engines and electric cars out in the world this frame (see loops above)
     loops,
