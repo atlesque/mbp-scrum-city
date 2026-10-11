@@ -1,7 +1,14 @@
 {
- "version": "1.120",
+ "version": "1.121",
  "date": "2026-10-11",
  "entries": [
+  {
+   "v": "1.121",
+   "date": "2026-10-11",
+   "sha": "b311258",
+   "pr": 116,
+   "title": "Add blocky Pokemon encounters, companions, evolutions and Center"
+  },
   {
    "v": "1.120",
    "date": "2026-10-11",
