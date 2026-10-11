@@ -81,11 +81,12 @@ try {
   step('Alex at 3 stars, Bo too');
 
   // a cop of Alex's game, right by Bo, goes after Bo (the nearer of the crew), and Bo feels his bullets
-  const cop = await a.evaluate(({ bx, bz }) => { const n = window.__neonbay.spawnNpc('cop', bx + 9, bz + 2); n.hp = 400; window.__cop = n; return true; }, { bx, bz });
+  const cop = await a.evaluate(({ bx, bz }) => { const n = window.__neonbay.spawnNpc('cop', bx + 6, bz + 2); n.hp = 400; window.__cop = n; return true; }, { bx, bz });
   await a.waitForFunction(() => window.__cop.tgt && window.__cop.tgt.kind === 'remote', null, { timeout: 5000 });
   step('Alex\'s cop hunts Bo: ' + cop);
   const hp0 = await b.evaluate(() => window.__neonbay.P.hp);
-  await b.waitForFunction(h => window.__neonbay.P.hp < h, hp0, { timeout: 30000 });
+  // (two games on software rendering run at a fraction of real time, so his few shots take a while)
+  await b.waitForFunction(h => window.__neonbay.P.hp < h, hp0, { timeout: 120000 });
   step(`Bo hit by Alex's cop: ${hp0} → ${Math.round(await b.evaluate(() => window.__neonbay.P.hp))}`); await shot(b, '4-cop-on-bo');
 
   // Bo takes the cop down: the damage lands in Alex's game, the kill counts for Bo

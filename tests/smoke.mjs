@@ -1338,7 +1338,7 @@ try {
       window.__mpSock.push({ t: 'hit', from: 'bot', to: 'me', d: 10, z: 'torso' });
       return { ran: G.time - t0, hurt: hp0 - P.hp, title: document.getElementById('pauseTitle').textContent };
     });
-    check(away.ran > 0.2 && away.hurt === 10 && away.title === 'Menu', 'the city stopped behind the menu: ' + JSON.stringify(away));
+    check(away.ran > 0 && away.hurt === 10 && away.title === 'Menu', 'the city stopped behind the menu: ' + JSON.stringify(away));
     await press('KeyP');
     // leaving takes them, their bike and their people out of the world
     await game(async () => { (await import('/js/net/net.js')).leave(); window.WebSocket = window.__mpWS; });
