@@ -81,6 +81,10 @@ describe('finding what to fix', () => {
     expect(findTarget({ x: 0, z: -4, y: 0 }, 0, all())).toBeNull(); // out of reach
     expect(findTarget({ x: 0, z: 0, y: 8 }, 0, all())).toBeNull(); // on a roof above
   });
+  it('skips entities whose health is not a function, like a Pokemon with its HP bar mesh', () => {
+    const c = spawnVehicle('sedan', 0, 4, 0), p = { x: 0, z: 0, y: 0 };
+    expect(findTarget(p, 0, [{ health: { visible: false } }, ...all()])?.e).toBe(c);
+  });
   it('picks the nearest of two, and never a wreck', () => {
     const near = spawnVehicle('sedan', 2.3, 3.2, 0), far = spawnVehicle('sedan', 2.3, 3.5, 0);
     const p = { x: 0, z: 0, y: 0 };
