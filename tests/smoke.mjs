@@ -1,5 +1,5 @@
 // Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, shoot a chopper's pilot and fly the chopper off, get shelled by the army's tank and blow it up, hold five stars into the secret sixth and take a laser rifle off an alien, snipe through the scope, throw a car with a rocket,
-// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, buy the repair tool and fix a car with it, ram a bike, ride a bike over a car, pull a wheelie, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, change settings and remap keys. Fails on any page error or broken step.
+// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, buy the repair tool and fix a car with it, ram a bike, ride a bike over a car, pull a wheelie, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, go into the club and back out, change settings and remap keys. Fails on any page error or broken step.
 // Run with `npm run test:smoke`, which splits the steps over a few browsers at once (tests/smoke-all.mjs). This file is one of
 // those browsers: `node tests/smoke.mjs` runs every step in one, in order.
 // SMOKE_ONLY=tank,reload runs only the steps whose names contain one of those words (case-insensitive), after the boot;
@@ -830,6 +830,29 @@ try {
     const down = await until(() => !__neonbay.P.roof);
     const at = await game(() => { const { P, G, ROOFS } = __neonbay; return { y: P.y, d: Math.hypot(P.x - ROOFS[0].street.x, P.z - ROOFS[0].street.z), near: G.near.map(i => i.prompt), roof: !!P.roof }; });
     check(down && at.y === 0 && at.d < 1.5, 'did not come back down to the street: ' + JSON.stringify(at));
+  });
+
+  await step('goes into the Velvet Flamingo, fists only inside, and comes back out', async () => {
+    await game(() => { const { P, G, cam, CLUB } = __neonbay, s = CLUB.site; P.x = s.street.x; P.z = s.street.z; cam.yaw = s.yaw + Math.PI; G.wanted = 4; });
+    await clearLane();
+    check(await until(() => __neonbay.G.near.some(i => /won't let you in/.test(i.prompt))), 'the bouncer let a 4 star player in');
+    await press('KeyE'); await page.waitForTimeout(600);
+    check(await game(() => !__neonbay.P.club), 'got in at 4 stars');
+    await game(() => { __neonbay.G.wanted = 0; });
+    check(await until(() => __neonbay.G.near.some(i => /Flamingo/.test(i.prompt))), 'no prompt at the club door');
+    await press('KeyE');
+    check(await until(() => !!__neonbay.P.club), 'did not get into the club');
+    const inside = await game(async () => { const { P, inv } = __neonbay, { scene } = await import('/js/render/scene.js'); return { fist: inv.cur === 'fist', own: P.c.root.parent !== scene }; });
+    check(inside.fist && inside.own, 'inside but ' + JSON.stringify(inside));
+    await page.keyboard.down('KeyW'); await page.waitForTimeout(1500); await page.keyboard.up('KeyW'); // walk up to the stage: it stops you
+    const at = await game(() => ({ z: __neonbay.P.z, x: __neonbay.P.x }));
+    check(at.z > 1000 - 1.4 && Math.abs(at.x - 1000) < 12, 'walked onto the stage or out of the room: ' + JSON.stringify(at));
+    await game(() => { const { P, cam } = __neonbay; P.x = 1000; P.z = 1008.6; cam.yaw = Math.PI; });
+    check(await until(() => __neonbay.G.near.some(i => /back out/.test(i.prompt))), 'no prompt at the door inside');
+    await press('KeyE');
+    check(await until(() => !__neonbay.P.club), 'did not come back out');
+    const out = await game(() => { const { P, inv, CLUB } = __neonbay; return { d: Math.hypot(P.x - CLUB.site.street.x, P.z - CLUB.site.street.z), cur: inv.cur }; });
+    check(out.d < 1.5 && out.cur === 'pistol', 'did not come back out to the street with the pistol: ' + JSON.stringify(out));
   });
 
   await step('changes settings from the pause menu', async () => {

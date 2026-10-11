@@ -14,6 +14,7 @@ import { $ } from './core/util.js';
 import { WBY, WEAPONS, wStat } from './data/weapons.js';
 import { all, count, entities, removeEntity } from './entities/registry.js';
 import { updateAmbience } from './game/ambience.js';
+import { clubScene, spawnClubDoor, updateClub } from './game/club.js';
 import { countPlayTime } from './game/hint.js';
 import { makeJetpackPickup } from './game/jetpack.js';
 import { makeParachutePickup } from './game/parachute.js';
@@ -39,6 +40,7 @@ import { updateProps } from './world/props.js';
 import { SPAWN, armorSpots, buildWorld, healthSpots, lotSpots, shopSpots, waterBase, waterMesh } from './world/city.js';
 import { isFree } from './world/collision.js';
 import { updateEdges } from './world/edges.js';
+import { CLUB } from './world/club.js';
 import { ROOFS } from './world/rooftops.js';
 import { buildMap, drawRadar } from './world/radar.js';
 
@@ -52,7 +54,10 @@ function frame(now) {
   if (wheelOpen() && G.state !== 'play') closeWheel(false);
   const dt = wheelOpen() ? real * WHEEL_SLOW : real;
   const live = G.state === 'play' || G.state === 'dead' || G.state === 'title';
-  if (live) {
+  if (P.club && G.state === 'play') {
+    // inside the club (game/club.js) the city waits outside, as it does while a shop's menu is open
+    updatePlayer(dt); countPlayTime(dt); Sound.listen(); updateClub(dt);
+  } else if (live) {
     G.time += dt;
     if (G.state === 'play') { updatePlayer(dt); countPlayTime(dt); }
     else if (G.state === 'dead') { updatePlayer(dt); G.deadT += dt; if (G.deadT > 3.6) respawn(); }
@@ -85,6 +90,7 @@ function frame(now) {
   if (G.toastT > 0) { G.toastT -= real; if (G.toastT <= 0) $('toast').classList.remove('show'); }
   if (G.bigT > 0) { G.bigT -= real; if (G.bigT <= 0) $('bigText').classList.remove('show'); }
   if (G.radioT > 0) { G.radioT -= real; if (G.radioT <= 0) $('radio').classList.remove('show'); }
+  if (P.club) { camera.updateMatrixWorld(); renderer.render(clubScene(), camera); return; } // the camera hangs in the city's scene
   sky.position.copy(camera.position);
   renderer.render(scene, camera);
 }
@@ -127,6 +133,7 @@ async function start(data) {
   placeMeleePickups();
   for (const s of shopSpots) spawnShop(s.type, s.x, s.z);
   for (const r of ROOFS) spawnRoofDoor(r);
+  if (CLUB.site) spawnClubDoor(CLUB.site);
   // up on the roofs: a sniper rifle on each (the rocket launcher on the Herman Teirlinck), the jetpack on the Belpaire,
   // and a parachute on each of the three high ones
   for (const r of ROOFS) if (r.gunAt) makeRoofGun(r.gun, r.gunAt.x, r.floor, r.gunAt.z, got => { selectWeapon(got); save(); });
@@ -150,7 +157,7 @@ async function start(data) {
 }
 try { window.claude && window.claude.hot && window.claude.hot.snapshot && window.claude.hot.snapshot(() => ({ inv: serialize(inv, stats), cur: inv.cur })); } catch (e) {}
 // ?debug exposes the game state to the console and to the smoke test
-if (/[?&]debug\b/.test(location.search)) window.__neonbay = { G, I, P, Sound, hurtPlayer, cam, inv, stats, entities, all, removeEntity, spawnVehicle, spawnNpc, spawnShop, lighting, ROOFS };
+if (/[?&]debug\b/.test(location.search)) window.__neonbay = { G, I, P, Sound, hurtPlayer, cam, inv, stats, entities, all, removeEntity, spawnVehicle, spawnNpc, spawnShop, lighting, ROOFS, CLUB };
 requestAnimationFrame(frame);
 const hot = window.claude && window.claude.hot;
 if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});
