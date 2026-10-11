@@ -22,6 +22,11 @@ describe('the sniper rifle', () => {
     expect(sniper.rate).toBeGreaterThan(1);
     expect(sniper.scopeSpread).toBeLessThan(sniper.spread / 20);
   });
+  it('kicks less than the shotgun and the rocket launcher, so the sight stays near the target', () => {
+    expect(sniper.recoil).toBeLessThanOrEqual(0.045);
+    expect(sniper.recoil).toBeLessThan(WBY.shotgun.recoil);
+    expect(sniper.recoil).toBeLessThan(WBY.rpg.recoil);
+  });
 });
 
 describe('the scope', () => {

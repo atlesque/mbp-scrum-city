@@ -3,6 +3,7 @@ import './core/input.js';
 import './shops/shop.js';
 import './game/rewards.js';
 import './ui/settings.js';
+import './ui/exit.js';
 import { makeCharacter, setGun } from './characters/character.js';
 import { selectWeapon, updateRockets } from './combat/combat.js';
 import { updateThrown } from './combat/throwables.js';
@@ -33,6 +34,7 @@ import { finishSignIn, initAccount, playLabel } from './ui/account.js';
 import { updateHUD } from './ui/hud.js';
 import { initMultiplayer } from './ui/multiplayer.js';
 import { WHEEL_SLOW, closeWheel, wheelOpen } from './ui/wheel.js';
+import { connected } from './net/net.js';
 import { updateEngineSound } from './vehicles/engine.js';
 import './vehicles/firetruck.js'; // sends the fire brigade to crash fires
 import { spawnTrafficBike, spawnTrafficCar } from './vehicles/traffic.js';
@@ -47,6 +49,8 @@ import { CLUB } from './world/club.js';
 import { ROOFS } from './world/rooftops.js';
 import { buildMap, drawRadar } from './world/radar.js';
 
+import { updatePokemon } from './pokemon/world.js';
+
 // ================= MAIN LOOP =================
 let last = performance.now();
 function frame(now) {
@@ -55,14 +59,18 @@ function frame(now) {
   if (G.state === 'loading') return;
   // the world slows down while the weapon wheel is open; the camera and the HUD timers keep real time
   if (wheelOpen() && G.state !== 'play') closeWheel(false);
-  const dt = wheelOpen() ? real * WHEEL_SLOW : real;
-  const live = G.state === 'play' || G.state === 'dead' || G.state === 'title';
-  if (P.club && G.state === 'play') {
-    // inside the club (game/club.js) the city waits outside, as it does while a shop's menu is open
+  // in multiplayer the city never stops: the pause menu, the map and a shop open over it, and the wheel doesn't slow it
+  const away = G.away = connected() && (G.state === 'paused' || G.state === 'map' || G.state === 'shop');
+  const dt = wheelOpen() && !connected() ? real * WHEEL_SLOW : real;
+  const live = G.state === 'play' || G.state === 'dead' || G.state === 'title' || away;
+  if (P.club && (G.state === 'play' || away)) {
+    // inside the club (game/club.js) the city waits outside, as it does while a shop's menu is open; the rest of the crew
+    // on the floor are in there too (net/remote.js)
     updatePlayer(dt); countPlayTime(dt); Sound.listen(); updateClub(dt);
+    for (const e of all('remote')) e.update(dt);
   } else if (live) {
     G.time += dt;
-    if (G.state === 'play') { updatePlayer(dt); countPlayTime(dt); }
+    if (G.state === 'play' || away) { updatePlayer(dt); countPlayTime(dt); }
     else if (G.state === 'dead') { updatePlayer(dt); G.deadT += dt; if (G.deadT > 3.6) respawn(); }
     Sound.listen(); // the ears follow the player and the camera before this frame's sounds play
     G.shootersNow = count(e => e.kind === 'npc' && e.alive && e.burst > 0);
@@ -72,6 +80,7 @@ function frame(now) {
     updateRockets(dt); updateThrown(dt); updateProps(dt); updateParts(dt); updateFx(dt); updateLighting(dt);
     if (G.state !== 'title') updateWanted(dt);
     managePopulation(dt);
+    if (G.state === 'play') updatePokemon(dt);
     // water swell
     if (settings.water) {
       const pos = waterMesh.geometry.attributes.position, arr = pos.array;

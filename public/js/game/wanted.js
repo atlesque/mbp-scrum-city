@@ -16,7 +16,7 @@ import { answersHeat, sirenOn } from '../vehicles/vehicle.js';
 // ================= WANTED =================
 const LEVEL_TEXT = ['', 'The cops noticed', 'Police are rolling', 'SWAT has been called', 'The Feds are here', 'They sent the army', 'They are not from here'];
 
-const isLaw = e => e.kind === 'npc' && e.faction === 'law';
+const isLaw = e => (e.kind === 'npc' || e.kind === 'ghost') && e.faction === 'law'; // (ghost: one of another player's, net/ghosts.js)
 // at most this many police cars and army trucks on their way at once, and around at all (parked ones included)
 export const RESPONDERS = { enRoute: 2, max: 5 };
 
@@ -45,6 +45,17 @@ export function addHeat(v) {
     emit('wanted:up', { level: G.wanted });
   }
 }
+// The crew's level, from another player's game in multiplayer (net/sync.js): it becomes this player's too
+export function setWanted(level, heat) {
+  const l = Math.max(0, Math.min(6, level | 0)), up = l > G.wanted;
+  G.heat = Math.max(0, Math.min(140, heat)); if (l === G.wanted) return;
+  G.wanted = l; G.lostT = 0; G.fiveT = 0;
+  if (up) {
+    Sound.star(); stats.best = Math.max(stats.best, l); if (l === 5) G.fiveRun = 0;
+    showBig(LEVEL_TEXT[l]); G.spawnT = Math.min(G.spawnT, 1.2); if (l === 6) G.ufoT = Math.min(G.ufoT, 2);
+    emit('wanted:up', { level: l });
+  } else if (l === 0) { showBig('Heat lost'); for (const e of all('npc')) if (isLaw(e)) e.leaving = true; emit('wanted:lost', {}); }
+}
 // The secret sixth star: no amount of heat reaches it. Keep five stars for SIX_STAR_AFTER seconds straight and the
 // aliens come for you; losing the fifth star starts the count over.
 export function holdFive(dt) {
@@ -62,7 +73,7 @@ export function updateWanted(dt) {
   if (G.wanted >= 5 && G.state === 'play') { stats.fiveStar = (stats.fiveStar || 0) + dt; G.fiveRun += dt; }
   holdFive(dt);
   if (G.wanted > 0) {
-    if (!G.seenNow) {
+    if (!G.seenNow && !G.crewSeen) { // (crewSeen: they have someone else in the crew in sight, net/sync.js)
       G.lostT += dt; starsEl.classList.add('flash');
       if (G.lostT > 7 + G.wanted * 1.5) {
         G.wanted--; G.heat = G.wanted ? HEAT[G.wanted] : 0; G.lostT = 0;
@@ -83,6 +94,7 @@ export function updateWanted(dt) {
     if (L && L.tank && !G.tank) { G.tankT -= dt; if (G.tankT <= 0) spawnTank(); }
     if (L && L.ufo && !G.ufo) { G.ufoT -= dt; if (G.ufoT <= 0) spawnUfo(); }
   } else starsEl.classList.remove('flash');
+  if (G.seenNow) G.seenAt = performance.now();
   G.seenNow = false;
   Sound.loops('siren', sirenSources());
   Sound.loops('rotor', rotorSources());

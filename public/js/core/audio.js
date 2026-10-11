@@ -1,3 +1,4 @@
+import { pokemonNotes } from '../data/pokemon-sounds.js';
 import { ALL_AMB_FILES, AMB } from '../data/ambience.js';
 import { ALL_IMPACT_FILES, IMPACTS, impactFiles } from '../data/impacts.js';
 import { LEAD, musicLayers } from '../data/music.js';
@@ -450,6 +451,14 @@ export const Sound = (() => {
     boom(vol = 1, at = null) { if (!ctx) return; duck(at); const t = ctx.currentTime, o = out(vol, at, HEAR.boom, true); if (!o) return; nz(o, t, 1.6, 'lowpass', 900, 0.6, 1.4, 0.6); tone(o, t, 'sine', 90, 30, 0.9, 1.2); nz(o, t, 0.3, 'bandpass', 2400, 1, 0.5); },
     // the scope's zoom click; deeper on the way back out
     zoom(level) { if (!ctx) return; tone(out(0.3), ctx.currentTime, 'square', level ? 2400 + level * 400 : 1500, 1100, 0.035, 0.35); },
+    // Pokémon cues share the effects mix, menu fade and positional falloff.
+    pokemon(cue, def, at = null) {
+      if (!ctx) return;
+      const notes = pokemonNotes(cue, def); if (!notes.length) return;
+      const o = out(0.32, at, HEAR.voice, false); if (!o) return;
+      const t = ctx.currentTime;
+      for (const n of notes) tone(o, t + n.at, n.type, n.hz, n.end, n.duration, 0.35);
+    },
     hit() { if (!ctx) return; tone(out(0.35), ctx.currentTime, 'square', 1700, 1200, 0.05, 0.4); },
     head() { if (!ctx) return; const t = ctx.currentTime, o = out(0.4); tone(o, t, 'square', 2100, 1500, 0.05, 0.4); tone(o, t + 0.05, 'square', 2600, 1900, 0.06, 0.35); },
     ting(vol, at) { if (!ctx) return; const o = out(vol * 0.25, at, HEAR.ting, false); if (o) tone(o, ctx.currentTime, 'triangle', 3200 + Math.random() * 800, 2400, 0.12, 0.5); },

@@ -1,3 +1,4 @@
+import { cyclePartner } from '../pokemon/world.js';
 import { curWeapon, cycleWeapon, selectWeapon, startReload } from '../combat/combat.js';
 import { toggleScope } from '../combat/scope.js';
 import { Sound } from './audio.js';
@@ -61,6 +62,7 @@ document.addEventListener('keydown', e => {
   const heli = flyingHeli(); // flying a chopper, the reload key and the number row work its guns (vehicles/heli-guns.js)
   if (act === 'reload') { if (heli) reloadHeliGun(heli); else startReload(); }
   if ((act === 'ride' || act === 'use') && P.alive) interact(act);
+  if (act === 'pokemon' && !e.repeat) cyclePartner();
   if (act === 'siren') toggleSiren();
   if (act === 'map') { e.preventDefault(); closeWheel(false); openMap(); return; }
   if (act === 'radio') { const on = Sound.toggleMusic(); showRadio(on ? 'Neon FM 86.0' : 'Radio off'); }
@@ -80,7 +82,7 @@ window.addEventListener('resize', () => { camera.aspect = innerWidth / innerHeig
 function pauseGame() {
   if (G.state !== 'play') return;
   closeWheel(false); G.state = 'paused'; I.mouseL = false; I.mouseR = false; for (const k in keys) keys[k] = false;
-  $('pause').hidden = false; $('pauseStats').textContent = `${stats.kills} takedowns · ${stats.cops} law enforcement · best heat ${'★'.repeat(stats.best) || 'none'} · five star heat ${clock(stats.fiveStar || 0)} · $${stats.earned.toLocaleString()} earned`;
+  $('pause').hidden = false; $('exitAsk').hidden = true; $('pauseExitBtn').hidden = false; $('pauseStats').textContent = `${stats.kills} takedowns · ${stats.cops} law enforcement · best heat ${'★'.repeat(stats.best) || 'none'} · five star heat ${clock(stats.fiveStar || 0)} · $${stats.earned.toLocaleString()} earned`;
   Sound.hush(); Sound.dim(true); save(); renderAccount();
   // free the mouse (P keeps it captured) so the menu can be clicked
   if (document.pointerLockElement) document.exitPointerLock();
@@ -89,7 +91,7 @@ function pauseGame() {
 function resumeGame(fromClick) { if (G.state !== 'paused') return; $('pause').hidden = true; G.state = 'play'; Sound.dim(false); requestLock(fromClick === true); }
 $('resumeBtn').addEventListener('click', () => resumeGame(true));
 $('playBtn').addEventListener('click', () => {
-  Sound.init(); $('title').hidden = true; $('hud').hidden = false; G.state = 'play';
+  Sound.init(); Sound.dim(false); $('title').hidden = true; $('hud').hidden = false; G.state = 'play';
   P.x = SPAWN.x; P.z = SPAWN.z; P.yaw = cam.yaw = SPAWN.yaw; cam.pitch = -0.08;
   for (const n of all('npc')) if (!n.vehicle && Math.hypot(n.x - P.x, n.z - P.z) < 6) removeEntity(n);
   requestLock(true); drawWeaponIcon(); G.hudCache = '';

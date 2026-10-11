@@ -8,6 +8,13 @@ import { WEAPONS } from '../data/weapons.js';
 //   storefront               colours and sign for the building world/city.js puts up
 //   catalogue                what it sells; each item's `type` is an entry in ITEM_TYPES (shops/items.js)
 export const SHOP_TYPES = {
+  pokemoncenter: {
+    name: 'Pokémon Center', tagline: 'Neon Bay Pokémon League', calm: 'Catch · care · adventure',
+    footer: 'Five starter Poké Balls are in your bag. Find wild Pokémon on the green radar dots. Use the team key to switch partners anywhere. Healing is free.',
+    marker: { glyph: '✚', color: '#ff626d' },
+    storefront: { wall: '#fff0dd', roof: '#e74c5b', neon: '#ff626d', awning: '#eb5965', sign: { text: 'Pokémon Center', color: '#b52d47', font: '"Bowlby One", sans-serif' } },
+    catalogue: [{ type: 'pokeballs', amount: 5, price: 100 }, { type: 'pokemonTeam' }],
+  },
   gunshop: {
     name: 'Bullet Bros. Guns', tagline: 'Est. 1979', calm: 'No questions asked',
     footer: 'Upgrades raise damage, magazine size and fire rate, plus blast radius for rockets; on a bat or a blade, harder and quicker swings. Press {melee} to put the guns away. Progress saves in this browser.',

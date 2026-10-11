@@ -5,7 +5,7 @@ import { kb } from '../core/controls.js';
 import { emit } from '../core/events.js';
 import { save } from '../core/save.js';
 import { G, I, P, cam, inv } from '../core/state.js';
-import { $, angDiff, clamp, pick } from '../core/util.js';
+import { $, angDiff, clamp, pick, withSeed } from '../core/util.js';
 import { addEntity } from '../entities/registry.js';
 import { GB, UNIT, addGeo, box, cylG } from '../render/geometry.js';
 import { scene } from '../render/scene.js';
@@ -204,8 +204,11 @@ function makeDancer(o) {
   for (const leg of [c.legL, c.legR]) leg.add(new THREE.Mesh(bg.geometry(), charMat));
   return c;
 }
-function build() {
-  if (S) return S;
+// The room comes out the same for everyone in a day (who sits where, how they look), and the dancers keep the wall
+// clock's time, so players in multiplayer share one club (net/remote.js shows them to each other on the floor)
+const DAY = () => Math.floor(Date.now() / 864e5);
+function build() { return S || withSeed(DAY(), buildRoom); }
+function buildRoom() {
   const sc = new THREE.Scene(), g = new THREE.Group(); g.position.set(CLUB_AT.x, 0, CLUB_AT.z); sc.add(g);
   sc.background = new THREE.Color('#0b0410'); sc.fog = new THREE.Fog('#0b0410', 18, 46);
   const plain = new GB(), neon = new GB(), { x0, x1, z0, z1, h } = ROOM, W = x1 - x0, D = z1 - z0;
@@ -332,7 +335,7 @@ function build() {
   const bills = Array.from({ length: 10 }, () => { const mesh = new THREE.Mesh(billGeo, billMat); mesh.name = 'stage-tip-bill'; mesh.visible = false; g.add(mesh); return { mesh, life: 0 }; });
   const pink = buildPinkRoom(g);
   pink.c = at(makeDancer(PINK_DANCER), pink.pole.x, VIP.stage.h, pink.pole.z, 0);
-  S = { scene: sc, group: g, dancers, patrons, bouncer, barman, host, dj, bills, tipFlash: 0, pink, spots, stageLight, ball, tinselMat, t: 0 };
+  S = { scene: sc, group: g, dancers, patrons, bouncer, barman, host, dj, bills, tipFlash: 0, pink, spots, stageLight, ball, tinselMat, t: (Date.now() / 1000) % 3600 };
   return S;
 }
 // The Pink Room: walls in deep rose with a dado and a neon line, a mirrored back wall, a round platform with a pole,
@@ -374,7 +377,7 @@ function chair(plain, s) {
 const _c = new THREE.Color();
 export function updateClub(dt) {
   if (!S || !P.club) return;
-  S.t += dt; clubShow.time += dt; const t = S.t, beat = Math.sin(t / BEAT * Math.PI * 2);
+  S.t = (Date.now() / 1000) % 3600; clubShow.time += dt; const t = S.t, beat = Math.sin(t / BEAT * Math.PI * 2);
   for (const d of S.dancers) poseDancer(d, t, dt, beat);
   if (P.club === PINK) {
     poseDancer(S.pink, t, dt, beat); S.pink.light.intensity = 8 + 2 * Math.max(0, beat);

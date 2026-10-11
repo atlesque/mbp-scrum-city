@@ -1,3 +1,5 @@
+import { kb } from '../core/controls.js';
+import { SPECIES } from '../pokemon/team.js';
 import { curWeapon } from '../combat/combat.js';
 import { settings } from '../core/settings.js';
 import { RADAR_GLOW, RADAR_PULSE_FROM } from '../data/wanted.js';
@@ -14,6 +16,10 @@ export function drawWeaponIcon(id = inv.cur) {
   drawIcon(x, id, 120, 56);
 }
 export function updateHUD() {
+  const team = inv.pokemon, partner = team.party[team.selected];
+  const teamText = `◒ ${team.balls} Poké Balls · ${team.party.length}/6 caught\n${partner ? SPECIES[partner.species].name + ' Lv ' + (partner.level || 1) + ' · HP ' + Math.ceil(partner.hp) + '/100' : team.party.length ? 'Partner recalled' : 'No partner yet'} · [${kb('pokemon')}] switch\n${team.party.length ? '✚ Pokémon Center: shop & heal' : 'Green radar dots: wild Pokémon · use key to catch'}`;
+  const teamHud = $('pokemonHud');
+  if (teamHud.textContent !== teamText) teamHud.textContent = teamText;
   // flying a chopper, its own guns are shown instead of the one in hand
   const heli = flyingHeli(), hg = heli && heliGunHud(heli);
   const w = curWeapon(), mag = inv.mag[w.id] || 0;

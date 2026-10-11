@@ -1,4 +1,4 @@
-import { pick } from '../core/util.js';
+import { pick, withSeed } from '../core/util.js';
 import { HAIR, SKIN, randomLook } from '../characters/character.js';
 
 // Every kind of person in the city. To add one, add an entry here; spawn it with spawnNpc(id, x, z).
@@ -57,6 +57,9 @@ export function makeLook(def) {
   look.scale = def.scale;
   return look;
 }
+
+// the same look every time for the same seed, so another player's game can draw this person as they are here
+export function lookFrom(def, seed) { return withSeed(seed, () => makeLook(def)); }
 
 function bikerLook() {
   return Object.assign(randomLook(), { pa: null, pb: null, shirt: pick(['#1b1c22', '#2e323c', '#4a5260', '#5b4a3a', '#20283a']), pants: pick(['#1d1e24', '#2b2f38', '#3b3f45']), shorts: false, longSleeve: true, gloves: '#121214', hat: 'helmet', hatColor: pick(['#111114', '#f2f2f2', '#c8102e', '#1c69d4', '#ffd23e']), glasses: true, shoes: '#18171a' });

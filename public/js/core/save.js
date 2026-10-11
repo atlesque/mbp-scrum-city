@@ -1,3 +1,4 @@
+import { freshTeam, normalizeTeam } from '../pokemon/team.js';
 import { inv, stats } from './state.js';
 import { WEAPONS, wStat } from '../data/weapons.js';
 
@@ -8,8 +9,10 @@ const START = JSON.parse(JSON.stringify({ inv, stats }));
 // Saves carry a version. When the shape changes, bump SAVE_VERSION and add a step to MIGRATIONS that
 // upgrades the previous version, so old saves in players' browsers keep loading.
 export const SAVE_KEY = 'neonbay86';
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 4;
 const MIGRATIONS = {
+  3: d => ({ ...d, v: 4, pokemon: normalizeTeam(d.pokemon) }),
+  2: d => ({ ...d, v: 3, pokemon: freshTeam() }),
   // v1 (no version field): { money, owned, lvl, ammo, stats }
   1: d => ({ v: 2, money: d.money, weapons: { owned: d.owned || {}, lvl: d.lvl || {}, ammo: d.ammo || {} }, stats: d.stats || {} }),
 };
@@ -20,9 +23,10 @@ export function migrate(d) {
   return v === SAVE_VERSION ? d : null;
 }
 export function serialize(inv, stats) {
-  return { v: SAVE_VERSION, money: inv.money, weapons: { owned: inv.owned, lvl: inv.lvl, ammo: inv.ammo, found: inv.found }, stats };
+  return { v: SAVE_VERSION, money: inv.money, pokemon: normalizeTeam(inv.pokemon), weapons: { owned: inv.owned, lvl: inv.lvl, ammo: inv.ammo, found: inv.found }, stats };
 }
 export function apply(d, inv, stats) {
+  inv.pokemon = normalizeTeam(d.pokemon);
   if (typeof d.money === 'number') inv.money = d.money;
   Object.assign(inv.owned, d.weapons.owned); Object.assign(inv.lvl, d.weapons.lvl); Object.assign(inv.ammo, d.weapons.ammo);
   inv.found = Object.assign({}, d.weapons.found); // picked-up weapons, lost on death (loseFound in data/weapons.js)
@@ -43,6 +47,7 @@ export function load(data) {
 // Swap the whole save for another one (the account's copy), or for a fresh start when d is null.
 export function replace(d) {
   for (const k of ['owned', 'lvl', 'mag', 'ammo']) { for (const id in inv[k]) delete inv[k][id]; Object.assign(inv[k], START.inv[k]); }
+  inv.pokemon = freshTeam();
   inv.money = START.inv.money; inv.found = {};
   for (const k in stats) delete stats[k];
   Object.assign(stats, START.stats);

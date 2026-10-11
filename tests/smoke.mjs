@@ -1,5 +1,5 @@
 // Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, shoot a chopper's pilot and fly the chopper off, get shelled by the army's tank and blow it up, hold five stars into the secret sixth and take a laser rifle off an alien, snipe through the scope, throw a car with a rocket,
-// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, buy the repair tool and fix a car with it, ram a bike, ride a bike over a car, pull a wheelie, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, go into the club and back out, open the world map and set a waypoint, change settings and remap keys, see the version and What's new on the title screen, meet another player in multiplayer. Fails on any page error or broken step.
+// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, buy the repair tool and fix a car with it, ram a bike, ride a bike over a car, pull a wheelie, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, go into the club and back out, open the world map and set a waypoint, change settings and remap keys, exit to the title screen and play again, see the version and What's new on the title screen, meet another player in multiplayer. Fails on any page error or broken step.
 // Run with `npm run test:smoke`, which splits the steps over a few browsers at once (tests/smoke-all.mjs). This file is one of
 // those browsers: `node tests/smoke.mjs` runs every step in one, in order.
 // SMOKE_ONLY=tank,reload runs only the steps whose names contain one of those words (case-insensitive), after the boot;
@@ -43,7 +43,8 @@ async function reset() {
   await game(async () => {
     const { G, P, I, cam, all, removeEntity } = __neonbay;
     const { exitVehicle, respawn } = await import('/js/game/player.js'), { selectWeapon } = await import('/js/combat/combat.js'), { dropChute } = await import('/js/game/parachute.js');
-    for (const id of ['pause', 'settings', 'shop', 'wheel', 'worldMap']) { const el = document.getElementById(id); if (el) el.hidden = true; }
+    for (const id of ['pause', 'settings', 'shop', 'wheel', 'worldMap', 'title']) { const el = document.getElementById(id); if (el) el.hidden = true; }
+    document.getElementById('hud').hidden = false; // a step that failed on the title screen
     // a step that failed part-way can leave the player at the wheel, and every step after it would fail to get on anything
     if (P.vehicle) { P.vehicle.v = 0; P.vx = P.vz = 0; exitVehicle(false); }
     dropChute();
@@ -99,6 +100,201 @@ try {
   await page.click('#playBtn');
   await page.waitForTimeout(1000);
   booted = true;
+
+  await step('Pokemon Center, catching, following and battle support', async () => {
+    await game(async () => {
+      const { CENTER } = await import('/js/world/pokemon-center.js');
+      const { signs } = await import('/js/world/city.js');
+      const { roofSpots } = await import('/js/world/rooftops.js');
+      if (!signs.some(s => s.text === 'City General') || !roofSpots.some(b => b.x0 === CENTER.site.x0 && b.z0 === CENTER.site.z0)) throw new Error('Center must use an ordinary building and preserve the hospital');
+      const { P, inv, all, removeEntity } = __neonbay;
+      inv.pokemon = { balls: 5, party: [], selected: -1 };
+      const center = all('shop').find(e => e.type === 'pokemoncenter');
+      P.x = center.x; P.z = center.z;
+      inv.money = 500;
+      for (const e of all('pokemon')) removeEntity(e);
+    });
+    await clearLane();
+    check(await until(() => __neonbay.G.near.some(i => i.prompt?.includes('Pokémon Center'))), 'no Center door prompt');
+    await press('KeyE');
+    check(await until(() => __neonbay.G.state === 'shop'), 'Center did not open');
+    await page.click('#shopGrid button[data-a="buy"]');
+    check(await game(() => __neonbay.inv.pokemon.balls === 10 && __neonbay.inv.money === 400), 'ball purchase failed');
+    await page.click('#shopClose');
+    // Deterministic species catch roll; keep the rest of the live world random.
+    await game(async () => {
+      const { P, all, removeEntity } = __neonbay;
+      const { spawnPokemon } = await import('/js/pokemon/world.js');
+      P.x = -25; P.z = 0;
+      for (const e of all('pokemon')) removeEntity(e);
+      const p = window.__wild = spawnPokemon('pikachu', P.x + 2, P.z);
+      const run = p.catch;
+      p.catch = function () { const random = Math.random; try { Math.random = () => 0; run.call(this); } finally { Math.random = random; } };
+    });
+    await clearLane();
+    check(await until(() => __neonbay.G.near[0]?.prompt?.includes('throw Poké Ball')), 'no catch prompt');
+    await press('KeyE');
+    check(await until(() => window.__wild.removed && __neonbay.inv.pokemon.party.length === 1), 'Pokemon was not caught');
+    check(await until(() => __neonbay.all('pokemon').some(p => p.owned)), 'caught Pokemon did not follow');
+    const hp = await game(async () => {
+      const { P, spawnNpc, all } = __neonbay;
+      const partner = all('pokemon').find(p => p.owned);
+      const n = window.__target = spawnNpc('civilian', partner.x, partner.z + 2);
+      n.hp = 100; n.update = function () { this.place(); };
+      n.hurt(1, new THREE.Vector3(0, 0, 1), true);
+      return n.hp;
+    });
+    check(await until(hp => window.__target.hp < hp, hp), 'partner did not help attack the NPC');
+    await press('KeyB');
+    check(await until(() => !__neonbay.all('pokemon').some(p => p.owned)), 'partner did not recall');
+    await press('KeyB');
+    check(await until(() => __neonbay.all('pokemon').some(p => p.owned)), 'team key did not send the partner out');
+    await game(async () => {
+      const { save, load } = await import('/js/core/save.js');
+      save(); const inv = __neonbay.inv;
+      const before = JSON.stringify(inv.pokemon);
+      inv.pokemon = { balls: 0, party: [], selected: -1 }; load();
+      if (JSON.stringify(inv.pokemon) !== before) throw new Error('Pokemon save did not round-trip');
+      for (const p of __neonbay.all('pokemon')) if (p.owned) __neonbay.removeEntity(p);
+      inv.pokemon = { balls: 5, party: [], selected: -1 };
+    });
+  });
+
+  await step('Pokemon sounds synthesize cries and interaction cues through Web Audio', async () => {
+    await game(async () => {
+      const { Sound, P } = __neonbay;
+      const { SPECIES } = await import('/js/pokemon/team.js');
+      const { pokemonNotes } = await import('/js/data/pokemon-sounds.js');
+      const proto = (window.AudioContext || window.webkitAudioContext).prototype;
+      const original = proto.createOscillator; let voices = 0;
+      proto.createOscillator = function(...args) { voices++; return original.apply(this, args); };
+      try {
+        for (const cue of ['cry', 'throw', 'catch', 'escape', 'attack', 'recall', 'faint', 'heal', 'level', 'evolve']) {
+          const before = voices; Sound.pokemon(cue, SPECIES.pikachu);
+          if (voices - before !== pokemonNotes(cue, SPECIES.pikachu).length) throw new Error('missing audio voices for ' + cue);
+        }
+        const before = voices;
+        Sound.pokemon('cry', SPECIES.pikachu, { x: P.x + 100000, z: P.z, y: 0 });
+        if (voices !== before) throw new Error('distant cry should be inaudible');
+      } finally { proto.createOscillator = original; }
+      // Render a cry to real PCM, catching invalid envelopes or silent oscillator recipes.
+      const offline = new OfflineAudioContext(1, 44100, 44100);
+      for (const n of pokemonNotes('cry', SPECIES.pikachu)) {
+        const o = offline.createOscillator(), g = offline.createGain();
+        o.type = n.type; o.frequency.setValueAtTime(n.hz, n.at);
+        o.frequency.exponentialRampToValueAtTime(n.end, n.at + n.duration);
+        g.gain.value = 0.1; o.connect(g); g.connect(offline.destination); o.start(n.at); o.stop(n.at + n.duration);
+      }
+      const pcm = (await offline.startRendering()).getChannelData(0);
+      if (!pcm.every(Number.isFinite) || !pcm.some(v => Math.abs(v) > 0.01)) throw new Error('cry rendered silent or invalid audio');
+    });
+  });
+
+  await step('Pokemon levels, evolutions and random wild encounters', async () => {
+    await game(() => {
+      const { P, inv, all, removeEntity } = __neonbay;
+      P.x = -25; P.z = 0;
+      for (const p of all('pokemon')) removeEntity(p);
+      inv.pokemon = { balls: 5, party: [{ species: 'charmander', level: 15, xp: 299, hp: 100 }], selected: 0 };
+    });
+    await clearLane();
+    check(await until(() => __neonbay.all('pokemon').some(p => p.owned && p.species === 'charmander')), 'no starter partner');
+    await game(() => {
+      const { all, spawnNpc } = __neonbay, p = all('pokemon').find(p => p.owned);
+      const n = window.__target = spawnNpc('civilian', p.x + 1, p.z); n.hp = 1;
+      n.hurt(1, new THREE.Vector3(1, 0, 0), true);
+    });
+    check(await until(() => __neonbay.inv.pokemon.party[0].level === 16 && __neonbay.all('pokemon').some(p => p.owned && p.species === 'charmeleon')), 'battle did not level up and evolve the model');
+    check(await until(() => __neonbay.all('pokemon').some(p => !p.owned && p.level >= 1)), 'no natural random wild spawns');
+    await game(() => {
+      const { P, G, inv, all, removeEntity } = __neonbay, center = all('shop').find(s => s.type === 'pokemoncenter');
+      for (const p of all('pokemon')) removeEntity(p);
+      inv.pokemon = { balls: 5, party: [{ species: 'pikachu', level: 7, xp: 11, hp: 50 }], selected: -1 };
+      inv.money = 500; G.heat = 0; G.wanted = 0;
+      P.x = center.x; P.z = center.z;
+    });
+    check(await until(() => __neonbay.G.near.some(i => i.prompt?.includes('Pokémon Center'))), 'no Center prompt');
+    await press('KeyE');
+    check(await until(() => __neonbay.G.state === 'shop'), 'Center did not open');
+    await page.click('#shopGrid button[data-a="evolve:0"]');
+    check(await game(() => __neonbay.inv.pokemon.party[0].species === 'raichu' && __neonbay.inv.pokemon.party[0].level === 7 && __neonbay.inv.money === 200), 'Thunder Stone evolution failed');
+    await page.click('#shopGrid button[data-a="heal"]');
+    await page.click('#shopGrid button[data-a="select:0"]');
+    await page.click('#shopClose');
+    check(await until(() => __neonbay.all('pokemon').some(p => p.owned && p.species === 'raichu' && p.record.hp === 100)), 'evolved partner did not appear healed');
+    await game(() => { __neonbay.inv.pokemon = { balls: 5, party: [], selected: -1 }; for (const p of __neonbay.all('pokemon')) if (p.owned) __neonbay.removeEntity(p); });
+  });
+
+  await step('Pokemon can be shot, weakened and caught across the expanded roster', async () => {
+    await clearLane();
+    check(await game(async () => {
+      const { P, G, cam, inv, all, removeEntity } = __neonbay;
+      const { SPECIES, catchChance } = await import('/js/pokemon/team.js');
+      const { spawnPokemon } = await import('/js/pokemon/world.js');
+      const { playerShoot } = await import('/js/combat/combat.js');
+      const { camTarget } = await import('/js/game/player.js');
+      for (const p of all('pokemon')) removeEntity(p);
+      inv.pokemon = { balls: 5, party: [], selected: -1 };
+      P.x = 0; P.z = 0;
+      const p = window.__wild = spawnPokemon('psyduck', P.x, P.z + 5);
+      p.update = () => {}; cam.yaw = P.yaw = 0; cam.pitch = -Math.atan2(1 - p.bodyY, 5);
+      camTarget.set(P.x, 1, P.z); G.reloadT = 0; inv.cur = 'pistol'; inv.mag.pistol = 12;
+      playerShoot();
+      return Object.keys(SPECIES).length === 35 && p.hp > 0 && p.hp < 100 && catchChance(p.species, p.hp) > catchChance(p.species, 100);
+    }), 'pistol did not weaken a new Pokemon');
+    await game(() => {
+      const { P } = __neonbay; P.x = __wild.x; P.z = __wild.z - 2;
+      const random = Math.random; Math.random = () => 0;
+      try { __wild.catch(); } finally { Math.random = random; }
+      if (!__wild.catching) throw new Error('capture refused: ' + JSON.stringify({ prompt: __wild.interaction(P), P: {x:P.x,z:P.z,y:P.y,alive:P.alive,club:!!P.club,roof:!!P.roof,vehicle:!!P.vehicle}, wild:{x:__wild.x,z:__wild.z,owned:__wild.owned,removed:__wild.removed}, state:__neonbay.G.state }));
+    });
+    // Restore its animation update after holding it still for the shot.
+    await game(() => { delete __wild.update; });
+    check(await until(() => __wild.removed && __neonbay.inv.pokemon.party[0]?.species === 'psyduck' && __neonbay.inv.pokemon.party[0]?.hp < 100), 'weakened Pokemon was not caught at its remaining health: ' + JSON.stringify(await game(() => ({ catching: __wild.catching, removed: __wild.removed, hp: __wild.hp, party: __neonbay.inv.pokemon.party, errors: __neonbay.G.state }))));
+    await game(async () => {
+      const { P, inv, all, removeEntity } = __neonbay;
+      const { spawnPokemon } = await import('/js/pokemon/world.js');
+      const { ITEM_TYPES } = await import('/js/shops/items.js');
+      const partner = all('pokemon').find(p => p.owned);
+      if (!partner) throw new Error('no partner to verify friendly-fire protection');
+      const hp = partner.record.hp;
+      partner.onShot({}, 1000); partner.blast(partner.x, partner.bodyY, partner.z, 5, 1000, true);
+      if (partner.record.hp !== hp || partner.removed) throw new Error('friendly fire damaged a caught Pokemon');
+      const { castBullet } = await import('/js/combat/combat.js');
+      const hit = castBullet(new THREE.Vector3(partner.x, partner.bodyY, partner.z + 3), new THREE.Vector3(0, 0, -1), 6);
+      if (hit.entity === partner) throw new Error('partner blocks friendly bullets');
+      partner.blast(partner.x, partner.bodyY, partner.z, 5, 1000, false);
+      if (inv.pokemon.party[0].hp !== 0 || inv.pokemon.selected !== -1) throw new Error('partner did not faint');
+      ITEM_TYPES.pokemonTeam.act({}, 'heal', { inv });
+      if (inv.pokemon.party[0].hp !== 100) throw new Error('team healing failed');
+      const wild = spawnPokemon('magnemite', P.x + 2, P.z); wild.onShot({}, 1000);
+      if (!wild.removed) throw new Error('fainted wild stayed on map');
+      inv.pokemon = { balls: 5, party: [], selected: -1 }; for (const p of all('pokemon')) removeEntity(p);
+    });
+  });
+
+  await step('Pokemon partner pursues and attacks a fleeing NPC after a real pistol hit', async () => {
+    await game(async () => {
+      const { P, G, cam, inv, all, removeEntity, spawnNpc } = __neonbay;
+      const { spawnPokemon } = await import('/js/pokemon/world.js');
+      const { playerShoot } = await import('/js/combat/combat.js');
+      const { camTarget } = await import('/js/game/player.js');
+      for (const e of all()) if (['pokemon', 'npc', 'vehicle'].includes(e.kind)) removeEntity(e);
+      P.x = P.z = P.y = P.yaw = 0; cam.yaw = cam.pitch = 0; G.heat = G.wanted = 0;
+      const record = { species: 'bulbasaur', level: 1, xp: 0, hp: 100 };
+      inv.pokemon = { balls: 5, party: [record], selected: 0 };
+      window.__partner = spawnPokemon('bulbasaur', 0, -3, record);
+      window.__target = spawnNpc('civilian', 0, 12);
+      camTarget.set(0, 1, 0); G.reloadT = 0; inv.cur = 'pistol'; inv.mag.pistol = 12;
+      playerShoot();
+      if (!__target.alive || __target.hp >= __target.def.hp || __partner.target !== __target) throw new Error('real pistol hit did not assign the partner target');
+    });
+    check(await until(() => !__target.alive && __partner.record.xp > 0), 'partner never caught and attacked the fleeing civilian');
+    await game(() => {
+      const { inv, all, removeEntity } = __neonbay;
+      inv.pokemon = { balls: 5, party: [], selected: -1 }; for (const p of all('pokemon')) removeEntity(p);
+    });
+  });
 
   await step('walks', async () => {
     const from = await game(() => ({ x: __neonbay.P.x, z: __neonbay.P.z }));
@@ -453,7 +649,7 @@ try {
 
   await step('buys armor at the gun shop', async () => {
     await game(() => {
-      const { P, G, inv, all } = __neonbay, s = all('shop')[0];
+      const { P, G, inv, all } = __neonbay, s = all('shop').find(s => s.type === 'gunshop');
       G.wanted = 0; G.heat = 0; inv.money = 5000; P.armor = 0; P.x = s.x; P.z = s.z;
     });
     await clearVehicles(...await game(() => [__neonbay.P.x, __neonbay.P.z]));
@@ -469,7 +665,7 @@ try {
 
   await step('buys the repair tool, fixes a shot-up car and puts out a burning one', async () => {
     await game(() => {
-      const { P, G, inv, all } = __neonbay, s = all('shop')[0];
+      const { P, G, inv, all } = __neonbay, s = all('shop').find(s => s.type === 'gunshop');
       G.wanted = 0; G.heat = 0; inv.money = 5000; delete inv.owned.repair; P.x = s.x; P.z = s.z;
     });
     await clearVehicles(...await game(() => [__neonbay.P.x, __neonbay.P.z]));
@@ -916,6 +1112,30 @@ try {
     check(await until(() => __neonbay.G.state === 'play'), 'did not resume');
   });
 
+  await step('exits to the title screen from the pause menu and plays again', async () => {
+    const id = await game(() => {
+      const { P, G, spawnVehicle } = __neonbay, v = spawnVehicle('sedan', P.x + 3, P.z, P.yaw);
+      G.wanted = 3; G.heat = 3; return (v.testId = Math.random());
+    });
+    await game(async id => { const { enterVehicle } = await import('/js/game/player.js'); enterVehicle(__neonbay.all('vehicle').find(v => v.testId === id)); }, id);
+    check(await game(() => !!__neonbay.P.vehicle), 'did not get in the car');
+    await press('KeyP');
+    check(await until(() => __neonbay.G.state === 'paused'), 'P did not pause');
+    await page.click('#pauseExitBtn');
+    check(await page.isVisible('#exitAsk'), 'Exit to title did not ask first');
+    await page.click('#exitNo');
+    check(!(await page.isVisible('#exitAsk')) && await page.isVisible('#pauseExitBtn') && await game(() => __neonbay.G.state === 'paused'), 'Stay did not keep the game paused');
+    await page.click('#pauseExitBtn'); await page.click('#exitYes');
+    check(await until(() => __neonbay.G.state === 'title'), 'Exit did not go to the title screen');
+    check(await page.isVisible('#title') && !(await page.isVisible('#pause')) && !(await page.isVisible('#hud')), 'the title screen is not showing on its own');
+    const after = await game(() => ({ veh: !!__neonbay.P.vehicle, wanted: __neonbay.G.wanted, alive: __neonbay.P.alive }));
+    check(!after.veh && after.wanted === 0 && after.alive, 'the game was not left clean: ' + JSON.stringify(after));
+    await page.click('#playBtn');
+    check(await until(() => __neonbay.G.state === 'play'), 'Play did not start again');
+    check(await page.isVisible('#hud') && !(await page.isVisible('#title')), 'the HUD did not come back');
+    check(!(await game(() => __neonbay.Sound.dimmed)), 'the sound stayed dimmed after playing again');
+  });
+
   await step('changes settings from the pause menu', async () => {
     await press('KeyP');
     check(await until(() => __neonbay.G.state === 'paused'), 'P did not pause');
@@ -1286,7 +1506,7 @@ try {
     check(await until(() => __neonbay.inv.cur === 'pistol', undefined, 3000), 'could not switch back to the pistol');
     await game(guns => { const { inv } = __neonbay; for (const [, id] of guns) if (id !== 'pistol') { delete inv.owned[id]; delete inv.ammo[id]; delete inv.mag[id]; } }, guns);
   });
-  await step('multiplayer: another player shows up, takes a bullet, hits back and rides a bike', async () => {
+  await step('multiplayer: the crew shows up, shares its heat and its people, rides a bike, and the city never pauses', async () => {
     // a stand-in for the room on the MBP Games service (net/net.js connects to it with WebSocket): it welcomes the player
     // with one other already in, and keeps what the game sends
     await game(async () => {
@@ -1297,30 +1517,52 @@ try {
       (await import('/js/net/net.js')).join();
     });
     check(await until(() => __neonbay.all('remote').length === 1, undefined, 5000), 'the other player was not added');
-    // they stand 6 m ahead of the player
-    const spot = await game(() => { const { P } = __neonbay, x = P.x + Math.sin(P.yaw) * 6, z = P.z + Math.cos(P.yaw) * 6;
-      for (let i = 0; i < 3; i++) setTimeout(() => window.__mpSock.push({ t: 's', id: 'bot', w: 1, x, y: 0, z, yaw: 0, ms: 0, j: 0, g: 'pistol', a: 0, p: 0, th: 0, m: 0, al: 1 }), i * 100);
-      return { x, z }; });
-    check(await until(() => __neonbay.all('remote')[0].c.root.visible, undefined, 5000), 'the other player never appeared');
-    check(await game(() => __mpSent.some(m => m.t === 's' && m.w === 1)), 'the game did not send where the player is');
-    // a bullet at them is a hit for their game, and the shot goes out for everyone to see
-    const hit = await game(async ({ x, z }) => {
+    // they stand 6 m ahead of the player, with a cop of their game's 6 m to the side
+    const spot = await game(() => { const { P } = __neonbay, x = P.x + Math.sin(P.yaw) * 6, z = P.z + Math.cos(P.yaw) * 6, cx = P.x + Math.cos(P.yaw) * 6, cz = P.z - Math.sin(P.yaw) * 6;
+      for (let i = 0; i < 4; i++) setTimeout(() => {
+        window.__mpSock.push({ t: 's', id: 'bot', w: 1, x, y: 0, z, yaw: 0, ms: 0, j: 0, g: 'pistol', a: 0, p: 0, th: 0, m: 0, al: 1, wl: 0, sn: 0 });
+        window.__mpSock.push({ t: 'npcs', id: 'bot', n: [[1, 'cop', 4242, cx, 0, cz, 0, 0, 1, 'pistol', 0]] });
+      }, i * 100);
+      return { x, z, cx, cz }; });
+    check(await until(() => __neonbay.all('remote')[0].c.root.visible && __neonbay.all('ghost').length === 1, undefined, 5000), 'the other player or their cop never appeared');
+    check(await game(() => __mpSent.some(m => m.t === 's' && m.w === 1 && 'wl' in m)), 'the game did not send where the player is');
+    // they're crew: a bullet goes past them, but the shot goes out for them to see
+    const crewShot = await game(async ({ x, z }) => {
       const { P } = __neonbay, { castBullet, playerShoot } = await import('/js/combat/combat.js');
       const o = new THREE.Vector3(P.x, 1.3, P.z), h = castBullet(o, new THREE.Vector3(x, 1.3, z).sub(o).normalize(), 40);
-      if (h.kind === 'entity') h.entity.onShot(h, 20, null);
       playerShoot();
-      return { kind: h.entity && h.entity.kind, sent: __mpSent.filter(m => m.t === 'hit' || m.t === 'shot').map(m => m.t + ':' + (m.to || '')) };
+      return { kind: h.entity && h.entity.kind, shot: __mpSent.some(m => m.t === 'shot') };
     }, spot);
-    check(hit.kind === 'remote' && hit.sent.includes('hit:bot') && hit.sent.includes('shot:'), 'shooting the other player: ' + JSON.stringify(hit));
-    // their bullet lands on the player here
-    await game(() => window.__mpSock.push({ t: 'hit', from: 'bot', to: 'me', d: 20, z: 'torso' }));
-    check(await game(() => __neonbay.P.hp) === 80, 'their hit did not hurt the player');
+    check(crewShot.kind !== 'remote' && crewShot.shot, 'shooting a crewmate: ' + JSON.stringify(crewShot));
+    // their cop takes a bullet here, which goes to their game; they say it was the end of him, and the kill pays out here
+    const copShot = await game(async ({ cx, cz }) => {
+      const { P, G } = __neonbay, { castBullet } = await import('/js/combat/combat.js');
+      const o = new THREE.Vector3(P.x, 1.3, P.z), d = new THREE.Vector3(cx, 1.3, cz).sub(o).normalize(), h = castBullet(o, d, 40);
+      if (h.kind === 'entity') h.entity.onShot(h, 30, d);
+      const heat0 = G.heat; window.__mpSock.push({ t: 'nkill', from: 'bot', to: 'me', ty: 'cop', x: cx, z: cz });
+      return { kind: h.entity && h.entity.kind, sent: __mpSent.filter(m => m.t === 'nhit').map(m => m.to + ':' + m.i), heat: G.heat - heat0 };
+    }, spot);
+    check(copShot.kind === 'ghost' && copShot.sent.includes('bot:1') && copShot.heat > 0, 'shooting their cop: ' + JSON.stringify(copShot));
+    check(await until(() => __mpSent.some(m => m.t === 'heat'), undefined, 3000), 'the heat from the kill did not go to the crew');
+    // one wanted level for the crew, and their cops' bullets land on this player
+    await game(() => { window.__mpSock.push({ t: 'wanted', id: 'bot', l: 3, h: 30 }); window.__mpSock.push({ t: 'hit', from: 'bot', to: 'me', d: 20, z: 'torso' }); });
+    check(await game(() => __neonbay.G.wanted === 3 && __neonbay.P.hp === 80), 'the crew\'s level or their cop\'s hit did not land: ' + JSON.stringify(await game(() => [__neonbay.G.wanted, __neonbay.P.hp])));
     // they get on a bike: a copy of it rides along under them
-    await game(({ x, z }) => { for (let i = 0; i < 3; i++) setTimeout(() => window.__mpSock.push({ t: 's', id: 'bot', w: 1, x, y: 0, z, yaw: 0, ms: 0, j: 0, g: 'pistol', a: 0, p: 0, th: 0, m: 0, al: 1, v: { m: 'gs', x, y: 0, z: z + i, yaw: 0, v: 8, st: 0, ay: null } }), i * 100); }, spot);
+    await game(({ x, z }) => { for (let i = 0; i < 3; i++) setTimeout(() => window.__mpSock.push({ t: 's', id: 'bot', w: 1, x, y: 0, z, yaw: 0, ms: 0, j: 0, g: 'pistol', a: 0, p: 0, th: 0, m: 0, al: 1, wl: 3, sn: 0, v: { m: 'gs', x, y: 0, z: z + i, yaw: 0, v: 8, st: 0, ay: null } }), i * 100); }, spot);
     check(await until(() => { const r = __neonbay.all('remote')[0]; return r.vehicle && r.vehicle.model.id === 'gs' && r.vehicle.remote; }, undefined, 5000), 'the other player is not on the bike');
-    // leaving takes them and their bike out of the world
+    // no pausing in the shared city: the menu opens over it, the city keeps going and the player can still be hit
+    await press('KeyP');
+    check(await until(() => __neonbay.G.state === 'paused'), 'P did not open the menu');
+    const away = await game(async () => {
+      const { G, P } = __neonbay, t0 = G.time, hp0 = P.hp; await new Promise(r => setTimeout(r, 600));
+      window.__mpSock.push({ t: 'hit', from: 'bot', to: 'me', d: 10, z: 'torso' });
+      return { ran: G.time - t0, hurt: hp0 - P.hp, title: document.getElementById('pauseTitle').textContent };
+    });
+    check(away.ran > 0 && away.hurt === 10 && away.title === 'Menu', 'the city stopped behind the menu: ' + JSON.stringify(away));
+    await press('KeyP');
+    // leaving takes them, their bike and their people out of the world
     await game(async () => { (await import('/js/net/net.js')).leave(); window.WebSocket = window.__mpWS; });
-    check(await game(() => __neonbay.all('remote').length === 0 && !__neonbay.all('vehicle').some(v => v.remote)), 'the other player stayed after leaving');
+    check(await game(() => __neonbay.all('remote').length === 0 && __neonbay.all('ghost').length === 0 && !__neonbay.all('vehicle').some(v => v.remote)), 'the other player stayed after leaving');
   });
 } finally {
   await close();
