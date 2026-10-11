@@ -1,0 +1,797 @@
+{
+ "version": "1.113",
+ "date": "2026-10-11",
+ "entries": [
+  {
+   "v": "1.113",
+   "date": "2026-10-11",
+   "sha": "02411e5",
+   "pr": 108,
+   "title": "Version number and What's new changelog, written from main's commits"
+  },
+  {
+   "v": "1.112",
+   "date": "2026-10-11",
+   "sha": "fcc9a43",
+   "pr": 107,
+   "title": "Add the Velvet Flamingo, an SFW cabaret club you can walk into"
+  },
+  {
+   "v": "1.111",
+   "date": "2026-10-10",
+   "sha": "d559219",
+   "pr": 106,
+   "title": "Add a Battlefield-style repair tool"
+  },
+  {
+   "v": "1.110",
+   "date": "2026-10-10",
+   "sha": "0cd270f",
+   "pr": 105,
+   "title": "Losing the sixth star drops back to five; the heat clock counts this chase from 0"
+  },
+  {
+   "v": "1.109",
+   "date": "2026-10-10",
+   "sha": "a0b6cce",
+   "pr": 97,
+   "title": "NPC and chopper aim falls off twice as steeply with distance"
+  },
+  {
+   "v": "1.108",
+   "date": "2026-10-10",
+   "sha": "c20e9c0",
+   "pr": 102,
+   "title": "Add the step king: an afro'd rider on a pimped e-step that does 90 km/h"
+  },
+  {
+   "v": "1.107",
+   "date": "2026-10-10",
+   "sha": "98aff5a",
+   "pr": 103,
+   "title": "Hang in the harness under an open parachute instead of walking"
+  },
+  {
+   "v": "1.106",
+   "date": "2026-10-10",
+   "sha": "5402072",
+   "pr": 98,
+   "title": "Radio at half its in-car volume while on foot"
+  },
+  {
+   "v": "1.105",
+   "date": "2026-10-10",
+   "sha": "e78788b",
+   "pr": 104,
+   "title": "No firing the rocket launcher from a vehicle"
+  },
+  {
+   "v": "1.104",
+   "date": "2026-10-10",
+   "sha": "1178952",
+   "pr": 99,
+   "title": "Hop off regular e-steps instead of the bail-out roll"
+  },
+  {
+   "v": "1.103",
+   "date": "2026-10-10",
+   "sha": "d1939d9",
+   "pr": 101,
+   "title": "Bullets land with the sound of what they hit"
+  },
+  {
+   "v": "1.102",
+   "date": "2026-10-10",
+   "sha": "c76121e",
+   "pr": 100,
+   "title": "Sniper: stay zoomed in between shots, AWP-style shot sound"
+  },
+  {
+   "v": "1.101",
+   "date": "2026-10-10",
+   "sha": "9fb2d46",
+   "pr": 96,
+   "title": "City soundscape: car engines, street echo, surf, city beds and places"
+  },
+  {
+   "v": "1.100",
+   "date": "2026-10-08",
+   "sha": "d40172d",
+   "pr": 95,
+   "title": "Faster, isolated smoke test, one screenshot tool and a CLAUDE.md test routine"
+  },
+  {
+   "v": "1.99",
+   "date": "2026-10-08",
+   "sha": "ef1c3ae",
+   "pr": 92,
+   "title": "E-steps: commuters on electric steps, and the player can ride one"
+  },
+  {
+   "v": "1.98",
+   "date": "2026-10-08",
+   "sha": "07ffc42",
+   "pr": 94,
+   "title": "Fly the police chopper: shoot its pilot, take the controls, minigun and rocket bursts, searchlight, auto chute"
+  },
+  {
+   "v": "1.97",
+   "date": "2026-10-08",
+   "sha": "6d52b8d",
+   "pr": 89,
+   "title": "Parachutes on the three high roofs"
+  },
+  {
+   "v": "1.96",
+   "date": "2026-10-08",
+   "sha": "300769c",
+   "pr": 93,
+   "title": "Weapon wheel on Q, with melee and thrown weapons in outer rings"
+  },
+  {
+   "v": "1.95",
+   "date": "2026-10-08",
+   "sha": "1f76728",
+   "pr": 91,
+   "title": "Melee on a civilian's car or bike scares the driver off"
+  },
+  {
+   "v": "1.94",
+   "date": "2026-10-08",
+   "sha": "ec56b71",
+   "pr": 90,
+   "title": "Smoke: five-star chase sends its own army truck"
+  },
+  {
+   "v": "1.93",
+   "date": "2026-10-08",
+   "sha": "a0cf7df",
+   "pr": 86,
+   "title": "Jetpack: a fall with the jets off starts softer and builds to full gravity"
+  },
+  {
+   "v": "1.92",
+   "date": "2026-10-08",
+   "sha": "ad6c6b9",
+   "pr": 88,
+   "title": "NPC and chopper gunfire misses more with distance"
+  },
+  {
+   "v": "1.91",
+   "date": "2026-10-08",
+   "sha": "e5c1165",
+   "pr": 87,
+   "title": "Rockets leave the launcher's tip at shoulder height"
+  },
+  {
+   "v": "1.90",
+   "date": "2026-10-08",
+   "sha": "42c4940",
+   "pr": 85,
+   "title": "Five star heat highscore: total time at five stars, saved to the account"
+  },
+  {
+   "v": "1.89",
+   "date": "2026-10-08",
+   "sha": "4d6a78a",
+   "pr": 84,
+   "title": "Secret sixth star: a UFO beams down aliens with laser rifles"
+  },
+  {
+   "v": "1.88",
+   "date": "2026-10-08",
+   "sha": "1cc8830",
+   "pr": 80,
+   "title": "Double jump: plain second jump, no forward flip"
+  },
+  {
+   "v": "1.87",
+   "date": "2026-10-08",
+   "sha": "f1dfe6a",
+   "pr": 79,
+   "title": "The army arrives in its own trucks, never in police cars"
+  },
+  {
+   "v": "1.86",
+   "date": "2026-10-08",
+   "sha": "7136135",
+   "pr": 81,
+   "title": "Nothing hurts the fire truck's driver: shots and blasts land on the truck"
+  },
+  {
+   "v": "1.85",
+   "date": "2026-10-08",
+   "sha": "8148f41",
+   "pr": 76,
+   "title": "Fire axe kills in one blow, except the Juggernaut"
+  },
+  {
+   "v": "1.84",
+   "date": "2026-10-08",
+   "sha": "8048b12",
+   "pr": 74,
+   "title": "Tougher vehicles and chopper: guns take 3× as long, RPGs and grenades still one-shot cars"
+  },
+  {
+   "v": "1.83",
+   "date": "2026-10-08",
+   "sha": "6ac41d8",
+   "pr": 83,
+   "title": "Wheelies on the motorcycles"
+  },
+  {
+   "v": "1.82",
+   "date": "2026-10-08",
+   "sha": "b83cabe",
+   "pr": 75,
+   "title": "The sun rises at dawn and sinks below the horizon at dusk"
+  },
+  {
+   "v": "1.81",
+   "date": "2026-10-08",
+   "sha": "07d9ea7",
+   "pr": 82,
+   "title": "Choppers climb to look down on a player up on a roof, never fly below 28 m and stay clear of buildings"
+  },
+  {
+   "v": "1.80",
+   "date": "2026-10-08",
+   "sha": "cb8c44f",
+   "pr": 77,
+   "title": "Controls hint only in the first 10 minutes of play and in the pause menu"
+  },
+  {
+   "v": "1.79",
+   "date": "2026-10-08",
+   "sha": "27cb98d",
+   "pr": 78,
+   "title": "Real gun recordings for every gunshot"
+  },
+  {
+   "v": "1.78",
+   "date": "2026-10-08",
+   "sha": "4d10654",
+   "pr": 71,
+   "title": "Aim down to your feet, to shoot what's below you from the jetpack"
+  },
+  {
+   "v": "1.77",
+   "date": "2026-10-08",
+   "sha": "e9b2cad",
+   "pr": 73,
+   "title": "Stand on roof railings and on the Belpaire's pergola"
+  },
+  {
+   "v": "1.76",
+   "date": "2026-10-08",
+   "sha": "81c391c",
+   "pr": 72,
+   "title": "Jetpack: with the jets off you fall at normal gravity"
+  },
+  {
+   "v": "1.75",
+   "date": "2026-10-08",
+   "sha": "d386860",
+   "pr": 70,
+   "title": "MBP Games accounts: play as a guest or sign in, progress saved to the account"
+  },
+  {
+   "v": "1.74",
+   "date": "2026-10-08",
+   "sha": "fbd9214",
+   "pr": 69,
+   "title": "Crashing the fire truck no longer hurts its driver"
+  },
+  {
+   "v": "1.73",
+   "date": "2026-10-07",
+   "sha": "ccb4c92",
+   "pr": 68,
+   "title": "Drivable fire truck, and a siren switch for it and the police car"
+  },
+  {
+   "v": "1.72",
+   "date": "2026-10-07",
+   "sha": "fbf8104",
+   "pr": 65,
+   "title": "Herman Teirlinck: roof door no longer clipped into the building"
+  },
+  {
+   "v": "1.71",
+   "date": "2026-10-07",
+   "sha": "694035d",
+   "pr": 67,
+   "title": "New OG image with the MBP Scrum City logo"
+  },
+  {
+   "v": "1.70",
+   "date": "2026-10-07",
+   "sha": "eb9c7cb",
+   "pr": 66,
+   "title": "Fire brigade: crash fires burn long and a fire truck comes to put them out"
+  },
+  {
+   "v": "1.69",
+   "date": "2026-10-07",
+   "sha": "fcd9476",
+   "pr": 64,
+   "title": "Key remapping with a QWERTY and an AZERTY preset"
+  },
+  {
+   "v": "1.68",
+   "date": "2026-10-07",
+   "sha": "52cc666",
+   "pr": 63,
+   "title": "Armor pickups look like an armor vest"
+  },
+  {
+   "v": "1.67",
+   "date": "2026-10-06",
+   "sha": "8aadb2a",
+   "pr": 62,
+   "title": "Rooftops: double jump, vaulting between roofs, landmark roofs, rooftop guns and a jetpack"
+  },
+  {
+   "v": "1.66",
+   "date": "2026-10-06",
+   "sha": "b3756b7",
+   "pr": 61,
+   "title": "Enemy weapon drops: grenades, molotovs, nightsticks, boss minigun; picked-up weapons lost on death"
+  },
+  {
+   "v": "1.65",
+   "date": "2026-10-06",
+   "sha": "4f27c94",
+   "pr": 60,
+   "title": "Breakable palm trees, street lamps, beach umbrellas and lifeguard huts"
+  },
+  {
+   "v": "1.64",
+   "date": "2026-10-06",
+   "sha": "fd91832",
+   "pr": 59,
+   "title": "Army tank rolls in at five stars"
+  },
+  {
+   "v": "1.63",
+   "date": "2026-10-06",
+   "sha": "dfb7049",
+   "pr": 58,
+   "title": "Carjack motorcycles"
+  },
+  {
+   "v": "1.62",
+   "date": "2026-10-06",
+   "sha": "7065772",
+   "pr": 55,
+   "title": "Spinning wheels on every vehicle"
+  },
+  {
+   "v": "1.61",
+   "date": "2026-10-06",
+   "sha": "2d65ec6",
+   "pr": 57,
+   "title": "Bail out of a moving vehicle sideways, with only a little damage"
+  },
+  {
+   "v": "1.60",
+   "date": "2026-10-06",
+   "sha": "e50d916",
+   "pr": 54,
+   "title": "Reload animations and sounds for every gun"
+  },
+  {
+   "v": "1.59",
+   "date": "2026-10-06",
+   "sha": "4109a4d",
+   "pr": 56,
+   "title": "Keep the driver's head under the roof of the detailed cars"
+  },
+  {
+   "v": "1.58",
+   "date": "2026-10-06",
+   "sha": "d4f22d9",
+   "pr": 50,
+   "title": "Keep the camera out of buildings, even in narrow alleys"
+  },
+  {
+   "v": "1.57",
+   "date": "2026-10-06",
+   "sha": "e77c089",
+   "pr": 53,
+   "title": "Raise the on-foot jump from about 1.07 m to 1.6 m"
+  },
+  {
+   "v": "1.56",
+   "date": "2026-10-06",
+   "sha": "9787eef",
+   "pr": 52,
+   "title": "Bring the searchlight beam back into view from the street"
+  },
+  {
+   "v": "1.55",
+   "date": "2026-10-06",
+   "sha": "b7509b8",
+   "pr": 51,
+   "title": "EQA: electric hum below 30 km/h, only road noise above"
+  },
+  {
+   "v": "1.54",
+   "date": "2026-10-06",
+   "sha": "24feb19",
+   "pr": 43,
+   "title": "Add an AWP-style sniper rifle with a two-step scope"
+  },
+  {
+   "v": "1.53",
+   "date": "2026-10-06",
+   "sha": "58ff855",
+   "pr": 48,
+   "title": "Melee attacks and Vice City-style melee weapons"
+  },
+  {
+   "v": "1.52",
+   "date": "2026-10-06",
+   "sha": "0fa3bcb",
+   "pr": 47,
+   "title": "Ride a bike up and over a car at a small speed difference"
+  },
+  {
+   "v": "1.51",
+   "date": "2026-10-06",
+   "sha": "e5df5c2",
+   "pr": 46,
+   "title": "Make the chopper crash blast bigger than a car explosion"
+  },
+  {
+   "v": "1.50",
+   "date": "2026-10-06",
+   "sha": "7f98df0",
+   "pr": 49,
+   "title": "Rooftop doors: take the stairs up to the roof on eight buildings"
+  },
+  {
+   "v": "1.49",
+   "date": "2026-10-06",
+   "sha": "f5b3cfb",
+   "pr": 45,
+   "title": "Let buildings shade the whole searchlight cone, and soften its edges"
+  },
+  {
+   "v": "1.48",
+   "date": "2026-10-06",
+   "sha": "004fe50",
+   "pr": 44,
+   "title": "Shake the screen from nearby explosions, harder the closer the blast"
+  },
+  {
+   "v": "1.47",
+   "date": "2026-10-06",
+   "sha": "d8dc400",
+   "pr": 42,
+   "title": "Play every world sound from its source with 3D panning"
+  },
+  {
+   "v": "1.46",
+   "date": "2026-10-06",
+   "sha": "bf09f0e",
+   "pr": 41,
+   "title": "Dim audio to 50% while the pause menu is open"
+  },
+  {
+   "v": "1.45",
+   "date": "2026-10-06",
+   "sha": "d8d50be",
+   "pr": 36,
+   "title": "Juggernaut wields a rocket launcher; rockets hit harder and throw further"
+  },
+  {
+   "v": "1.44",
+   "date": "2026-10-06",
+   "sha": "b60dbc4",
+   "pr": 40,
+   "title": "Serve the latest deploy: revalidate every file on each load"
+  },
+  {
+   "v": "1.43",
+   "date": "2026-10-06",
+   "sha": "804b860",
+   "pr": 38,
+   "title": "Detailed cars: blue Tesla Model Y, Mercedes EQA 250, BMW 530e"
+  },
+  {
+   "v": "1.42",
+   "date": "2026-10-06",
+   "sha": "3cae2f2",
+   "pr": 39,
+   "title": "Shots hurt by where they land: head, torso, arms and legs"
+  },
+  {
+   "v": "1.41",
+   "date": "2026-10-06",
+   "sha": "061c5ab",
+   "pr": 34,
+   "title": "Shoot only at a visible player, after a 50-200 ms reaction"
+  },
+  {
+   "v": "1.40",
+   "date": "2026-10-06",
+   "sha": "39d09d7",
+   "pr": 37,
+   "title": "Make minigun and rocket launcher upgrades a bigger step per level"
+  },
+  {
+   "v": "1.39",
+   "date": "2026-10-06",
+   "sha": "bc7b04a",
+   "pr": 35,
+   "title": "Car drifting, sharper steering, and cars that ride up onto kerbs"
+  },
+  {
+   "v": "1.38",
+   "date": "2026-10-06",
+   "sha": "3a23263",
+   "pr": 32,
+   "title": "Wrecked vehicles still get rammed aside and thrown by explosions"
+  },
+  {
+   "v": "1.37",
+   "date": "2026-10-06",
+   "sha": "79b297e",
+   "pr": 33,
+   "title": "Stop the helicopter searchlight at the first building in its way"
+  },
+  {
+   "v": "1.36",
+   "date": "2026-10-06",
+   "sha": "6ebba89",
+   "pr": 29,
+   "title": "Start the police siren only once cop cars are out"
+  },
+  {
+   "v": "1.35",
+   "date": "2026-10-06",
+   "sha": "143d695",
+   "pr": 28,
+   "title": "Pan engines, siren, helicopter and crash thuds left and right"
+  },
+  {
+   "v": "1.34",
+   "date": "2026-10-06",
+   "sha": "e1b2b97",
+   "pr": 30,
+   "title": "Glow the minimap red as the wanted level rises"
+  },
+  {
+   "v": "1.33",
+   "date": "2026-10-06",
+   "sha": "fdad973",
+   "pr": 31,
+   "title": "Respawn with every owned gun's magazine loaded"
+  },
+  {
+   "v": "1.32",
+   "date": "2026-10-06",
+   "sha": "4eeac0a",
+   "pr": 26,
+   "title": "Realistic landmark models for VAC Gent, Herman Teirlinck and Belpaire"
+  },
+  {
+   "v": "1.31",
+   "date": "2026-10-06",
+   "sha": "6952d82",
+   "pr": 25,
+   "title": "Load buildings made in other tools from .glb files"
+  },
+  {
+   "v": "1.30",
+   "date": "2026-10-06",
+   "sha": "8e41189",
+   "pr": 27,
+   "title": "Run only unit tests in CI; smoke test runs locally before merge"
+  },
+  {
+   "v": "1.29",
+   "date": "2026-10-06",
+   "sha": "3420bfa",
+   "pr": 24,
+   "title": "Put MBP on top of the logo, Scrum City underneath"
+  },
+  {
+   "v": "1.28",
+   "date": "2026-10-06",
+   "sha": "09f74cd",
+   "pr": 23,
+   "title": "Quieter, softer bike engine that fades out quickly with distance"
+  },
+  {
+   "v": "1.27",
+   "date": "2026-10-05",
+   "sha": "c38bfd3",
+   "pr": 18,
+   "title": "Explosions throw dead bodies through the air"
+  },
+  {
+   "v": "1.26",
+   "date": "2026-10-05",
+   "sha": "a6d6116",
+   "pr": 22,
+   "title": "CI: replace superseded runs, cap job time, allow manual runs"
+  },
+  {
+   "v": "1.25",
+   "date": "2026-10-05",
+   "sha": "423579d",
+   "pr": 20,
+   "title": "Add Flemish government landmarks: VAC Gent, Herman Teirlinck and Belpaire"
+  },
+  {
+   "v": "1.24",
+   "date": "2026-10-05",
+   "sha": "34635c0",
+   "pr": 19,
+   "title": "Rename the game to MBP - Scrum City"
+  },
+  {
+   "v": "1.23",
+   "date": "2026-10-05",
+   "sha": "e2d9353",
+   "pr": 21,
+   "title": "Cars collide with each other"
+  },
+  {
+   "v": "1.22",
+   "date": "2026-10-05",
+   "sha": "d69085f",
+   "pr": 17,
+   "title": "Load the loading poster first and show it for at least 3 seconds"
+  },
+  {
+   "v": "1.21",
+   "date": "2026-10-05",
+   "sha": "a66f9ca",
+   "pr": 16,
+   "title": "Random loading screen background on every load"
+  },
+  {
+   "v": "1.20",
+   "date": "2026-10-05",
+   "sha": "90a5d0e",
+   "pr": 7,
+   "title": "Light the city at night: street lamps, headlights and windows"
+  },
+  {
+   "v": "1.19",
+   "date": "2026-10-05",
+   "sha": "a4adff5",
+   "pr": 8,
+   "title": "Build the radio music up with the wanted level"
+  },
+  {
+   "v": "1.18",
+   "date": "2026-10-05",
+   "sha": "1a6495b",
+   "pr": 6,
+   "title": "Armor vest and outlined heart HUD icons"
+  },
+  {
+   "v": "1.17",
+   "date": "2026-10-05",
+   "sha": "c1a10fa",
+   "pr": 5,
+   "title": "Add a Vice City style loading screen"
+  },
+  {
+   "v": "1.16",
+   "date": "2026-10-05",
+   "sha": "23fe152",
+   "pr": 10,
+   "title": "Enemies drop armor and ammo when taken down"
+  },
+  {
+   "v": "1.15",
+   "date": "2026-10-05",
+   "sha": "03bf915",
+   "pr": 13,
+   "title": "Make car explosions hit harder and reach further"
+  },
+  {
+   "v": "1.14",
+   "date": "2026-10-05",
+   "sha": "627f3e2",
+   "pr": 12,
+   "title": "Buff the pump shotgun so one blast drops a police officer"
+  },
+  {
+   "v": "1.13",
+   "date": "2026-10-05",
+   "sha": "d751fc2",
+   "pr": 15,
+   "title": "Add a Settings screen to the pause menu"
+  },
+  {
+   "v": "1.12",
+   "date": "2026-10-05",
+   "sha": "899e79a",
+   "pr": 11,
+   "title": "Wall the city in with a graffiti wall, police roadblocks and a wood"
+  },
+  {
+   "v": "1.11",
+   "date": "2026-10-05",
+   "sha": "7bed346",
+   "pr": 14,
+   "title": "Make the police helicopter destroyable"
+  },
+  {
+   "v": "1.10",
+   "date": "2026-10-05",
+   "sha": "a58702d",
+   "pr": 9,
+   "title": "Knock bikes flying when a car or a fast bike rams them"
+  },
+  {
+   "v": "1.9",
+   "date": "2026-10-05",
+   "sha": "dc6a49a",
+   "pr": 4,
+   "title": "Upgrade Three.js from r128 to r186"
+  },
+  {
+   "v": "1.8",
+   "date": "2026-10-05",
+   "sha": "4022fb7",
+   "pr": 3,
+   "title": "Carjack traffic cars and add a white Tesla Model Y"
+  },
+  {
+   "v": "1.7",
+   "date": "2026-10-05",
+   "sha": "999f010",
+   "pr": 2,
+   "title": "Restructure the game so new vehicles, NPCs and shops are easy to add"
+  },
+  {
+   "v": "1.6",
+   "date": "2026-10-05",
+   "sha": "2ca1611",
+   "pr": 1,
+   "title": "Add rideable Yamaha Ténéré 700 Rally motorcycles"
+  },
+  {
+   "v": "1.5",
+   "date": "2026-10-05",
+   "sha": "a963a02",
+   "pr": null,
+   "title": "Add Claude Code preview config for the dev server"
+  },
+  {
+   "v": "1.4",
+   "date": "2026-10-05",
+   "sha": "18e562d",
+   "pr": null,
+   "title": "Add rideable BMW R 1300 GS 'Triple Black' motorcycles"
+  },
+  {
+   "v": "1.3",
+   "date": "2026-10-05",
+   "sha": "b8d49f5",
+   "pr": null,
+   "title": "Add favicon set, SEO metadata and Open Graph image"
+  },
+  {
+   "v": "1.2",
+   "date": "2026-10-05",
+   "sha": "98ab5e4",
+   "pr": null,
+   "title": "Deploy via Cloudflare Pages GitHub integration"
+  },
+  {
+   "v": "1.1",
+   "date": "2026-10-05",
+   "sha": "df0a5b9",
+   "pr": null,
+   "title": "Add Neon Bay '86 browser shooter"
+  }
+ ]
+}

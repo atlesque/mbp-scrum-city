@@ -5,11 +5,12 @@ import { ACTIONS, ALT, PRESETS, isReserved, rebind } from '../core/keymap.js';
 import { DRAW_DISTANCE, RENDER_SCALE, SETTINGS, SETTINGS_KEY, loadSettings, resetSettings, setSetting, settings } from '../core/settings.js';
 import { $ } from '../core/util.js';
 import { renderer, scene } from '../render/scene.js';
+import { changelogHtml } from './version.js';
 
 // ================= SETTINGS SCREEN =================
 // Opens from the pause menu and the title screen. Its rows come from SETTINGS in core/settings.js;
-// the Controls tab picks a keyboard preset and rebinds each action in core/keymap.js.
-const TABS = [['sound', 'Sound'], ['graphics', 'Graphics'], ['gameplay', 'Gameplay'], ['controls', 'Controls']];
+// the Controls tab picks a keyboard preset and rebinds each action in core/keymap.js; What's new lists the changelog.
+const TABS = [['sound', 'Sound'], ['graphics', 'Graphics'], ['gameplay', 'Gameplay'], ['controls', 'Controls'], ['changes', "What's new"]];
 // what stays put whatever the bindings
 export const FIXED = [['Mouse', 'Look and aim'], ['Left click', 'Shoot, punch or swing'], ['Right click', 'Zoom aim, or the sniper scope'], ['Mouse wheel', 'Cycle weapons'], ['1 – 9', 'Pick a gun, grenades, molotovs'], ['Esc', 'Pause, or back out of a menu']];
 
@@ -31,8 +32,9 @@ function rowHtml(s) {
 }
 function render() {
   $('setTabs').innerHTML = TABS.map(([id, txt]) => `<button role="tab" aria-selected="${id === tab}" data-tab="${id}">${txt}</button>`).join('');
-  $('setBody').innerHTML = tab === 'controls' ? controlsHtml() : SETTINGS.filter(s => s.tab === tab).map(rowHtml).join('');
+  $('setBody').innerHTML = tab === 'controls' ? controlsHtml() : tab === 'changes' ? changelogHtml() : SETTINGS.filter(s => s.tab === tab).map(rowHtml).join('');
   $('setReset').textContent = tab === 'controls' ? 'Reset keys' : 'Reset to defaults';
+  $('setReset').hidden = tab === 'changes';
 }
 function controlsHtml() {
   const bindRow = a => `<div class="ctl"><button class="bind" data-bind="${a.id}" aria-label="${esc(a.label)}: ${esc(labelOf(settings.binds[a.id]))}. Change key"${capturing === a.id ? ' aria-pressed="true"' : ''}>${capturing === a.id ? 'Press a key' : esc(labelOf(settings.binds[a.id]))}</button>`
@@ -87,7 +89,9 @@ on('settings:changed', ({ id }) => {
 });
 
 export const settingsOpen = () => !$('settings').hidden;
-export function openSettings(overlay) {
+export function openSettings(overlay, startTab) {
+  // the title screen's What's new link opens on the changelog; Settings itself opens on the settings
+  tab = startTab || (tab === 'changes' ? 'sound' : tab);
   from = overlay; $(from).hidden = true; $('settings').hidden = false; render();
   setTimeout(() => $('setTabs').querySelector('[aria-selected="true"]').focus(), 20);
 }
@@ -99,6 +103,7 @@ export function closeSettings() {
 }
 $('pauseSettingsBtn').addEventListener('click', () => openSettings('pause'));
 $('titleSettingsBtn').addEventListener('click', () => openSettings('title'));
+$('titleVersion').addEventListener('click', e => { if (e.target.closest('#whatsNewBtn')) openSettings('title', 'changes'); });
 
 let firstVisit = true;
 try { firstVisit = !(localStorage.getItem(SETTINGS_KEY) || '').includes('"layout"'); } catch (e) {}
