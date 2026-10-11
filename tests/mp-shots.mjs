@@ -1,6 +1,7 @@
 // Plays multiplayer for real: two browsers join the shared city on a local copy of the MBP Games service
 // (github.com/atlesque/mbp-games, checked out next to this repo or at MBP_GAMES_DIR, run with wrangler dev), see each
-// other, shoot each other and ride past each other. Screenshots go to the folder given.
+// other and each other's people, share one wanted level, get hunted by the same cops and show on each other's map.
+// Screenshots go to the folder given.
 // Run with `node tests/mp-shots.mjs <folder>`. Set CHROMIUM_PATH to use a specific browser binary.
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync } from 'node:fs';
@@ -59,62 +60,60 @@ try {
   step('both in'); await shot(a, '1-title-joined');
   await a.click('#playBtn'); await b.click('#playBtn');
   await a.waitForTimeout(800);
-  // Bo stands 7 m in front of Alex, facing him; Alex's camera looks at Bo
+  // Bo stands 7 m in front of Alex; both cameras look at the other
   const at = await a.evaluate(() => { const { P, cam } = window.__neonbay; cam.yaw = P.yaw; cam.pitch = -0.05; return { x: P.x, z: P.z, yaw: P.yaw }; });
   const bx = at.x + Math.sin(at.yaw) * 7, bz = at.z + Math.cos(at.yaw) * 7;
-  await b.evaluate(({ bx, bz, at }) => { const { P, cam, inv } = window.__neonbay; P.x = bx; P.z = bz; P.yaw = Math.atan2(at.x - bx, at.z - bz); inv.mag.pistol = 99;
-    // the crosshair sits over the right shoulder: aim from there
-    const sx = bx - Math.cos(P.yaw) * 0.6, sz = bz + Math.sin(P.yaw) * 0.6; cam.yaw = Math.atan2(at.x - sx, at.z - sz); cam.pitch = 0;
-  }, { bx, bz, at });
+  await b.evaluate(({ bx, bz, at }) => { const { P, cam, inv } = window.__neonbay; P.x = bx; P.z = bz; P.yaw = Math.atan2(at.x - bx, at.z - bz); cam.yaw = P.yaw; cam.pitch = -0.05; inv.mag.pistol = 99; }, { bx, bz, at });
   await a.waitForTimeout(1500);
-  const seen = await a.evaluate(() => window.__neonbay.all('remote').map(r => ({ name: r.name, x: Math.round(r.x), z: Math.round(r.z), visible: r.c.root.visible })));
+  const seen = await a.evaluate(() => window.__neonbay.all('remote').map(r => ({ name: r.name, visible: r.c.root.visible })));
   step('Alex sees ' + JSON.stringify(seen)); await shot(a, '2-alex-sees-bo');
   if (!seen.length || !seen[0].visible) throw new Error('Bo is not in Alex\'s city');
 
-  // every toast Bo sees (another one, a wanted level say, can replace the kill's)
-  await b.evaluate(() => { window.__toasts = []; const t = document.getElementById('toast'); new MutationObserver(() => window.__toasts.push(t.innerHTML)).observe(t, { childList: true, subtree: true, characterData: true }); });
-  // Bo opens fire on Alex
-  const hp0 = await a.evaluate(() => window.__neonbay.P.hp);
-  // pull the trigger every 150 ms while `until` says to keep going (a pistol fires once per click)
-  const trigger = async (until, max = 15000) => {
-    await b.evaluate(() => { window.__neonbay.I.mouseR = true; });
-    for (const end = Date.now() + max; Date.now() < end && await until();) { await b.evaluate(() => { window.__neonbay.I.clickQ = 1; }); await b.waitForTimeout(150); }
-    await b.evaluate(() => { window.__neonbay.I.mouseR = false; });
-  };
-  let n = 0; await trigger(async () => n++ < 5);
-  await shot(a, '3-bo-shoots');
-  await a.waitForTimeout(400);
-  const hp1 = await a.evaluate(() => window.__neonbay.P.hp);
-  step(`Alex's health ${hp0} → ${Math.round(hp1)}`);
-  if (!(hp1 < hp0)) throw new Error('Bo\'s bullets did not hurt Alex');
-  await shot(b, '4-bo-view');
+  // the same people in both cities: Bo sees Alex's
+  await b.waitForFunction(() => window.__neonbay.all('ghost').length > 3, null, { timeout: 15000 });
+  const ghosts = await b.evaluate(() => window.__neonbay.all('ghost').length);
+  step(`Bo sees ${ghosts} of Alex's people`); await shot(b, '3-bo-sees-alexs-people');
 
-  // finish him: the kill is Bo's
-  await trigger(() => a.evaluate(() => window.__neonbay.P.alive));
-  if (await a.evaluate(() => window.__neonbay.P.alive)) throw new Error('Alex never went down');
-  await b.waitForFunction(() => window.__toasts.some(t => /You<\/b> wasted <b>Alex/.test(t)), null, { timeout: 5000 });
-  step('Alex wasted, Bo credited'); await shot(b, '5-bo-wasted-alex'); await shot(a, '6-alex-wasted');
-  await a.waitForFunction(() => window.__neonbay.P.alive, null, { timeout: 90000 }); // (software rendering two games at once is slow)
+  // one wanted level: Alex draws heat, Bo has it too
+  await a.evaluate(async () => (await import('/js/game/wanted.js')).addHeat(30));
+  await b.waitForFunction(() => window.__neonbay.G.wanted === 3, null, { timeout: 5000 });
+  step('Alex at 3 stars, Bo too');
 
-  // Bo takes a bike and rides past Alex at the hospital
-  const at2 = await a.evaluate(() => { const { P, cam } = window.__neonbay; cam.yaw = P.yaw; cam.pitch = -0.05; return { x: P.x, z: P.z, yaw: P.yaw }; });
-  await b.evaluate(({ at2 }) => {
-    const n = window.__neonbay, fx = Math.sin(at2.yaw), fz = Math.cos(at2.yaw), x = at2.x + fx * 9 - fz * 3, z = at2.z + fz * 9 + fx * 3;
-    n.spawnVehicle('gs', x, z, at2.yaw + Math.PI / 2); n.P.x = x + fx * 1.2; n.P.z = z + fz * 1.2;
-  }, { at2 });
-  await b.waitForTimeout(800); // the ride prompt comes up
-  await b.keyboard.press('KeyF');
-  await b.waitForFunction(() => !!window.__neonbay.P.vehicle, null, { timeout: 10000 });
-  const riding = true;
-  await a.waitForTimeout(1200);
-  const onBike = await a.evaluate(() => window.__neonbay.all('remote').map(r => r.vehicle && r.vehicle.model.id));
-  step(`Bo riding: ${riding}, Alex sees ${JSON.stringify(onBike)}`); await shot(a, '7-bo-on-bike');
-  if (!onBike.includes('gs')) throw new Error('Alex does not see Bo on the bike');
+  // a cop of Alex's game, right by Bo, goes after Bo (the nearer of the crew), and Bo feels his bullets
+  const cop = await a.evaluate(({ bx, bz }) => { const n = window.__neonbay.spawnNpc('cop', bx + 9, bz + 2); n.hp = 400; window.__cop = n; return true; }, { bx, bz });
+  await a.waitForFunction(() => window.__cop.tgt && window.__cop.tgt.kind === 'remote', null, { timeout: 5000 });
+  step('Alex\'s cop hunts Bo: ' + cop);
+  const hp0 = await b.evaluate(() => window.__neonbay.P.hp);
+  await b.waitForFunction(h => window.__neonbay.P.hp < h, hp0, { timeout: 30000 });
+  step(`Bo hit by Alex's cop: ${hp0} → ${Math.round(await b.evaluate(() => window.__neonbay.P.hp))}`); await shot(b, '4-cop-on-bo');
 
-  // Bo leaves: Alex hears and Bo's player goes
+  // Bo takes the cop down: the damage lands in Alex's game, the kill counts for Bo
+  await a.evaluate(() => { window.__cop.hp = 20; });
+  const kills0 = await b.evaluate(() => window.__neonbay.stats.kills);
+  await b.evaluate(async () => {
+    const { P, all } = window.__neonbay, { castBullet } = await import('/js/combat/combat.js');
+    for (let k = 0; k < 6; k++) {
+      const g = all('ghost').filter(g => g.type === 'cop' && g.alive).sort((p, q) => Math.hypot(p.x - P.x, p.z - P.z) - Math.hypot(q.x - P.x, q.z - P.z))[0]; if (!g) break;
+      const o = new THREE.Vector3(P.x, 1.3, P.z), d = new THREE.Vector3(g.x, 1.3, g.z).sub(o).normalize(), h = castBullet(o, d, 80);
+      if (h.kind === 'entity' && h.entity === g) h.entity.onShot(h, 40, d);
+      await new Promise(r => setTimeout(r, 300));
+    }
+  });
+  await a.waitForFunction(() => !window.__cop.alive, null, { timeout: 10000 });
+  await b.waitForFunction(k => window.__neonbay.stats.kills > k, kills0, { timeout: 10000 });
+  step('Bo downed Alex\'s cop and got the kill'); await shot(b, '5-bo-downs-cop');
+
+  // Alex's world map shows Bo, live, as he walks off
+  await a.keyboard.press('KeyM'); await a.waitForTimeout(500);
+  await b.evaluate(() => { const { P } = window.__neonbay; P.x += 30; });
+  await a.waitForTimeout(800);
+  step('Alex\'s map'); await shot(a, '6-alex-map');
+  await a.keyboard.press('KeyM');
+
+  // Bo leaves: Alex hears and Bo's player and people go
   await b.evaluate(() => document.getElementById('pauseMpGo').click()); // (the pause menu's Leave the city)
-  await a.waitForFunction(() => window.__neonbay.all('remote').length === 0, null, { timeout: 5000 });
-  step('Bo left'); await shot(a, '8-bo-left');
+  await a.waitForFunction(() => window.__neonbay.all('remote').length === 0 && window.__neonbay.all('ghost').length === 0, null, { timeout: 5000 });
+  step('Bo left'); await shot(a, '7-bo-left');
   if (errors.length) throw new Error('page errors: ' + errors.join(' | '));
   console.log('ok');
 } catch (e) {

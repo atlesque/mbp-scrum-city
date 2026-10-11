@@ -118,6 +118,7 @@ export function updateRockets(dt) {
     if (h.kind !== 'none' || r.life <= 0) {
       if (h.kind === 'entity' && h.entity.onRocket && !r.shooter) h.entity.onRocket(r.dmg);
       explosion(h.p.x, Math.max(0.3, h.p.y), h.p.z, ROCKET_BLAST_R * r.blastMul, r.dmg, !r.shooter, ROCKET_POWER, true);
+      if (r.shooter) emitEvent('npc:boom', { x: h.p.x, y: Math.max(0.3, h.p.y), z: h.p.z, R: ROCKET_BLAST_R * r.blastMul, dmg: r.dmg, power: ROCKET_POWER }); // (the crew feels it too, net/sync.js)
       scene.remove(r.m); rockets.splice(i, 1); continue;
     }
     r.p.copy(h.p); r.m.position.copy(r.p);
@@ -130,7 +131,8 @@ function hitsPlayer(o, d, maxT) {
   return t < maxT ? Math.max(0, t) : Infinity;
 }
 // ordnance: a rocket or grenade (not a vehicle going up), which wrecks vehicles close to it outright
-export function explosion(x, y, z, R, dmg, byPlayer, power = 1, ordnance = false) {
+// spare: it doesn't hurt the player (someone in their crew set it off, net/sync.js)
+export function explosion(x, y, z, R, dmg, byPlayer, power = 1, ordnance = false, spare = false) {
   boomFx(x, y, z, R * 0.7);
   if (byPlayer && ordnance) emitEvent('player:boom', { x, y, z, R, dmg, power }); // other players see it too (net/sync.js)
   const dP = Math.hypot(x - P.x, z - P.z, Math.max(0, Math.abs(y - P.y) - 2)); // a blast in the street doesn't reach a roof
@@ -140,7 +142,7 @@ export function explosion(x, y, z, R, dmg, byPlayer, power = 1, ordnance = false
   for (const e of all()) if (e.fling && !e.removed) e.fling(x, y, z, R, power); // a second pass, so whoever the blast just killed flies too
   blastProps(x, y, z, R, power); // palms, lamps and beach props nearby go over
   // a shielding cab already took the blast above, as a vehicle; its driver doesn't feel it a second time
-  if (dP < R && P.alive && !shieldingCab()) hurtPlayer((dmg * (1 - dP / R) + 10) * (byPlayer ? 0.35 : 0.6));
+  if (dP < R && P.alive && !spare && !shieldingCab()) hurtPlayer((dmg * (1 - dP / R) + 10) * (byPlayer ? 0.35 : 0.6));
   alarm(x, z, 50);
 }
 export function startReload() {

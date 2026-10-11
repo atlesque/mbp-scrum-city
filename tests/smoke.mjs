@@ -1286,7 +1286,7 @@ try {
     check(await until(() => __neonbay.inv.cur === 'pistol', undefined, 3000), 'could not switch back to the pistol');
     await game(guns => { const { inv } = __neonbay; for (const [, id] of guns) if (id !== 'pistol') { delete inv.owned[id]; delete inv.ammo[id]; delete inv.mag[id]; } }, guns);
   });
-  await step('multiplayer: another player shows up, takes a bullet, hits back and rides a bike', async () => {
+  await step('multiplayer: the crew shows up, shares its heat and its people, and rides a bike', async () => {
     // a stand-in for the room on the MBP Games service (net/net.js connects to it with WebSocket): it welcomes the player
     // with one other already in, and keeps what the game sends
     await game(async () => {
@@ -1297,30 +1297,42 @@ try {
       (await import('/js/net/net.js')).join();
     });
     check(await until(() => __neonbay.all('remote').length === 1, undefined, 5000), 'the other player was not added');
-    // they stand 6 m ahead of the player
-    const spot = await game(() => { const { P } = __neonbay, x = P.x + Math.sin(P.yaw) * 6, z = P.z + Math.cos(P.yaw) * 6;
-      for (let i = 0; i < 3; i++) setTimeout(() => window.__mpSock.push({ t: 's', id: 'bot', w: 1, x, y: 0, z, yaw: 0, ms: 0, j: 0, g: 'pistol', a: 0, p: 0, th: 0, m: 0, al: 1 }), i * 100);
-      return { x, z }; });
-    check(await until(() => __neonbay.all('remote')[0].c.root.visible, undefined, 5000), 'the other player never appeared');
-    check(await game(() => __mpSent.some(m => m.t === 's' && m.w === 1)), 'the game did not send where the player is');
-    // a bullet at them is a hit for their game, and the shot goes out for everyone to see
-    const hit = await game(async ({ x, z }) => {
+    // they stand 6 m ahead of the player, with a cop of their game's 6 m to the side
+    const spot = await game(() => { const { P } = __neonbay, x = P.x + Math.sin(P.yaw) * 6, z = P.z + Math.cos(P.yaw) * 6, cx = P.x + Math.cos(P.yaw) * 6, cz = P.z - Math.sin(P.yaw) * 6;
+      for (let i = 0; i < 4; i++) setTimeout(() => {
+        window.__mpSock.push({ t: 's', id: 'bot', w: 1, x, y: 0, z, yaw: 0, ms: 0, j: 0, g: 'pistol', a: 0, p: 0, th: 0, m: 0, al: 1, wl: 0, sn: 0 });
+        window.__mpSock.push({ t: 'npcs', id: 'bot', n: [[1, 'cop', 4242, cx, 0, cz, 0, 0, 1, 'pistol', 0]] });
+      }, i * 100);
+      return { x, z, cx, cz }; });
+    check(await until(() => __neonbay.all('remote')[0].c.root.visible && __neonbay.all('ghost').length === 1, undefined, 5000), 'the other player or their cop never appeared');
+    check(await game(() => __mpSent.some(m => m.t === 's' && m.w === 1 && 'wl' in m)), 'the game did not send where the player is');
+    // they're crew: a bullet goes past them, but the shot goes out for them to see
+    const crewShot = await game(async ({ x, z }) => {
       const { P } = __neonbay, { castBullet, playerShoot } = await import('/js/combat/combat.js');
       const o = new THREE.Vector3(P.x, 1.3, P.z), h = castBullet(o, new THREE.Vector3(x, 1.3, z).sub(o).normalize(), 40);
-      if (h.kind === 'entity') h.entity.onShot(h, 20, null);
       playerShoot();
-      return { kind: h.entity && h.entity.kind, sent: __mpSent.filter(m => m.t === 'hit' || m.t === 'shot').map(m => m.t + ':' + (m.to || '')) };
+      return { kind: h.entity && h.entity.kind, shot: __mpSent.some(m => m.t === 'shot') };
     }, spot);
-    check(hit.kind === 'remote' && hit.sent.includes('hit:bot') && hit.sent.includes('shot:'), 'shooting the other player: ' + JSON.stringify(hit));
-    // their bullet lands on the player here
-    await game(() => window.__mpSock.push({ t: 'hit', from: 'bot', to: 'me', d: 20, z: 'torso' }));
-    check(await game(() => __neonbay.P.hp) === 80, 'their hit did not hurt the player');
+    check(crewShot.kind !== 'remote' && crewShot.shot, 'shooting a crewmate: ' + JSON.stringify(crewShot));
+    // their cop takes a bullet here, which goes to their game; they say it was the end of him, and the kill pays out here
+    const copShot = await game(async ({ cx, cz }) => {
+      const { P, G } = __neonbay, { castBullet } = await import('/js/combat/combat.js');
+      const o = new THREE.Vector3(P.x, 1.3, P.z), d = new THREE.Vector3(cx, 1.3, cz).sub(o).normalize(), h = castBullet(o, d, 40);
+      if (h.kind === 'entity') h.entity.onShot(h, 30, d);
+      const heat0 = G.heat; window.__mpSock.push({ t: 'nkill', from: 'bot', to: 'me', ty: 'cop', x: cx, z: cz });
+      return { kind: h.entity && h.entity.kind, sent: __mpSent.filter(m => m.t === 'nhit').map(m => m.to + ':' + m.i), heat: G.heat - heat0 };
+    }, spot);
+    check(copShot.kind === 'ghost' && copShot.sent.includes('bot:1') && copShot.heat > 0, 'shooting their cop: ' + JSON.stringify(copShot));
+    check(await until(() => __mpSent.some(m => m.t === 'heat'), undefined, 3000), 'the heat from the kill did not go to the crew');
+    // one wanted level for the crew, and their cops' bullets land on this player
+    await game(() => { window.__mpSock.push({ t: 'wanted', id: 'bot', l: 3, h: 30 }); window.__mpSock.push({ t: 'hit', from: 'bot', to: 'me', d: 20, z: 'torso' }); });
+    check(await game(() => __neonbay.G.wanted === 3 && __neonbay.P.hp === 80), 'the crew\'s level or their cop\'s hit did not land: ' + JSON.stringify(await game(() => [__neonbay.G.wanted, __neonbay.P.hp])));
     // they get on a bike: a copy of it rides along under them
-    await game(({ x, z }) => { for (let i = 0; i < 3; i++) setTimeout(() => window.__mpSock.push({ t: 's', id: 'bot', w: 1, x, y: 0, z, yaw: 0, ms: 0, j: 0, g: 'pistol', a: 0, p: 0, th: 0, m: 0, al: 1, v: { m: 'gs', x, y: 0, z: z + i, yaw: 0, v: 8, st: 0, ay: null } }), i * 100); }, spot);
+    await game(({ x, z }) => { for (let i = 0; i < 3; i++) setTimeout(() => window.__mpSock.push({ t: 's', id: 'bot', w: 1, x, y: 0, z, yaw: 0, ms: 0, j: 0, g: 'pistol', a: 0, p: 0, th: 0, m: 0, al: 1, wl: 3, sn: 0, v: { m: 'gs', x, y: 0, z: z + i, yaw: 0, v: 8, st: 0, ay: null } }), i * 100); }, spot);
     check(await until(() => { const r = __neonbay.all('remote')[0]; return r.vehicle && r.vehicle.model.id === 'gs' && r.vehicle.remote; }, undefined, 5000), 'the other player is not on the bike');
-    // leaving takes them and their bike out of the world
+    // leaving takes them, their bike and their people out of the world
     await game(async () => { (await import('/js/net/net.js')).leave(); window.WebSocket = window.__mpWS; });
-    check(await game(() => __neonbay.all('remote').length === 0 && !__neonbay.all('vehicle').some(v => v.remote)), 'the other player stayed after leaving');
+    check(await game(() => __neonbay.all('remote').length === 0 && __neonbay.all('ghost').length === 0 && !__neonbay.all('vehicle').some(v => v.remote)), 'the other player stayed after leaving');
   });
 } finally {
   await close();

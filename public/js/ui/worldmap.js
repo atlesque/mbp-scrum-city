@@ -3,7 +3,7 @@ import { Sound } from '../core/audio.js';
 import { requestLock } from '../core/input.js';
 import { G, I, P, keys } from '../core/state.js';
 import { $ } from '../core/util.js';
-import { entities } from '../entities/registry.js';
+import { all, entities } from '../entities/registry.js';
 import { SHOP_TYPES } from '../shops/types.js';
 import { toast } from './hud.js';
 import { SPAWN, shopSpots } from '../world/city.js';
@@ -24,6 +24,7 @@ const LEGEND = [
   ['sq', '#5dff9e', 'Roof door'], ['sq', '#ff9a3e', 'Jetpack'], ['sq', '#ff5a3c', 'Parachute'],
   ['sq', '#ff5a7a', 'Health'], ['sq', '#5ec8ff', 'Armor'], ['dot', '#ff3b4e', 'Law'], ['wp', '#c77dff', 'Waypoint'],
 ];
+const CREW_ROW = ['dot', '#b8ff3e', 'Your crew']; // (only while there's someone else in the city)
 const LANDMARK_NAMES = { vac: 'VAC Gent', belpaire: 'Belpaire', teirlinck: 'Herman Teirlinck' };
 function places() {
   const out = [{ x: SPAWN.x, z: SPAWN.z - 10, name: 'City General' }];
@@ -45,7 +46,7 @@ export function openMap(back = 'play') {
   if (P.club) { toast('No map signal in here. Step outside first.'); return; }
   from = back; G.state = 'map'; I.mouseL = false; I.mouseR = false; for (const k in keys) keys[k] = false;
   $('pause').hidden = true; $('hud').hidden = true; el.hidden = false;
-  if (!$('mapLegend').childElementCount) buildLegend();
+  buildLegend(); // (the crew row comes and goes)
   $('mapHelp').innerHTML = `Drag or <kbd>${kbMoveKeys()}</kbd> to pan · scroll or <kbd>+</kbd> <kbd>−</kbd> to zoom · click to set a waypoint · <kbd>${kb('map')}</kbd> or <kbd>Esc</kbd> to close`;
   const [w, h] = size(); view = openView(P.x, P.z, w, h);
   // the mouse is needed to drag the map around (the pointer lock handler sees state 'map' and doesn't pause)
@@ -98,6 +99,11 @@ function drawMap(w, h) {
       else { c.beginPath(); c.arc(bx, by, r, 0, 7); c.fill(); c.stroke(); }
     },
     glyph(x, z, ch, col) { const [bx, by] = at(x, z); outlined(c, ch, bx, by, col, 22); },
+    // a name under a marker (the rest of the crew, in multiplayer)
+    label(x, z, text, col) {
+      const [bx, by] = at(x, z); c.font = '700 13px "Chakra Petch", system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
+      c.lineWidth = 4; c.strokeStyle = 'rgba(0,0,0,.85)'; c.strokeText(text, bx, by + 11); c.fillStyle = col; c.fillText(text, bx, by + 11);
+    },
   };
   const blips = []; for (const e of entities) if (e.blip && !e.removed) blips.push(e);
   blips.sort((a, b) => a.blipLayer - b.blipLayer);
@@ -131,7 +137,8 @@ export function diamond(c, x, y, r, col) {
 }
 
 function buildLegend() {
-  $('mapLegend').innerHTML = LEGEND.map(([shape, col, name]) => {
+  const rows = [...LEGEND]; if (all('remote').length) rows.splice(rows.length - 1, 0, CREW_ROW);
+  $('mapLegend').innerHTML = rows.map(([shape, col, name]) => {
     const m = shape === '$' ? `<b style="color:${col}">$</b>` : shape === 'cross' ? '<b class="mk-cross">+</b>'
       : `<i class="mk-${shape}" style="background:${col}"></i>`;
     return `<li>${m}<span>${name}</span></li>`;

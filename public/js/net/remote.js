@@ -1,5 +1,4 @@
 import { animateChar, deathAnim, disposeChar, makeCharacter, muzzleOf, setGun } from '../characters/character.js';
-import { zoneDamage, zoneOnBody } from '../combat/hitzones.js';
 import { Sound } from '../core/audio.js';
 import { P } from '../core/state.js';
 import { addEntity, removeEntity } from '../entities/registry.js';
@@ -7,17 +6,15 @@ import { emit, muzzleFlash, tracer } from '../render/effects.js';
 import { scene } from '../render/scene.js';
 import { spawnVehicle } from '../vehicles/vehicle.js';
 import { VEHICLE_MODELS } from '../vehicles/models/index.js';
-import { raySphere } from '../world/collision.js';
-import { send } from './net.js';
 import { LAG, lookFor, sample, trim } from './protocol.js';
 
 // ================= MULTIPLAYER: OTHER PLAYERS =================
 // Someone else in the shared city, drawn from the states their game sends (net/protocol.js), a moment in the past so
-// they glide between them. They are an entity (kind 'remote') like any other: bullets find them through raycast, the radar
-// shows them, the player bumps into them. A bullet that lands on one is reported to their game as a hit; it is theirs to
-// take the damage. The vehicle they ride is a local copy of the same model, posed where they say it is, and a shot at it
-// goes to their game as well.
+// they glide between them. They are an entity (kind 'remote') like any other: the radar and the world map show them, the
+// player bumps into them, the law hunts them. They're the player's crew, so bullets go past them. The vehicle they ride
+// is a local copy of the same model, posed where they say it is.
 const remotes = new Map();
+export const CREW_COLOR = '#b8ff3e';
 export const remoteOf = id => remotes.get(id);
 export const allRemotes = () => [...remotes.values()];
 
@@ -36,8 +33,7 @@ function nameTag(name) {
 const PUPPET = {
   remote: true, home: true,
   update() {}, // posed by its rider's entity
-  damage(dmg) { if (dmg > 0 && this.owner) send({ t: 'vhit', to: this.owner.id, d: Math.round(dmg * 10) / 10 }); },
-  blast() {}, fling() {}, onRocket() {}, // their own game feels the blast (the 'boom' message)
+  damage() {}, blast() {}, fling() {}, onRocket() {}, // the crew can't hurt each other, and their own game feels any blast
   repair() { return false; }, interaction() { return null; }, shouldDespawn() { return false; }, blip() {},
 };
 
@@ -89,22 +85,6 @@ const Remote = {
     this.vehicle = null; v.K.unseat(v, this.c); v.driver = null; // (unseat puts the body back in the street)
     removeEntity(v);
   },
-  raycast(o, d, maxT) {
-    if (!this.alive || !this.c.root.visible || (this.vehicle && this.vehicle.K.enclosed)) return null; // inside a car, the car decides
-    const yo = this.vehicle ? 0.15 + (this.vehicle.K.flies ? this.y : 0) : this.y || 0;
-    let best = null;
-    const test = (y, r, head) => { const t = raySphere(o.x, o.y, o.z, d.x, d.y, d.z, this.x, y + yo, this.z, r); if (t < maxT && (!best || t < best.t)) best = { t, head }; };
-    test(1.05, 0.44, false); test(0.5, 0.32, false); test(1.74, 0.2, true);
-    if (best) best.zone = best.head ? 'head' : zoneOnBody(o, d, best.t, this.x, this.z, this.yaw, yo, 1);
-    return best;
-  },
-  // a bullet from this player (or a shot through the window of what they're in): their game takes the damage
-  onShot(hit, dmg) {
-    const zone = hit.zone || (hit.head ? 'head' : 'torso');
-    send({ t: 'hit', to: this.id, d: Math.round(zoneDamage(dmg, zone) * 10) / 10, z: zone });
-    if (hit.p) emit(hit.p.x, hit.p.y, hit.p.z, 5, '#c0142c', 3.5, 0.45, 0.08);
-    return { head: zone === 'head', zone };
-  },
   blast() {}, fling() {},
   // people don't walk through each other
   pushOut(o, r) {
@@ -113,7 +93,14 @@ const Remote = {
     if (d >= min || d < 1e-4) return false;
     o.x = this.x + dx / d * min; o.z = this.z + dz / d * min; return true;
   },
-  blip(radar) { if (this.c.root.visible) radar.dot(this.x, this.z, '#b8ff3e', 9, true); },
+  // on the radar, and on the world map with their name (worked out here, as the game doesn't move them while the map is open)
+  blip(radar) {
+    const now = performance.now() / 1000; trim(this.buf, now - LAG);
+    const s = sample(this.buf, now - LAG); if (!s || !s.w) return;
+    const x = s.v ? s.v.x : s.x, z = s.v ? s.v.z : s.z;
+    radar.dot(x, z, CREW_COLOR, 9, true);
+    if (radar.label) radar.label(x, z, this.name, CREW_COLOR);
+  },
   // their gun went off: the flash, the tracers and the bang, from their muzzle as we see it
   showShot(m) {
     if (!this.c.root.visible || !Array.isArray(m.h)) return;
