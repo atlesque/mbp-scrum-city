@@ -50,7 +50,7 @@ export function playerSwing(w, st) {
 const _o = new THREE.Vector3(), _d = new THREE.Vector3();
 // the swing in hand has reached its hit moment: land it on whoever is in reach
 export function landPlayerSwing(sw) {
-  const w = WBY[inv.cur]; if (!w || !w.melee || !P.alive || P.vehicle) return;
+  const w = WBY[inv.cur]; if (!w || !w.melee || !P.alive || P.vehicle || P.ride) return;
   const st = wStat(w, inv.lvl[w.id] || 0), b = blowOf(w, st, sw.step);
   const yaw = P.yaw, pitch = clamp(cam.pitch, -0.6, 0.7);
   const targets = [];

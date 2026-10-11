@@ -1591,6 +1591,45 @@ try {
     await game(async () => { (await import('/js/net/net.js')).leave(); window.WebSocket = window.__mpWS; });
     check(await game(() => __neonbay.all('remote').length === 0 && __neonbay.all('ghost').length === 0 && !__neonbay.all('vehicle').some(v => v.remote)), 'the other player stayed after leaving');
   });
+  await step('multiplayer: rides along in a crewmate\'s car, shoots from the seat and gets off when they stop', async () => {
+    // the same stand-in for the room as above, with a crewmate at the wheel of a sedan 2 m to the player's side
+    await game(async () => {
+      window.__mpWS = window.WebSocket; window.__mpSent = [];
+      window.WebSocket = class { constructor() { this.readyState = 0; window.__mpSock = this; setTimeout(() => { this.readyState = 1; this.onopen(); }, 0); }
+        send(t) { const m = t.startsWith('{') ? JSON.parse(t) : t; window.__mpSent.push(m); if (m.t === 'hello') setTimeout(() => this.push({ t: 'welcome', id: 'me', max: 16, players: [{ id: 'bot', name: 'Bot' }] }), 0); }
+        push(m) { this.onmessage({ data: JSON.stringify(m) }); } close() { this.readyState = 3; this.onclose({ code: 1000 }); } };
+      (await import('/js/net/net.js')).join();
+      const { P } = __neonbay, x = P.x + Math.cos(P.yaw) * 2, z = P.z - Math.sin(P.yaw) * 2, yaw = P.yaw;
+      window.__drive = { x, z, yaw, on: true, go: false };
+      // their game drives the car forward at 5 m/s, and says so ten times a second
+      window.__driveT = setInterval(() => { const d = window.__drive; if (d.go) d.z += Math.cos(d.yaw) * 0.5, d.x += Math.sin(d.yaw) * 0.5;
+        window.__mpSock.push({ t: 's', id: 'bot', w: 1, x: d.x, y: 0, z: d.z, yaw: d.yaw, ms: 0, j: 0, g: 'pistol', a: 0, p: 0, th: 0, m: 0, al: 1, wl: 0, sn: 0, ...(d.on ? { v: { m: 'sedan', x: d.x, y: 0, z: d.z, yaw: d.yaw, v: d.go ? 5 : 0, st: 0, ay: null } } : {}) }); }, 100);
+    });
+    check(await until(() => __neonbay.all('vehicle').some(v => v.remote && v.model.id === 'sedan'), undefined, 5000), 'the crewmate\'s car never showed up');
+    check(await until(() => (__neonbay.G.near || []).some(i => /ride with/.test(i.prompt || '')), undefined, 5000), 'no prompt to ride along: ' + await game(() => document.getElementById('prompt').textContent));
+    await press('KeyF');
+    check(await until(() => __neonbay.P.ride && __neonbay.P.ride.k === 1, undefined, 3000), 'did not get in the passenger seat');
+    // off they go: the player goes with the car, and the room hears which seat they're in
+    await game(() => { window.__drive.go = true; });
+    const ride = await game(async () => {
+      const { P } = __neonbay, x0 = P.x, z0 = P.z; await new Promise(r => setTimeout(r, 1500));
+      return { moved: Math.hypot(P.x - x0, P.z - z0), inSeat: P.c.root.parent !== null && P.c.root.parent.type === 'Group', rd: __mpSent.some(m => m.t === 's' && Array.isArray(m.rd) && m.rd[0] === 'bot' && m.rd[1] === 1) };
+    });
+    check(ride.moved > 1 && ride.inSeat && ride.rd, 'riding along: ' + JSON.stringify(ride));
+    // a shot from the seat goes out past the car they sit in
+    const shot = await game(async () => {
+      const { P, cam, inv } = __neonbay, { playerShoot } = await import('/js/combat/combat.js'), { castShot } = await import('/js/combat/combat.js'), { camTarget } = await import('/js/game/player.js');
+      inv.cur = 'pistol'; inv.mag.pistol = 9; cam.yaw = P.ride.v.yaw + Math.PI / 2; cam.pitch = 0;
+      const d = new THREE.Vector3(Math.sin(cam.yaw), 0, Math.cos(cam.yaw)), h = castShot(camTarget.clone(), d, 30);
+      const n = __mpSent.length; playerShoot();
+      return { own: h.entity === P.ride.v, sent: __mpSent.slice(n).some(m => m.t === 'shot'), riding: !!P.ride };
+    });
+    check(!shot.own && shot.sent && shot.riding, 'shooting from the seat: ' + JSON.stringify(shot));
+    // they get out of the car: so does the player, beside it
+    await game(() => { window.__drive.go = window.__drive.on = false; });
+    check(await until(() => !__neonbay.P.ride && __neonbay.P.c.root.parent && __neonbay.P.c.root.parent.type === 'Scene', undefined, 5000), 'still in the seat after the driver got out');
+    await game(async () => { clearInterval(window.__driveT); (await import('/js/net/net.js')).leave(); window.WebSocket = window.__mpWS; });
+  });
 } finally {
   await close();
 }

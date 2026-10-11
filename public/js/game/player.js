@@ -23,6 +23,7 @@ import { removeTank } from '../vehicles/tank.js';
 import { removeUfo } from '../vehicles/ufo.js';
 import { answersHeat, driveByPlayer, sirenOn } from '../vehicles/vehicle.js';
 import { spawnSpot } from './crew.js';
+import { rideAlong } from '../net/ride.js';
 import { SPAWN, shopSpots } from '../world/city.js';
 import { collide, wallHit } from '../world/collision.js';
 import { collideClub } from '../world/club.js';
@@ -51,10 +52,11 @@ export function updatePlayer(dt) {
   if (v) {
     driveByPlayer(v, dt);
     if (P.vehicle) v.K.aim(v, P.c, aimingNow ? clamp(angDiff(v.yaw, cam.yaw), -2.4, 2.4) : null, cam.pitch);
-  } else if (P.abducted) { P.moveSpeed = 0; P.jumpY = P.y; } else if (P.tumble) tumble(dt); else walk(dt, aimingNow);
+  } else if (P.ride) rideAlong(aimingNow); // in a crewmate's passenger seat (net/ride.js)
+  else if (P.abducted) { P.moveSpeed = 0; P.jumpY = P.y; } else if (P.tumble) tumble(dt); else walk(dt, aimingNow);
   // weapon: a chopper fires its own guns (vehicles/heli-guns.js), and what's in hand waits until the player is out
   if (P.vehicle && P.vehicle.K.guns) { P.reload = null; P.vehicle.K.guns(P.vehicle, dt); } else if (!P.club) handWeapon(dt); // no weapons in the club
-  if (!P.vehicle) {
+  if (!P.vehicle && !P.ride) {
     // separation from people
     for (const a of all('npc')) { if (!onFoot(a) || P.y > 1) continue; const dx = a.x - P.x, dz = a.z - P.z, d = Math.hypot(dx, dz); if (d < 0.75 && d > 0.001) { const k = (0.75 - d) * 0.5; a.x += dx / d * k; a.z += dz / d * k; P.x -= dx / d * k; P.z -= dz / d * k; } }
     animateChar(P, dt);
@@ -76,11 +78,11 @@ function handWeapon(dt) {
   else if (w.tool) {} // the repair tool works from updateTool (game/repair.js)
   else if (w.melee) {
     // hold or click to keep swinging; nothing to swing at from the saddle
-    if (P.vehicle) P.swing = null;
+    if (P.vehicle || P.ride) P.swing = null;
     else if ((I.mouseL || I.clickQ > 0) && G.fireCd <= 0 && G.state === 'play') { playerSwing(w, st); I.clickQ = 0; }
     if (P.swing) tickSwing(P, dt, landPlayerSwing);
   } else if ((I.mouseL || I.clickQ > 0) && G.fireCd <= 0 && G.state === 'play') {
-    if (!firesFrom(w, P.vehicle)) { I.clickQ = 0; G.fireCd = 0.3; if (!(P.noRocketT > G.time)) { toast('Get out of the vehicle to fire the <b>Rocket Launcher</b>', 2.5); P.noRocketT = G.time + 3; } }
+    if (!firesFrom(w, P.vehicle || P.ride?.v)) { I.clickQ = 0; G.fireCd = 0.3; if (!(P.noRocketT > G.time)) { toast('Get out of the vehicle to fire the <b>Rocket Launcher</b>', 2.5); P.noRocketT = G.time + 3; } }
     else if (w.auto ? (I.mouseL || I.clickQ > 0) : I.clickQ > 0) { if (!w.spin || G.spin >= 1) { playerShoot(); I.clickQ = 0; } else G.fireCd = 0.05; }
   }
   if (P.c.gun && w.spin && G.spin > 0) P.c.gun.rotation.y += dt * G.spin * 40;
@@ -183,19 +185,21 @@ export function enterVehicle(v) {
   if (!told[v.model.id]) { told[v.model.id] = true; toast(v.K.tip(v.model), 7); }
   emit('vehicle:enter', { vehicle: v });
 }
-export function exitVehicle(crash) {
-  const v = P.vehicle; if (!v) return;
-  P.vehicle = null; v.driver = null; v.K.unseat(v, P.c);
-  if (v.K.airborne && v.K.airborne(v)) { jumpOut(v, crash); return; }
+// ride: { v, k } when getting off as a passenger in a crewmate's vehicle (net/ride.js): out of their own side's door
+export function exitVehicle(crash, ride = null) {
+  const v = ride ? ride.v : P.vehicle; if (!v) return;
+  if (ride) P.ride = null; else { P.vehicle = null; v.driver = null; }
+  v.K.unseat(v, P.c);
+  if (v.K.airborne && v.K.airborne(v)) { jumpOut(v, crash, !!ride); return; }
   // still moving fast: bail out sideways, away from the vehicle and clear of its path, and take a few knocks
   const vx = P.vx || 0, vz = P.vz || 0, sp = Math.max(Math.abs(v.v), Math.hypot(vx, vz)), fast = sp > v.K.crash.exitSpeed && P.alive;
-  const door = v.K.exitAt(v), dx = door.x - v.x, dz = door.z - v.z, side = fast ? bailSide(v, Math.hypot(dx, dz) + 1.2) : 1;
+  const door = v.K.exitAt(v), flip = ride && ride.k % 2 ? -1 : 1, dx = (door.x - v.x) * flip, dz = (door.z - v.z) * flip, side = fast ? bailSide(v, Math.hypot(dx, dz) + 1.2) * flip : 1;
   P.x = v.x + dx * side; P.z = v.z + dz * side; collide(P, 0.38, v);
   // a chopper may stand on a roof: step out onto that
   const base = v.K.flies ? surfaceAt(P.x, P.z, v.y + 0.3) : { floor: 0, roof: null };
   P.y = base.floor; P.floor = base.floor; P.roof = base.roof; P.vy = 0; P.grounded = true; P.yaw = v.yaw; P.vx = P.vz = 0; P.moveSpeed = 0;
   P.c.root.position.set(P.x, base.floor, P.z); P.c.root.rotation.y = P.yaw;
-  v.K.onPlayerExit(v, crash, sp, side);
+  if (!ride) v.K.onPlayerExit(v, crash, sp, side);
   if (fast && v.model.hopOff) { // a regular e-step: just jump off, no roll and no damage
     const H = hopLaunch(v.yaw, vx, vz, side);
     P.vx = H.vx; P.vz = H.vz; P.vy = H.vy; P.grounded = false; P.jumps = 1;
@@ -212,13 +216,13 @@ export function exitVehicle(crash) {
 
 // Out of a chopper up in the air: straight out of the door, no tumble, and the parachute that comes with flying it
 // (kinds/heli.js) opens at once. The chopper drops away without them (see coast in kinds/heli.js).
-function jumpOut(v, crash) {
+function jumpOut(v, crash, passenger) {
   const door = v.K.exitAt(v);
   P.x = door.x; P.z = door.z; P.y = v.y + 0.2; P.vx = (v.vx || 0) * 0.6; P.vz = (v.vz || 0) * 0.6; P.vy = Math.min(0, v.vy || 0);
   P.grounded = false; P.jumps = 2; P.yaw = v.yaw; P.moveSpeed = 0; P.tumble = null;
   const { floor, roof } = surfaceAt(P.x, P.z, P.y); P.floor = floor; P.roof = roof; P.jumpY = P.y - floor;
   P.c.root.position.set(P.x, floor, P.z); P.c.root.rotation.y = P.yaw;
-  v.K.onPlayerExit(v, crash, 0, 1);
+  if (!passenger) v.K.onPlayerExit(v, crash, 0, 1);
   P.bailFrom = v; P.bailT = G.time + BAIL.ghost;
   if (P.alive) { strapOnChute(true); openChute(); }
   G.hudCache = '';
@@ -243,7 +247,7 @@ export function hurtPlayer(d, zone) {
 const arm = { arm: 0, lift: 0, pitch: 0, look: 30, side: 1 };
 export function updateCamera(dt) {
   updateScope();
-  const v = P.vehicle, C = v && v.K.camera, aim = I.mouseR && P.alive, sp = v ? Math.abs(v.v) : 0;
+  const v = P.vehicle || P.ride?.v, C = v && v.K.camera, aim = I.mouseR && P.alive, sp = v ? Math.abs(v.v) : 0;
   cam.dist = lerp(cam.dist, aim ? (C ? C.aimDist : 2.4) : (C ? C.dist : 4.6), Math.min(1, dt * 10));
   cam.fov = lerp(cam.fov, aim ? settings.fov - 18 : settings.fov + Math.min(14, sp * (C ? C.fovPerSpeed : 0)), Math.min(1, dt * 10));
   if (Math.abs(camera.fov - cam.fov) > 0.01) { camera.fov = cam.fov; camera.updateProjectionMatrix(); }
@@ -265,7 +269,7 @@ export function updateCamera(dt) {
 export function die() {
   if (P.tumble) { P.tumble = null; rollPose(0); }
   P.alive = false; P.deadT = 0; P.aiming = false; P.hp = 0; G.state = 'dead'; G.deadT = 0; I.mouseL = false; I.mouseR = false;
-  if (P.vehicle) exitVehicle(true);
+  if (P.vehicle) exitVehicle(true); else if (P.ride) exitVehicle(true, P.ride);
   dropChute(); // a parachute, packed or open, goes with the paramedics too
   const fee = Math.min(inv.money, Math.round(inv.money * 0.1));
   // picked-up weapons go with the paramedics; only what was bought at the gun shop is still there

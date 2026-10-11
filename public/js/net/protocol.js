@@ -10,6 +10,7 @@
 //   g   what's in hand (a weapon id)   a   1 while aiming   p  aim pitch   th 1 two-handed   m  melee ready pose
 //   al  1 alive, 0 down
 //   wl  their wanted level (the crew's)       sn  1 while someone hunting the crew has them in sight
+//   rd, ay  riding with a crewmate (net/ride.js): [their id, seat], and the aim from the seat (radians off its heading)
 //   fr, ft  at five stars or more: the crew's streak there and its count to the sixth star (seconds, game/wanted.js)
 //   v   while riding: { m: model id, x, y, z, yaw, v: speed, st: steer, ay: aim yaw from the vehicle's nose or null,
 //       r / l: a chopper's rotor speed and 1 when it's landed, pp: a bike's wheelie angle }
@@ -48,7 +49,7 @@ export function due(s, last, sinceLast) {
   if (sinceLast >= IDLE_EVERY) return true;
   if (sinceLast < SEND_EVERY) return false;
   if (!last) return true;
-  if (s.w !== last.w || s.al !== last.al || s.g !== last.g || s.a !== last.a || !s.v !== !last.v || s.wl !== last.wl || s.sn !== last.sn) return true;
+  if (s.w !== last.w || s.al !== last.al || s.g !== last.g || s.a !== last.a || !s.v !== !last.v || s.wl !== last.wl || s.sn !== last.sn || String(s.rd) !== String(last.rd) || s.ay !== last.ay) return true;
   const moved = Math.hypot((s.x ?? 0) - (last.x ?? 0), (s.y ?? 0) - (last.y ?? 0), (s.z ?? 0) - (last.z ?? 0)) > 0.02;
   return moved || Math.abs((s.yaw ?? 0) - (last.yaw ?? 0)) > 0.01 || Math.abs((s.p ?? 0) - (last.p ?? 0)) > 0.01 || !!(s.v && (s.v.v || last.v.v));
 }
