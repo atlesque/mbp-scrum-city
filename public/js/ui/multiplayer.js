@@ -36,6 +36,9 @@ export function renderMultiplayer() {
   $('pauseMp').innerHTML = inCity()
     ? `${esc(statusLine())} <button class="linkbtn" id="pauseMpGo">Leave the city</button>`
     : `Single player. <button class="linkbtn" id="pauseMpGo">Join the shared city</button>`;
+  // in the shared city the game doesn't pause (main.js): the menu just opens over the streets
+  const on = MP.state === 'on'; $('pauseTitle').textContent = on ? 'Menu' : 'Paused';
+  $('pauseLive').hidden = !on;
 }
 
 document.addEventListener('click', e => {

@@ -10,6 +10,8 @@ export function clock(s) {
 }
 export const angDiff = (a, b) => { let d = b - a; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; };
 export function seeded(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+// run fn with Math.random drawing from seed, so it comes out the same on every screen (another player's people, the club)
+export function withSeed(seed, fn) { const real = Math.random; Math.random = seeded(seed); try { return fn(); } finally { Math.random = real; } }
 export const srnd = seeded(1986);
 export const srange = (a, b) => a + srnd() * (b - a);
 export const spick = arr => arr[Math.floor(srnd() * arr.length)];
