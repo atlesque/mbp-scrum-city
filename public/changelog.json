@@ -1,7 +1,14 @@
 {
- "version": "1.113",
+ "version": "1.114",
  "date": "2026-10-11",
  "entries": [
+  {
+   "v": "1.114",
+   "date": "2026-10-11",
+   "sha": "23670bc",
+   "pr": 109,
+   "title": "Add a full-screen world map with waypoints"
+  },
   {
    "v": "1.113",
    "date": "2026-10-11",
