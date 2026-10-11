@@ -1561,6 +1561,32 @@ try {
     });
     check(away.ran > 0 && away.hurt === 10 && away.title === 'Menu', 'the city stopped behind the menu: ' + JSON.stringify(away));
     await press('KeyP');
+    // its own people near them go out to them, but not while its tab is in the background (no frames, so they'd be statues)
+    check(await until(() => __mpSent.some(m => m.t === 'npcs'), undefined, 5000), 'the people near the other player were not shared');
+    const frozen = await game(async () => {
+      const raf = window.requestAnimationFrame; let held = null; window.requestAnimationFrame = f => { held = f; return 0; };
+      // (the frame already asked for still runs: wait for it, then for one more share to go by)
+      for (let i = 0; i < 100 && !held; i++) await new Promise(r => setTimeout(r, 50));
+      await new Promise(r => setTimeout(r, 300)); const n0 = __mpSent.length; await new Promise(r => setTimeout(r, 1000));
+      const sent = __mpSent.slice(n0).filter(m => m.t === 'npcs').length;
+      window.requestAnimationFrame = raf; if (held) raf(held);
+      return sent;
+    });
+    check(frozen === 0, `people were shared ${frozen} times with the game's frames stopped`);
+    // a cop of theirs stands on the spawn point: out of the hospital, the player comes in somewhere he isn't
+    const away2 = await game(async () => {
+      const { SPAWN } = await import('/js/world/city.js'), { respawn } = await import('/js/game/player.js'), { SAFE_R } = await import('/js/game/crew.js');
+      window.__mpSock.push({ t: 'npcs', id: 'bot', n: [[2, 'cop', 7, SPAWN.x, 0, SPAWN.z, 0, 0, 1, 'pistol', 0]] });
+      respawn(); const { P } = __neonbay; return { d: Math.hypot(P.x - SPAWN.x, P.z - SPAWN.z), r: SAFE_R };
+    });
+    check(away2.d >= away2.r, 'came in next to the crew\'s cop: ' + JSON.stringify(away2));
+    // two minutes into the crew's five star streak: this player's clock and count to the sixth star take it up
+    const five = await game(async () => {
+      window.__mpSock.push({ t: 'wanted', id: 'bot', l: 5, h: 100 });
+      window.__mpSock.push({ t: 's', id: 'bot', w: 1, x: 0, y: 0, z: 0, yaw: 0, ms: 0, j: 0, g: 'pistol', a: 0, p: 0, th: 0, m: 0, al: 1, wl: 5, sn: 0, fr: 120, ft: 120 });
+      const { G } = __neonbay; return { w: G.wanted, run: G.fiveRun, t: G.fiveT };
+    });
+    check(five.w === 5 && five.run >= 120 && five.t >= 120, 'the crew\'s five star clock was not shared: ' + JSON.stringify(five));
     // leaving takes them, their bike and their people out of the world
     await game(async () => { (await import('/js/net/net.js')).leave(); window.WebSocket = window.__mpWS; });
     check(await game(() => __neonbay.all('remote').length === 0 && __neonbay.all('ghost').length === 0 && !__neonbay.all('vehicle').some(v => v.remote)), 'the other player stayed after leaving');

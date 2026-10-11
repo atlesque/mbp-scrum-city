@@ -27,7 +27,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 const inWorld = () => ['play', 'dead', 'map', 'paused', 'shop'].includes(G.state) && !P.club;
 const SEEN_FOR = 1.6; // seconds a crewmate's "they've seen me" lasts (they repeat it at least once a second)
 const r2 = n => Math.round(n * 100) / 100;
-let last = null, lastAt = 0, npcAt = 0, told = null, wasOff = false, nid = 0;
+let last = null, lastAt = 0, npcAt = 0, told = null, wasOff = false, nid = 0, npcTime = -1;
 
 // ---- out ----
 function tick() {
@@ -40,6 +40,7 @@ function tick() {
   // on the club's floor they're seen by the others in there; in the Pink Room by nobody
   const s = P.club === LAYOUT ? { ...packState(P, true), w: 2 } : packState(P, inWorld(), aimYaw);
   s.wl = G.wanted; s.sn = performance.now() - (G.seenAt || 0) < 700 ? 1 : 0;
+  if (G.wanted >= 5) { s.fr = Math.floor(G.fiveRun || 0); s.ft = Math.floor(G.fiveT || 0); }
   if (due(s, last, now - lastAt)) { send(s); last = s; lastAt = now; }
   if (now - npcAt >= NPC_EVERY) { npcAt = now; shareNpcs(); }
 }
@@ -58,9 +59,12 @@ function shareHeat() {
 // a level from the crew, without sending it back
 function take(l, h) { setWanted(l, h ?? Math.max(G.heat, HEAT[Math.min(l, 5)] || 0)); told = { heat: G.heat, wanted: G.wanted }; }
 
-// the people this game runs, near anyone else in the crew
+// the people this game runs, near anyone else in the crew. Only while its city is running: in a tab in the background the
+// browser stops drawing frames, so its people stand frozen. Sharing them then would leave the crew with statues (and keep
+// their own games from bringing out people of their own); once they're no longer sent, they go (net/ghosts.js).
 function shareNpcs() {
-  if (!inWorld()) return;
+  const running = G.time !== npcTime; npcTime = G.time;
+  if (!inWorld() || !running) return;
   const others = allRemotes().filter(r => r.where === 1); if (!others.length) return;
   const near = all('npc').filter(n => !n.vehicle && others.some(r => Math.hypot(n.x - r.x, n.z - r.z) < NPC_SHARE_R));
   for (const n of near) if (!n.nid) n.nid = ++nid;
@@ -78,6 +82,7 @@ on('npc:shot', ({ npc, from, end }) => {
   send({ t: 'nshot', i: npc.nid, w: npc.def.gun, f: [r2(from.x), r2(from.y), r2(from.z)], h: [[r2(end.x), r2(end.y), r2(end.z)]] });
 });
 crew.others = () => connected() ? allRemotes().filter(r => r.alive && r.where === 1 && r.c.root.visible) : [];
+crew.online = connected;
 crew.hit = (r, d, zone) => send({ t: 'hit', to: r.id, d: Math.round(d * 10) / 10, z: zone });
 on('player:died', () => {
   if (!connected()) return;
@@ -102,6 +107,12 @@ onMessage('s', m => {
   // someone new in the crew: whoever is more wanted brings their heat
   if (!r.heard) { r.heard = true; if (wl > G.wanted) take(wl); }
   r.wl = wl;
+  // the five star clocks are the crew's too: everyone's tick at the same pace, so the longest one is the crew's streak (and
+  // the UFO comes for all of them at once)
+  if (wl >= 5 && G.wanted >= 5) {
+    if (Number.isFinite(m.fr)) G.fiveRun = Math.max(G.fiveRun || 0, clamp(m.fr, 0, 1e6));
+    if (Number.isFinite(m.ft) && wl === G.wanted) G.fiveT = Math.max(G.fiveT || 0, clamp(m.ft, 0, 1e6));
+  }
 });
 onMessage('shot', m => {
   const r = remoteOf(m.id); if (!r) return;
