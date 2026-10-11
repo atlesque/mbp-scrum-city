@@ -2,6 +2,7 @@ import { G, P } from '../core/state.js';
 import { $ } from '../core/util.js';
 import { entities } from '../entities/registry.js';
 import { clubInteractions } from './club.js';
+import { getOffHere } from '../net/ride.js';
 import { exitVehicle } from './player.js';
 
 // What the player can use right now: every entity offering an interaction (a shop door, a free
@@ -12,9 +13,9 @@ const better = (a, b) => b.priority - a.priority || a.dist - b.dist;
 export function updateInteraction() {
   const near = [];
   if (P.alive && G.state === 'play' && !P.tumble && !P.abducted) { // nothing to grab while rolling down the road
-    if (P.vehicle) near.push(leave);
+    if (P.vehicle) near.push(leave); else if (P.ride) near.push(getOffHere); // (a passenger in a crewmate's vehicle)
     else if (P.club) clubInteractions(P, near); // inside the club only its door and its bar
-    if (!P.club) for (const e of entities) { if ((P.vehicle && !e.inVehicle) || !e.interaction || (P.y > 2 && !e.onRoof)) continue; const it = e.interaction(P); if (it) near.push(it); }
+    if (!P.club) for (const e of entities) { if (((P.vehicle || P.ride) && !e.inVehicle) || !e.interaction || (P.y > 2 && !e.onRoof)) continue; const it = e.interaction(P); if (it) near.push(it); }
   }
   near.sort(better); G.near = near;
   const best = near[0], pr = $('prompt');

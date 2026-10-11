@@ -25,6 +25,7 @@ export function exitToTitle() {
   closeWheel(false);
   // off the vehicle at a standstill (a chopper up in the air drops them out with a chute, which goes at once)
   if (P.vehicle) { P.vehicle.v = 0; P.vx = P.vz = 0; exitVehicle(false); }
+  if (P.ride) { P.vx = P.vz = 0; exitVehicle(false, P.ride); }
   dropChute(); P.tumble = null; P.bailFrom = null;
   respawn(); // leaves the club, clears the heat, the chopper, the tank and the UFO, and stands them at the spawn point
   Object.assign(G, { scope: 0, reloadT: 0, bigT: 0, toastT: 0 }); Object.assign(P, { reload: null, swing: null, aiming: false });

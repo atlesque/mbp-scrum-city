@@ -7,6 +7,8 @@ import { clubScene, LAYOUT } from '../game/club.js';
 import { scene } from '../render/scene.js';
 import { spawnVehicle } from '../vehicles/vehicle.js';
 import { VEHICLE_MODELS } from '../vehicles/models/index.js';
+import { aimFromSeat, rideHooks, seatAt, seatsOf } from '../vehicles/seats.js';
+import { crew } from '../game/crew.js';
 import { LAG, lookFor, sample, trim } from './protocol.js';
 
 // ================= MULTIPLAYER: OTHER PLAYERS =================
@@ -35,7 +37,10 @@ const PUPPET = {
   remote: true, home: true,
   update() {}, // posed by its rider's entity
   damage() {}, blast() {}, fling() {}, onRocket() {}, // the crew can't hurt each other, and their own game feels any blast
-  repair() { return false; }, interaction() { return null; }, shouldDespawn() { return false; }, blip() {},
+  repair() { return false; }, shouldDespawn() { return false; }, blip() {},
+  interaction(p) { return rideHooks.board ? rideHooks.board(this, p) : null; }, // a seat in it for the rest of the crew (net/ride.js)
+  // a passenger's own shots go out through it
+  raycast(o, d, maxT) { return P.ride && P.ride.v === this ? null : Object.getPrototypeOf(this).raycast.call(this, o, d, maxT); },
 };
 
 const Remote = {
@@ -54,7 +59,9 @@ const Remote = {
     this.where = s ? s.w : 0;
     if (!s || s.w !== here) { this.hide(); return; }
     const sc = here === 2 ? clubScene() : scene;
-    if (c.root.parent !== sc) { sc.add(c.root, this.tag); }
+    // (not out of the seat of whatever they ride, which carries them)
+    if (this.tag.parent !== sc) sc.add(this.tag);
+    if (c.root.parent !== sc && !this.vehicle && !this.seated) sc.add(c.root);
     c.root.visible = true; this.tag.visible = true;
     const wasAlive = this.alive;
     this.alive = !!s.al; if (wasAlive && !this.alive) this.deadT = 0;
@@ -62,14 +69,31 @@ const Remote = {
     else if (!wasAlive) { c.body.rotation.x = 0; c.body.position.y = 0; }
     setGun(c, this.alive ? s.g : null);
     this.twoHand = !!s.th; this.melee = s.m || null; this.aiming = !!s.a; this.aimPitch = s.p || 0;
-    if (s.v && this.alive) { this.ride(s.v, dt); return; }
+    this.rd = this.alive && Array.isArray(s.rd) ? s.rd : null;
+    if (s.v && this.alive) { this.unseat(); this.ride(s.v, dt); return; }
     this.dismount();
+    if (this.rd && this.passenger(s)) return;
+    this.unseat();
     this.x = s.x; this.y = s.y || 0; this.z = s.z; this.yaw = s.yaw; this.moveSpeed = s.ms || 0; this.jumpY = s.j || 0;
     if (this.alive) animateChar(this, dt); else deathAnim(this, dt);
     c.root.position.set(this.x, this.y - this.jumpY, this.z); c.root.rotation.y = this.yaw;
     this.tag.position.set(this.x, this.y + 2.35, this.z);
   },
-  hide() { this.c.root.visible = false; this.tag.visible = false; this.dismount(); this.alive = false; },
+  hide() { this.c.root.visible = false; this.tag.visible = false; this.dismount(); this.unseat(); this.alive = false; this.rd = null; },
+  // riding with someone (net/ride.js): in seat rd[1] of the driver's vehicle, this player's own or a copy of a crewmate's
+  passenger(s) {
+    const [owner, k] = this.rd, v = owner === crew.me() ? P.vehicle : remotes.get(owner)?.vehicle;
+    if (!v || !(k >= 1 && k < seatsOf(v))) return false;
+    if (this.seated !== v || this.seatK !== k || (this.seatAim && s.ay == null)) { this.unseat(); seatAt(v, this.c, k); this.seated = v; this.seatK = k; this.seatAim = false; }
+    if (s.ay != null && Number.isFinite(s.ay)) { aimFromSeat(this.c, s.ay, this.aimPitch); this.seatAim = true; }
+    this.x = v.x; this.z = v.z; this.y = v.K.flies ? v.y : 0; this.yaw = v.yaw;
+    this.tag.position.set(this.x, this.y + 2.6, this.z);
+    return true;
+  },
+  unseat() {
+    const v = this.seated; if (!v) return;
+    this.seated = null; v.K.unseat(v, this.c);
+  },
   // on (or in) a vehicle: a copy of their model, where they say it is
   ride(sv, dt) {
     let v = this.vehicle;
@@ -86,6 +110,7 @@ const Remote = {
     v.K.aim(v, this.c, this.aiming ? sv.ay : null, this.aimPitch);
     this.x = sv.x; this.z = sv.z; this.y = v.K.flies ? sv.y : 0; this.yaw = sv.yaw;
     this.tag.position.set(this.x, this.y + 2.6, this.z);
+    if (rideHooks.carry) rideHooks.carry(v); // this player riding along in it
   },
   dismount() {
     const v = this.vehicle; if (!v) return;
@@ -119,7 +144,7 @@ const Remote = {
   },
   shouldDespawn() { return false; },
   dispose() {
-    this.dismount(); disposeChar(this.c); this.c.root.removeFromParent(); // (it may be in the club's scene)
+    this.dismount(); this.unseat(); disposeChar(this.c); this.c.root.removeFromParent(); // (it may be in the club's scene)
     this.tag.removeFromParent(); this.tag.material.map.dispose(); this.tag.material.dispose();
   },
 };
