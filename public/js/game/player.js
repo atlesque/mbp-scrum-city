@@ -22,7 +22,7 @@ import { removeHeli } from '../vehicles/heli.js';
 import { removeTank } from '../vehicles/tank.js';
 import { removeUfo } from '../vehicles/ufo.js';
 import { answersHeat, driveByPlayer, sirenOn } from '../vehicles/vehicle.js';
-import { spawnSpot } from './crew.js';
+import { crew, spawnSpot } from './crew.js';
 import { rideAlong } from '../net/ride.js';
 import { SPAWN, shopSpots } from '../world/city.js';
 import { collide, wallHit } from '../world/collision.js';
@@ -286,7 +286,8 @@ export function die() {
 export function respawn() {
   leaveClub(); // (respawn puts the player at the hospital just after)
   for (const e of all()) if ((e.kind === 'npc' && e.faction === 'law') || answersHeat(e) || (e.kind === 'vehicle' && e.dead)) removeEntity(e);
-  removeHeli(); removeTank(null, true); removeUfo(null);
+  // (in multiplayer the chopper, the tank and the UFO are the crew's: they stay for whoever is still out there, net/world.js)
+  if (!crew.online() || !crew.others().length) { removeHeli(); removeTank(null, true); removeUfo(null); }
   G.wanted = 0; G.heat = 0; G.lostT = 0; G.heliT = 15; G.tankT = 6; G.fiveT = 0; G.ufoT = 2;
   const at = spawnSpot(SPAWN, shopSpots); // (in multiplayer, away from the crew's law: game/crew.js)
   P.x = at.x; P.z = at.z; P.y = 0; P.floor = 0; P.vy = 0; P.grounded = true; P.roof = null; P.hp = 100; P.alive = true; P.deadT = 0; P.yaw = at.yaw; cam.yaw = at.yaw; cam.pitch = -0.08;

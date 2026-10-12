@@ -1294,6 +1294,19 @@ try {
     await page.waitForTimeout(8000);
   });
 
+  await step('runs its own shared world alone: traffic keyed for the crew, the chopper hunting the player', async () => {
+    const r = await game(async () => {
+      const { G, P, all } = __neonbay, w = await import('/js/net/world.js'), c = await import('/js/game/crew.js');
+      G.heat = 100; G.wanted = 4; if (!G.heli) c.shareOut((await import('/js/vehicles/heli.js')).spawnHeli());
+      const traffic = all('vehicle').filter(v => v.mode === 'traffic' && v.driver && v.driver.kind === 'npc');
+      return { role: w.worldRole(), runs: c.crew.runsWorld(), traffic: traffic.length, keyed: traffic.filter(v => v.wk).length, puppets: all().filter(e => e.puppet).length, x: P.x, z: P.z };
+    });
+    check(r.role === 'solo' && r.runs, 'single player does not run its own world: ' + JSON.stringify(r));
+    check(r.traffic > 3 && r.keyed === r.traffic && !r.puppets, 'traffic not keyed for the crew: ' + JSON.stringify(r));
+    check(await until(() => __neonbay.G.heli && __neonbay.G.heli.tgt === __neonbay.P, null, 20000), 'the chopper is not hunting the player');
+    await game(async () => { (await import('/js/vehicles/heli.js')).removeHeli(); __neonbay.G.wanted = 0; __neonbay.G.heat = 0; });
+  });
+
   await step('a chopper crash wrecks the car and drops the bystander it comes down on', async () => {
     await game(async () => { const { G } = __neonbay; G.heat = 100; G.wanted = 5; if (!G.heli) (await import('/js/vehicles/heli.js')).spawnHeli(); });
     check(await until(() => !!__neonbay.G.heli, undefined, 20000), 'no helicopter to shoot down');

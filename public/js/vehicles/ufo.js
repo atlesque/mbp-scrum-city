@@ -5,6 +5,7 @@ import { Sound } from '../core/audio.js';
 import { G, P } from '../core/state.js';
 import { lerp, rnd } from '../core/util.js';
 import { addEntity, count, removeEntity } from '../entities/registry.js';
+import { nearestOf } from '../game/crew.js';
 import { reward } from '../game/pickups.js';
 import { spawnNpc } from '../npcs/npc.js';
 import { emit } from '../render/effects.js';
@@ -14,7 +15,7 @@ import { showBig, toast } from '../ui/hud.js';
 import { blocked, isFree } from '../world/collision.js';
 
 // ================= UFO =================
-// The secret sixth star (game/wanted.js): a flying saucer comes in over the rooftops, circles the player and lowers
+// The secret sixth star (game/wanted.js): a flying saucer comes in over the rooftops, circles the player (the nearest of the crew) and lowers
 // aliens down a green tractor beam, one at a time, keeping a crew of up to CREW_MAX on the ground. It doesn't shoot;
 // its crew do, with laser rifles (npcs/types.js). It takes a lot of punishment (about six direct rockets), wobbles
 // down trailing smoke when it gives out and goes up bigger than the tank. It leaves again if the sixth star fades.
@@ -61,13 +62,13 @@ const Ufo = {
     }
     // it holds still while the beam is lit, so whoever is coming down lands under it
     if (u.beamT <= 0) u.ang += dt * 0.15;
-    const tx = P.x + Math.cos(u.ang) * ORBIT_R, tz = P.z + Math.sin(u.ang) * ORBIT_R;
+    const T = u.tgt = nearestOf(u.x, u.z), tx = T.x + Math.cos(u.ang) * ORBIT_R, tz = T.z + Math.sin(u.ang) * ORBIT_R;
     const dx = tx - u.x, dz = tz - u.z, d = Math.hypot(dx, dz), sp = Math.min(d, SPEED * dt);
     if (d > 0.01 && u.beamT <= 0) { u.x += dx / d * sp; u.z += dz / d * sp; }
     u.y = lerp(u.y, HOVER_Y, Math.min(1, dt * 0.6));
     // it keeps the heat on while it can see the player
     u.losT -= dt;
-    if (u.losT <= 0) { u.los = P.alive && Math.hypot(P.x - u.x, P.z - u.z) < 90 && !blocked(u.x, u.y - 2, u.z, P.x, P.y + 1, P.z); u.losT = SIGHT_EVERY * 4; }
+    if (u.losT <= 0) { u.los = T.alive && Math.hypot(T.x - u.x, T.z - u.z) < 90 && !blocked(u.x, u.y - 2, u.z, T.x, (T.y || 0) + 1, T.z); u.losT = SIGHT_EVERY * 4; }
     if (u.los) G.seenNow = true;
     // lower an alien whenever the crew is short and there is open ground under the saucer
     u.dropT -= dt; u.beamT -= dt;
@@ -96,7 +97,7 @@ const Ufo = {
 };
 
 // the saucer and its beam where they are now; the beam reaches from its belly to the ground under it
-function place(u) {
+export function place(u) {
   u.grp.position.set(u.x, u.y + Math.sin(G.time * 1.6) * 0.4, u.z);
   const on = u.beamT > 0 && !u.falling;
   u.beam.visible = on;

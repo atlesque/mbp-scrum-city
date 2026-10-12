@@ -116,9 +116,10 @@ const Npc = {
   dispose() { disposeChar(this.c); },
 };
 
-export function spawnNpc(type, x, z) {
+// (seed: their look, when it has to match someone's elsewhere: net/world.js)
+export function spawnNpc(type, x, z, seed = (Math.random() * 2 ** 31) | 0) {
   const def = NPC_TYPES[type]; if (!def) throw new Error('unknown NPC type ' + type);
-  const seed = (Math.random() * 2 ** 31) | 0, c = makeCharacter(lookFrom(def, seed)); if (def.gun) setGun(c, def.gun);
+  const c = makeCharacter(lookFrom(def, seed)); if (def.gun) setGun(c, def.gun);
   const n = Object.assign(Object.create(Npc), { type, def, seed, faction: def.faction, c, x, z, yaw: rnd(0, 6.28), hp: def.hp, alive: true, r: def.scale ? 0.5 : 0.38, moveSpeed: 0, deadT: 0, aiming: false, aimPitch: 0, twoHand: !!def.gun && def.gun !== 'pistol', panic: false, vehicle: null });
   n.become(def.behaviour);
   c.root.position.set(x, 0, z); scene.add(c.root); addEntity(n); return n;

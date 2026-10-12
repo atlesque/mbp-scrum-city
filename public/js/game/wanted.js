@@ -1,4 +1,5 @@
 import { updateRoadblocks } from './roadblocks.js';
+import { crew, shareOut } from './crew.js';
 import { Sound } from '../core/audio.js';
 import { emit } from '../core/events.js';
 import { at } from '../core/spatial.js';
@@ -92,9 +93,11 @@ export function updateWanted(dt) {
       if (L.cars && G.copCarT <= 0 && sendResponder(L)) G.copCarT = L.carEvery || 10;
       else { const mix = footMix(L.mix), s = mix && findSpot(48, 78, true, true); if (s) spawnNpc(mixPick(mix), s.x, s.z); }
     }
-    if (L && L.heli && !G.heli) { G.heliT -= dt; if (G.heliT <= 0) spawnHeli(); }
-    if (L && L.tank && !G.tank) { G.tankT -= dt; if (G.tankT <= 0) spawnTank(); }
-    if (L && L.ufo && !G.ufo) { G.ufoT -= dt; if (G.ufoT <= 0) spawnUfo(); }
+    // (in multiplayer the crew shares one of each, sent by the host's game: net/world.js)
+    const world = crew.runsWorld();
+    if (L && L.heli && !G.heli && world) { G.heliT -= dt; if (G.heliT <= 0) shareOut(spawnHeli()); }
+    if (L && L.tank && !G.tank && world) { G.tankT -= dt; if (G.tankT <= 0) shareOut(spawnTank()); }
+    if (L && L.ufo && !G.ufo && world) { G.ufoT -= dt; if (G.ufoT <= 0) shareOut(spawnUfo()); }
   } else starsEl.classList.remove('flash');
   if (G.seenNow) G.seenAt = performance.now();
   G.seenNow = false;

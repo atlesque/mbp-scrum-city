@@ -17,6 +17,7 @@ import { MELEE_ANIMS } from '../characters/swing.js';
 //   wl  their wanted level (the crew's)       sn  1 while someone hunting the crew has them in sight
 //   rd, ay  riding with a crewmate (net/ride.js): [their id, seat], and the aim from the seat (radians off its heading)
 //   fr, ft  at five stars or more: the crew's streak there and its count to the sixth star (seconds, game/wanted.js)
+//   hs, up  1 while they could run the crew's world (out in a running city), and seconds in the room (net/world.js)
 //   v   while riding: { m: model id, x, y, z, yaw, v: speed, st: steer, ay: aim yaw from the vehicle's nose or null,
 //       r / l: a chopper's rotor speed and 1 when it's landed, pp: a bike's wheelie angle }
 export const NAME_MAX = 16;

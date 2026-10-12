@@ -5,6 +5,7 @@ import { at } from '../core/spatial.js';
 import { G, P, cam } from '../core/state.js';
 import { angDiff, clamp, rnd } from '../core/util.js';
 import { addEntity, all, removeEntity } from '../entities/registry.js';
+import { crew, nearestOf, shareOut } from '../game/crew.js';
 import { reward } from '../game/pickups.js';
 import { hurtPlayer } from '../game/player.js';
 import { addHeat } from '../game/wanted.js';
@@ -18,7 +19,7 @@ import { makeSearchlight, newShade, removeSearchlight, shineAt, showSearchlight 
 import { spawnVehicle } from './vehicle.js';
 
 // ================= HELICOPTER =================
-// The 4+ star chopper: circles the player, sweeps a searchlight and fires minigun bursts.
+// The 4+ star chopper: circles the player (in multiplayer, whoever of the crew is nearest), sweeps a searchlight and fires minigun bursts.
 // It takes about 20 rifle hits or one direct rocket, smokes as it weakens and spins down when killed.
 export const HELI_HP = 1400;
 // hit volumes in the chopper's own frame: the cabin, the tail boom and the rotor disc
@@ -74,19 +75,21 @@ const Heli = {
     }
     h.beam.visible = h.spot.visible = true;
     h.ang += dt * 0.22;
-    const tx = P.x + Math.cos(h.ang) * 26, tz = P.z + Math.sin(h.ang) * 26;
+    // it hunts whichever of the crew is nearest (in single player, the player)
+    const T = h.tgt = nearestOf(h.x, h.z);
+    const tx = T.x + Math.cos(h.ang) * 26, tz = T.z + Math.sin(h.ang) * 26;
     const dx = tx - h.x, dz = tz - h.z, d = Math.hypot(dx, dz);
     const ux = d > 0.01 ? dx / d : 0, uz = d > 0.01 ? dz / d : 0;
-    const want = Math.max(heliTarget(), safeY(h.x, h.z, ux, uz, Math.min(d, SPEED * LOOK)));
+    const want = Math.max(heliTarget(T), safeY(h.x, h.z, ux, uz, Math.min(d, SPEED * LOOK)));
     h.y += clamp(want - h.y, -SINK, CLIMB) * dt;
     fly(h, ux, uz, Math.min(d, SPEED * dt));
-    h.yaw += angDiff(h.yaw, Math.atan2(P.x - h.x, P.z - h.z)) * dt * 2;
+    h.yaw += angDiff(h.yaw, Math.atan2(T.x - h.x, T.z - h.z)) * dt * 2;
     h.grp.position.set(h.x, h.y + Math.sin(G.time * 1.3) * 0.3, h.z); h.grp.rotation.set(0.12, h.yaw, 0);
     h.lr.visible = (G.time * 2 | 0) % 2 === 0;
-    aimLight(h);
-    const dist = Math.hypot(P.x - h.x, P.z - h.z, h.y);
+    aimLight(h, T.x, T.z);
+    const dist = Math.hypot(T.x - h.x, T.z - h.z, h.y);
     h.losT -= dt;
-    if (h.losT <= 0) { h.los = P.alive && dist < 80 && !blocked(h.x, h.y - 1, h.z, P.x, P.y + 1, P.z); h.losT = SIGHT_EVERY; }
+    if (h.losT <= 0) { h.los = T.alive && dist < 80 && !blocked(h.x, h.y - 1, h.z, T.x, (T.y || 0) + 1, T.z); h.losT = SIGHT_EVERY; }
     // the minigun only opens up on a player in view, after a short reaction, and stops when they duck out of sight
     const ready = reactTo(h.sight, h.los && dist < 70, dt);
     if (!h.los) h.burst = 0;
@@ -95,11 +98,11 @@ const Heli = {
       h.burstT -= dt;
       if (h.burstT <= 0) {
         h.burst--; h.burstT = 0.09;
-        const from = new THREE.Vector3(h.x, h.y - 1, h.z), to = new THREE.Vector3(P.x, P.y + 1, P.z);
+        const from = new THREE.Vector3(h.x, h.y - 1, h.z), to = new THREE.Vector3(T.x, (T.y || 0) + 1, T.z);
         const hit = Math.random() < 0.2 * aimFalloff(dist, HELI_AIM_CLOSE) && !blocked(from.x, from.y, from.z, to.x, to.y, to.z);
         muzzleFlash(from); Sound.shot('minigun', 0.6, at(h, -0.5));
-        if (hit) { tracer(from, to, true); hurtPlayer(5); Sound.impact('flesh', 1, to); } else {
-          // a miss rakes the ground (or a wall, a car, a palm) round the player
+        if (hit) { tracer(from, to, true); if (T === P) hurtPlayer(5); else if (crew.hit) crew.hit(T, 5, 'torso'); Sound.impact('flesh', 1, to); } else {
+          // a miss rakes the ground (or a wall, a car, a palm) round them
           to.add(new THREE.Vector3(rnd(-2, 2), rnd(-1, 0.5), rnd(-2, 2)));
           const b = castBullet(from, to.clone().sub(from).normalize(), from.distanceTo(to) + 30, h);
           tracer(from, b.kind === 'none' ? to : b.p, true); bulletImpact(b);
@@ -171,6 +174,7 @@ function comeDown(h, dt) {
   touchDown(h.x, floor, h.z, impact);
   const v = spawnVehicle('heli', h.x, h.z, h.yaw);
   v.y = floor; v.hp = Math.max(1, h.hp); v.rotor = h.spin; v.pilotDead = true; v.K.pose(v, 0);
+  if (h.wk) shareOut(v); // the crew's to fly
   removeHeli(40);
 }
 // the thump of a chopper landing hard: dust, a shudder, and whoever is under it is crushed
@@ -199,7 +203,7 @@ export function safeY(x, z, ux, uz, ahead) {
   return Math.max(y, roofTop(x + ux * ahead, z + uz * ahead) + CLEAR);
 }
 // the height it chases: CRUISE_Y, or higher over a player who is up high
-export function heliTarget() { return Math.max(CRUISE_Y, P.y + ABOVE); }
+export function heliTarget(T = P) { return Math.max(CRUISE_Y, (T.y || 0) + ABOVE); }
 // move `step` metres along (ux, uz), unless that would put the cabin into a building: then it hovers and climbs first
 function fly(h, ux, uz, step) {
   const nx = h.x + ux * step, nz = h.z + uz * step;
@@ -209,10 +213,10 @@ function fly(h, ux, uz, step) {
 
 // The searchlight points at the street under the player and stops at the first building in the way:
 // the beam ends there and the spot of light lands on that wall or roof instead of the street.
-export function aimLight(h) {
+export function aimLight(h, x = P.x, z = P.z) {
   const p = h.grp.position;
-  _o.set(p.x, p.y + BEAM_Y, p.z);
-  return shineAt(h.light, _o, P.x, groundAt(P.x, P.z), P.z);
+  _o.set(p.x, p.y + BEAM_Y, p.z); h.lx = x; h.lz = z;
+  return shineAt(h.light, _o, x, groundAt(x, z), z);
 }
 export const searchlightShade = searchlightShadeOf;
 
@@ -224,6 +228,7 @@ export function spawnHeli() {
   m.grp.position.set(h.x, h.y, h.z); scene.add(m.grp);
   G.heli = addEntity(h);
   showBig('Chopper inbound');
+  return h;
 }
 // clear the chopper away; the next one may come `cooldown` seconds later
 export function removeHeli(cooldown) {
