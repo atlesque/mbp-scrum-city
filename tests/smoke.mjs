@@ -41,7 +41,7 @@ const HELD = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyC', 'KeyQ', 'Space', 'ShiftLef
 async function reset() {
   for (const k of HELD) await page.keyboard.up(k);
   await game(async () => {
-    const { G, P, I, cam, all, removeEntity } = __neonbay;
+    const { G, P, I, cam, inv, all, removeEntity } = __neonbay;
     const { exitVehicle, respawn } = await import('/js/game/player.js'), { selectWeapon } = await import('/js/combat/combat.js'), { dropChute } = await import('/js/game/parachute.js');
     for (const id of ['pause', 'settings', 'shop', 'wheel', 'worldMap', 'title']) { const el = document.getElementById(id); if (el) el.hidden = true; }
     document.getElementById('hud').hidden = false; // a step that failed on the title screen
@@ -53,6 +53,9 @@ async function reset() {
     respawn();
     for (const k of Object.keys(window)) if (k.startsWith('__') && k !== '__neonbay') { const e = window[k]; if (e && e.kind && !e.removed) removeEntity(e); delete window[k]; }
     for (const e of all()) if (e.kind === 'vehicle' && e.mode !== 'traffic' && !e.home && Math.hypot(e.x - P.x, e.z - P.z) < 30) removeEntity(e);
+    // a Pokemon step that failed part-way leaves a caught partner on the team, at heel through every step after it
+    inv.pokemon = { balls: 5, party: [], selected: -1 };
+    for (const e of all('pokemon')) if (Math.hypot(e.x - P.x, e.z - P.z) < 30) removeEntity(e);
     Object.assign(G, { scope: 0, reloadT: 0, fireCd: 0, spawnT: 0 });
     Object.assign(P, { hp: 100, armor: 0, swing: null, reload: null, aiming: false });
     Object.assign(I, { mouseL: false, mouseR: false, clickQ: 0 });
