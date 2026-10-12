@@ -4,6 +4,7 @@ Written from the commits on main by `scripts/changelog.mjs`; every change merged
 
 ## 2026-10-12
 
+- **v1.133** Space out automatic world events and prevent disaster pileups
 - **v1.132** Test secret fighter persistence in the full city
 
 ## 2026-10-11

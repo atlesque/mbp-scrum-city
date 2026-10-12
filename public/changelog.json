@@ -1,7 +1,14 @@
 {
- "version": "1.132",
+ "version": "1.133",
  "date": "2026-10-12",
  "entries": [
+  {
+   "v": "1.133",
+   "date": "2026-10-12",
+   "sha": "f9a6f4d",
+   "pr": null,
+   "title": "Space out automatic world events and prevent disaster pileups"
+  },
   {
    "v": "1.132",
    "date": "2026-10-12",
