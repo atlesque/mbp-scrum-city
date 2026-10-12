@@ -2,6 +2,10 @@
 
 Written from the commits on main by `scripts/changelog.mjs`; every change merged into main is one version. Do not edit by hand.
 
+## 2026-10-12
+
+- **v1.132** Test secret fighter persistence in the full city
+
 ## 2026-10-11
 
 - **v1.131** Test that main.js imports three.js first ([#124](https://github.com/atlesque/mbp-scrum-city/pull/124))

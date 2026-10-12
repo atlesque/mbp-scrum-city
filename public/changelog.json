@@ -1,7 +1,14 @@
 {
- "version": "1.131",
- "date": "2026-10-11",
+ "version": "1.132",
+ "date": "2026-10-12",
  "entries": [
+  {
+   "v": "1.132",
+   "date": "2026-10-12",
+   "sha": "68ee6b3",
+   "pr": null,
+   "title": "Test secret fighter persistence in the full city"
+  },
   {
    "v": "1.131",
    "date": "2026-10-11",
