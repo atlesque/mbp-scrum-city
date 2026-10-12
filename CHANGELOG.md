@@ -4,6 +4,7 @@ Written from the commits on main by `scripts/changelog.mjs`; every change merged
 
 ## 2026-10-12
 
+- **v1.136** Multiplayer: one shared city for the crew (traffic, chopper, tank, UFO) ([#127](https://github.com/atlesque/mbp-scrum-city/pull/127))
 - **v1.135** Multiplayer: share melee swings, hits and molotov fire with the crew ([#125](https://github.com/atlesque/mbp-scrum-city/pull/125))
 - **v1.134** Keep a Pokemon partner from hiding the car prompt ([#126](https://github.com/atlesque/mbp-scrum-city/pull/126))
 - **v1.133** Space out automatic world events and prevent disaster pileups

@@ -1,7 +1,14 @@
 {
- "version": "1.135",
+ "version": "1.136",
  "date": "2026-10-12",
  "entries": [
+  {
+   "v": "1.136",
+   "date": "2026-10-12",
+   "sha": "4e8d5a2",
+   "pr": 127,
+   "title": "Multiplayer: one shared city for the crew (traffic, chopper, tank, UFO)"
+  },
   {
    "v": "1.135",
    "date": "2026-10-12",
