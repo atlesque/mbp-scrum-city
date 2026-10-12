@@ -7,6 +7,8 @@ import { emit } from '../../public/js/core/events.js';
 import { addCollider, colliders, HASH, tallBoxes } from '../../public/js/world/collision.js';
 import { catchChance, freshTeam } from '../../public/js/pokemon/team.js';
 import { spawnPokemon, updatePokemon, cyclePartner } from '../../public/js/pokemon/world.js';
+import { interact, updateInteraction } from '../../public/js/game/interact.js';
+import { spawnVehicle } from '../../public/js/vehicles/vehicle.js';
 
 beforeEach(() => {
   for (const e of all('pokemon')) removeEntity(e);
@@ -14,6 +16,24 @@ beforeEach(() => {
   inv.pokemon = freshTeam();
   Object.assign(G, { state: 'play', time: 0 });
   Object.assign(P, { x: 0, z: 0, y: 0, alive: true, club: null, vehicle: null, roof: null });
+});
+it('a partner at heel never hides the car or door beside the player, and E goes to the door', () => {
+  const prompt = { hidden: true, innerHTML: '' }; vi.stubGlobal('document', { getElementById: () => prompt });
+  const car = spawnVehicle('sedan', 0, 2.5, 0), entered = vi.fn();
+  const door = addEntity({ kind: 'test-door', interaction: () => ({ keys: ['use'], priority: 1, dist: 2, prompt: 'roof door', run: entered }) });
+  try {
+    const record = { species: 'pikachu', hp: 100, level: 3, xp: 0 };
+    inv.pokemon.party = [record]; inv.pokemon.selected = 0;
+    const partner = spawnPokemon('pikachu', 1, 0, record);
+    removeEntity(door); updateInteraction();
+    expect(G.near[0].prompt).toContain(car.model.name);
+    expect(G.near.some(i => i.prompt.includes('recall'))).toBe(true); // still there for E when nothing else wants it
+    addEntity(door); updateInteraction();
+    expect(G.near[0].prompt).toBe('roof door');
+    interact('use');
+    expect(entered).toHaveBeenCalled();
+    expect(partner.removed).toBeUndefined();
+  } finally { removeEntity(car); removeEntity(door); vi.unstubAllGlobals(); }
 });
 it('wild encounters offer a catch only close by with line of sight', () => {
   const p = spawnPokemon('pikachu', 2, 0);
