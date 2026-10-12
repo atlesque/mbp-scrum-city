@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { P } from '../../public/js/core/state.js';
 import { SAFE_R, crew, nearestOf, safeSpot, spawnSpot } from '../../public/js/game/crew.js';
-import { NPC_CHUNK, chunks, due, heatNews, packNpc, packState, unpackNpc } from '../../public/js/net/protocol.js';
+import { NPC_CHUNK, chunks, due, heatNews, packFire, packNpc, packState, packSwing, unpackFire, unpackNpc, unpackSwing } from '../../public/js/net/protocol.js';
 import { NPC_TYPES, lookFrom } from '../../public/js/npcs/types.js';
 
 describe('the people each game shares', () => {
@@ -13,10 +13,23 @@ describe('the people each game shares', () => {
     const a = packNpc(cop);
     expect(a).toEqual([7, 'cop', 12345, 1.23, 0, -9.88, 1.235, 4.8, 3, 'pistol', 0.1]);
     expect(JSON.stringify(a).length).toBeLessThan(70);
-    expect(unpackNpc(a)).toEqual({ i: 7, type: 'cop', seed: 12345, s: { w: 1, x: 1.23, y: 0, z: -9.88, yaw: 1.235, ms: 4.8, al: 1, a: 1, pn: 0, th: 0, g: 'pistol', p: 0.1 } });
+    expect(unpackNpc(a)).toEqual({ i: 7, type: 'cop', seed: 12345, s: { w: 1, x: 1.23, y: 0, z: -9.88, yaw: 1.235, ms: 4.8, al: 1, a: 1, pn: 0, th: 0, dn: 0, g: 'pistol', p: 0.1 } });
     expect(unpackNpc(packNpc({ ...cop, alive: false })).s).toMatchObject({ al: 0, g: null });
+    expect(unpackNpc(packNpc({ ...cop, downT: 1.2 })).s).toMatchObject({ al: 1, dn: 1 }); // knocked down by a melee blow
     expect(unpackNpc(['x'])).toBeNull();
     expect(unpackNpc([1, 'cop', 1, 'a', 0, 0, 0, 0, 1, 0, 0])).toBeNull();
+  });
+
+  it('sends a melee swing and a molotov fire small, and turns away what makes no sense', () => {
+    const sw = packSwing('punch', 0.4251, 2);
+    expect(sw).toEqual({ t: 'swing', a: 'punch', d: 0.43, k: 2 });
+    expect(unpackSwing(sw)).toEqual({ anim: 'punch', dur: 0.43, step: 2 });
+    expect(unpackSwing({ a: 'swing', d: 99, k: 7 })).toEqual({ anim: 'swing', dur: 3, step: 2 });
+    for (const bad of [{ a: 'dance', d: 0.4 }, { a: 'toString', d: 0.4 }, { a: 'chop' }, null]) expect(unpackSwing(bad)).toBeNull();
+    const f = packFire({ x: 1.234, y: 0.051, z: -5.678 });
+    expect(f).toEqual({ t: 'fire', x: 1.23, y: 0.05, z: -5.68 });
+    expect(unpackFire(f)).toEqual({ x: 1.23, y: 0.05, z: -5.68 });
+    expect(unpackFire({ x: 1, y: 'up', z: 2 })).toBeNull();
   });
 
   it('splits a crowd into messages that fit the room', () => {

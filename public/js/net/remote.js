@@ -1,5 +1,7 @@
 import { animateChar, deathAnim, disposeChar, makeCharacter, muzzleOf, setGun } from '../characters/character.js';
+import { startSwing, tickSwing } from '../characters/swing.js';
 import { Sound } from '../core/audio.js';
+import { at } from '../core/spatial.js';
 import { P } from '../core/state.js';
 import { addEntity, removeEntity } from '../entities/registry.js';
 import { emit, muzzleFlash, tracer } from '../render/effects.js';
@@ -75,6 +77,7 @@ const Remote = {
     if (this.rd && this.passenger(s)) return;
     this.unseat();
     this.x = s.x; this.y = s.y || 0; this.z = s.z; this.yaw = s.yaw; this.moveSpeed = s.ms || 0; this.jumpY = s.j || 0;
+    if (this.swing && (!this.alive || !tickSwing(this, dt))) this.swing = null;
     if (this.alive) animateChar(this, dt); else deathAnim(this, dt);
     c.root.position.set(this.x, this.y - this.jumpY, this.z); c.root.rotation.y = this.yaw;
     this.tag.position.set(this.x, this.y + 2.35, this.z);
@@ -141,6 +144,13 @@ const Remote = {
     if (laser) emit(from.x, from.y, from.z, 3, '#6dff8a', 2, 0.15, 0.06); else muzzleFlash(from, m.w === 'shotgun' || m.w === 'rpg');
     Sound.shot(m.w, 0.9, { x: from.x, y: from.y, z: from.z });
     for (const h of m.h.slice(0, 3)) emit(h[0], h[1], h[2], 3, '#d8d0c8', 3, 0.35, 0.07, -12, 2);
+  },
+  // their melee swing (net/protocol.js unpackSwing), on them as we see them, with its whoosh. (A blow that lands on someone
+  // this game runs comes on its own, as an 'nhit', net/sync.js.)
+  showSwing({ anim, dur, step }) {
+    if (!this.c.root.visible || !this.alive || this.vehicle || this.seated) return;
+    startSwing(this, anim, dur, step);
+    if (anim === 'saw') Sound.saw(1, at(this, 1.2)); else Sound.swing(0.8, at(this, 1.3));
   },
   shouldDespawn() { return false; },
   dispose() {

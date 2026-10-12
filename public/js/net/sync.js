@@ -1,6 +1,9 @@
 import { explosion } from '../combat/combat.js';
+import { crewFire } from '../combat/throwables.js';
+import { Sound } from '../core/audio.js';
 import { emit, on } from '../core/events.js';
 import { G, P, cam } from '../core/state.js';
+import { at } from '../core/spatial.js';
 import { angDiff, clamp } from '../core/util.js';
 import { all } from '../entities/registry.js';
 import { crew } from '../game/crew.js';
@@ -13,16 +16,16 @@ import { NPC_TYPES } from '../npcs/types.js';
 import { toast } from '../ui/hud.js';
 import { ghostOf, ghostsFrom, pruneGhosts } from './ghosts.js';
 import { MP, connected, onMessage, send } from './net.js';
-import { NPC_CHUNK, NPC_EVERY, NPC_SHARE_R, chunks, due, heatNews, packNpc, packShot, packState, unpackNpc } from './protocol.js';
+import { NPC_CHUNK, NPC_EVERY, NPC_SHARE_R, chunks, due, heatNews, packFire, packNpc, packShot, packState, packSwing, unpackFire, unpackNpc, unpackSwing } from './protocol.js';
 import { addRemote, allRemotes, dropRemote, remoteOf } from './remote.js';
 import { rideState } from './ride.js';
 
 // ================= MULTIPLAYER: THE GAME SIDE =================
-// Everyone in the room is one crew. What this game tells the room: where the player is, their shots and blasts, the
-// people it runs near another player, and the crew's heat. What it does with what the others send: moves their players
-// (net/remote.js) and their people (net/ghosts.js), plays their gunfire, takes the hits their people land, and keeps
-// one wanted level for all. The crew can't hurt each other. Traffic, the chopper, the tank and the UFO stay each
-// player's own.
+// Everyone in the room is one crew. What this game tells the room: where the player is, their shots, blasts, melee swings
+// and molotov fires, the people it runs near another player, and the crew's heat. What it does with what the others send:
+// moves their players (net/remote.js) and their people (net/ghosts.js), plays their gunfire and swings, lights their fires,
+// takes the hits their people land, and keeps one wanted level for all. The crew can't hurt each other. Traffic, the
+// chopper, the tank and the UFO stay each player's own.
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 // (the city doesn't stop for the pause menu, the map or a shop in multiplayer, main.js, so they're still out in it)
 const inWorld = () => ['play', 'dead', 'map', 'paused', 'shop'].includes(G.state) && !P.club;
@@ -77,6 +80,9 @@ function shareNpcs() {
 on('player:shot', ({ weapon, from, ends }) => { if (connected() && inWorld()) send(packShot(weapon, from, ends)); });
 const boom = ({ x, y, z, R, dmg, power }, n) => ({ t: 'boom', x: r2(x), y: r2(y), z: r2(z), r: R, d: dmg, p: power, ...(n ? { n: 1 } : {}) });
 on('player:boom', b => { if (connected()) send(boom(b)); });
+// the player's melee swings (combat/melee.js) and their molotovs bursting (combat/throwables.js)
+on('player:swing', ({ anim, dur, step }) => { if (connected() && inWorld()) send(packSwing(anim, dur, step)); });
+on('player:fire', f => { if (connected()) send(packFire(f)); });
 // the people this game runs firing at the crew, and their rockets going off
 on('npc:boom', b => { if (connected() && allRemotes().length) send(boom(b, true)); });
 on('npc:shot', ({ npc, from, end }) => {
@@ -120,6 +126,10 @@ onMessage('shot', m => {
   const r = remoteOf(m.id); if (!r) return;
   r.showShot(m); if (Array.isArray(m.f) && m.f.every(Number.isFinite)) alarm(m.f[0], m.f[2], 32); // people here run from it too
 });
+// a melee swing: on them here, and a blow that lands on someone this game runs comes as an 'nhit' below
+onMessage('swing', m => { const r = remoteOf(m.id), s = unpackSwing(m); if (r && s) r.showSwing(s); });
+// their molotov burst: the fire burns here too, on this game's people and cars but not on the player
+onMessage('fire', m => { const f = unpackFire(m); if (f && remoteOf(m.id)) crewFire(f.x, f.y, f.z); });
 // a rocket or grenade, where it burst for them: it goes off here too. A crewmate's spares this player; one fired at the
 // crew by someone hunting them doesn't.
 onMessage('boom', m => {
@@ -132,11 +142,15 @@ onMessage('npcs', m => {
   ghostsFrom(m.id, m.n.slice(0, NPC_CHUNK).map(unpackNpc).filter(Boolean), performance.now() / 1000);
 });
 onMessage('nshot', m => { const g = ghostOf(m.id, m.i); if (g) g.showShot(m); });
-// someone this game runs shot by a crewmate: the damage lands here, and a kill is theirs
+// someone this game runs shot (or hit with a melee blow: k, dn, b) by a crewmate: the damage lands here, and a kill is theirs
 onMessage('nhit', m => {
   const n = all('npc').find(e => e.nid === m.i), d = clamp(Number(m.d) || 0, 0, 500);
   if (!n || !n.alive || !d) return;
-  n.hurt(d, new THREE.Vector3(Number(m.dx) || 0, 0, Number(m.dz) || 1), false);
+  const dir = new THREE.Vector3(Number(m.dx) || 0, 0, Number(m.dz) || 1);
+  if (m.k != null) {
+    n.meleeHit({ dmg: d, dir, knock: clamp(Number(m.k) || 0, 0, 20), down: !!m.dn, blade: !!m.b, crew: true });
+    Sound.smack(m.b ? 'blade' : 'blunt', 1, at(n, 1.2));
+  } else n.hurt(d, dir, false);
   if (!n.alive) send({ t: 'nkill', to: m.from, ty: n.type, x: r2(n.x), z: r2(n.z) });
 });
 // this player took one of theirs down: the cash, the drops, the heat (game/rewards.js)

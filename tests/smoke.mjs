@@ -1,5 +1,5 @@
 // Plays a short session in headless Chromium: boot, load a .glb building, walk, drive each kind of car, ride a bike, shoot someone, punch and bat someone, take a juggernaut's rocket, shoot a chopper's pilot and fly the chopper off, get shelled by the army's tank and blow it up, hold five stars into the secret sixth and take a laser rifle off an alien, snipe through the scope, throw a car with a rocket,
-// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, buy the repair tool and fix a car with it, ram a bike, ride a bike over a car, pull a wheelie, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, go into the club and back out, open the world map and set a waypoint, change settings and remap keys, exit to the title screen and play again, see the version and What's new on the title screen, meet another player in multiplayer. Fails on any page error or broken step.
+// shoot a driver through the window and take their car, drag a driver out, buy armor at the gun shop, buy the repair tool and fix a car with it, ram a bike, ride a bike over a car, pull a wheelie, shunt a parked car, watch the fire brigade put out a crash fire, drift, drive up a kerb, bail out of a car and a bike at speed, walk into the edge wall, take the stairs to a roof, go into the club and back out, open the world map and set a waypoint, change settings and remap keys, exit to the title screen and play again, see the version and What's new on the title screen, meet another player in multiplayer and see each other's melee and molotov fire. Fails on any page error or broken step.
 // Run with `npm run test:smoke`, which splits the steps over a few browsers at once (tests/smoke-all.mjs). This file is one of
 // those browsers: `node tests/smoke.mjs` runs every step in one, in order.
 // SMOKE_ONLY=tank,reload runs only the steps whose names contain one of those words (case-insensitive), after the boot;
@@ -1634,6 +1634,57 @@ try {
     // leaving takes them, their bike and their people out of the world
     await game(async () => { (await import('/js/net/net.js')).leave(); window.WebSocket = window.__mpWS; });
     check(await game(() => __neonbay.all('remote').length === 0 && __neonbay.all('ghost').length === 0 && !__neonbay.all('vehicle').some(v => v.remote)), 'the other player stayed after leaving');
+  });
+  await step('multiplayer: the crew sees each other\'s melee swings and molotov fires', async () => {
+    // the same stand-in for the room, with a crewmate 4 m ahead and one of their game's people 1 m in front of the player
+    await game(async () => {
+      window.__mpWS = window.WebSocket; window.__mpSent = [];
+      window.WebSocket = class { constructor() { this.readyState = 0; window.__mpSock = this; setTimeout(() => { this.readyState = 1; this.onopen(); }, 0); }
+        send(t) { const m = t.startsWith('{') ? JSON.parse(t) : t; window.__mpSent.push(m); if (m.t === 'hello') setTimeout(() => this.push({ t: 'welcome', id: 'me', max: 16, players: [{ id: 'bot', name: 'Bot' }] }), 0); }
+        push(m) { this.onmessage({ data: JSON.stringify(m) }); } close() { this.readyState = 3; this.onclose({ code: 1000 }); } };
+      (await import('/js/net/net.js')).join();
+      const { P } = __neonbay, fx = Math.sin(P.yaw), fz = Math.cos(P.yaw);
+      for (let i = 0; i < 6; i++) setTimeout(() => {
+        window.__mpSock.push({ t: 's', id: 'bot', w: 1, x: P.x + fx * 4, y: 0, z: P.z + fz * 4, yaw: P.yaw + Math.PI, ms: 0, j: 0, g: 'bat', a: 0, p: 0, th: 1, m: 'swing', al: 1, wl: 0, sn: 0 });
+        window.__mpSock.push({ t: 'npcs', id: 'bot', n: [[5, 'civilian', 77, P.x + fx, 0, P.z + fz, 0, 0, 1, 0, 0]] });
+      }, i * 100);
+    });
+    check(await until(() => __neonbay.all('remote')[0]?.c.root.visible && __neonbay.all('ghost').length === 1, undefined, 5000), 'the crewmate or their person never appeared');
+    // the player's punch: the swing goes out, and the blow on their person goes to their game with its knock
+    const punch = await game(async () => {
+      const { P, cam, inv } = __neonbay, { playerSwing, landPlayerSwing } = await import('/js/combat/melee.js'), { selectWeapon } = await import('/js/combat/combat.js');
+      const { WBY, wStat } = await import('/js/data/weapons.js'), g = __neonbay.all('ghost')[0];
+      selectWeapon('fist'); P.yaw = Math.atan2(g.x - P.x, g.z - P.z); cam.pitch = 0;
+      const n = __mpSent.length; playerSwing(WBY.fist, wStat(WBY.fist, 0)); landPlayerSwing({ step: 2 });
+      const sent = __mpSent.slice(n);
+      return { swing: sent.find(m => m.t === 'swing'), hit: sent.find(m => m.t === 'nhit') };
+    });
+    check(punch.swing && punch.swing.a === 'punch' && punch.hit && punch.hit.to === 'bot' && punch.hit.i === 5 && punch.hit.k > 0 && punch.hit.dn === 1, 'the punch did not go to the crew: ' + JSON.stringify(punch));
+    // their swing shows on them here, and their kick on someone this game runs knocks them down here
+    const theirs = await game(async () => {
+      const { P, spawnNpc } = __neonbay, n = window.__mpCiv = spawnNpc('civilian', P.x + 2, P.z); n.nid = 991; const hp0 = n.hp;
+      window.__mpSock.push({ t: 'swing', id: 'bot', a: 'swing', d: 0.6, k: 0 });
+      window.__mpSock.push({ t: 'nhit', from: 'bot', to: 'me', i: 991, d: 8, dx: 1, dz: 0, k: 4, dn: 1, b: 0 });
+      return { swing: !!__neonbay.all('remote')[0].swing, hurt: hp0 - n.hp, down: n.downT > 0 };
+    });
+    check(theirs.swing && theirs.hurt === 8 && theirs.down, 'the crewmate\'s melee did not show here: ' + JSON.stringify(theirs));
+    // their molotov bursts at the player's feet: it burns this game's people there but not the player
+    const fire = await game(async () => {
+      const { P } = __neonbay, n = window.__mpCiv; n.downT = 0; n.x = P.x + 1; n.z = P.z; n.hp = 1000; P.hp = 100;
+      window.__mpSock.push({ t: 'fire', id: 'bot', x: P.x, y: 0, z: P.z });
+      await new Promise(r => setTimeout(r, 1200));
+      return { hp: P.hp, burnt: 1000 - n.hp };
+    });
+    check(fire.hp === 100 && fire.burnt > 0, 'the crewmate\'s fire: ' + JSON.stringify(fire));
+    // and the player's own molotov, dropped at their feet, goes out to the crew
+    const mine = await game(async () => {
+      const { P } = __neonbay, { throwItem } = await import('/js/combat/throwables.js');
+      throwItem('molotov', new THREE.Vector3(P.x + 6, (P.y || 0) + 1, P.z), { x: 0, y: -6, z: 0 });
+      for (let i = 0; i < 40 && !__mpSent.some(m => m.t === 'fire'); i++) await new Promise(r => setTimeout(r, 50));
+      return __mpSent.find(m => m.t === 'fire');
+    });
+    check(mine && Math.abs(mine.y) < 1, 'the player\'s molotov fire did not go to the crew: ' + JSON.stringify(mine));
+    await game(async () => { (await import('/js/net/net.js')).leave(); window.WebSocket = window.__mpWS; });
   });
   await step('multiplayer: rides along in a crewmate\'s car, shoots from the seat and gets off when they stop', async () => {
     // the same stand-in for the room as above, with a crewmate at the wheel of a sedan 2 m to the player's side

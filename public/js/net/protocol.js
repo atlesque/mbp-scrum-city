@@ -1,3 +1,5 @@
+import { MELEE_ANIMS } from '../characters/swing.js';
+
 // ================= MULTIPLAYER: WHAT GOES OVER THE WIRE =================
 // The pure part of multiplayer (no sockets, no meshes), so it can be tested on its own. The room on the server
 // (github.com/atlesque/mbp-games, src/room.js) relays player actions: each game is the authority on its own player, sends
@@ -109,19 +111,33 @@ export function packShot(weapon, from, ends) {
 // Each game runs the people it spawned; the ones near another player go out a few times a second (every NPC_EVERY) in
 // 'npcs' messages of at most NPC_CHUNK people, and that player's game draws them (net/ghosts.js). One person is
 //   [i, type, look seed, x, y, z, yaw, walking speed, flags, gun or 0, aim pitch]
-// i numbers them within the sending game; flags: 1 alive, 2 aiming, 4 panicking, 8 two-handed.
+// i numbers them within the sending game; flags: 1 alive, 2 aiming, 4 panicking, 8 two-handed, 16 knocked down.
 export const NPC_EVERY = 0.25, NPC_LAG = 0.35, NPC_SHARE_R = 120, NPC_CHUNK = 24, NPC_STALE = 1.2;
 export function packNpc(n) {
-  const f = (n.alive ? 1 : 0) | (n.aiming ? 2 : 0) | (n.panic ? 4 : 0) | (n.twoHand ? 8 : 0);
+  const f = (n.alive ? 1 : 0) | (n.aiming ? 2 : 0) | (n.panic ? 4 : 0) | (n.twoHand ? 8 : 0) | (n.downT > 0 ? 16 : 0);
   return [n.nid, n.type, n.seed ?? 1, r2(n.x), r2(n.y || 0), r2(n.z), r3(n.yaw), r2(n.moveSpeed || 0), f, (n.alive && n.c && n.c.gunId) || 0, r3(n.aimPitch || 0)];
 }
 // back into an id, a type, a seed and a state that sample() can blend
 export function unpackNpc(a) {
   if (!Array.isArray(a) || a.length < 11 || ![a[0], a[2], a[3], a[4], a[5], a[6], a[7], a[8]].every(Number.isFinite)) return null;
   const f = a[8];
-  return { i: a[0], type: String(a[1]), seed: a[2], s: { w: 1, x: a[3], y: a[4], z: a[5], yaw: a[6], ms: a[7], al: f & 1, a: (f & 2) >> 1, pn: (f & 4) >> 2, th: (f & 8) >> 3, g: a[9] || null, p: Number(a[10]) || 0 } };
+  return { i: a[0], type: String(a[1]), seed: a[2], s: { w: 1, x: a[3], y: a[4], z: a[5], yaw: a[6], ms: a[7], al: f & 1, a: (f & 2) >> 1, pn: (f & 4) >> 2, th: (f & 8) >> 3, dn: (f & 16) >> 4, g: a[9] || null, p: Number(a[10]) || 0 } };
 }
 export function chunks(list, n) { const out = []; for (let i = 0; i < list.length; i += n) out.push(list.slice(i, i + n)); return out; }
+
+// ---- melee and molotov fire ----
+// A swing goes out as it starts, 'swing' { a: the move (characters/swing.js), d: how long it takes, k: its step in a combo },
+// so the others see it on the player. A blow that lands on someone another game runs (a ghost, net/ghosts.js) goes to that
+// game as 'nhit' with the melee part added: k how hard it shoves, dn 1 to knock them down, b 1 for a blade.
+// A molotov bursting goes out as 'fire' { x, y, z }: the pool of fire burns in every game, each on its own people and cars,
+// and never on the crew.
+export function packSwing(anim, dur, step) { return { t: 'swing', a: anim, d: r2(dur), k: step | 0 }; }
+export function unpackSwing(m) {
+  if (!m || !Object.hasOwn(MELEE_ANIMS, m.a) || !Number.isFinite(m.d)) return null;
+  return { anim: m.a, dur: Math.min(3, Math.max(0.1, m.d)), step: Math.min(2, Math.max(0, m.k | 0)) };
+}
+export const packFire = ({ x, y, z }) => ({ t: 'fire', x: r2(x), y: r2(y), z: r2(z) });
+export const unpackFire = m => m && [m.x, m.y, m.z].every(Number.isFinite) ? { x: m.x, y: Math.min(200, Math.max(0, m.y)), z: m.z } : null;
 
 // ---- the crew's heat ----
 // Everyone in the room is one crew with one wanted level. Heat this game adds goes out as 'heat' { v } and is added
