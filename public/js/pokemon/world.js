@@ -77,7 +77,9 @@ const Pokemon = {
     if (!active() || this.catching || this.removed) return null;
     const dist = distance(this, player);
     if (dist > 3 || blocked(player.x, 1, player.z, this.x, this.bodyY, this.z)) return null;
-    return { keys: ['use'], priority: 2, dist,
+    // A partner follows at heel, so its recall offer is always in reach: it gives way to anything else on offer
+    // (the car beside the player, a shop or roof door), or it would hide that prompt and E would recall it instead.
+    return { keys: ['use'], priority: this.owned ? -1 : 2, dist,
       prompt: this.owned ? `<em>${this.def.name}</em> · Lv ${this.record.level || 1} · HP ${Math.ceil(this.record.hp)}/100 · <kbd>${kb('use')}</kbd> recall`
         : `<kbd>${kb('use')}</kbd> throw Poké Ball · <em>${this.def.name}</em> Lv ${this.level} · ${inv.pokemon.balls} balls · ${Math.round(catchChance(this.species, this.hp) * 100)}% catch · HP ${Math.ceil(this.hp)}/100`,
       run: () => this.owned ? this.recall() : this.catch(),
