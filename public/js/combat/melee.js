@@ -1,5 +1,6 @@
 import { startSwing } from '../characters/swing.js';
 import { Sound } from '../core/audio.js';
+import { emit as emitEvent } from '../core/events.js';
 import { G, P, cam, inv } from '../core/state.js';
 import { $, angDiff, clamp } from '../core/util.js';
 import { MELEE, WBY, wStat } from '../data/weapons.js';
@@ -44,6 +45,7 @@ export function playerSwing(w, st) {
   const dur = w.anim === 'saw' ? st.rate : st.rate * (combo === 2 ? 1.35 : 1);
   if (combo === 2) G.fireCd = dur;
   startSwing(P, w.anim, dur, combo);
+  emitEvent('player:swing', { anim: w.anim, dur, step: combo }); // the crew sees it (net/sync.js)
   if (w.anim === 'saw') Sound.saw(); else Sound.swing(w.knock >= 4 ? 1 : 0.6);
 }
 
@@ -54,8 +56,9 @@ export function landPlayerSwing(sw) {
   const st = wStat(w, inv.lvl[w.id] || 0), b = blowOf(w, st, sw.step);
   const yaw = P.yaw, pitch = clamp(cam.pitch, -0.6, 0.7);
   const targets = [];
-  for (const n of all('npc')) {
-    if (!onFoot(n) || Math.abs((n.y || 0) - P.y) > 1.3) continue;
+  // (and the people a crewmate's game runs, net/ghosts.js, which sends the blow over to it)
+  for (const n of [...all('npc'), ...all('ghost')]) {
+    if (!(onFoot(n) || n.kind === 'ghost' && n.alive) || Math.abs((n.y || 0) - P.y) > 1.3) continue;
     const d = inArc(P.x, P.z, yaw, n.x, n.z, b.reach, w.arc, n.r + 0.1); if (d != null) targets.push({ n, d });
   }
   targets.sort((a, c) => a.d - c.d);
@@ -95,7 +98,7 @@ export function landPlayerSwing(sw) {
 
 // what a blow from weapon w lands on n for: its damage in that zone, or all n has left for a one-hit weapon (the fire axe)
 // against anyone but a boss
-export const blowDamage = (w, n, dmg, zone) => w.oneHit && !n.def.boss ? n.hp + 1 : zoneDamage(dmg, zone);
+export const blowDamage = (w, n, dmg, zone) => w.oneHit && !n.def.boss ? (n.hp ?? n.def.hp) + 1 : zoneDamage(dmg, zone);
 
 // Q: from a gun to the melee weapon used last, then on through the melee weapons the player owns
 export function nextMelee(cur, owned, last) {

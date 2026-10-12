@@ -1,5 +1,6 @@
 import { charMat, gunGeo } from '../characters/character.js';
 import { Sound } from '../core/audio.js';
+import { emit as emitEvent } from '../core/events.js';
 import { HEAR } from '../core/spatial.js';
 import { P } from '../core/state.js';
 import { clamp, rnd } from '../core/util.js';
@@ -15,7 +16,8 @@ import { castShot, explosion } from './combat.js';
 // ================= GRENADES & MOLOTOVS =================
 // Thrown weapons fly in an arc. A grenade bounces off whatever it meets and goes off when its fuse runs out;
 // a molotov bursts on the first thing it touches and leaves a pool of fire that burns whoever stands in it,
-// sets them alight for a few seconds after, and cooks any car parked in it until it goes up.
+// sets them alight for a few seconds after, and cooks any car parked in it until it goes up. A crewmate's molotov
+// (net/sync.js) burns here too, on this game's people and cars, but not on the player.
 export const THROW = { speed: 18, lift: 0.3, gravity: -18, bounce: 0.4, friction: 0.6 };
 export const FIRE = { tick: 0.25, afterburn: 3, afterDps: 0.5, playerMul: 0.5, carMul: 2 };
 
@@ -40,15 +42,18 @@ export function throwItem(id, from, vel) {
 }
 
 const fireGeo = new THREE.CircleGeometry(1, 20); fireGeo.rotateX(-Math.PI / 2);
-function ignite(x, y, z, w) {
+function ignite(x, y, z, w, crew = false) {
   Sound.ting(1.4, { x, y, z }); Sound.boom(0.35, { x, y, z });
   emit(x, y + 0.3, z, 18, '#ff7a2a', 6, 0.6, 0.3, -4, 4); emit(x, y + 0.3, z, 10, '#ffd23e', 7, 0.4, 0.2, -6, 5);
   emit(x, y + 0.3, z, 8, '#cfe6c8', 5, 0.4, 0.06); // glass
   const m = new THREE.Mesh(fireGeo, new THREE.MeshBasicMaterial({ color: '#ff6a1a', transparent: true, opacity: 0.4, depthWrite: false, blending: THREE.AdditiveBlending }));
   m.scale.setScalar(w.fire); m.position.set(x, y + 0.06, z); scene.add(m);
-  fires.push({ x, y, z, r: w.fire, t: w.burn, dps: w.dmg, tick: 0, m });
+  fires.push({ x, y, z, r: w.fire, t: w.burn, dps: w.dmg, tick: 0, m, crew });
   alarm(x, z, 40);
+  if (!crew) emitEvent('player:fire', { x, y, z }); // the crew sees it burn too (net/sync.js)
 }
+// a crewmate's molotov burst at (x, y, z) in their game
+export const crewFire = (x, y, z) => ignite(x, y, z, WBY.molotov, true);
 
 export function updateThrown(dt) {
   for (let i = items.length - 1; i >= 0; i--) {
@@ -85,10 +90,10 @@ export function updateThrown(dt) {
       for (const e of all()) {
         if (e.removed) continue;
         const dist = Math.hypot(e.x - f.x, e.z - f.z);
-        if (e.kind === 'npc' && e.alive && !e.vehicle && dist < f.r && Math.abs((e.y || 0) - f.y) < 1.5) { e.hurt(d, null, true, 0); e.burnT = FIRE.afterburn; }
+        if (e.kind === 'npc' && e.alive && !e.vehicle && dist < f.r && Math.abs((e.y || 0) - f.y) < 1.5) { e.hurt(d, null, !f.crew, 0); e.burnT = FIRE.afterburn; e.burnCrew = f.crew; }
         else if (e.kind === 'vehicle' && e.damage && !e.dead && dist < f.r + 1.2) e.damage(d * FIRE.carMul, true);
       }
-      if (P.alive && !P.vehicle && Math.hypot(P.x - f.x, P.z - f.z) < f.r && Math.abs((P.y || 0) - f.y) < 1.5) hurtPlayer(d * FIRE.playerMul);
+      if (!f.crew && P.alive && !P.vehicle && Math.hypot(P.x - f.x, P.z - f.z) < f.r && Math.abs((P.y || 0) - f.y) < 1.5) hurtPlayer(d * FIRE.playerMul);
     }
     if (f.t <= 0) { scene.remove(f.m); f.m.material.dispose(); fires.splice(i, 1); }
   }
@@ -99,6 +104,6 @@ export function updateThrown(dt) {
     n.burnT -= dt;
     if (Math.random() < dt * 30) emit(n.x + rnd(-0.25, 0.25), (n.y || 0) + rnd(0.4, 1.7), n.z + rnd(-0.25, 0.25), 1, Math.random() < 0.5 ? '#ff7a2a' : '#ffd23e', 1, 0.45, 0.22, 4, 1.5);
     n.burnTick = (n.burnTick || 0) - dt;
-    if (n.burnTick <= 0) { n.burnTick = FIRE.tick; n.hurt(WBY.molotov.dmg * FIRE.afterDps * FIRE.tick, null, true, 0); }
+    if (n.burnTick <= 0) { n.burnTick = FIRE.tick; n.hurt(WBY.molotov.dmg * FIRE.afterDps * FIRE.tick, null, !n.burnCrew, 0); }
   }
 }

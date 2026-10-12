@@ -32,12 +32,13 @@ const Npc = {
     if (this.stagT > 0 || this.downT > 0) { this.reel(dt); return; }
     BEHAVIOURS[this.behaviour].update(this, dt);
   },
-  // a melee blow from the player (combat/melee.js): { dmg, zone, dir (from the player), knock, down, blade }.
+  // a melee blow from the player (combat/melee.js): { dmg, zone, dir (from the player), knock, down, blade }, or from a
+  // crewmate (crew: true, net/sync.js), whose game takes the credit and who isn't here to be hit back.
   // Whoever survives reels back, or goes down and gets up again; a hard blow throws the dead.
   meleeHit(h) {
     if (!this.alive) return;
     const heavy = this.def.scale ? 3 : 1, knock = h.knock / heavy;
-    this.hurt(h.dmg, h.dir, true, h.blade ? 1 : 0.5);
+    this.hurt(h.dmg, h.dir, !h.crew, h.blade ? 1 : 0.5);
     if (!this.alive) {
       if (knock >= 3) launch(this, { vx: h.dir.x * knock * 0.9, vz: h.dir.z * knock * 0.9, vy: knock * 0.55, spin: knock * 0.9 });
       else { this.svx = h.dir.x * knock; this.svz = h.dir.z * knock; }
@@ -47,7 +48,7 @@ const Npc = {
     this.yaw = Math.atan2(-h.dir.x, -h.dir.z); this.swing = null;
     if (h.down && heavy === 1) { this.downT = 1.8; this.panic = false; }
     // some people hit back
-    if (this.behaviour === 'wander' && !h.down && Math.random() < (this.def.fightBack || 0)) this.become('brawl');
+    if (this.behaviour === 'wander' && !h.down && !h.crew && Math.random() < (this.def.fightBack || 0)) this.become('brawl');
   },
   // knocked back or knocked down: slide, fall, lie there a moment and get up
   reel(dt) {
