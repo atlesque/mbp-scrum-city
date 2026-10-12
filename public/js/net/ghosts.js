@@ -13,7 +13,8 @@ import { NPC_LAG, NPC_STALE, sample, trim } from './protocol.js';
 // ================= MULTIPLAYER: OTHER PLAYERS' PEOPLE =================
 // Each game runs the people it spawned around its own player. The ones near this player come in from that game (net/sync.js)
 // and are drawn here as ghosts (kind 'ghost'): the same person, in the same clothes, where they are over there. A bullet
-// that lands on one is sent to the game that runs them, which takes the damage (and says so if it was the end of them).
+// or a melee blow that lands on one is sent to the game that runs them, which takes the damage (and says so if it was the end
+// of them).
 // A ghost goes when its game stops sending it: it walked off, was cleared away, or its player left.
 const ghosts = new Map(); // `${player id}:${i}` -> ghost
 export const ghostOf = (owner, i) => ghosts.get(owner + ':' + i);
@@ -33,6 +34,8 @@ const Ghost = {
       setGun(this.c, s.g || null);
       this.moveSpeed = s.ms; this.aiming = !!s.a; this.panic = !!s.pn; this.twoHand = !!s.th; this.aimPitch = s.p;
       animateChar(this, dt);
+      // knocked down over there (a melee blow): lying in the street here too
+      this.c.body.rotation.x = s.dn ? -Math.PI / 2 : 0; if (s.dn) this.c.body.position.y = 0.12;
     } else deathAnim(this, dt);
     this.c.root.position.set(this.x, this.y, this.z); this.c.root.rotation.set(0, this.yaw, 0);
   },
@@ -51,6 +54,12 @@ const Ghost = {
     send({ t: 'nhit', to: this.owner, i: this.i, d: Math.round(zoneDamage(dmg, zone) * 10) / 10, dx: dir ? r2(dir.x) : 0, dz: dir ? r2(dir.z) : 0 });
     emit(this.x, 1.2, this.z, 6, '#c0142c', 3.5, 0.5, 0.09);
     return { head: zone === 'head', zone };
+  },
+  // the player's melee blow (combat/melee.js): their game takes it, and the knock with it
+  meleeHit(h) {
+    const r2 = n => Math.round(n * 100) / 100;
+    send({ t: 'nhit', to: this.owner, i: this.i, d: Math.round(h.dmg * 10) / 10, dx: r2(h.dir.x), dz: r2(h.dir.z), k: r2(h.knock), dn: h.down ? 1 : 0, b: h.blade ? 1 : 0 });
+    emit(this.x, 1.2, this.z, h.blade ? 6 : 3, '#c0142c', 3.5, 0.5, 0.09);
   },
   blip(radar) {
     const r = this.def.radar; if (!r || !this.alive) return;
@@ -77,7 +86,7 @@ export function ghostsFrom(owner, people, t) {
       const def = NPC_TYPES[p.type]; if (!def) continue;
       const c = makeCharacter(lookFrom(def, p.seed)); if (def.gun) setGun(c, def.gun);
       c.root.position.set(p.s.x, p.s.y, p.s.z); scene.add(c.root);
-      g = Object.assign(Object.create(Ghost), { owner, i: p.i, key, type: p.type, def, faction: def.faction, c, buf: [], x: p.s.x, y: p.s.y, z: p.s.z, yaw: p.s.yaw,
+      g = Object.assign(Object.create(Ghost), { owner, i: p.i, key, type: p.type, def, faction: def.faction, c, buf: [], r: def.scale ? 0.5 : 0.38, x: p.s.x, y: p.s.y, z: p.s.z, yaw: p.s.yaw,
         alive: !!p.s.al, deadT: 1, moveSpeed: 0, aiming: false, aimPitch: 0, twoHand: false, panic: false, lastAt: t });
       ghosts.set(key, g); addEntity(g);
     }
