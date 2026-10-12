@@ -9,6 +9,7 @@ import { G, I, P, cam } from '../core/state.js';
 import { angDiff, clamp, rnd } from '../core/util.js';
 import { addEntity, all, removeEntity } from '../entities/registry.js';
 import { explosion } from '../combat/combat.js';
+import { crewDist } from '../game/crew.js';
 import { enterVehicle, exitVehicle, hurtPlayer } from '../game/player.js';
 import { REPAIR } from '../data/weapons.js';
 import { alarm, onFoot } from '../npcs/npc.js';
@@ -197,7 +198,7 @@ const Vehicle = {
   },
   shouldDespawn() {
     if (this.driver === P) return false;
-    const d = Math.hypot(this.x - P.x, this.z - P.z);
+    const d = this.wk ? crewDist(this.x, this.z) : Math.hypot(this.x - P.x, this.z - P.z); // (the crew's traffic: net/world.js)
     if (this.dead) return (this.deadT > 30 && d > 40) || d > 150;
     if (answersHeat(this) && d > 150) return true;
     if (this.mode === 'traffic') return d > this.K.trafficDespawn;
@@ -408,6 +409,7 @@ export function blockedAhead(v, range, ignoreVehicles) {
   const test = (x, z, lat) => { const rx = x - v.x, rz = z - v.z, ah = rx * fx + rz * fz, la = Math.abs(rx * -fz + rz * fx); return ah > 0 && ah < range && la < lat; };
   if (P.alive && test(P.x, P.z, 1.8)) return 'player';
   const list = all();
+  for (const r of list) if (r.kind === 'remote' && r.alive && r.where === 1 && !r.vehicle && !r.seated && (r.y || 0) < 2 && test(r.x, r.z, 1.8)) return 'player'; // a crewmate
   for (const n of list) if (onFoot(n) && test(n.x, n.z, 1.6)) return 'ped';
   if (!ignoreVehicles) for (const o of list) if (o.kind === 'vehicle' && o !== v && o !== P.vehicle && test(o.x, o.z, o.K.laneHalf)) return 'car';
   for (const o of list) if (o.kind === 'tank' && test(o.x, o.z, 3.4)) return 'car'; // a tank can't be squeezed past

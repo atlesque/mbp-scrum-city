@@ -10,6 +10,7 @@ import { at } from '../core/spatial.js';
 import { G, P, cam } from '../core/state.js';
 import { angDiff, clamp, lerp, rnd } from '../core/util.js';
 import { addEntity, all, removeEntity } from '../entities/registry.js';
+import { crewDist, nearestOf } from '../game/crew.js';
 import { reward } from '../game/pickups.js';
 import { enterVehicle, hurtPlayer } from '../game/player.js';
 import { addHeat } from '../game/wanted.js';
@@ -21,7 +22,7 @@ import { ROADS, blocked, pushOutOBB, rayBox } from '../world/collision.js';
 import { burntMat } from './materials.js';
 
 // ================= TANK =================
-// The army's five-star tank: it rolls along the middle of the roads towards the player, shoving the traffic aside, and
+// The army's five-star tank: it rolls along the middle of the roads towards the player (the nearest of the crew), shoving the traffic aside, and
 // stops to shell them with its cannon once it has them in sight. Bullets barely scratch the armour; it takes about four
 // direct rockets (or a few cars going up beside it) to stop. It goes up bigger than the chopper and leaves a burnt-out
 // wreck in the road, its turret blown off its ring.
@@ -82,9 +83,10 @@ const Tank = {
     }
     // it pulls out once the army stands down, and turns back if they are called in again
     if ((G.wanted < 5) !== t.leaving) { t.leaving = G.wanted < 5; t.sight = newSight(); }
-    const dist = Math.hypot(P.x - t.x, P.z - t.z), pivot = turretPivot(t);
+    // it hunts whichever of the crew is nearest (in single player, the player)
+    const T = t.tgt = nearestOf(t.x, t.z), dist = Math.hypot(T.x - t.x, T.z - t.z), pivot = turretPivot(t);
     t.losT -= dt;
-    if (t.losT <= 0) { t.los = P.alive && !t.leaving && dist < FIRE_RANGE + 10 && !blocked(pivot.x, pivot.y, pivot.z, P.x, P.y + 1, P.z); t.losT = SIGHT_EVERY; }
+    if (t.losT <= 0) { t.los = T.alive && !t.leaving && dist < FIRE_RANGE + 10 && !blocked(pivot.x, pivot.y, pivot.z, T.x, (T.y || 0) + 1, T.z); t.losT = SIGHT_EVERY; }
     // stop and fight once it has a shot; otherwise roll on towards the player (or away, leaving)
     const hold = t.los && dist < HOLD_RANGE && dist > MIN_RANGE;
     drive(t, dt, hold);
@@ -132,7 +134,7 @@ const Tank = {
   },
   pushOut(o, r) { return pushOutOBB(o, r, this.x, this.z, this.yaw, HW, HL); },
   blip(radar) { if (!this.dead) radar.dot(this.x, this.z, radar.flash ? '#ffd23e' : '#ff3b4e', 12, true, 'sq'); },
-  shouldDespawn() { const d = Math.hypot(this.x - P.x, this.z - P.z); return this.dead && ((this.deadT > 40 && d > 50) || d > 160); },
+  shouldDespawn() { const d = crewDist(this.x, this.z); return this.dead && ((this.deadT > 40 && d > 50) || d > 160); },
   dispose() { scene.remove(this.grp); if (G.tank === this) G.tank = null; },
 };
 
@@ -155,7 +157,7 @@ function drive(t, dt, hold) {
   if (step < rem) { t.x += t.dirX * step; t.z += t.dirZ * step; return; }
   // at the junction: pick the next road
   t.x = t.toX; t.z = t.toZ;
-  const d = nextDir(t.x, t.z, P.x, P.z, [-t.dirX, -t.dirZ], t.leaving);
+  const T = t.tgt || P, d = nextDir(t.x, t.z, T.x, T.z, [-t.dirX, -t.dirZ], t.leaving);
   t.dirX = d[0]; t.dirZ = d[1]; t.toX = t.x + d[0] * STEP; t.toZ = t.z + d[1] * STEP;
 }
 
@@ -202,35 +204,44 @@ function shoveAside(t, dt) {
 
 // the turret swings round towards the player at its own pace, the gun lifting to them
 function aimTurret(t, dt) {
-  const tp = turretPivot(t), dx = P.x - tp.x, dz = P.z - tp.z, h = Math.hypot(dx, dz);
+  const T = t.tgt || P, tp = turretPivot(t), dx = T.x - tp.x, dz = T.z - tp.z, h = Math.hypot(dx, dz);
   t.aimYaw = t.leaving ? t.yaw : Math.atan2(dx, dz);
   t.turretYaw += clamp(angDiff(t.turretYaw, t.aimYaw), -TRAVERSE * dt, TRAVERSE * dt);
-  const pitch = t.leaving ? 0 : clamp(Math.atan2(P.y + 1 - tp.y, h), -0.12, 0.5);
+  const pitch = t.leaving ? 0 : clamp(Math.atan2((T.y || 0) + 1 - tp.y, h), -0.12, 0.5);
   t.pitch = lerp(t.pitch, pitch, Math.min(1, dt * 2));
 }
 
 function fire(t) {
+  const T = t.tgt || P, muzzle = fireLook(t);
+  const dir = new THREE.Vector3(T.x + rnd(-1, 1), (T.y || 0) + 1, T.z + rnd(-1, 1)).sub(muzzle).normalize();
+  fireRocket(muzzle, dir, SHELL.dmg, SHELL.blastMul, t);
+  t.reloadT = rnd(SHELL.reload[0], SHELL.reload[1]); t.shots = (t.shots || 0) + 1;
+}
+// the cannon going off: the flash, the smoke, the bang and the recoil (also for a crewmate's tank, net/world.js) -> the muzzle
+export function fireLook(t) {
   const tp = turretPivot(t), cp = Math.cos(t.pitch);
   _d.set(Math.sin(t.turretYaw) * cp, Math.sin(t.pitch), Math.cos(t.turretYaw) * cp);
   const muzzle = tp.clone().addScaledVector(_d, BARREL_L);
-  const dir = new THREE.Vector3(P.x + rnd(-1, 1), P.y + 1, P.z + rnd(-1, 1)).sub(muzzle).normalize();
-  fireRocket(muzzle, dir, SHELL.dmg, SHELL.blastMul, t);
   muzzleFlash(muzzle, true); emit(muzzle.x, muzzle.y, muzzle.z, 12, '#c8c0c8', 3, 0.9, 0.4, 0.5, 0.6);
   Sound.shot('cannon', 1.2, muzzle);
-  t.reloadT = rnd(SHELL.reload[0], SHELL.reload[1]); t.recoil = 1;
+  t.recoil = 1;
+  return muzzle;
 }
 
 function destroy(t) {
-  t.dead = true; t.hp = 0; t.v = 0; t.deadT = 0;
-  for (const m of t.meshes) m.material = burntMat;
-  explosion(t.x, TANK_BLAST.y, t.z, TANK_BLAST.r, TANK_BLAST.dmg, true, TANK_BLAST.power);
-  // the turret is blown up off its ring
-  t.turretOff = true; t.tvy = 9; t.tspin = rnd(-2, 2); t.tlift = 0;
+  wreckLook(t, true);
   reward(t.x, t.z, 5000, 'Tank destroyed'); addHeat(10);
   if (G.tank === t) { G.tank = null; G.tankT = TANK_COOLDOWN; }
 }
+// it goes up: burnt black, the blast, the turret blown up off its ring (byPlayer: the blast is this player's doing)
+export function wreckLook(t, byPlayer) {
+  t.dead = true; t.hp = 0; t.v = 0; t.deadT = 0;
+  for (const m of t.meshes) m.material = burntMat;
+  explosion(t.x, TANK_BLAST.y, t.z, TANK_BLAST.r, TANK_BLAST.dmg, byPlayer, TANK_BLAST.power);
+  t.turretOff = true; t.tvy = 9; t.tspin = rnd(-2, 2); t.tlift = 0;
+}
 // the wreck smokes, and its turret comes back down askew on the hull
-function wreckStep(t, dt) {
+export function wreckStep(t, dt) {
   t.deadT += dt;
   if (Math.random() < dt * 5) emit(t.x, 2, t.z, 1, '#3a3240', 1.5, 2.2, 0.8, 2, 1);
   if (t.tvy || t.tlift > 0) {
@@ -240,7 +251,7 @@ function wreckStep(t, dt) {
   }
 }
 
-function pose(t, dt) {
+export function pose(t, dt) {
   t.recoil = Math.max(0, (t.recoil || 0) - dt * 3);
   // the hull rocks back on a shot and pitches a touch as it pulls away or brakes
   const acc = dt ? (t.v - (t.lastV || 0)) / dt : 0; t.lastV = t.v;

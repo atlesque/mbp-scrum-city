@@ -1,6 +1,7 @@
 import { P } from '../core/state.js';
 import { clamp, pick, rnd } from '../core/util.js';
 import { all } from '../entities/registry.js';
+import { shareOut } from '../game/crew.js';
 import { spawnNpc } from '../npcs/npc.js';
 import { ROADS } from '../world/collision.js';
 import { pickTrafficModel } from './models/index.js';
@@ -14,6 +15,7 @@ export function laneFor(roadPos, dirX, dirZ, off = 3) {
 export const nearestRoad = v => ROADS.reduce((a, b) => Math.abs(b - v) < Math.abs(a - v) ? b : a);
 const clear = (x, z) => !all('vehicle').some(o => Math.abs(o.x - x) < 8 && Math.abs(o.z - z) < 8);
 
+// Traffic is the crew's in multiplayer (shareOut: run by the host's game, net/world.js).
 // a car with someone at the wheel somewhere on the grid, out of sight if `far`
 export function spawnTrafficCar(far) {
   for (let i = 0; i < 20; i++) {
@@ -24,23 +26,23 @@ export function spawnTrafficCar(far) {
     if (far && Math.hypot(x - P.x, z - P.z) < 70) continue;
     if (!clear(x, z)) continue;
     const c = spawnVehicle(pickTrafficModel('car'), x, z, Math.atan2(dx, dz), 'traffic'); c.v = 10;
-    c.seatDriver(spawnNpc('motorist', x, z)); return c;
+    c.seatDriver(spawnNpc('motorist', x, z)); return shareOut(c);
   }
 }
 
-// a biker (or another rider: an e-step and its stepper, kind 'step') on a road near the player, but not right on top of them;
-// `model` puts them on that model instead of one picked from traffic
-export function spawnTrafficBike(kind = 'bike', rider = 'biker', model = null) {
+// a biker (or another rider: an e-step and its stepper, kind 'step') on a road near the player (or `near`, a crewmate), but
+// not right on top of them; `model` puts them on that model instead of one picked from traffic
+export function spawnTrafficBike(kind = 'bike', rider = 'biker', model = null, near = P) {
   const roads = ROADS.slice(1, -1).concat([200]);
   for (let i = 0; i < 12; i++) {
-    const vertical = Math.random() < 0.5, near = roads.filter(r => Math.abs(r - (vertical ? P.x : P.z)) < 130); if (!near.length) continue;
-    const road = pick(near), s = Math.random() < 0.5 ? 1 : -1, along = clamp((vertical ? P.z : P.x) + rnd(-130, 130), -195, 195);
+    const vertical = Math.random() < 0.5, close = roads.filter(r => Math.abs(r - (vertical ? near.x : near.z)) < 130); if (!close.length) continue;
+    const road = pick(close), s = Math.random() < 0.5 ? 1 : -1, along = clamp((vertical ? near.z : near.x) + rnd(-130, 130), -195, 195);
     const off = KINDS[kind].lane, dx = vertical ? 0 : s, dz = vertical ? s : 0, L = laneFor(road, dx, dz, off), x = vertical ? L.x : along, z = vertical ? along : L.z;
-    if (Math.hypot(x - P.x, z - P.z) < 55) continue;
+    if (Math.hypot(x - P.x, z - P.z) < 55 || Math.hypot(x - near.x, z - near.z) < 55) continue;
     if (!clear(x, z)) continue;
     const b = spawnVehicle(model || pickTrafficModel(kind), x, z, Math.atan2(dx, dz), 'traffic'); b.v = b.top * 0.7; b.lean = 0;
     b.seatDriver(spawnNpc(rider, x, z));
-    return b;
+    return shareOut(b);
   }
 }
 

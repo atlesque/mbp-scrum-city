@@ -5,7 +5,7 @@ import { all } from '../entities/registry.js';
 // In multiplayer everyone in the room is one crew (net/sync.js fills this in): the law hunts whichever of them is
 // nearest, and they share one wanted level. In single player the crew is just the player.
 export const crew = {
-  // the other players out in the city: { id, x, y, z, alive, moveSpeed }
+  // the other players out in the city: { id, x, y, z, alive, moveSpeed } (with `all`, those who are down too)
   others: () => [],
   // a bullet from someone in this game landed on another player: (them, damage, zone)
   hit: null,
@@ -13,7 +13,21 @@ export const crew = {
   online: () => false,
   // this player's id in the room
   me: () => '',
+  // this game runs the city's traffic, the chopper, the tank and the UFO: always in single player, and in multiplayer
+  // only the crew's host (net/world.js); the others draw the host's
+  runsWorld: () => true,
 };
+
+// something the crew shares (the traffic, the chopper, the tank, the UFO): keyed, so the others can follow it (net/world.js)
+let made = 0;
+export function shareOut(e) { if (!e.wk) e.wk = (crew.me() || 'solo') + '.' + (++made).toString(36); return e; }
+
+// how far x, z is from the nearest of the crew out in the city, standing or not (traffic near any of them stays)
+export function crewDist(x, z) {
+  let d = Math.hypot(P.x - x, P.z - z);
+  for (const o of crew.others(true)) d = Math.min(d, Math.hypot(o.x - x, o.z - z));
+  return d;
+}
 
 // who a hunter at x, z goes after: the nearest of the crew still standing (the player when nobody is)
 export function nearestOf(x, z) {

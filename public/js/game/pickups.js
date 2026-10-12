@@ -217,7 +217,11 @@ export function dropItem(type, x, z) {
   return addEntity(Object.assign(Object.create(Drop), { type, def, x, z, m, life: 40 }));
 }
 
-export function reward(x, z, val, label) { inv.money += val; stats.earned += val; Sound.cash(); feed((label ? label + '  ' : '') + '+$' + val); }
+// credit.to: while a crewmate's hit is applied here (net/world.js), what it earns goes to them, through credit.pay
+export const credit = { to: null, pay: null };
+export function reward(x, z, val, label) {
+  if (credit.to && credit.pay) { credit.pay(credit.to, val, label); return; }
+  inv.money += val; stats.earned += val; Sound.cash(); feed((label ? label + '  ' : '') + '+$' + val); }
 function feed(text, bad, color) {
   const el = document.createElement('div'); el.className = 'outline' + (bad ? ' bad' : ''); el.textContent = text; if (color) el.style.color = color;
   const f = $('cashFeed'); f.appendChild(el); while (f.children.length > 5) f.firstChild.remove(); setTimeout(() => el.remove(), 1700);

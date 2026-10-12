@@ -16,13 +16,14 @@ import { MP, connected, onMessage, send } from './net.js';
 import { NPC_CHUNK, NPC_EVERY, NPC_SHARE_R, chunks, due, heatNews, packNpc, packShot, packState, unpackNpc } from './protocol.js';
 import { addRemote, allRemotes, dropRemote, remoteOf } from './remote.js';
 import { rideState } from './ride.js';
+import { worldState } from './world.js';
 
 // ================= MULTIPLAYER: THE GAME SIDE =================
 // Everyone in the room is one crew. What this game tells the room: where the player is, their shots and blasts, the
 // people it runs near another player, and the crew's heat. What it does with what the others send: moves their players
 // (net/remote.js) and their people (net/ghosts.js), plays their gunfire, takes the hits their people land, and keeps
-// one wanted level for all. The crew can't hurt each other. Traffic, the chopper, the tank and the UFO stay each
-// player's own.
+// one wanted level for all. The crew can't hurt each other. Traffic, the chopper, the tank and the UFO are run by one of
+// them for all (net/world.js).
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 // (the city doesn't stop for the pause menu, the map or a shop in multiplayer, main.js, so they're still out in it)
 const inWorld = () => ['play', 'dead', 'map', 'paused', 'shop'].includes(G.state) && !P.club;
@@ -43,6 +44,7 @@ function tick() {
   s.wl = G.wanted; s.sn = performance.now() - (G.seenAt || 0) < 700 ? 1 : 0;
   const rd = s.w === 1 && rideState(); if (rd) Object.assign(s, rd); // a passenger's seat in a crewmate's vehicle
   if (G.wanted >= 5) { s.fr = Math.floor(G.fiveRun || 0); s.ft = Math.floor(G.fiveT || 0); }
+  Object.assign(s, worldState()); // who could run the crew's traffic and threats (net/world.js)
   if (due(s, last, now - lastAt)) { send(s); last = s; lastAt = now; }
   if (now - npcAt >= NPC_EVERY) { npcAt = now; shareNpcs(); }
 }
@@ -83,7 +85,7 @@ on('npc:shot', ({ npc, from, end }) => {
   if (!connected() || !npc.nid) return;
   send({ t: 'nshot', i: npc.nid, w: npc.def.gun, f: [r2(from.x), r2(from.y), r2(from.z)], h: [[r2(end.x), r2(end.y), r2(end.z)]] });
 });
-crew.others = () => connected() ? allRemotes().filter(r => r.alive && r.where === 1 && r.c.root.visible) : [];
+crew.others = (all = false) => connected() ? allRemotes().filter(r => (all || r.alive) && r.where === 1 && (all || r.c.root.visible)) : [];
 crew.online = connected; crew.me = () => MP.id || '';
 crew.hit = (r, d, zone) => send({ t: 'hit', to: r.id, d: Math.round(d * 10) / 10, z: zone });
 on('player:died', () => {
