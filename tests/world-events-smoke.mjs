@@ -20,6 +20,21 @@ try {
     Object.assign(P, { x: 0, z: -100, y: 0, floor: 0, hp: 100, armor: 0, vx: 0, vz: 0 });
     G.wanted = G.heat = 0; for (const id of Object.keys(__neonbay.worldEvents.timers)) __neonbay.worldEvents.timers[id] = 999;
   });
+  assert(await game(() => {
+    const { worldEvents, stopWorldEvent } = __neonbay;
+    stopWorldEvent(); worldEvents.quiet = 0;
+    for (const id of Object.keys(worldEvents.timers)) worldEvents.timers[id] = 1;
+    eventsModule.updateWorldEvents(300);
+    const single = worldEvents.active.size === 1;
+    stopWorldEvent();
+    const recovery = worldEvents.quiet >= 20 && worldEvents.quiet <= 40;
+    eventsModule.updateWorldEvents(1);
+    const quiet = worldEvents.active.size === 0;
+    for (const id of Object.keys(worldEvents.timers)) worldEvents.timers[id] = 999;
+    worldEvents.quiet = 0;
+    return single && recovery && quiet;
+  }));
+  console.log('ok event pacing: one overdue incident starts, followed by a quiet recovery');
   assert(await game(() => __neonbay.startWorldEvent('ufo')));
   await game(() => { eventsModule.updateWorldEvents(8); eventsModule.updateWorldEvents(7); });
   assert(await game(() => __neonbay.P.abducted && __neonbay.P.y === 95 && !!__neonbay.P.chute));

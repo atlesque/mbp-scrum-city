@@ -20,7 +20,7 @@ import { reward } from './pickups.js';
 import { strapOnChute } from './parachute.js';
 
 export { EVENTS, INTENSITY } from '../data/world-events.js';
-export const worldEvents = { active: new Map(), shared: false, timers: Object.fromEntries(Object.entries(EVENTS).map(([id, def]) => {
+export const worldEvents = { active: new Map(), shared: false, quiet: 0, timers: Object.fromEntries(Object.entries(EVENTS).map(([id, def]) => {
   const [min, max] = INTENSITY[def.intensity].initial; return [id, min + Math.random() * (max - min)];
 })) };
 const outdoors = () => G.state === 'play' && P.alive && !P.club && !G.stairs;
@@ -118,6 +118,7 @@ export function stopWorldEvent(id) {
     release(e); removeEntity(e); worldEvents.active.delete(e.id);
     worldEvents.timers[e.id] = rand(...INTENSITY[EVENTS[e.id].intensity].cooldown);
   }
+  if (events.length && !worldEvents.active.size) worldEvents.quiet = rand(20, 40);
   eventAudio();
 }
 on('player:died', () => {
@@ -149,11 +150,20 @@ export function updateWorldEvents(dt) {
   if (!P.alive || G.state === 'dead') { stopWorldEvent(); return; }
   if (!outdoors()) { eventAudio(); return; }
   updateBuildings(dt);
-  // Newly started events receive their whole warning; each inactive clock advances independently.
+  // Automatic incidents take turns. Waiting clocks freeze through an incident and its recovery,
+  // so overdue timers cannot launch a pile of warnings on the same frame or immediately after it.
   const running = [...worldEvents.active.values()];
-  for (const id of Object.keys(EVENTS)) if (!worldEvents.active.has(id)) {
-    worldEvents.timers[id] -= dt;
-    if (worldEvents.timers[id] <= 0) startWorldEvent(id);
+  if (!running.length) {
+    if (worldEvents.quiet > 0) worldEvents.quiet = Math.max(0, worldEvents.quiet - dt);
+    else {
+      let next = null;
+      for (const id of Object.keys(EVENTS)) {
+        worldEvents.timers[id] -= dt;
+        if (worldEvents.timers[id] <= 0 && (next === null || worldEvents.timers[id] < worldEvents.timers[next])) next = id;
+      }
+      // Newly started events keep their complete warning, even after a large time step.
+      if (next !== null) startWorldEvent(next);
+    }
   }
   for (const e of running) {
     if (worldEvents.active.get(e.id) !== e) continue;

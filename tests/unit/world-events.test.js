@@ -6,31 +6,49 @@ import { Sound } from '../../public/js/core/audio.js';
 import { worldEvents, startWorldEvent, stopWorldEvent, updateWorldEvents, EVENTS, breathSegment } from '../../public/js/game/world-events.js';
 beforeEach(() => {
   Object.assign(P, { alive: true, club: null, vehicle: null, x: 0, z: 0, y: 0, abducted: null });
-  G.state = 'play'; G.stairs = false;
+  G.state = 'play'; G.stairs = false; worldEvents.quiet = 0;
   for (const id of Object.keys(EVENTS)) worldEvents.timers[id] = 999;
 });
 afterEach(() => { stopWorldEvent(); vi.restoreAllMocks(); });
-it('suspends every clock in menus and interiors, then starts independently due events', () => {
+it('suspends every clock in menus and interiors, then starts only one of the due events', () => {
   worldEvents.timers.ufo = 90; worldEvents.timers.cashrain = 90;
   G.state = 'paused'; updateWorldEvents(100); expect(worldEvents.timers.ufo).toBe(90);
   G.state = 'play'; P.club = {}; updateWorldEvents(100); expect(worldEvents.timers.ufo).toBe(90);
   P.club = null; updateWorldEvents(89); expect(worldEvents.active.size).toBe(0);
   updateWorldEvents(1);
   expect(worldEvents.active.get('ufo').t).toBe(-EVENTS.ufo.warning);
-  expect(worldEvents.active.get('cashrain').t).toBe(-EVENTS.cashrain.warning);
+  expect(worldEvents.active.size).toBe(1);
+  expect(worldEvents.active.has('cashrain')).toBe(false);
 });
 it('allows different incidents together but prevents duplicate instances of one event', () => {
   expect(startWorldEvent('godzilla')).toBe(true); expect(startWorldEvent('godzilla')).toBe(false);
   expect(startWorldEvent('tsunami')).toBe(true); expect(worldEvents.active.size).toBe(2);
   expect(startWorldEvent('nope')).toBe(false);
 });
-it('lets inactive timers keep counting during another event and preserves independent major cooldowns', () => {
+it('holds inactive timers during an event and leaves a quiet interval before the next warning', () => {
   startWorldEvent('godzilla'); worldEvents.timers.tsunami = .1;
-  updateWorldEvents(.1); expect(worldEvents.active.has('tsunami')).toBe(true);
-  const wave = worldEvents.active.get('tsunami');
-  stopWorldEvent('godzilla'); expect(worldEvents.active.get('tsunami')).toBe(wave);
+  updateWorldEvents(.1); expect(worldEvents.active.has('tsunami')).toBe(false);
+  expect(worldEvents.timers.tsunami).toBe(.1);
+  stopWorldEvent('godzilla');
   expect(worldEvents.timers.godzilla).toBeGreaterThanOrEqual(120); expect(worldEvents.timers.godzilla).toBeLessThanOrEqual(240);
-  expect(worldEvents.timers.tsunami).toBeLessThanOrEqual(0);
+  expect(worldEvents.quiet).toBeGreaterThanOrEqual(20); expect(worldEvents.quiet).toBeLessThanOrEqual(40);
+  const quiet = worldEvents.quiet;
+  G.state = 'paused'; updateWorldEvents(100); expect(worldEvents.quiet).toBe(quiet);
+  G.state = 'play'; updateWorldEvents(quiet); expect(worldEvents.active.size).toBe(0);
+  updateWorldEvents(.1); expect(worldEvents.active.has('tsunami')).toBe(true);
+});
+it('never starts a backlog of disasters together after a large time step', () => {
+  for (const id of Object.keys(EVENTS)) worldEvents.timers[id] = 1;
+  updateWorldEvents(300);
+  expect(worldEvents.active.size).toBe(1);
+  const e = [...worldEvents.active.values()][0];
+  expect(e.t).toBe(-EVENTS[e.id].warning);
+  e.t = EVENTS[e.id].duration; updateWorldEvents(.1);
+  expect(worldEvents.active.size).toBe(0);
+  updateWorldEvents(1); expect(worldEvents.active.size).toBe(0);
+  updateWorldEvents(worldEvents.quiet); updateWorldEvents(.1);
+  expect(worldEvents.active.size).toBe(1);
+  expect(worldEvents.active.has(e.id)).toBe(false);
 });
 it('suspends running incidents in menus and removes all their resources on death', () => {
   const before = scene.children.length;
@@ -78,7 +96,7 @@ it('submits overlapping events together to the spatial audio mixer', () => {
   stopWorldEvent('cashrain');
   expect(loops.mock.calls.at(-1)[1].map(s => s.id)).toEqual(['fireworks']);
 });
-it('normal expiry cleans up one event while another continues and other clocks advance', () => {
+it('normal expiry cleans up one event while another continues without advancing waiting clocks', () => {
   startWorldEvent('fireworks'); startWorldEvent('cashrain');
   const celebration = worldEvents.active.get('fireworks'), cash = worldEvents.active.get('cashrain');
   celebration.t = EVENTS.fireworks.duration; worldEvents.timers.godzilla = 42;
@@ -86,6 +104,6 @@ it('normal expiry cleans up one event while another continues and other clocks a
   updateWorldEvents(.1);
   expect(worldEvents.active.has('fireworks')).toBe(false); expect(celebration.removed).toBe(true);
   expect(worldEvents.active.get('cashrain')).toBe(cash); expect(cash.t).toBeCloseTo(before + .1);
-  expect(worldEvents.timers.godzilla).toBeCloseTo(41.9);
+  expect(worldEvents.timers.godzilla).toBe(42);
   expect(worldEvents.timers.fireworks).toBeGreaterThanOrEqual(35);
 });
