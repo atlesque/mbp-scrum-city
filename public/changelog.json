@@ -1,7 +1,14 @@
 {
- "version": "1.134",
+ "version": "1.135",
  "date": "2026-10-12",
  "entries": [
+  {
+   "v": "1.135",
+   "date": "2026-10-12",
+   "sha": "8a790c9",
+   "pr": 125,
+   "title": "Multiplayer: share melee swings, hits and molotov fire with the crew"
+  },
   {
    "v": "1.134",
    "date": "2026-10-12",
