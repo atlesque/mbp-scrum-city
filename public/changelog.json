@@ -1,7 +1,14 @@
 {
- "version": "1.136",
- "date": "2026-10-12",
+ "version": "1.137",
+ "date": "2026-10-15",
  "entries": [
+  {
+   "v": "1.137",
+   "date": "2026-10-15",
+   "sha": "9d59468",
+   "pr": 128,
+   "title": "Point the game at play.atlesque.dev and call the service Atlesque Play"
+  },
   {
    "v": "1.136",
    "date": "2026-10-12",

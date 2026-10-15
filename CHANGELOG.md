@@ -2,6 +2,10 @@
 
 Written from the commits on main by `scripts/changelog.mjs`; every change merged into main is one version. Do not edit by hand.
 
+## 2026-10-15
+
+- **v1.137** Point the game at play.atlesque.dev and call the service Atlesque Play ([#128](https://github.com/atlesque/mbp-scrum-city/pull/128))
+
 ## 2026-10-12
 
 - **v1.136** Multiplayer: one shared city for the crew (traffic, chopper, tank, UFO) ([#127](https://github.com/atlesque/mbp-scrum-city/pull/127))
