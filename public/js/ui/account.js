@@ -27,8 +27,8 @@ export function renderAccount() {
   const warn = status.banned || status.error;
   $('signInBtn').hidden = !!a;
   $('acctBox').innerHTML = (a
-    ? `<p class="small">Signed in as <b>${esc(a.user.email)}</b>: your cash and guns save to your MBP Games account. <button class="linkbtn" id="signOutBtn">Sign out</button></p>`
-    : `<p class="small">Guests save in this browser only. An MBP Games account keeps your cash and guns on any device.</p>`)
+    ? `<p class="small">Signed in as <b>${esc(a.user.email)}</b>: your cash and guns save to your Atlesque Play account. <button class="linkbtn" id="signOutBtn">Sign out</button></p>`
+    : `<p class="small">Guests save in this browser only. An Atlesque Play account keeps your cash and guns on any device.</p>`)
     + (warn ? `<p class="small acct-warn" role="alert">${esc(warn)}</p>` : note ? `<p class="small acct-note">${esc(note)}</p>` : '');
   $('pauseAcct').innerHTML = a
     ? `Signed in as ${esc(a.user.email)} · saved to your account ${status.busy ? 'now' : ago(a.syncedAt)}`
@@ -48,7 +48,7 @@ export async function initAccount(signingIn) {
   setAfterReplace(() => { if (!inv.owned[inv.cur]) selectWeapon('pistol'); G.hudCache = ''; });
   onAccount(what => {
     if (what === 'banned') toast(esc(status.banned || 'This account is banned.'));
-    if (what === 'signed-out' && G.state !== 'title') toast('Signed out of MBP Games. Playing as a guest.');
+    if (what === 'signed-out' && G.state !== 'title') toast('Signed out of Atlesque Play. Playing as a guest.');
     renderAccount();
   });
   const signedIn = await signingIn;

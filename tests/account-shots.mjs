@@ -1,4 +1,4 @@
-// Plays the MBP Games account flow against a local copy of the accounts service (github.com/atlesque/mbp-games,
+// Plays the Atlesque Play account flow against a local copy of the accounts service (github.com/atlesque/mbp-games,
 // checked out next to this repo or at MBP_GAMES_DIR, run with wrangler dev and a throwaway database): guest title screen, sign in by email link, progress sync on death,
 // then the admin page resets the player's progress and bans them. Screenshots go to the folder given.
 // Run with `node tests/account-shots.mjs <folder>`. Set CHROMIUM_PATH to use a specific browser binary.

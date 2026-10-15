@@ -90,7 +90,7 @@ describe('multiplayer connection', () => {
   const settle = () => new Promise(r => setTimeout(r, 0));
 
   it('joins the one room on the accounts service with the player\'s name, and hears about the others', async () => {
-    expect(N.ROOM_URL).toBe('wss://accounts.atlesque.dev/mp/scrum-city');
+    expect(N.ROOM_URL).toBe('wss://play.atlesque.dev/mp/scrum-city');
     N.setName('Neo');
     const seen = []; N.onMessage('join', m => seen.push(m.name));
     N.join(); await settle(); await settle();

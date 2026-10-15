@@ -131,7 +131,7 @@ function placeMeleePickups() {
 // (rAF stalls in background tabs, so a timeout backs it up)
 const loadStep = (p, label) => { window.loadingScreen?.step(p, label); return new Promise(r => { requestAnimationFrame(() => setTimeout(r, 0)); setTimeout(r, 60); }); };
 async function start(data) {
-  const signingIn = finishSignIn(); // back from the MBP Games sign-in page? swap the code while the city loads
+  const signingIn = finishSignIn(); // back from the Atlesque Play sign-in page? swap the code while the city loads
   await loadStep(0.35, 'Tuning Neon FM');
   try { await Promise.race([Promise.all([document.fonts.load('80px "Yellowtail"'), document.fonts.load('80px "Bowlby One"')]), new Promise(r => setTimeout(r, 2500))]); } catch (e) {}
   await loadLandmarkModels();
@@ -163,7 +163,7 @@ async function start(data) {
   for (let i = 0; i < 4; i++) spawnTrafficBike('step', 'stepper');
   await loadStep(0.9, 'Waking up the neighbourhood');
   for (let i = 0; i < 30; i++) { const s = findSpot(5, 80, false, false); if (s) spawnNpc('civilian', s.x, s.z); }
-  await loadStep(0.95, 'Checking your MBP Games account');
+  await loadStep(0.95, 'Checking your Atlesque Play account');
   await initAccount(signingIn); // may swap the local save for the account's copy
   initMultiplayer(); // opt-in shared city (net/); joins again if the player had it on last time
   G.state = 'title';
