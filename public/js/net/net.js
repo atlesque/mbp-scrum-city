@@ -3,7 +3,7 @@ import { NAME_MAX, cleanName, defaultName } from './protocol.js';
 
 // ================= MULTIPLAYER: THE CONNECTION =================
 // Opt-in: single player is the default and doesn't touch the network. Turned on (ui/multiplayer.js), the game joins the
-// one shared city on the MBP Games service, wss://accounts.atlesque.dev/mp/scrum-city, which takes 16 players and costs
+// one shared city on the Atlesque Play service, wss://play.atlesque.dev/mp/scrum-city, which takes 16 players and costs
 // nothing while it's empty. A dropped connection is retried a few times; the game itself never waits on it.
 // net/sync.js turns the messages into other players in the world.
 export const ROOM_URL = ACCOUNTS_URL.replace(/^http/, 'ws') + '/mp/scrum-city';

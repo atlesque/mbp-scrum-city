@@ -1568,7 +1568,7 @@ try {
     await game(guns => { const { inv } = __neonbay; for (const [, id] of guns) if (id !== 'pistol') { delete inv.owned[id]; delete inv.ammo[id]; delete inv.mag[id]; } }, guns);
   });
   await step('multiplayer: the crew shows up, shares its heat and its people, rides a bike, and the city never pauses', async () => {
-    // a stand-in for the room on the MBP Games service (net/net.js connects to it with WebSocket): it welcomes the player
+    // a stand-in for the room on the Atlesque Play service (net/net.js connects to it with WebSocket): it welcomes the player
     // with one other already in, and keeps what the game sends
     await game(async () => {
       window.__mpWS = window.WebSocket; window.__mpSent = [];

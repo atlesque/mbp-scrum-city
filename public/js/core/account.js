@@ -2,7 +2,7 @@ import { replace, serialize } from './save.js';
 import { inv, stats } from './state.js';
 
 // ================= MBP GAMES ACCOUNT =================
-// Players can play as guests (progress stays in this browser) or sign in with an MBP Games account, the
+// Players can play as guests (progress stays in this browser) or sign in with an Atlesque Play account, the
 // sign-in shared by every MBP game (the service is github.com/atlesque/mbp-games). Signing in sends the player to the
 // hosted sign-in page and back with a one-time code, swapped here for a token (PKCE, so the code is
 // useless to anyone else). Signed in, money and inventory sync to the account every SYNC_EVERY, on every
@@ -13,7 +13,7 @@ export const SYNC_EVERY = 5 * 60e3;
 const KEY = 'mbpgames', PENDING = 'mbpgames_signin';
 // `?debug&accounts=http://localhost:8787` points a dev build at a local copy of the service
 const override = /[?&]debug\b/.test(location.search) && new URLSearchParams(location.search).get('accounts');
-export const ACCOUNTS_URL = override || 'https://accounts.atlesque.dev';
+export const ACCOUNTS_URL = override || 'https://play.atlesque.dev';
 
 const store = {
   get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } },
@@ -77,7 +77,7 @@ export async function finishSignIn() {
     status.banned = null; status.error = null;
     changed('signed-in');
     return true;
-  } catch (e) { status.error = status.error || 'Could not reach MBP Games. Try again in a moment.'; return false; }
+  } catch (e) { status.error = status.error || 'Could not reach Atlesque Play. Try again in a moment.'; return false; }
 }
 
 export async function signOut() {

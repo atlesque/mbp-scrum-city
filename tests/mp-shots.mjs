@@ -1,4 +1,4 @@
-// Plays multiplayer for real: two browsers join the shared city on a local copy of the MBP Games service
+// Plays multiplayer for real: two browsers join the shared city on a local copy of the Atlesque Play service
 // (github.com/atlesque/mbp-games, checked out next to this repo or at MBP_GAMES_DIR, run with wrangler dev), see each
 // other and each other's people, share one wanted level, get hunted by the same cops, show on each other's map and
 // meet in the club.

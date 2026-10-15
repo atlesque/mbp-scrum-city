@@ -1,4 +1,4 @@
-// Plays the crew's shared world for real: two browsers join the shared city on a local copy of the MBP Games service
+// Plays the crew's shared world for real: two browsers join the shared city on a local copy of the Atlesque Play service
 // (github.com/atlesque/mbp-games, checked out next to this repo or at MBP_GAMES_DIR, run with wrangler dev). The first in
 // runs the traffic, the chopper, the tank and the UFO (net/world.js); the second sees the same ones, shoots them down
 // through the host, takes a car out of the host's traffic, and takes the whole world over when the host leaves.

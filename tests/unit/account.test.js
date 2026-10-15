@@ -1,4 +1,4 @@
-// The game's MBP Games account client, against a small stand-in for the accounts service
+// The game's Atlesque Play account client, against a small stand-in for the accounts service
 // (github.com/atlesque/mbp-games): the token swap and the rev-checked progress API.
 import { createHash } from 'node:crypto';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -63,7 +63,7 @@ async function signIn(email = 'player@example.com') {
   expect(location.search).toBe(''); // the code is gone from the address bar
 }
 
-describe('MBP Games account in the game', () => {
+describe('Atlesque Play account in the game', () => {
   it('signs in and moves guest progress into a new account', async () => {
     inv.money = 900;
     await signIn();
