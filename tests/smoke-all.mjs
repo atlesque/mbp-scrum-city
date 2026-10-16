@@ -10,8 +10,11 @@ const shards = words.length || process.env.SMOKE_ONLY ? 1 : Math.max(1, +process
 const t0 = Date.now();
 let failed = [], steps = 0;
 
+// SMOKE_PART=2/4 runs only the second quarter of the steps (CI splits the suite over a few machines this way)
+const [part, parts] = (process.env.SMOKE_PART || '1/1').split('/').map(Number);
+
 function run(i, n = shards, only = words.length ? words.join(',') : '') {
-  const env = { ...process.env, SMOKE_SHARD: `${i}/${n}` };
+  const env = { ...process.env, SMOKE_SHARD: only ? `${i}/${n}` : `${(part - 1) * n + i}/${parts * n}` };
   if (only) env.SMOKE_ONLY = only;
   const p = spawn(process.execPath, [new URL('./smoke.mjs', import.meta.url).pathname], { env });
   let buf = '';

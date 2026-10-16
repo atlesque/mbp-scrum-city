@@ -484,9 +484,11 @@ try {
     check(r0.scope === 2, 'right click did not step to the second zoom');
     check(await until(() => !document.getElementById('scope').hidden && __neonbay.P.c.root.visible === false), 'the scope overlay did not show');
     if (shots) await page.screenshot({ path: `${shots}/sniper-scope.png` });
-    await game(() => { __neonbay.I.clickQ = 0.3; });
+    // look from inside the page as soon as the target drops, while the bolt is still out (a look from here can come late)
+    await game(() => { const w = window.__afterShot = { seen: null }; w.t = setInterval(() => { if (!__mark.alive && !w.seen) { const { G } = __neonbay; w.seen = { scope: G.scope, fireCd: G.fireCd, hidden: document.getElementById('scope').hidden }; clearInterval(w.t); } }, 10); __neonbay.I.clickQ = 0.3; });
     check(await until(() => !__mark.alive, undefined, 8000), `the target was not taken down (hp ${await game(() => __mark.hp)})`);
-    check(await game(() => __neonbay.G.scope === 2 && __neonbay.G.fireCd > 0 && !document.getElementById('scope').hidden), 'the scope dropped out after the shot');
+    const afterShot = await game(() => __afterShot.seen);
+    check(afterShot && afterShot.scope === 2 && afterShot.fireCd > 0 && !afterShot.hidden, 'the scope dropped out after the shot: ' + JSON.stringify(afterShot));
     check(await until(() => __neonbay.G.fireCd <= 0, undefined, 40000), 'the bolt did not come back');
     await game(() => { __neonbay.I.clickQ = 0.3; }); // a second shot once the bolt is back, still through the 9x scope
     check(await until(() => __neonbay.inv.mag.sniper <= 8, undefined, 8000), 'the second shot did not fire');

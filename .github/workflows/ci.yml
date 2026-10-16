@@ -29,8 +29,14 @@ jobs:
 
   smoke:
     runs-on: ubuntu-latest
-    # plays the game in headless Chromium (tests/smoke.mjs); also runs on every push to main, direct pushes included
-    timeout-minutes: 25
+    # plays the game in headless Chromium (tests/smoke.mjs); also runs on every push to main, direct pushes included.
+    # A runner draws the game a few times slower than a laptop, so the steps are split over four of them.
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [1, 2, 3, 4]
+    name: smoke (${{ matrix.part }}/4)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -42,3 +48,5 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Smoke test
         run: npm run test:smoke
+        env:
+          SMOKE_PART: ${{ matrix.part }}/4
