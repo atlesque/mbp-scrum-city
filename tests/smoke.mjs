@@ -1085,7 +1085,7 @@ try {
     const still = await game(f => Math.hypot(__neonbay.P.x - f.x, __neonbay.P.z - f.z) < 0.01 && __neonbay.P.sitting, sat);
     check(sat.money === 850 && still, 'not sat down for $150: ' + JSON.stringify(sat));
     await press('KeyE');
-    check(await until(() => __neonbay.P.club && !__neonbay.P.club.private && !__neonbay.P.sitting), 'did not go back to the floor');
+    check(await until(() => __neonbay.P.club && !__neonbay.P.club.private && !__neonbay.P.sitting), 'did not go back to the floor: ' + JSON.stringify(await game(() => { const { P, G } = __neonbay; return { private: !!P.club?.private, sitting: P.sitting, state: G.state, stairs: G.stairs, near: (G.near || []).map(i => i.prompt?.replace(/<[^>]+>/g, '')) }; })));
   });
 
   await step('opens the world map, pans and zooms it, and drops a waypoint the radar follows', async () => {
@@ -1554,6 +1554,8 @@ try {
     const guns = await game(() => import('/js/data/weapons.js').then(m => m.GUNS.map((w, i) => [i, w.id, !!(w.thrown || w.tool)])));
     await game(() => { const { G, P } = __neonbay; G.heat = 0; G.wanted = 0; P.hp = 100; });
     if (await game(() => __neonbay.Sound.ready)) check(await until(() => import('/js/data/reloads.js').then(m => Object.values(m.RELOADS).every(r => __neonbay.Sound.samplesLoaded.includes(r.sound)))), 'the reload sounds did not load');
+    // a reload's arm move is over in a fraction of a second: let the world move on at most 0.1 s between looks
+    await game(() => { window.__catchUp = 0.1; });
     for (const [i, id, thrown] of guns) {
       if (thrown) continue; // or a tool
       await game(id => { const { inv } = __neonbay; inv.owned[id] = true; if (id !== 'pistol') inv.ammo[id] = 50; inv.mag[id] = 0; }, id);

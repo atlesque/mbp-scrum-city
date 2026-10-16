@@ -13,7 +13,8 @@ locally). Under `?debug` the world keeps real time however slowly frames are dra
 a step should wait on game state (`until(...)`, `G.time`), not on a fixed sleep. CI runs the full suite on every PR, so:
 1. Write the change and its unit tests first. Check your own smoke step alone: `npm run test:smoke -- <word from its name>`.
 2. Push and let CI run the full suite; don't run it locally as well. Wait for the CI event rather than polling.
-3. If CI's smoke job fails, rerun only the failed steps locally with the command its log prints
+3. The runner already reruns failed steps once on their own and lists the ones that passed then as flaky (they don't
+   fail the run; fix one if it keeps showing up). If CI's smoke job still fails, rerun those steps locally with the command its log prints
    (`SMOKE_ONLY="..." node tests/smoke.mjs`). If they fail again, run the same command on main (a worktree of origin/main,
    fetched fresh). Failing on main too means it isn't this PR's: say so in the PR with the step names and move on. Failing
    only on the branch means it's yours to fix.
