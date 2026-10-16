@@ -3,7 +3,7 @@
 // Run with `npm run test:smoke`, which splits the steps over a few browsers at once (tests/smoke-all.mjs). This file is one of
 // those browsers: `node tests/smoke.mjs` runs every step in one, in order.
 // SMOKE_ONLY=tank,reload runs only the steps whose names contain one of those words (case-insensitive), after the boot;
-// separate with | instead to match whole step names that have commas in them.
+// separate with | instead to match whole step names exactly (they can have commas in them).
 // SMOKE_SHARD=1/3 runs every third step, starting with the first, after the boot. SMOKE_SHOTS=<folder> saves a screenshot per step.
 // Every step starts from the same place: on foot, alive, unhurt, unwanted, pistol in hand, nothing the last step spawned
 // still about (see reset below), so a step that fails fails alone instead of taking the steps after it down with it.
@@ -13,6 +13,8 @@ import { openGame } from './lib/browser.mjs';
 const shots = process.env.SMOKE_SHOTS; // optional folder for screenshots
 if (shots) mkdirSync(shots, { recursive: true });
 const ONLY = (process.env.SMOKE_ONLY || '').toLowerCase(), only = ONLY.split(ONLY.includes('|') ? '|' : ',').map(s => s.trim()).filter(Boolean);
+// whole step names (with |, or SMOKE_EXACT=1 for a single one) match exactly, so "drives a modely" doesn't also run "drives a modelyblue"
+const exact = ONLY.includes('|') || !!process.env.SMOKE_EXACT;
 const [shard, shards] = (process.env.SMOKE_SHARD || '1/1').split('/').map(Number);
 
 const [w, h] = (process.env.SMOKE_SIZE || '960x540').split('x').map(Number);
@@ -25,7 +27,7 @@ async function step(name, fn) {
   const t0 = Date.now(), e0 = errors.length;
   if (booted) {
     const i = index++;
-    if (only.length && !only.some(w => name.toLowerCase().includes(w))) return;
+    if (only.length && !only.some(w => exact ? name.toLowerCase() === w : name.toLowerCase().includes(w))) return;
     if (!only.length && i % shards !== shard - 1) return;
     await reset();
   }
@@ -1760,6 +1762,6 @@ try {
 }
 const bad = results.filter(r => !r.ok).map(r => r.name);
 console.log(`${results.length} step(s) run, ${bad.length} failed`);
-if (bad.length) console.log(`rerun just these: SMOKE_ONLY="${bad.join('|')}" node tests/smoke.mjs`);
+if (bad.length) console.log(`rerun just these: SMOKE_EXACT=1 SMOKE_ONLY="${bad.join('|')}" node tests/smoke.mjs`);
 console.log(failed ? `${failed} smoke step(s) failed` : 'smoke test passed');
 process.exit(failed ? 1 : 0);

@@ -16,6 +16,7 @@ const [part, parts] = (process.env.SMOKE_PART || '1/1').split('/').map(Number);
 function run(i, n = shards, only = words.length ? words.join(',') : '') {
   const env = { ...process.env, SMOKE_SHARD: only ? `${i}/${n}` : `${(part - 1) * n + i}/${parts * n}` };
   if (only) env.SMOKE_ONLY = only;
+  if (only && !words.length) env.SMOKE_EXACT = '1'; // the retry: whole step names
   const p = spawn(process.execPath, [new URL('./smoke.mjs', import.meta.url).pathname], { env });
   let buf = '';
   const line = l => {
@@ -43,7 +44,7 @@ console.log(`\n${total} step(s) in ${mins} min over ${shards} browser(s), ${fail
 if (flaky.length) console.log('flaky (failed, then passed on their own):\n  ' + flaky.join('\n  '));
 if (failed.length) {
   console.log('failed:\n  ' + failed.join('\n  '));
-  console.log(`rerun just these: SMOKE_ONLY="${failed.join('|')}" node tests/smoke.mjs`);
+  console.log(`rerun just these: SMOKE_EXACT=1 SMOKE_ONLY="${failed.join('|')}" node tests/smoke.mjs`);
 }
 const bad = codes.some(c => c !== 0);
 if (bad && !failed.length) console.log('a smoke browser exited with an error before its steps finished (see its output above)');
