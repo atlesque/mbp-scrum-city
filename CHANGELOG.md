@@ -2,6 +2,10 @@
 
 Written from the commits on main by `scripts/changelog.mjs`; every change merged into main is one version. Do not edit by hand.
 
+## 2026-10-16
+
+- **v1.138** Smoke test at real game speed (11.5 → 4 min), in CI, and a faster loading screen ([#129](https://github.com/atlesque/mbp-scrum-city/pull/129))
+
 ## 2026-10-15
 
 - **v1.137** Point the game at play.atlesque.dev and call the service Atlesque Play ([#128](https://github.com/atlesque/mbp-scrum-city/pull/128))
