@@ -7,7 +7,7 @@
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.min.js" } }</script>
 <script>
 // Pick one of the loading posters at random on every load. This is the first thing the page fetches:
-// it starts at high priority ahead of the fonts, and the game code (Three.js included) waits for it below.
+// it starts at high priority ahead of the fonts and the game code (Three.js included), which load alongside it below.
 window.ldArt = (() => {
   const src = '/img/loading/' + (1 + Math.floor(Math.random() * 9)) + '.webp';
   document.documentElement.style.setProperty('--ld-art', 'url(' + src + ')');
@@ -446,7 +446,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var
 <script>
 // The loading screen shows from the first paint. The bar creeps on its own while the 3D engine downloads,
 // then main.js reports real progress through loadingScreen.step() and hides it with loadingScreen.done().
-const MIN_SHOW_MS = 3000;
+const MIN_SHOW_MS = 1000;
 window.loadingScreen = (() => {
   const $ = id => document.getElementById(id), tips = [
     'Break line of sight to lose a star.',
@@ -466,24 +466,24 @@ window.loadingScreen = (() => {
     fail(msg) { clearInterval(creep); $('ldText').textContent = msg; },
     done() {
       clearInterval(creep); shown = 1; paint();
-      // keep the poster up for at least 3 seconds after it appeared, even when the game is ready sooner
-      setTimeout(() => {
+      // keep the poster up for at least a second after it appeared, so it never just flashes by
+      ldArt.ready.then(() => setTimeout(() => {
         clearInterval(tipTimer);
         const el = $('loading'); el.classList.add('done');
         setTimeout(() => { el.hidden = true; }, 650);
-      }, Math.max(0, ldArt.shownAt + MIN_SHOW_MS - performance.now()));
+      }, Math.max(0, ldArt.shownAt + MIN_SHOW_MS - performance.now())));
     },
   };
 })();
 </script>
 
 <script>
-// The game code only starts downloading once the loading poster is on screen.
-// Each deploy loads its modules from its own path, /v/<version>/js/ (public/_redirects maps it back
+// The game code downloads alongside the loading poster (which asked first, at high priority), so the two don't wait
+// on each other. Each deploy loads its modules from its own path, /v/<version>/js/ (public/_redirects maps it back
 // to /js/), so JS a browser cached from an older deploy is never reused. ui/update.js offers a reload
 // to tabs left open across a deploy.
 const build = fetch('/changelog.json', { cache: 'no-store' }).then(r => r.json()).then(c => String(c.version || '')).catch(() => '');
-Promise.all([build, ldArt.ready]).then(([v]) => {
+build.then(v => {
   const load = src => { const s = document.createElement('script'); s.type = 'module'; s.src = src; document.body.append(s); return s; };
   // ?debug keeps the plain /js/ path: the smoke test and shot scripts import modules from /js/ by hand
   window.__build = /^[\w.-]+$/.test(v) && !/[?&]debug\b/.test(location.search) ? v : '';
