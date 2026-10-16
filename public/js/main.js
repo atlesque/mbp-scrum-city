@@ -55,10 +55,23 @@ import { buildMap, drawRadar } from './world/radar.js';
 import { updatePokemon } from './pokemon/world.js';
 
 // ================= MAIN LOOP =================
+// Each frame moves the world on by the time since the last one, at most 0.05 s, so a slow frame slows the game rather
+// than letting things jump through walls. Under ?debug (the smoke test and shot scripts, in software WebGL at about two
+// frames a second) the world instead catches up with the clock in 0.05 s steps between draws, up to half a second a
+// frame, so it runs at about real speed and a busy CPU changes much less how much happens in a second. (The half second
+// keeps most short events from starting and ending between two looks from a test; a step can set window.__catchUp
+// lower to watch a quicker one.) Add &slowclock to turn that off
+// (for a screenshot of something that is over in a frame at real speed).
+const CATCH_UP = /[?&]debug\b/.test(location.search) && !/[?&]slowclock\b/.test(location.search);
 let last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
-  const real = Math.min(0.05, (now - last) / 1000); last = now;
+  let real = Math.min(CATCH_UP ? window.__catchUp ?? 0.5 : 0.05, (now - last) / 1000); last = now;
+  for (; CATCH_UP && real > 0.05; real -= 0.05) tick(0.05, false);
+  tick(real, true);
+}
+// one step of the world, then (if `draw`) the picture
+function tick(real, draw) {
   if (G.state === 'loading') return;
   // the world slows down while the weapon wheel is open; the camera and the HUD timers keep real time
   if (wheelOpen() && G.state !== 'play') closeWheel(false);
@@ -101,11 +114,12 @@ function frame(now) {
     P.x = camera.position.x - 30; P.z = camera.position.z;
   } else if (G.state !== 'loading') {
     updateCamera(real);
-    updateHUD(); drawRadar(); updateCityServicesHUD();
+    if (draw) { updateHUD(); drawRadar(); updateCityServicesHUD(); }
   }
   if (G.toastT > 0) { G.toastT -= real; if (G.toastT <= 0) $('toast').classList.remove('show'); }
   if (G.bigT > 0) { G.bigT -= real; if (G.bigT <= 0) $('bigText').classList.remove('show'); }
   if (G.radioT > 0) { G.radioT -= real; if (G.radioT <= 0) $('radio').classList.remove('show'); }
+  if (!draw) return;
   if (P.club) { camera.updateMatrixWorld(); renderer.render(clubScene(), camera); return; } // the camera hangs in the city's scene
   sky.position.copy(camera.position);
   renderer.render(scene, camera);

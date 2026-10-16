@@ -15,7 +15,7 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    # unit tests only; the Playwright smoke test runs locally before merging (see README)
+    # unit tests; the smoke job below plays the game
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -26,3 +26,27 @@ jobs:
       - run: npm ci
       - name: Unit tests
         run: npm test
+
+  smoke:
+    runs-on: ubuntu-latest
+    # plays the game in headless Chromium (tests/smoke.mjs); also runs on every push to main, direct pushes included.
+    # A runner draws the game a few times slower than a laptop, so the steps are split over four of them.
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [1, 2, 3, 4]
+    name: smoke (${{ matrix.part }}/4)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Smoke test
+        run: npm run test:smoke
+        env:
+          SMOKE_PART: ${{ matrix.part }}/4
