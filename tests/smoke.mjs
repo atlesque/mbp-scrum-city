@@ -1357,7 +1357,8 @@ try {
   await step('hangs in the parachute harness instead of walking while gliding down', async () => {
     await game(async () => {
       const { P, cam } = __neonbay, { strapOnChute, openChute } = await import('/js/game/parachute.js');
-      P.x = 0; P.z = -60; P.y = 12; P.floor = 0; P.grounded = false; P.vy = -4; P.jumps = 2; P.hp = 100; P.yaw = cam.yaw = 0;
+      // high enough for a few seconds under the wing at real speed, so the second of steering below ends before the landing
+      P.x = 0; P.z = -60; P.y = 40; P.floor = 0; P.grounded = false; P.vy = -4; P.jumps = 2; P.hp = 100; P.yaw = cam.yaw = 0;
       strapOnChute(true); openChute();
     });
     await page.keyboard.down('KeyW');
