@@ -328,7 +328,8 @@ try {
       const spun = await game(f => __neonbay.P.vehicle.mesh.wheels.filter((w, i) => w.rotation.x !== f.spin[i]).length, from);
       check(spun === from.spin.length, `only ${spun} of ${from.spin.length} wheels turned`);
       await page.keyboard.down('KeyS');
-      const stopped = await until(() => Math.abs(__neonbay.P.vehicle.v) < 3);
+      // braking (with S still held it goes on into reverse; a frame can cover both, so any speed under 3 counts)
+      const stopped = await until(() => __neonbay.P.vehicle.v < 3);
       await page.keyboard.up('KeyS');
       check(stopped, 'vehicle did not brake');
       await press('KeyF');
@@ -1615,7 +1616,9 @@ try {
     await press('KeyP');
     check(await until(() => __neonbay.G.state === 'paused'), 'P did not open the menu');
     const away = await game(async () => {
-      const { G, P } = __neonbay, t0 = G.time, hp0 = P.hp; await new Promise(r => setTimeout(r, 600));
+      const { G, P } = __neonbay, t0 = G.time, hp0 = P.hp;
+      // a drawn frame can take longer than this at software-rendering speed: wait for the world to move on (or 5 s)
+      for (let i = 0; i < 50 && G.time === t0; i++) await new Promise(r => setTimeout(r, 100));
       window.__mpSock.push({ t: 'hit', from: 'bot', to: 'me', d: 10, z: 'torso' });
       return { ran: G.time - t0, hurt: hp0 - P.hp, title: document.getElementById('pauseTitle').textContent };
     });

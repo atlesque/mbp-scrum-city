@@ -38,7 +38,8 @@ export async function openGame({ play = true, viewport = { width: 1280, height: 
   const press = async (key, ms = 80) => { await page.keyboard.down(key); await page.waitForTimeout(ms); await page.keyboard.up(key); };
   const close = async () => { await browser.close(); server.close(); };
 
-  await page.goto(`http://127.0.0.1:${server.address().port}/?debug`);
+  // under ?debug the world keeps real time between the slow software-rendered frames; SLOW_CLOCK=1 lets it slow down with them
+  await page.goto(`http://127.0.0.1:${server.address().port}/?debug${process.env.SLOW_CLOCK ? '&slowclock' : ''}`);
   if (play) {
     await page.waitForFunction(() => !document.getElementById('playBtn').disabled, null, { timeout: 90000 });
     await page.click('#playBtn'); await page.waitForTimeout(1000);
