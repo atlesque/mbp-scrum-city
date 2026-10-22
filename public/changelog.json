@@ -1,7 +1,14 @@
 {
- "version": "1.138",
- "date": "2026-10-16",
+ "version": "1.139",
+ "date": "2026-10-22",
  "entries": [
+  {
+   "v": "1.139",
+   "date": "2026-10-22",
+   "sha": "e9309ed",
+   "pr": null,
+   "title": "Load the shared analytics consent banner"
+  },
   {
    "v": "1.138",
    "date": "2026-10-16",
