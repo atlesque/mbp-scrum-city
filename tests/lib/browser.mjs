@@ -27,6 +27,8 @@ export async function openGame({ play = true, viewport = { width: 1280, height: 
   await page.route('https://cdn.jsdelivr.net/npm/three@*/examples/jsm/**', async r => r.fulfill({ body: await readFile(new URL('../../node_modules/three/examples/jsm/' + r.request().url().split('/examples/jsm/')[1], import.meta.url)), contentType: 'text/javascript' }));
   await page.route('https://fonts.googleapis.com/**', r => r.fulfill({ body: '', contentType: 'text/css' }));
   await page.route('https://fonts.gstatic.com/**', r => r.fulfill({ body: '' }));
+  // the shared analytics consent banner would cover the game in tests: serve an empty script instead
+  await page.route('https://tools.atlesque.dev/consent.js', r => r.fulfill({ body: '', contentType: 'text/javascript' }));
 
   const game = (fn, arg) => page.evaluate(fn, arg);
   // software WebGL runs at a few frames a second, so wait on game state rather than on the clock
